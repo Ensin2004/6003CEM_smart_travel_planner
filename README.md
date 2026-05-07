@@ -109,23 +109,26 @@ Create frontend `.env` file:
 Copy-Item .env.example .env
 ```
 
+## Setting up concurently:
 
+Navigate to the root folder and create a root package.json:
+
+```bash
+cd ..
+npm init -y
+```
+
+Install concurrently:
+
+```bash
+npm install -D concurrently
+```
 
 ## Running the Project
 
-You need two terminals.
-
-Terminal 1, start backend:
+Open a terminal in your root folder and run:
 
 ```bash
-cd backend
-npm run dev
-```
-
-Terminal 2, start frontend:
-
-```bash
-cd frontend
 npm run dev
 ```
 
