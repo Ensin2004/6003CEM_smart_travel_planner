@@ -4,6 +4,10 @@ module.exports = {
   nodeEnv: process.env.NODE_ENV || 'development',
   port: process.env.PORT || 5000,
   mongoUri: process.env.MONGODB_URI || '',
+  mongoDnsServers: (process.env.MONGODB_DNS_SERVERS || '')
+    .split(',')
+    .map((server) => server.trim())
+    .filter(Boolean),
   jwtSecret: process.env.JWT_SECRET || 'development-only-secret-change-me',
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || '30m',
   refreshJwtSecret:

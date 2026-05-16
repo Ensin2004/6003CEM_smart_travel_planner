@@ -12,4 +12,14 @@ const login = catchAsync(async (req, res) => {
   sendSuccess(res, 200, result, 'Login successful');
 });
 
-module.exports = { register, login };
+const checkPasswordResetEmail = catchAsync(async (req, res) => {
+  const result = await authService.checkPasswordResetEmail(req.body.email);
+  sendSuccess(res, 200, result, 'Email verified');
+});
+
+const resetPassword = catchAsync(async (req, res) => {
+  const result = await authService.resetPassword(req.body);
+  sendSuccess(res, 200, result, 'Password reset successful');
+});
+
+module.exports = { register, login, checkPasswordResetEmail, resetPassword };
