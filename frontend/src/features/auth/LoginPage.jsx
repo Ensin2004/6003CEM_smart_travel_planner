@@ -20,6 +20,12 @@ function LoginPage() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
+
+    if (!formData.email.trim() || !formData.password) {
+      setError('Please enter your email and password.');
+      return;
+    }
+
     setIsSubmitting(true);
 
     try {

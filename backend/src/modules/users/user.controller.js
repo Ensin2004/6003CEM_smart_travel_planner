@@ -12,4 +12,9 @@ const updateMe = catchAsync(async (req, res) => {
   sendSuccess(res, 200, { user }, 'Profile updated');
 });
 
-module.exports = { getMe, updateMe };
+const changePassword = catchAsync(async (req, res) => {
+  await userService.changePassword(req.user.id, req.body);
+  sendSuccess(res, 200, null, 'Password changed');
+});
+
+module.exports = { getMe, updateMe, changePassword };

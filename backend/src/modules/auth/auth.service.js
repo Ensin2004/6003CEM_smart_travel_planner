@@ -1,4 +1,5 @@
 const AppError = require('../../utils/AppError');
+const jwt = require('jsonwebtoken');
 const { generateAccessToken, generateRefreshToken } = require('../../utils/generateTokens');
 const env = require('../../config/env');
 const authRepository = require('./auth.repository');
@@ -67,6 +68,41 @@ const login = async ({ email, password }) => {
   return { user, accessToken, refreshToken };
 };
 
+const refresh = async (refreshToken) => {
+  let decoded;
+
+  try {
+    decoded = jwt.verify(refreshToken, env.refreshJwtSecret);
+  } catch {
+    throw new AppError('Invalid or expired refresh token', 401);
+  }
+
+  const user = await authRepository.findByIdWithRefreshToken(decoded.userId);
+
+  if (!user || user.status === 'disabled') {
+    throw new AppError('Invalid or expired refresh token', 401);
+  }
+
+  if (user.refreshToken !== refreshToken || !user.refreshTokenExpiresAt || user.refreshTokenExpiresAt <= new Date()) {
+    user.refreshToken = undefined;
+    user.refreshTokenExpiresAt = undefined;
+    await user.save({ validateBeforeSave: false });
+    throw new AppError('Invalid or expired refresh token', 401);
+  }
+
+  const accessToken = generateAccessToken(user);
+  const nextRefreshToken = generateRefreshToken(user);
+
+  user.refreshToken = nextRefreshToken;
+  user.refreshTokenExpiresAt = getRefreshTokenExpiresAt();
+  await user.save({ validateBeforeSave: false });
+
+  user.refreshToken = undefined;
+  user.refreshTokenExpiresAt = undefined;
+
+  return { user, accessToken, refreshToken: nextRefreshToken };
+};
+
 const checkPasswordResetEmail = async (email) => {
   const user = await authRepository.findByEmail(email);
 
@@ -100,4 +136,4 @@ const resetPassword = async ({ email, password }) => {
   return { email: user.email };
 };
 
-module.exports = { register, login, checkPasswordResetEmail, resetPassword };
+module.exports = { register, login, refresh, checkPasswordResetEmail, resetPassword };

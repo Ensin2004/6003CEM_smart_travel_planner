@@ -4,25 +4,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { register } from '../../api/authApi';
 import AuthContext from '../../context/authContext';
 import {
+  ageGroupOptions,
   countries,
+  genderOptions,
   passwordRequirements,
 } from './auth.validation';
-
-const genderOptions = [
-  { label: 'Female', value: 'female' },
-  { label: 'Male', value: 'male' },
-  { label: 'Non-binary', value: 'non-binary' },
-  { label: 'Prefer not to say', value: 'prefer-not-to-say' },
-];
-
-const ageGroupOptions = [
-  { label: 'Under 18', value: 'under-18' },
-  { label: '18-24', value: '18-24' },
-  { label: '25-34', value: '25-34' },
-  { label: '35-44', value: '35-44' },
-  { label: '45-54', value: '45-54' },
-  { label: '55+', value: '55+' },
-];
 
 function RegisterPage() {
   const navigate = useNavigate();
@@ -85,6 +71,19 @@ function RegisterPage() {
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
+
+    if (
+      !formData.name.trim() ||
+      !formData.email.trim() ||
+      !formData.country ||
+      !formData.gender ||
+      !formData.ageGroup ||
+      !formData.password ||
+      !formData.confirmPassword
+    ) {
+      setError('Please complete all signup fields.');
+      return;
+    }
 
     if (!formData.gender || !formData.ageGroup) {
       setError('Please select your gender and age group.');

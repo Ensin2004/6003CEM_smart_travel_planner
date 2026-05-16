@@ -32,6 +32,10 @@ const loginRules = [
   body('password').notEmpty().withMessage('Password is required'),
 ];
 
+const refreshTokenRules = [
+  body('refreshToken').notEmpty().withMessage('Refresh token is required'),
+];
+
 const passwordResetEmailRules = [
   body('email').isEmail().normalizeEmail().withMessage('A valid email is required'),
 ];
@@ -52,4 +56,4 @@ const resetPasswordRules = [
     .withMessage('Passwords must match'),
 ];
 
-module.exports = { registerRules, loginRules, passwordResetEmailRules, resetPasswordRules };
+module.exports = { registerRules, loginRules, refreshTokenRules, passwordResetEmailRules, resetPasswordRules };

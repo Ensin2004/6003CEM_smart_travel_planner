@@ -20,6 +20,10 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
+    avatarUrl: {
+      type: String,
+      trim: true,
+    },
     country: {
       type: String,
       required() {
@@ -46,6 +50,14 @@ const userSchema = new mongoose.Schema(
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
     status: { type: String, enum: ['active', 'disabled'], default: 'active' },
     preferences: { type: preferenceSchema },
+    notificationPreferences: {
+      notificationsOff: { type: Boolean, default: false },
+      tripAlerts: { type: Boolean, default: true },
+      weatherAlerts: { type: Boolean, default: true },
+      errorLogs: { type: Boolean, default: true },
+      systemAlerts: { type: Boolean, default: true },
+      ratingFeedback: { type: Boolean, default: true },
+    },
     refreshToken: { type: String, select: false },
     refreshTokenExpiresAt: { type: Date, select: false },
   },

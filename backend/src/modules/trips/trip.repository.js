@@ -10,7 +10,7 @@ const findByIdAndUserId = (id, userId) => Trip.findOne({ _id: id, userId });
 
 const updateByIdAndUserId = (id, userId, data) =>
   Trip.findOneAndUpdate({ _id: id, userId }, data, {
-    new: true,
+    returnDocument: 'after',
     runValidators: true,
   });
 
