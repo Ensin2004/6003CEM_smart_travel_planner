@@ -6,9 +6,9 @@ import AuthContext from '../../context/authContext';
 import {
   countryCallingCodes,
   formatInternationalPhoneNumber,
+  passwordRequirements,
   validatePhoneNumber,
-} from '../../data/countryCallingCodes';
-import { passwordRequirements } from './passwordValidation';
+} from './auth.validation';
 
 function RegisterPage() {
   const navigate = useNavigate();
@@ -247,7 +247,7 @@ function RegisterPage() {
                   aria-label={isPasswordVisible ? 'Hide password' : 'Show password'}
                   onClick={() => setIsPasswordVisible((current) => !current)}
                 >
-                  {isPasswordVisible ? <EyeOff size={20} /> : <Eye size={20} />}
+                  {isPasswordVisible ? <Eye size={20} /> : <EyeOff size={20} />}
                 </button>
               </div>
               {shouldShowPasswordRequirements && (
@@ -279,7 +279,7 @@ function RegisterPage() {
                   aria-label={isConfirmPasswordVisible ? 'Hide confirm password' : 'Show confirm password'}
                   onClick={() => setIsConfirmPasswordVisible((current) => !current)}
                 >
-                  {isConfirmPasswordVisible ? <EyeOff size={20} /> : <Eye size={20} />}
+                  {isConfirmPasswordVisible ? <Eye size={20} /> : <EyeOff size={20} />}
                 </button>
               </div>
               {shouldShowPasswordMatchMessage && (

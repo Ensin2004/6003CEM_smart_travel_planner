@@ -2,7 +2,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { checkPasswordResetEmail, resetPassword } from '../../api/authApi';
-import { passwordRequirements } from './passwordValidation';
+import { passwordRequirements } from './auth.validation';
 
 function ForgotPasswordPage() {
   const navigate = useNavigate();
@@ -164,7 +164,7 @@ function ForgotPasswordPage() {
                     aria-label={isPasswordVisible ? 'Hide password' : 'Show password'}
                     onClick={() => setIsPasswordVisible((current) => !current)}
                   >
-                    {isPasswordVisible ? <EyeOff size={20} /> : <Eye size={20} />}
+                    {isPasswordVisible ? <Eye size={20} /> : <EyeOff size={20} />}
                   </button>
                 </div>
                 {shouldShowPasswordRequirements && (
@@ -196,7 +196,7 @@ function ForgotPasswordPage() {
                     aria-label={isConfirmPasswordVisible ? 'Hide confirm password' : 'Show confirm password'}
                     onClick={() => setIsConfirmPasswordVisible((current) => !current)}
                   >
-                    {isConfirmPasswordVisible ? <EyeOff size={20} /> : <Eye size={20} />}
+                    {isConfirmPasswordVisible ? <Eye size={20} /> : <EyeOff size={20} />}
                   </button>
                 </div>
                 {shouldShowPasswordMatchMessage && (
