@@ -4,7 +4,7 @@ const create = (data) => User.create(data);
 
 const findByEmail = (email, includePassword = false) => {
   const query = User.findOne({ email });
-  return includePassword ? query.select('+password +refreshToken') : query;
+  return includePassword ? query.select('+password +refreshToken +refreshTokenExpiresAt') : query;
 };
 
 const findById = (id) => User.findById(id);

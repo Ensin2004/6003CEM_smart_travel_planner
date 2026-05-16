@@ -20,13 +20,13 @@ const userSchema = new mongoose.Schema(
       lowercase: true,
       trim: true,
     },
-    phoneNumber: {
+    country: {
       type: String,
       required() {
         return this.role === 'user';
       },
       trim: true,
-      maxlength: 30,
+      maxlength: 80,
     },
     gender: {
       type: String,
@@ -45,8 +45,9 @@ const userSchema = new mongoose.Schema(
     password: { type: String, required: true, minlength: 8, select: false },
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
     status: { type: String, enum: ['active', 'disabled'], default: 'active' },
-    preferences: { type: preferenceSchema, default: () => ({}) },
+    preferences: { type: preferenceSchema },
     refreshToken: { type: String, select: false },
+    refreshTokenExpiresAt: { type: Date, select: false },
   },
   {
     timestamps: true,
