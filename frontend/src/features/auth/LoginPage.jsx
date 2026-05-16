@@ -1,12 +1,44 @@
+import { useContext, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { login } from '../../api/authApi';
+import AuthContext from '../../context/authContext';
 
 function LoginPage() {
   const navigate = useNavigate();
+  const { setUser } = useContext(AuthContext);
+  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [error, setError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = (event) => {
+  const handleChange = (event) => {
+    const { name, value } = event.target;
+    setFormData((current) => ({ ...current, [name]: value }));
+  };
+
+  const handleSubmit = async (event) => {
     event.preventDefault();
-    localStorage.setItem('accessToken', 'mock-login-token');
-    navigate('/dashboard');
+    setError('');
+    setIsSubmitting(true);
+
+    try {
+      const response = await login(formData);
+      const result = response.data.data;
+      const destination = result.user.role === 'admin' ? '/admin' : '/dashboard';
+
+      localStorage.setItem('accessToken', result.accessToken);
+      localStorage.setItem('refreshToken', result.refreshToken);
+      localStorage.setItem('user', JSON.stringify(result.user));
+      setUser(result.user);
+      navigate(destination);
+    } catch (requestError) {
+      const message =
+        requestError.response?.data?.message ||
+        requestError.response?.data?.errors?.[0]?.msg ||
+        'Invalid email or password.';
+      setError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -36,18 +68,34 @@ function LoginPage() {
           <div className="auth-heading">
             <p className="eyebrow">Login</p>
             <h2 id="login-title">Access your planner</h2>
-            <p>Mock login is enabled for now and will take you to the dashboard.</p>
+            <p>Enter your email and password to continue.</p>
           </div>
 
           <form className="auth-form" onSubmit={handleSubmit}>
             <label>
               Email address
-              <input type="email" placeholder="you@example.com" autoComplete="email" />
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="you@example.com"
+                autoComplete="email"
+                required
+              />
             </label>
 
             <label>
               Password
-              <input type="password" placeholder="Enter your password" autoComplete="current-password" />
+              <input
+                type="password"
+                name="password"
+                value={formData.password}
+                onChange={handleChange}
+                placeholder="Enter your password"
+                autoComplete="current-password"
+                required
+              />
             </label>
 
             <div className="form-row">
@@ -55,11 +103,13 @@ function LoginPage() {
                 <input type="checkbox" />
                 Remember me
               </label>
-              <a href="#reset">Forgot password?</a>
+              <Link to="/forgot-password">Forgot password?</Link>
             </div>
 
-            <button className="auth-submit" type="submit">
-              Login
+            {error && <p className="form-error">{error}</p>}
+
+            <button className="auth-submit" type="submit" disabled={isSubmitting}>
+              {isSubmitting ? 'Logging in...' : 'Login'}
             </button>
           </form>
 
