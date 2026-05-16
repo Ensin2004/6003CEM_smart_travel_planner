@@ -1,3 +1,4 @@
+import { Eye, EyeOff } from 'lucide-react';
 import { useContext, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { login } from '../../api/authApi';
@@ -9,6 +10,7 @@ function LoginPage() {
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isPasswordVisible, setIsPasswordVisible] = useState(false);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -87,15 +89,25 @@ function LoginPage() {
 
             <label>
               Password
-              <input
-                type="password"
-                name="password"
-                value={formData.password}
-                onChange={handleChange}
-                placeholder="Enter your password"
-                autoComplete="current-password"
-                required
-              />
+              <div className="password-field">
+                <input
+                  type={isPasswordVisible ? 'text' : 'password'}
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="Enter your password"
+                  autoComplete="current-password"
+                  required
+                />
+                <button
+                  type="button"
+                  className="password-toggle"
+                  aria-label={isPasswordVisible ? 'Hide password' : 'Show password'}
+                  onClick={() => setIsPasswordVisible((current) => !current)}
+                >
+                  {isPasswordVisible ? <Eye size={20} /> : <EyeOff size={20} />}
+                </button>
+              </div>
             </label>
 
             <div className="form-row">
