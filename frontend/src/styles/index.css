@@ -893,6 +893,12 @@ button {
   gap: 18px;
 }
 
+.auth-form-row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
 .auth-form label {
   display: grid;
   gap: 8px;
@@ -913,10 +919,118 @@ button {
   outline: none;
 }
 
+.auth-form input::placeholder,
+.auth-form select.select-placeholder {
+  color: #7b8794;
+}
+
 .auth-form input:focus,
 .auth-form select:focus {
   border-color: var(--teal);
   box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.16);
+}
+
+.phone-field {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.country-code-field {
+  position: relative;
+}
+
+.country-code-field select {
+  padding-left: 46px;
+}
+
+.country-code-flag {
+  position: absolute;
+  top: 50%;
+  left: 14px;
+  z-index: 1;
+  width: 24px;
+  height: 18px;
+  border-radius: 2px;
+  object-fit: cover;
+  transform: translateY(-50%);
+  box-shadow: 0 0 0 1px rgba(19, 32, 47, 0.08);
+  pointer-events: none;
+}
+
+.password-field {
+  position: relative;
+}
+
+.password-field input {
+  padding-right: 48px;
+}
+
+.password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  transform: translateY(-50%);
+}
+
+.password-toggle:hover {
+  background: #f1f5f9;
+  color: var(--teal);
+}
+
+.password-requirements {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  padding-left: 18px;
+  color: #b91c1c;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.password-match-message {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.password-match-message-error {
+  color: #b91c1c;
+}
+
+.password-match-message-success {
+  color: #047857;
+}
+
+.form-error {
+  margin: 0;
+  color: #b91c1c;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.form-success {
+  margin: 0;
+  color: #047857;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.45;
+}
+
+.auth-status {
+  margin-top: 16px;
 }
 
 .form-row {
@@ -955,6 +1069,11 @@ button {
 
 .auth-submit:hover {
   background: #115e59;
+}
+
+.auth-submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
 }
 
 .auth-switch {
@@ -1089,6 +1208,14 @@ button {
 
   .auth-panel {
     padding: 28px;
+  }
+
+  .phone-field {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-form-row {
+    grid-template-columns: 1fr;
   }
 
   .grid {

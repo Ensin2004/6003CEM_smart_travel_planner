@@ -39,7 +39,7 @@ This README is written for team members who are new to the project. Read it befo
 | Backend | Node.js + Express |
 | Database | MongoDB Atlas + Mongoose |
 | API Style | RESTful API with `/api/v1` versioning |
-| Authentication | JWT + bcryptjs |
+| Authentication | JWT + argon2id |
 | Authorization | RBAC, meaning role-based access control |
 | Security | Helmet, rate limiting, validation, CORS whitelist, dotenv |
 | Third-Party API | OpenWeatherMap, with optional Places API |
@@ -122,6 +122,17 @@ Install concurrently:
 
 ```bash
 npm install -D concurrently
+```
+
+Add the following into root folder package.json scripts:
+
+```text
+"scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
+    "backend": "npm run dev --prefix backend",
+    "frontend": "npm run dev --prefix frontend"
+  },
 ```
 
 ## Running the Project
