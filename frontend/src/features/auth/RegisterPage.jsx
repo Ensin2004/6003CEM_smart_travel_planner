@@ -1,14 +1,28 @@
-import { Eye, EyeOff } from 'lucide-react';
+import { ChevronDown, Eye, EyeOff } from 'lucide-react';
 import { useContext, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { register } from '../../api/authApi';
 import AuthContext from '../../context/authContext';
 import {
-  countryCallingCodes,
-  formatInternationalPhoneNumber,
+  countries,
   passwordRequirements,
-  validatePhoneNumber,
 } from './auth.validation';
+
+const genderOptions = [
+  { label: 'Female', value: 'female' },
+  { label: 'Male', value: 'male' },
+  { label: 'Non-binary', value: 'non-binary' },
+  { label: 'Prefer not to say', value: 'prefer-not-to-say' },
+];
+
+const ageGroupOptions = [
+  { label: 'Under 18', value: 'under-18' },
+  { label: '18-24', value: '18-24' },
+  { label: '25-34', value: '25-34' },
+  { label: '35-44', value: '35-44' },
+  { label: '45-54', value: '45-54' },
+  { label: '55+', value: '55+' },
+];
 
 function RegisterPage() {
   const navigate = useNavigate();
@@ -16,8 +30,7 @@ function RegisterPage() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    countryCode: 'MY',
-    phoneNumber: '',
+    country: 'MY',
     gender: '',
     ageGroup: '',
     password: '',
@@ -29,6 +42,9 @@ function RegisterPage() {
   const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   const [isConfirmPasswordFocused, setIsConfirmPasswordFocused] = useState(false);
+  const [isCountryMenuOpen, setIsCountryMenuOpen] = useState(false);
+  const [isGenderMenuOpen, setIsGenderMenuOpen] = useState(false);
+  const [isAgeGroupMenuOpen, setIsAgeGroupMenuOpen] = useState(false);
 
   const unmetPasswordRequirements = useMemo(
     () => passwordRequirements.filter((requirement) => !requirement.test(formData.password)),
@@ -38,21 +54,40 @@ function RegisterPage() {
   const doPasswordsMatch = formData.password === formData.confirmPassword;
   const shouldShowPasswordRequirements = isPasswordFocused && unmetPasswordRequirements.length > 0;
   const shouldShowPasswordMatchMessage = isConfirmPasswordFocused && isConfirmPasswordFilled;
-  const selectedCountryCode = countryCallingCodes.find(
-    ({ countryCode }) => countryCode === formData.countryCode
+  const selectedCountry = countries.find(
+    ({ countryCode }) => countryCode === formData.country
   );
+  const selectedGender = genderOptions.find(({ value }) => value === formData.gender);
+  const selectedAgeGroup = ageGroupOptions.find(({ value }) => value === formData.ageGroup);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
     setFormData((current) => ({ ...current, [name]: value }));
   };
 
+  const handleCountrySelect = (countryCode) => {
+    setFormData((current) => ({ ...current, country: countryCode }));
+    setIsCountryMenuOpen(false);
+  };
+
+  const handleOptionSelect = (name, value) => {
+    setFormData((current) => ({ ...current, [name]: value }));
+
+    if (name === 'gender') {
+      setIsGenderMenuOpen(false);
+    }
+
+    if (name === 'ageGroup') {
+      setIsAgeGroupMenuOpen(false);
+    }
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
 
-    if (!validatePhoneNumber(formData.countryCode, formData.phoneNumber)) {
-      setError('Please enter a valid phone number for the selected country code.');
+    if (!formData.gender || !formData.ageGroup) {
+      setError('Please select your gender and age group.');
       return;
     }
 
@@ -71,8 +106,7 @@ function RegisterPage() {
     try {
       const response = await register({
         ...formData,
-        countryCode: undefined,
-        phoneNumber: formatInternationalPhoneNumber(formData.countryCode, formData.phoneNumber),
+        country: selectedCountry?.country || formData.country,
       });
       const result = response.data.data;
 
@@ -152,78 +186,124 @@ function RegisterPage() {
             </div>
 
             <label>
-              Phone number
-              <div className="phone-field">
-                <div className="country-code-field">
-                  {selectedCountryCode && (
+              Country
+              <div className="country-select-field country-picker">
+                <input type="hidden" name="country" value={formData.country} required />
+                <button
+                  type="button"
+                  className="country-picker-button"
+                  aria-haspopup="listbox"
+                  aria-expanded={isCountryMenuOpen}
+                  onClick={() => {
+                    setIsGenderMenuOpen(false);
+                    setIsAgeGroupMenuOpen(false);
+                    setIsCountryMenuOpen((current) => !current);
+                  }}
+                >
+                  {selectedCountry && (
                     <img
-                      src={selectedCountryCode.flagUrl}
+                      src={selectedCountry.flagUrl}
                       alt=""
-                      className="country-code-flag"
+                      className="country-select-flag"
                       aria-hidden="true"
                     />
                   )}
-                  <select
-                    name="countryCode"
-                    value={formData.countryCode}
-                    onChange={handleChange}
-                    aria-label="Country code"
-                    required
-                  >
-                    {countryCallingCodes.map(({ country, countryCode, code }) => (
-                      <option key={countryCode} value={countryCode}>
-                        {country} ({code})
-                      </option>
+                  <span>{selectedCountry?.country || 'Select country'}</span>
+                  <ChevronDown className="country-picker-icon" size={18} aria-hidden="true" />
+                </button>
+                {isCountryMenuOpen && (
+                  <div className="country-picker-menu" role="listbox" aria-label="Country">
+                    {countries.map(({ country, countryCode, flagUrl }) => (
+                      <button
+                        key={countryCode}
+                        type="button"
+                        className={countryCode === formData.country ? 'country-picker-option active' : 'country-picker-option'}
+                        role="option"
+                        aria-selected={countryCode === formData.country}
+                        onClick={() => handleCountrySelect(countryCode)}
+                      >
+                        <img src={flagUrl} alt="" aria-hidden="true" />
+                        <span>{country}</span>
+                      </button>
                     ))}
-                  </select>
-                </div>
-                <input
-                  type="tel"
-                  name="phoneNumber"
-                  value={formData.phoneNumber}
-                  onChange={handleChange}
-                  placeholder="12 345 6789"
-                  autoComplete="tel-national"
-                  required
-                />
+                  </div>
+                )}
               </div>
             </label>
 
             <div className="auth-form-row">
               <label>
                 Gender
-                <select
-                  className={formData.gender ? '' : 'select-placeholder'}
-                  name="gender"
-                  value={formData.gender}
-                  onChange={handleChange}
-                  required
-                >
-                  <option value="">Select gender</option>
-                  <option value="female">Female</option>
-                  <option value="male">Male</option>
-                  <option value="non-binary">Non-binary</option>
-                  <option value="prefer-not-to-say">Prefer not to say</option>
-                </select>
+                <div className="country-select-field country-picker">
+                  <input type="hidden" name="gender" value={formData.gender} required />
+                  <button
+                    type="button"
+                    className={`country-picker-button ${selectedGender ? '' : 'select-placeholder'}`}
+                    aria-haspopup="listbox"
+                    aria-expanded={isGenderMenuOpen}
+                    onClick={() => {
+                      setIsCountryMenuOpen(false);
+                      setIsAgeGroupMenuOpen(false);
+                      setIsGenderMenuOpen((current) => !current);
+                    }}
+                  >
+                    <span>{selectedGender?.label || 'Select gender'}</span>
+                    <ChevronDown className="country-picker-icon" size={18} aria-hidden="true" />
+                  </button>
+                  {isGenderMenuOpen && (
+                    <div className="country-picker-menu" role="listbox" aria-label="Gender">
+                      {genderOptions.map(({ label, value }) => (
+                        <button
+                          key={value}
+                          type="button"
+                          className={value === formData.gender ? 'country-picker-option active' : 'country-picker-option'}
+                          role="option"
+                          aria-selected={value === formData.gender}
+                          onClick={() => handleOptionSelect('gender', value)}
+                        >
+                          <span>{label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </label>
 
               <label>
                 Age group
-                <select
-                  className={formData.ageGroup ? '' : 'select-placeholder'}
-                  name="ageGroup"
-                  value={formData.ageGroup}
-                  onChange={handleChange}
-                  required
-                >
-                  <option value="">Select age group</option>
-                  <option value="under-18">Under 18</option>
-                  <option value="18-24">18-24</option>
-                  <option value="25-34">25-34</option>
-                  <option value="35-44">35-44</option>
-                  <option value="45-54">45-54</option>
-                  <option value="55+">55+</option>
-                </select>
+                <div className="country-select-field country-picker">
+                  <input type="hidden" name="ageGroup" value={formData.ageGroup} required />
+                  <button
+                    type="button"
+                    className={`country-picker-button ${selectedAgeGroup ? '' : 'select-placeholder'}`}
+                    aria-haspopup="listbox"
+                    aria-expanded={isAgeGroupMenuOpen}
+                    onClick={() => {
+                      setIsCountryMenuOpen(false);
+                      setIsGenderMenuOpen(false);
+                      setIsAgeGroupMenuOpen((current) => !current);
+                    }}
+                  >
+                    <span>{selectedAgeGroup?.label || 'Select age group'}</span>
+                    <ChevronDown className="country-picker-icon" size={18} aria-hidden="true" />
+                  </button>
+                  {isAgeGroupMenuOpen && (
+                    <div className="country-picker-menu" role="listbox" aria-label="Age group">
+                      {ageGroupOptions.map(({ label, value }) => (
+                        <button
+                          key={value}
+                          type="button"
+                          className={value === formData.ageGroup ? 'country-picker-option active' : 'country-picker-option'}
+                          role="option"
+                          aria-selected={value === formData.ageGroup}
+                          onClick={() => handleOptionSelect('ageGroup', value)}
+                        >
+                          <span>{label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </label>
             </div>
 

@@ -1,8 +1,4 @@
-import {
-  getCountries,
-  getCountryCallingCode,
-  parsePhoneNumberFromString,
-} from 'libphonenumber-js/min';
+import { getCountries } from 'libphonenumber-js/min';
 
 const countryNames = new Intl.DisplayNames(['en'], { type: 'region' });
 
@@ -13,27 +9,14 @@ const getCountryFlag = (countryCode) =>
 
 const getCountryName = (countryCode) => countryNames.of(countryCode) || countryCode;
 
-export const countryCallingCodes = getCountries()
+export const countries = getCountries()
   .map((countryCode) => ({
     country: getCountryName(countryCode),
     countryCode,
-    code: `+${getCountryCallingCode(countryCode)}`,
     flag: getCountryFlag(countryCode),
     flagUrl: `https://flagcdn.com/24x18/${countryCode.toLowerCase()}.png`,
   }))
   .sort((firstCountry, secondCountry) => firstCountry.country.localeCompare(secondCountry.country));
-
-export const formatInternationalPhoneNumber = (countryCode, phoneNumber) => {
-  const parsedPhoneNumber = parsePhoneNumberFromString(phoneNumber, countryCode);
-
-  return parsedPhoneNumber?.number || '';
-};
-
-export const validatePhoneNumber = (countryCode, phoneNumber) => {
-  const parsedPhoneNumber = parsePhoneNumberFromString(phoneNumber, countryCode);
-
-  return Boolean(parsedPhoneNumber?.isValid());
-};
 
 export const passwordRequirements = [
   {

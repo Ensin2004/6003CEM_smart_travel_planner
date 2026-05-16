@@ -1,20 +1,43 @@
 const AppError = require('../../utils/AppError');
 const { generateAccessToken, generateRefreshToken } = require('../../utils/generateTokens');
+const env = require('../../config/env');
 const authRepository = require('./auth.repository');
+
+const getRefreshTokenExpiresAt = () => {
+  const expiresIn = env.refreshJwtExpiresIn;
+  const match = String(expiresIn).trim().match(/^(\d+)([smhd])?$/i);
+
+  if (!match) {
+    return undefined;
+  }
+
+  const value = Number(match[1]);
+  const unit = (match[2] || 's').toLowerCase();
+  const unitMilliseconds = {
+    s: 1000,
+    m: 60 * 1000,
+    h: 60 * 60 * 1000,
+    d: 24 * 60 * 60 * 1000,
+  };
+
+  return new Date(Date.now() + value * unitMilliseconds[unit]);
+};
 
 const register = async (data) => {
   const existingUser = await authRepository.findByEmail(data.email);
   if (existingUser) throw new AppError('Email is already registered', 409);
 
-  const { confirmPassword, role, ...userData } = data;
+  const { confirmPassword, preferences, role, ...userData } = data;
   const user = await authRepository.create({ ...userData, role: 'user' });
   const accessToken = generateAccessToken(user);
   const refreshToken = generateRefreshToken(user);
 
   user.refreshToken = refreshToken;
+  user.refreshTokenExpiresAt = getRefreshTokenExpiresAt();
   await user.save({ validateBeforeSave: false });
   user.password = undefined;
   user.refreshToken = undefined;
+  user.refreshTokenExpiresAt = undefined;
 
   return { user, accessToken, refreshToken };
 };
@@ -34,10 +57,12 @@ const login = async ({ email, password }) => {
   const refreshToken = generateRefreshToken(user);
 
   user.refreshToken = refreshToken;
+  user.refreshTokenExpiresAt = getRefreshTokenExpiresAt();
   await user.save({ validateBeforeSave: false });
 
   user.password = undefined;
   user.refreshToken = undefined;
+  user.refreshTokenExpiresAt = undefined;
 
   return { user, accessToken, refreshToken };
 };
@@ -69,6 +94,7 @@ const resetPassword = async ({ email, password }) => {
 
   user.password = password;
   user.refreshToken = undefined;
+  user.refreshTokenExpiresAt = undefined;
   await user.save();
 
   return { email: user.email };

@@ -920,7 +920,8 @@ button {
 }
 
 .auth-form input::placeholder,
-.auth-form select.select-placeholder {
+.auth-form select.select-placeholder,
+.country-picker-button.select-placeholder {
   color: #7b8794;
 }
 
@@ -930,32 +931,97 @@ button {
   box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.16);
 }
 
-.phone-field {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-}
-
-.country-code-field {
+.country-select-field,
+.country-picker {
   position: relative;
 }
 
-.country-code-field select {
-  padding-left: 46px;
+.country-picker-button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 50px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+  outline: none;
 }
 
-.country-code-flag {
-  position: absolute;
-  top: 50%;
-  left: 14px;
-  z-index: 1;
+.country-picker-button span {
+  min-width: 0;
+  flex: 1;
+}
+
+.country-picker-icon {
+  flex: 0 0 auto;
+  color: var(--muted);
+}
+
+.country-picker-button:focus,
+.country-picker-button:hover {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.16);
+}
+
+.country-select-flag {
   width: 24px;
   height: 18px;
   border-radius: 2px;
   object-fit: cover;
-  transform: translateY(-50%);
   box-shadow: 0 0 0 1px rgba(19, 32, 47, 0.08);
-  pointer-events: none;
+  flex: 0 0 auto;
+}
+
+.country-picker-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  left: 0;
+  z-index: 20;
+  display: grid;
+  max-height: 230px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 18px 40px rgba(16, 42, 67, 0.18);
+}
+
+.country-picker-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 0;
+  background: #ffffff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.country-picker-option img {
+  width: 24px;
+  height: 18px;
+  border-radius: 2px;
+  object-fit: cover;
+  box-shadow: 0 0 0 1px rgba(19, 32, 47, 0.08);
+  flex: 0 0 auto;
+}
+
+.country-picker-option:hover,
+.country-picker-option.active {
+  background: #e6fffa;
+  color: var(--teal);
 }
 
 .password-field {
@@ -1208,10 +1274,6 @@ button {
 
   .auth-panel {
     padding: 28px;
-  }
-
-  .phone-field {
-    grid-template-columns: 1fr;
   }
 
   .auth-form-row {

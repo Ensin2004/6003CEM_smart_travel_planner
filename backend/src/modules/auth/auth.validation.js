@@ -3,10 +3,10 @@ const { body } = require('express-validator');
 const registerRules = [
   body('name').trim().isLength({ min: 2, max: 80 }).withMessage('Full name must be 2 to 80 characters'),
   body('email').isEmail().normalizeEmail().withMessage('A valid email is required'),
-  body('phoneNumber')
+  body('country')
     .trim()
-    .matches(/^\+?[0-9\s()-]{7,30}$/)
-    .withMessage('A valid phone number is required'),
+    .isLength({ min: 2, max: 80 })
+    .withMessage('Country is required'),
   body('gender')
     .isIn(['female', 'male', 'non-binary', 'prefer-not-to-say'])
     .withMessage('Gender is required'),
