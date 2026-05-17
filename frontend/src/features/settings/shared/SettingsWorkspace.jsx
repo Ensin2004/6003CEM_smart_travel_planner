@@ -13,6 +13,7 @@ import PasswordSettings from './components/PasswordSettings';
 import ProfileSettings from './components/ProfileSettings';
 import SettingsSubnav from './components/SettingsSubnav';
 import { allNotificationKeys, maxAvatarSizeBytes, maxAvatarSizeMegabytes, sections } from './settings.constants';
+import './SettingsWorkspace.css';
 
 function SettingsWorkspace({ role }) {
   const { setUser } = useContext(AuthContext);

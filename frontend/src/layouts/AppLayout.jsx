@@ -18,11 +18,13 @@ import logo from '../assets/logo.png';
 import AppSidebarNav from '../components/AppSidebarNav';
 import SubmenuPanel from '../components/SubmenuPanel';
 import AuthContext from '../context/authContext';
+import './AppLayout.css';
 
 function AppLayout({ role, menuItems }) {
   const isAdmin = role === 'admin';
   const location = useLocation();
   const { user } = useContext(AuthContext);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState(DEFAULT_LANGUAGE);
   const [isLanguagePickerOpen, setIsLanguagePickerOpen] = useState(false);
@@ -126,8 +128,27 @@ function AppLayout({ role, menuItems }) {
   };
 
   return (
-    <div className={`app-shell ${activeSubmenu ? 'has-submenu' : ''} ${isMobileNavOpen ? 'mobile-nav-open' : ''}`}>
+    <div
+      className={[
+        'app-shell',
+        activeSubmenu ? 'has-submenu' : '',
+        isSidebarCollapsed ? 'sidebar-collapsed' : '',
+        isMobileNavOpen ? 'mobile-nav-open' : '',
+      ]
+        .filter(Boolean)
+        .join(' ')}
+    >
       <header className="topbar">
+        <button
+          className="header-icon-button menu-toggle"
+          type="button"
+          aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-pressed={isSidebarCollapsed}
+          onClick={() => setIsSidebarCollapsed((current) => !current)}
+        >
+          <Menu size={19} aria-hidden="true" />
+        </button>
+
         <button
           className="header-icon-button mobile-menu-button"
           type="button"
@@ -239,6 +260,7 @@ function AppLayout({ role, menuItems }) {
           <div className="sidebar-menu">
             <AppSidebarNav
               ariaLabel={`${role} navigation`}
+              isSidebarCollapsed={isSidebarCollapsed}
               isItemActive={isItemActive}
               isMenuItemActive={isMenuItemActive}
               items={mainMenuItems}
@@ -248,6 +270,7 @@ function AppLayout({ role, menuItems }) {
             <div className="sidebar-nav-bottom">
               <AppSidebarNav
                 ariaLabel={`${role} utility navigation`}
+                isSidebarCollapsed={isSidebarCollapsed}
                 isItemActive={isItemActive}
                 isMenuItemActive={isMenuItemActive}
                 items={bottomMenuItems}

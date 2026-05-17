@@ -12,6 +12,7 @@ import {
   maxPasswordLength,
   passwordRequirements,
 } from './auth.validation';
+import './AuthPage.css';
 
 function RegisterPage() {
   const navigate = useNavigate();

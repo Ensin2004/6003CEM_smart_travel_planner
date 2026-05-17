@@ -1,6 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.png';
 import publicNavItems from './publicNavItems';
+import './PublicTopbar.css';
 
 function PublicTopbar() {
   const { pathname } = useLocation();

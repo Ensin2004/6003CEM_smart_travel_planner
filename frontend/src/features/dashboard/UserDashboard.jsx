@@ -1,3 +1,5 @@
+import './UserDashboard.css';
+
 function UserDashboard() {
   return (
     <section>
