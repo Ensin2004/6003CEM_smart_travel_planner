@@ -1,4 +1,4 @@
-import { ChevronDown, Eye, EyeOff } from 'lucide-react';
+import { CalendarDays, ChevronDown, CloudSun, Eye, EyeOff, WalletCards } from 'lucide-react';
 import { useContext, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { register } from '../../api/authApi';
@@ -135,16 +135,18 @@ function RegisterPage() {
           </Link>
           <div className="showcase-copy">
             <p className="eyebrow">Start planning</p>
-            <h1>Create a calmer way to organize every trip.</h1>
-            <p>
-              Save destinations, preferences, checklists, and budget notes in a
-              workspace made for real travel decisions.
-            </p>
+            <h1>Set up your travel planner.</h1>
+            <p>Create an account to save trips, compare details, and keep preparation organized.</p>
+            <div className="showcase-points" aria-label="Signup highlights">
+              <span><CalendarDays size={16} /> Itinerary</span>
+              <span><CloudSun size={16} /> Weather</span>
+              <span><WalletCards size={16} /> Budget</span>
+            </div>
           </div>
           <div className="showcase-card">
-            <span>Planning board</span>
-            <strong>Weather, budget, notes</strong>
-            <p>Bring the practical details together before departure.</p>
+            <span>Workspace preview</span>
+            <strong>Organize future trips</strong>
+            <p>Use one place for destinations, preferences, checklists, and budgets.</p>
           </div>
         </aside>
 

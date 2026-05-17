@@ -2,7 +2,7 @@ const env = require('./env');
 
 const allowedOrigins = env.clientOrigin
   .split(',')
-  .map((origin) => origin.trim())
+  .map((origin) => origin.trim().replace(/\/$/, ''))
   .filter(Boolean);
 
 module.exports = {

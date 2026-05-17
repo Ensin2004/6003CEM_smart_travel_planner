@@ -1,4 +1,4 @@
-import { Eye, EyeOff } from 'lucide-react';
+import { CalendarDays, CheckCircle2, CloudSun, Eye, EyeOff } from 'lucide-react';
 import { useContext, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { login } from '../../api/authApi';
@@ -59,16 +59,18 @@ function LoginPage() {
           </Link>
           <div className="showcase-copy">
             <p className="eyebrow">Welcome back</p>
-            <h1>Return to your trips with everything in place.</h1>
-            <p>
-              Continue planning with saved destinations, weather notes, budgets, and
-              checklists ready when you are.
-            </p>
+            <h1>Your travel workspace is ready.</h1>
+            <p>Continue where you left off with plans, notes, and trip details in one place.</p>
+            <div className="showcase-points" aria-label="Planner highlights">
+              <span><CalendarDays size={16} /> Trips</span>
+              <span><CloudSun size={16} /> Weather</span>
+              <span><CheckCircle2 size={16} /> Checklist</span>
+            </div>
           </div>
           <div className="showcase-card">
-            <span>Next trip</span>
-            <strong>Tokyo itinerary</strong>
-            <p>Weather preview, food notes, and packing checklist ready.</p>
+            <span>Workspace preview</span>
+            <strong>Plan, compare, prepare</strong>
+            <p>A simple overview of the tools available after signing in.</p>
           </div>
         </aside>
 
