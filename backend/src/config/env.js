@@ -13,7 +13,7 @@ module.exports = {
   refreshJwtSecret:
     process.env.REFRESH_JWT_SECRET || 'development-only-refresh-secret-change-me',
   refreshJwtExpiresIn: process.env.REFRESH_JWT_EXPIRES_IN || '7d',
-  clientOrigin: process.env.CLIENT_ORIGIN || 'http://localhost:5173',
+  clientOrigin: process.env.CLIENT_ORIGIN || 'http://localhost:5173,http://127.0.0.1:5173',
   openWeatherApiKey: process.env.OPENWEATHER_API_KEY || '',
   placesApiKey: process.env.PLACES_API_KEY || '',
 };

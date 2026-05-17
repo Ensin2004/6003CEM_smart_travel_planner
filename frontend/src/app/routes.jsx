@@ -36,6 +36,7 @@ function AppRoutes() {
         <Route index element={<AdminDashboard />} />
         <Route path="users" element={<UserManagementPage />} />
         <Route path="api-logs" element={<ApiLogsPage />} />
+        <Route path="logging-monitoring" element={<SystemErrorsPage />} />
         <Route path="system-errors" element={<SystemErrorsPage />} />
         <Route path="settings" element={<AdminSettingsPage />} />
       </Route>

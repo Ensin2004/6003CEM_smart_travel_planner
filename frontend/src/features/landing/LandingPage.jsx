@@ -15,15 +15,10 @@ import {
 } from 'lucide-react';
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import PublicTopbar from '../../components/PublicTopbar';
+import publicNavItems from '../../components/publicNavItems';
 import heroImage from '../../assets/landing-hero.png';
-
-const navItems = [
-  [Sparkles, 'Features', '#features'],
-  [ListChecks, 'How it works', '#how-it-works'],
-  [ShieldCheck, 'Safety', '#safety'],
-  [Users, 'For travellers', '#travellers'],
-  [Compass, 'Demo', '#demo'],
-];
+import logo from '../../assets/logo.png';
 
 const highlights = [
   [CloudSun, 'Live destination insight', 'See weather and travel context beside each saved trip.'],
@@ -80,30 +75,26 @@ function LandingPage() {
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    if (!window.location.hash) {
+      return;
+    }
+
+    const section = document.getElementById(window.location.hash.slice(1));
+
+    if (!section) {
+      return;
+    }
+
+    window.requestAnimationFrame(() => {
+      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+  }, []);
+
   return (
     <main className="landing-page">
+      <PublicTopbar />
       <section className="landing-hero" id="home" style={{ backgroundImage: `url(${heroImage})` }}>
-        <nav className="landing-nav" aria-label="Main navigation">
-          <Link className="brand-mark" to="/">
-            <span>ST</span>
-            Smart Travel Planner
-          </Link>
-          <div className="nav-links">
-            {navItems.map(([Icon, label, href]) => (
-              <a href={href} key={href}>
-                <Icon size={15} aria-hidden="true" />
-                {label}
-              </a>
-            ))}
-          </div>
-          <div className="nav-actions">
-            <Link to="/login">Login</Link>
-            <Link className="nav-button" to="/register">
-              Sign up
-            </Link>
-          </div>
-        </nav>
-
         <div className="hero-layout">
           <div className="hero-content">
             <p className="eyebrow">Smart travel workspace</p>
@@ -388,14 +379,14 @@ function LandingPage() {
       <footer className="landing-footer">
         <div>
           <Link className="brand-mark footer-brand" to="/">
-            <span>ST</span>
+            <img className="brand-logo" src={logo} alt="" aria-hidden="true" />
             Smart Travel Planner
           </Link>
           <p>6003CEM Web API Development group project.</p>
         </div>
         <nav aria-label="Footer navigation">
-          {navItems.map(([, label, href]) => (
-            <a href={href} key={href}>
+          {publicNavItems.map(([, label, sectionId]) => (
+            <a href={`#${sectionId}`} key={sectionId}>
               {label}
             </a>
           ))}

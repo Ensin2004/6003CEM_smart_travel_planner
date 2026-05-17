@@ -9,6 +9,9 @@ const getCountryFlag = (countryCode) =>
 
 const getCountryName = (countryCode) => countryNames.of(countryCode) || countryCode;
 
+export const maxNameLength = 80;
+export const maxPasswordLength = 64;
+
 export const countries = getCountries()
   .map((countryCode) => ({
     country: getCountryName(countryCode),
@@ -20,8 +23,8 @@ export const countries = getCountries()
 
 export const passwordRequirements = [
   {
-    label: 'At least 8 characters',
-    test: (password) => password.length >= 8,
+    label: '8 to 64 characters',
+    test: (password) => password.length >= 8 && password.length <= maxPasswordLength,
   },
   {
     label: 'At least one uppercase letter',

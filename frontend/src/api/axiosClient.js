@@ -29,14 +29,22 @@ axiosClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
     const refreshToken = localStorage.getItem('refreshToken');
+    const requestUrl = originalRequest?.url || '';
+    const isAuthFormRequest = [
+      '/auth/login',
+      '/auth/register',
+      '/auth/forgot-password/check-email',
+      '/auth/forgot-password/reset',
+    ].some((path) => requestUrl.includes(path));
 
     if (
       error.response?.status !== 401 ||
       originalRequest?._retry ||
       originalRequest?.url?.includes('/auth/refresh') ||
+      isAuthFormRequest ||
       !refreshToken
     ) {
-      if (error.response?.status === 401 && !refreshToken) {
+      if (error.response?.status === 401 && !refreshToken && !isAuthFormRequest) {
         clearSessionAndRedirect();
       }
 

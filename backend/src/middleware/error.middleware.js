@@ -1,4 +1,6 @@
 const env = require('../config/env');
+const logger = require('../utils/logger');
+const apiLogService = require('../modules/apiLogs/apiLog.service');
 
 const handleCastError = (error) => ({
   statusCode: 400,
@@ -15,9 +17,30 @@ const errorHandler = (error, req, res, next) => {
     message = castError.message;
   }
 
+  if (error.retryAfterSeconds) {
+    res.set('Retry-After', String(error.retryAfterSeconds));
+  }
+
+  if (statusCode >= 500) {
+    apiLogService
+      .recordEvent({
+        service: 'server',
+        category: 'system',
+        severity: statusCode >= 503 ? 'critical' : 'error',
+        method: req.method,
+        endpoint: req.originalUrl,
+        status: 'error',
+        statusCode,
+        message: env.nodeEnv === 'production' ? 'Internal server error' : message,
+        userId: req.user?.id,
+      })
+      .catch((logError) => logger.error(`Failed to record system error: ${logError.message}`));
+  }
+
   res.status(statusCode).json({
     status: `${statusCode}`.startsWith('4') ? 'fail' : 'error',
     message: env.nodeEnv === 'production' && statusCode === 500 ? 'Internal server error' : message,
+    ...(error.retryAfterSeconds && { retryAfterSeconds: error.retryAfterSeconds }),
     ...(env.nodeEnv === 'development' && { stack: error.stack }),
   });
 };

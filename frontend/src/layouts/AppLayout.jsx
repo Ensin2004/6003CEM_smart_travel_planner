@@ -1,12 +1,12 @@
 import {
   Bell,
-  HelpCircle,
-  LogOut,
+  ChevronDown,
   Menu,
-  Settings,
+  WalletCards,
+  X,
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, NavLink, Outlet } from 'react-router-dom';
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { Link, Outlet, useLocation } from 'react-router-dom';
 import {
   changeTranslateLanguage,
   DEFAULT_LANGUAGE,
@@ -14,18 +14,75 @@ import {
   loadTranslateClient,
   refreshTranslatedContent,
 } from '../api/languageApi';
+import logo from '../assets/logo.png';
+import AppSidebarNav from '../components/AppSidebarNav';
+import SubmenuPanel from '../components/SubmenuPanel';
+import AuthContext from '../context/authContext';
 
 function AppLayout({ role, menuItems }) {
   const isAdmin = role === 'admin';
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const location = useLocation();
+  const { user } = useContext(AuthContext);
+  const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState(DEFAULT_LANGUAGE);
   const [isLanguagePickerOpen, setIsLanguagePickerOpen] = useState(false);
   const languagePickerRef = useRef(null);
+
   const availableLanguages = useMemo(() => getAvailableLanguages(), []);
   const activeLanguage =
     availableLanguages.find((language) => language.value === selectedLanguage) ?? availableLanguages[0];
+
   const mainMenuItems = menuItems.filter((item) => !item.bottom);
   const bottomMenuItems = menuItems.filter((item) => item.bottom);
+  const allMenuItems = [...mainMenuItems, ...bottomMenuItems];
+
+  const displayName = user?.name || user?.email || (isAdmin ? 'Admin user' : 'Traveller');
+  const displayRole = isAdmin ? 'Admin' : 'Traveller';
+
+  const initials = useMemo(
+    () =>
+      displayName
+        .split(/\s+/)
+        .filter(Boolean)
+        .slice(0, 2)
+        .map((part) => part[0])
+        .join('')
+        .toUpperCase(),
+    [displayName]
+  );
+
+  const currentUrl = `${location.pathname}${location.search}${location.hash}`;
+
+  const isItemActive = (item, isExactMatch = false) => {
+    const itemUrl = item.to;
+    const [itemPath] = itemUrl.split(/[?#]/);
+
+    if (isExactMatch || itemUrl.includes('?') || itemUrl.includes('#')) {
+      if (!location.hash && itemUrl.endsWith('#profile')) {
+        return location.pathname === itemPath;
+      }
+
+      return currentUrl === itemUrl;
+    }
+
+    return item.end ? location.pathname === itemPath : location.pathname.startsWith(itemPath);
+  };
+
+  const isMenuItemActive = (item) =>
+    isItemActive(item) || item.children?.some((child) => isItemActive(child, true));
+
+  const activeSubmenu = allMenuItems.find(
+    (item) => item.children?.length && isMenuItemActive(item)
+  );
+
+  const activeSubmenuItems = activeSubmenu?.children.map((child) => ({
+    ...child,
+    id: child.to,
+  }));
+
+  const activeSubmenuId = activeSubmenuItems?.find((child) => isItemActive(child, true))?.id;
+
+  const closeMobileNav = () => setIsMobileNavOpen(false);
 
   useEffect(() => {
     loadTranslateClient(DEFAULT_LANGUAGE).catch(() => {});
@@ -69,27 +126,31 @@ function AppLayout({ role, menuItems }) {
   };
 
   return (
-    <div className={`app-shell ${isSidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+    <div className={`app-shell ${activeSubmenu ? 'has-submenu' : ''} ${isMobileNavOpen ? 'mobile-nav-open' : ''}`}>
       <header className="topbar">
         <button
-          className="header-icon-button menu-toggle"
+          className="header-icon-button mobile-menu-button"
           type="button"
-          aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          aria-pressed={isSidebarCollapsed}
-          onClick={() => setIsSidebarCollapsed((current) => !current)}
+          aria-label={isMobileNavOpen ? 'Close menu' : 'Open menu'}
+          aria-expanded={isMobileNavOpen}
+          onClick={() => setIsMobileNavOpen((current) => !current)}
         >
-          <Menu size={19} aria-hidden="true" />
+          {isMobileNavOpen ? <X size={19} aria-hidden="true" /> : <Menu size={19} aria-hidden="true" />}
         </button>
 
         <Link className="topbar-brand" to={isAdmin ? '/admin' : '/dashboard'}>
-          <span>ST</span>
-          <div>
-            <strong>Smart Travel Planner</strong>
-            <small>{isAdmin ? 'Admin console' : 'Traveller workspace'}</small>
-          </div>
+          <img className="brand-logo app-brand-logo" src={logo} alt="" aria-hidden="true" />
         </Link>
 
         <div className="topbar-actions">
+          {!isAdmin && (
+            <button className="header-action-button" type="button">
+              <WalletCards size={17} aria-hidden="true" />
+              Currency converter
+              <ChevronDown size={15} aria-hidden="true" />
+            </button>
+          )}
+
           <div className="language-picker ignore notranslate" ref={languagePickerRef} translate="no">
             <button
               className="language-trigger"
@@ -153,51 +214,61 @@ function AppLayout({ role, menuItems }) {
           <button className="header-icon-button" type="button" aria-label="Notifications">
             <Bell size={18} aria-hidden="true" />
           </button>
-          <button className="header-icon-button" type="button" aria-label="Help">
-            <HelpCircle size={18} aria-hidden="true" />
-          </button>
-          <button className="header-icon-button" type="button" aria-label="Settings">
-            <Settings size={18} aria-hidden="true" />
-          </button>
-          <Link className="header-icon-button" to="/login" aria-label="Logout">
-            <LogOut size={18} aria-hidden="true" />
-          </Link>
         </div>
       </header>
 
-      <aside className="sidebar">
-        <div className="sidebar-brand">
-          <span>ST</span>
-          <div>
-            <strong>Smart Travel</strong>
-            <small>{isAdmin ? 'Admin console' : 'Traveller workspace'}</small>
+      <button
+        className="mobile-nav-overlay"
+        type="button"
+        aria-label="Close menu"
+        onClick={closeMobileNav}
+      />
+
+      <div className="app-navigation">
+        <aside className="sidebar">
+          <div className="sidebar-profile">
+            <div className="sidebar-avatar" aria-hidden="true">
+              {user?.profileImage ? <img src={user.profileImage} alt="" /> : initials}
+            </div>
+            <div>
+              <strong>{displayName}</strong>
+              <small>{displayRole}</small>
+            </div>
           </div>
-        </div>
 
-        <div className="sidebar-menu">
-          <nav className="sidebar-nav" aria-label={`${role} navigation`}>
-            {mainMenuItems.map((item) => (
-              <NavLink to={item.to} end={item.end} key={item.to}>
-                <span>
-                  <item.icon size={17} aria-hidden="true" />
-                </span>
-                {item.label}
-              </NavLink>
-            ))}
-          </nav>
+          <div className="sidebar-menu">
+            <AppSidebarNav
+              ariaLabel={`${role} navigation`}
+              isItemActive={isItemActive}
+              isMenuItemActive={isMenuItemActive}
+              items={mainMenuItems}
+              onNavigate={closeMobileNav}
+            />
 
-          <nav className="sidebar-nav sidebar-nav-bottom" aria-label={`${role} utility navigation`}>
-            {bottomMenuItems.map((item) => (
-              <NavLink to={item.to} end={item.end} key={item.to}>
-                <span>
-                  <item.icon size={17} aria-hidden="true" />
-                </span>
-                {item.label}
-              </NavLink>
-            ))}
-          </nav>
-        </div>
-      </aside>
+            <div className="sidebar-nav-bottom">
+              <AppSidebarNav
+                ariaLabel={`${role} utility navigation`}
+                isItemActive={isItemActive}
+                isMenuItemActive={isMenuItemActive}
+                items={bottomMenuItems}
+                onNavigate={closeMobileNav}
+              />
+            </div>
+          </div>
+        </aside>
+
+        {activeSubmenu && (
+          <div className="sidebar-submenu-panel">
+            <SubmenuPanel
+              activeId={activeSubmenuId}
+              ariaLabel={`${activeSubmenu.label} submenu`}
+              items={activeSubmenuItems}
+              mode="link"
+              onNavigate={closeMobileNav}
+            />
+          </div>
+        )}
+      </div>
 
       <div className="workspace">
         <main className="main-panel">

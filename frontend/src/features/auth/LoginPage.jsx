@@ -2,6 +2,7 @@ import { CalendarDays, CheckCircle2, CloudSun, Eye, EyeOff } from 'lucide-react'
 import { useContext, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { login } from '../../api/authApi';
+import PublicTopbar from '../../components/PublicTopbar';
 import AuthContext from '../../context/authContext';
 
 function LoginPage() {
@@ -41,6 +42,7 @@ function LoginPage() {
     } catch (requestError) {
       const message =
         requestError.response?.data?.message ||
+        requestError.response?.data?.errors?.[0]?.message ||
         requestError.response?.data?.errors?.[0]?.msg ||
         'Invalid email or password.';
       setError(message);
@@ -51,12 +53,9 @@ function LoginPage() {
 
   return (
     <main className="auth-page auth-login">
+      <PublicTopbar />
       <section className="auth-card">
         <aside className="auth-showcase">
-          <Link className="auth-brand" to="/">
-            <span>ST</span>
-            Smart Travel Planner
-          </Link>
           <div className="showcase-copy">
             <p className="eyebrow">Welcome back</p>
             <h1>Your travel workspace is ready.</h1>

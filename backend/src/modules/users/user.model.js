@@ -60,6 +60,9 @@ const userSchema = new mongoose.Schema(
     },
     refreshToken: { type: String, select: false },
     refreshTokenExpiresAt: { type: Date, select: false },
+    failedLoginAttempts: { type: Number, default: 0, min: 0, select: false },
+    loginLockUntil: { type: Date, select: false },
+    loginLockLevel: { type: Number, default: 0, min: 0, select: false },
   },
   {
     timestamps: true,

@@ -2,6 +2,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { checkPasswordResetEmail, resetPassword } from '../../api/authApi';
+import PublicTopbar from '../../components/PublicTopbar';
 import { passwordRequirements } from './auth.validation';
 
 function ForgotPasswordPage() {
@@ -47,6 +48,7 @@ function ForgotPasswordPage() {
     } catch (requestError) {
       const message =
         requestError.response?.data?.message ||
+        requestError.response?.data?.errors?.[0]?.message ||
         requestError.response?.data?.errors?.[0]?.msg ||
         'Unable to verify that email address.';
       setError(message);
@@ -79,6 +81,7 @@ function ForgotPasswordPage() {
     } catch (requestError) {
       const message =
         requestError.response?.data?.message ||
+        requestError.response?.data?.errors?.[0]?.message ||
         requestError.response?.data?.errors?.[0]?.msg ||
         'Unable to reset your password.';
       setError(message);
@@ -89,12 +92,9 @@ function ForgotPasswordPage() {
 
   return (
     <main className="auth-page auth-forgot-password">
+      <PublicTopbar />
       <section className="auth-card">
         <aside className="auth-showcase">
-          <Link className="auth-brand" to="/">
-            <span>ST</span>
-            Smart Travel Planner
-          </Link>
           <div className="showcase-copy">
             <p className="eyebrow">Account recovery</p>
             <h1>Get back to your travel plans without losing momentum.</h1>

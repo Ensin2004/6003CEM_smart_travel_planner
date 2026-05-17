@@ -2,11 +2,14 @@ import { CalendarDays, ChevronDown, CloudSun, Eye, EyeOff, WalletCards } from 'l
 import { useContext, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { register } from '../../api/authApi';
+import PublicTopbar from '../../components/PublicTopbar';
 import AuthContext from '../../context/authContext';
 import {
   ageGroupOptions,
   countries,
   genderOptions,
+  maxNameLength,
+  maxPasswordLength,
   passwordRequirements,
 } from './auth.validation';
 
@@ -117,6 +120,7 @@ function RegisterPage() {
     } catch (requestError) {
       const message =
         requestError.response?.data?.message ||
+        requestError.response?.data?.errors?.[0]?.message ||
         requestError.response?.data?.errors?.[0]?.msg ||
         'Unable to create your account. Please check your details and try again.';
       setError(message);
@@ -127,12 +131,9 @@ function RegisterPage() {
 
   return (
     <main className="auth-page auth-register">
+      <PublicTopbar />
       <section className="auth-card">
         <aside className="auth-showcase">
-          <Link className="auth-brand" to="/">
-            <span>ST</span>
-            Smart Travel Planner
-          </Link>
           <div className="showcase-copy">
             <p className="eyebrow">Start planning</p>
             <h1>Set up your travel planner.</h1>
@@ -158,33 +159,35 @@ function RegisterPage() {
           </div>
 
           <form className="auth-form" onSubmit={handleSubmit}>
-            <div className="auth-form-row">
-              <label>
-                Full name
-                <input
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  placeholder="John Doe"
-                  autoComplete="name"
-                  required
-                />
-              </label>
+            <label>
+              Email address
+              <input
+                type="email"
+                name="email"
+                value={formData.email}
+                onChange={handleChange}
+                placeholder="you@example.com"
+                autoComplete="email"
+                required
+              />
+            </label>
 
-              <label>
-                Email address
-                <input
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  placeholder="you@example.com"
-                  autoComplete="email"
-                  required
-                />
-              </label>
-            </div>
+            <label>
+              <span className="label-with-counter">
+                Full name
+                <span>{formData.name.length}/{maxNameLength}</span>
+              </span>
+              <input
+                type="text"
+                name="name"
+                value={formData.name}
+                onChange={handleChange}
+                placeholder="John Doe"
+                autoComplete="name"
+                maxLength={maxNameLength}
+                required
+              />
+            </label>
 
             <label>
               Country
@@ -320,6 +323,7 @@ function RegisterPage() {
                   onBlur={() => setIsPasswordFocused(false)}
                   placeholder="Enter a password"
                   autoComplete="new-password"
+                  maxLength={maxPasswordLength}
                   required
                 />
                 <button
@@ -352,6 +356,7 @@ function RegisterPage() {
                   onBlur={() => setIsConfirmPasswordFocused(false)}
                   placeholder="Re-enter your password"
                   autoComplete="new-password"
+                  maxLength={maxPasswordLength}
                   required
                 />
                 <button

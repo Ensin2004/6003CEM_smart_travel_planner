@@ -1,5 +1,7 @@
 const axios = require('axios');
 const env = require('../../config/env');
+const logger = require('../../utils/logger');
+const apiLogService = require('../apiLogs/apiLog.service');
 
 const weatherCache = new Map();
 const CACHE_TTL_MS = 30 * 60 * 1000;
@@ -9,8 +11,26 @@ const fallbackWeather = (message = 'Weather temporarily unavailable') => ({
   message,
 });
 
+const recordWeatherFailure = (message, statusCode, destination) =>
+  env.nodeEnv === 'test'
+    ? Promise.resolve()
+    : apiLogService
+        .recordEvent({
+          service: 'openweathermap',
+          category: 'api',
+          severity: statusCode === 429 ? 'warning' : 'error',
+          endpoint: 'weather',
+          status: 'fail',
+          statusCode,
+          message,
+          metadata: {
+            destination,
+          },
+        })
+        .catch((error) => logger.error(`Failed to record weather API event: ${error.message}`));
+
 const getWeatherByDestination = async (destination) => {
-  if (!env.openWeatherApiKey) {
+  if (!env.openWeatherApiKey || env.nodeEnv === 'test') {
     return fallbackWeather('Weather API key is not configured');
   }
 
@@ -45,8 +65,17 @@ const getWeatherByDestination = async (destination) => {
     weatherCache.set(cacheKey, { data: weather, createdAt: Date.now() });
     return weather;
   } catch (error) {
-    if (error.response?.status === 401) return fallbackWeather('External service configuration error');
-    if (error.response?.status === 429) return fallbackWeather('Weather API rate limit reached');
+    if (error.response?.status === 401) {
+      recordWeatherFailure('External service configuration error', 502, destination);
+      return fallbackWeather('External service configuration error');
+    }
+
+    if (error.response?.status === 429) {
+      recordWeatherFailure('Weather API rate limit reached', 429, destination);
+      return fallbackWeather('Weather API rate limit reached');
+    }
+
+    recordWeatherFailure('Weather temporarily unavailable', error.response?.status || 503, destination);
     return fallbackWeather();
   }
 };
