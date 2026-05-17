@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getLoggingMonitoring } from '../../api/adminLogApi';
+import './SystemErrorsPage.css';
 
 const statusOptions = [
   { value: '', label: 'All statuses' },

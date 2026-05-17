@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { login } from '../../api/authApi';
 import PublicTopbar from '../../components/PublicTopbar';
 import AuthContext from '../../context/authContext';
+import './AuthPage.css';
 
 function LoginPage() {
   const navigate = useNavigate();

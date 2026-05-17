@@ -19,6 +19,7 @@ import PublicTopbar from '../../components/PublicTopbar';
 import publicNavItems from '../../components/publicNavItems';
 import heroImage from '../../assets/landing-hero.png';
 import logo from '../../assets/logo.png';
+import './LandingPage.css';
 
 const highlights = [
   [CloudSun, 'Live destination insight', 'See weather and travel context beside each saved trip.'],

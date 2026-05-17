@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { checkPasswordResetEmail, resetPassword } from '../../api/authApi';
 import PublicTopbar from '../../components/PublicTopbar';
 import { passwordRequirements } from './auth.validation';
+import './AuthPage.css';
 
 function ForgotPasswordPage() {
   const navigate = useNavigate();
