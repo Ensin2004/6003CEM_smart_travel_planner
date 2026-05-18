@@ -1,0 +1,439 @@
+﻿.logging-page {
+  display: grid;
+  gap: 18px;
+  width: 100%;
+}
+
+.logging-status {
+  margin: 0;
+}
+
+.logging-hero,
+.logging-insight-panel,
+.logging-filters,
+.logging-table-wrap {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 14px 38px rgba(16, 42, 67, 0.06);
+}
+
+.logging-hero {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 24px;
+  background:
+    linear-gradient(135deg, rgba(240, 253, 250, 0.92), rgba(255, 255, 255, 0.96)),
+    #ffffff;
+}
+
+.logging-hero h2 {
+  margin: 0 0 8px;
+  font-size: var(--font-size-3xl);
+}
+
+.logging-hero p:not(.eyebrow) {
+  max-width: 760px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.logging-hero-meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.logging-hero-meta span,
+.logging-health {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: var(--font-weight-semibold);
+}
+
+.logging-health-healthy {
+  border-color: rgba(4, 120, 87, 0.18);
+  background: #ecfdf5;
+  color: var(--color-success);
+}
+
+.logging-health-warning {
+  border-color: rgba(180, 35, 24, 0.18);
+  background: #fef2f2;
+  color: var(--color-danger);
+}
+
+.admin-icon-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  padding: 0 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--color-primary);
+  font: inherit;
+  font-weight: var(--font-weight-semibold);
+}
+
+.admin-icon-action:hover {
+  background: var(--color-primary-soft);
+}
+
+.admin-icon-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.monitoring-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.monitoring-metrics article {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 12px 32px rgba(16, 42, 67, 0.05);
+}
+
+.monitoring-metric-icon {
+  display: grid;
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border-radius: 8px;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.monitoring-metrics article > div {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.monitoring-metrics article > div span {
+  color: var(--muted);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.monitoring-metrics strong {
+  color: var(--navy);
+  font-size: var(--font-size-3xl);
+  line-height: 1;
+}
+
+.logging-insights {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(280px, 0.8fr);
+  gap: 14px;
+}
+
+.logging-insight-panel {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+}
+
+.logging-panel-heading,
+.logging-table-header,
+.logging-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+.logging-panel-heading span,
+.logging-table-header span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--color-primary);
+  font-size: 12px;
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+}
+
+.logging-panel-heading h3,
+.logging-table-header h3 {
+  margin: 0;
+  font-size: var(--font-size-lg);
+}
+
+.logging-muted {
+  margin: 0;
+  color: var(--muted);
+}
+
+.logging-category-list,
+.logging-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.logging-category-list span,
+.logging-quick-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #334e68;
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.logging-category-list strong {
+  color: var(--navy);
+}
+
+.logging-quick-actions button:hover {
+  border-color: rgba(15, 118, 110, 0.28);
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+}
+
+.logging-filters {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(140px, 1fr));
+  gap: 14px;
+  align-items: end;
+  padding: 18px;
+}
+
+.logging-section-title {
+  grid-column: 1 / -1;
+}
+
+.logging-section-title > div,
+.logging-section-title button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--navy);
+}
+
+.logging-section-title svg {
+  color: var(--color-primary);
+}
+
+.logging-section-title button {
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: var(--font-weight-semibold);
+}
+
+.logging-filters label {
+  display: grid;
+  gap: 7px;
+  color: #334e68;
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+}
+
+.logging-search-field {
+  position: relative;
+  display: block;
+}
+
+.logging-search-field svg {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  color: var(--muted);
+  transform: translateY(-50%);
+}
+
+.logging-filters select {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 12px;
+  background: #ffffff;
+  color: var(--ink);
+  outline: none;
+}
+
+.logging-filters input {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 12px 0 38px;
+  background: #ffffff;
+  color: var(--ink);
+  outline: none;
+}
+
+.logging-filters input:focus,
+.logging-filters select:focus {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.16);
+}
+
+.logging-table-wrap {
+  overflow-x: auto;
+  padding: 18px;
+}
+
+.logging-table {
+  width: 100%;
+  min-width: 1020px;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.logging-table-header {
+  margin-bottom: 14px;
+}
+
+.logging-table-header small {
+  color: var(--muted);
+  font-weight: var(--font-weight-semibold);
+}
+
+.logging-table th,
+.logging-table td {
+  padding: 14px 10px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.logging-table th {
+  color: #334e68;
+  font-size: 12px;
+  font-weight: var(--font-weight-bold);
+  text-transform: uppercase;
+}
+
+.logging-table td {
+  color: var(--muted);
+  font-size: var(--font-size-sm);
+}
+
+.logging-table td small,
+.logging-actor small {
+  display: block;
+  margin-top: 3px;
+  color: #7b8794;
+  font-size: 12px;
+  font-weight: var(--font-weight-medium);
+}
+
+.logging-time,
+.logging-actor strong {
+  display: block;
+  color: var(--navy);
+  font-weight: var(--font-weight-semibold);
+}
+
+.logging-table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.logging-actor {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-width: 210px;
+}
+
+.logging-actor svg {
+  flex: 0 0 auto;
+  color: var(--color-primary);
+}
+
+.logging-endpoint {
+  max-width: 260px;
+  overflow-wrap: anywhere;
+}
+
+.logging-endpoint span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  margin-right: 8px;
+  padding: 0 7px;
+  border-radius: 6px;
+  background: #eef2ff;
+  color: #3730a3;
+  font-size: 12px;
+  font-weight: var(--font-weight-bold);
+}
+
+.logging-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  padding: 0 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: var(--font-weight-bold);
+  text-transform: capitalize;
+}
+
+.logging-badge-success {
+  background: #ecfdf5;
+  color: var(--color-success);
+}
+
+.logging-badge-fail {
+  background: #fffbeb;
+  color: #b45309;
+}
+
+.logging-badge-error {
+  background: #fef2f2;
+  color: var(--color-danger);
+}
+
+.logging-severity {
+  color: #334e68;
+  font-weight: var(--font-weight-semibold);
+  text-transform: capitalize;
+}
+
+.logging-severity-warning,
+.logging-severity-critical {
+  color: #b45309;
+}
+
+.logging-severity-error {
+  color: var(--color-danger);
+}
+

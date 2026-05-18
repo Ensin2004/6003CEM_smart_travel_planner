@@ -1,0 +1,13 @@
+const express = require('express');
+const userController = require('./user.controller');
+const { protect } = require('../../middleware/auth.middleware');
+const validate = require('../../middleware/validate.middleware');
+const { updateMeRules, changePasswordRules } = require('./user.validation');
+
+const router = express.Router();
+
+router.get('/me', protect, userController.getMe);
+router.put('/me', protect, updateMeRules, validate, userController.updateMe);
+router.put('/me/password', protect, changePasswordRules, validate, userController.changePassword);
+
+module.exports = router;
