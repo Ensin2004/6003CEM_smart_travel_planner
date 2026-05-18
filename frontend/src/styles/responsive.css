@@ -338,6 +338,7 @@
   .sidebar-collapsed .sidebar-nav a {
     flex-direction: row;
     justify-content: flex-start;
+    width: 100%;
     min-height: 0;
     padding: 9px 10px;
     text-align: left;
@@ -346,6 +347,10 @@
 
   .sidebar-collapsed .sidebar-link-label {
     display: inline;
+    width: auto;
+    font-size: 14px;
+    text-align: left;
+    white-space: nowrap;
   }
 
   .main-panel {

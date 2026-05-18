@@ -10,7 +10,7 @@ import ExplorePage from '../features/explore/ExplorePage';
 import UserSettingsPage from '../features/settings/user/UserSettingsPage';
 import AdminDashboard from '../features/admin/AdminDashboard';
 import ApiLogsPage from '../features/admin/ApiLogsPage';
-import UserManagementPage from '../features/admin/UserManagementPage';
+import ManageUsersPage from '../features/admin/ManageUsersPage';
 import SystemErrorsPage from '../features/admin/SystemErrorsPage';
 import AdminSettingsPage from '../features/settings/admin/AdminSettingsPage';
 import UserLayout from '../layouts/UserLayout';
@@ -34,7 +34,7 @@ function AppRoutes() {
 
       <Route path="/admin" element={<AdminLayout />}>
         <Route index element={<AdminDashboard />} />
-        <Route path="users" element={<UserManagementPage />} />
+        <Route path="users" element={<ManageUsersPage />} />
         <Route path="api-logs" element={<ApiLogsPage />} />
         <Route path="logging-monitoring" element={<SystemErrorsPage />} />
         <Route path="system-errors" element={<SystemErrorsPage />} />

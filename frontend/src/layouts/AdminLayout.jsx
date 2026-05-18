@@ -9,7 +9,7 @@ import AppLayout from './AppLayout';
 
 const adminMenu = [
   { to: '/admin', label: 'Home', icon: Home, end: true },
-  { to: '/admin/users', label: 'User Management', icon: Users },
+  { to: '/admin/users', label: 'Manage Users', icon: Users },
   { to: '/admin/logging-monitoring', label: 'Logging / Monitoring', icon: ShieldAlert },
   { to: '/admin/settings', label: 'Settings', icon: Settings, bottom: true },
   { to: '/login', label: 'Logout', icon: LogOut, bottom: true },
