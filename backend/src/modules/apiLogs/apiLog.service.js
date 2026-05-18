@@ -66,6 +66,24 @@ const normalizePagination = ({ limit, page } = {}) => ({
   page: Math.max(Number(page) || 1, 1),
 });
 
+const fillDailyCounts = (dailyCounts, days = 7) => {
+  const today = new Date();
+
+  return Array.from({ length: days }, (_, index) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() - (days - 1 - index));
+    const key = date.toISOString().slice(0, 10);
+    const matchingItems = dailyCounts.filter((item) => item._id.date === key);
+
+    return {
+      date: key,
+      success: matchingItems.find((item) => item._id.status === 'success')?.count || 0,
+      fail: matchingItems.find((item) => item._id.status === 'fail')?.count || 0,
+      error: matchingItems.find((item) => item._id.status === 'error')?.count || 0,
+    };
+  });
+};
+
 const recordEvent = async (data) => {
   const metadata = cleanMetadata({
     ...data.metadata,
@@ -99,13 +117,26 @@ const getMonitoring = async (query = {}) => {
   const pagination = normalizePagination(query);
   const lastDay = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-  const [logs, totalLogs, failures, errors, recentFailures, categoryCounts] = await Promise.all([
+  const [
+    logs,
+    totalLogs,
+    failures,
+    errors,
+    recentFailures,
+    categoryCounts,
+    statusCounts,
+    severityCounts,
+    dailyCounts,
+  ] = await Promise.all([
     apiLogRepository.findMany({ filter, ...pagination }),
     apiLogRepository.countMany(filter),
     apiLogRepository.countMany({ ...filter, status: { $in: ['fail', 'error'] } }),
     apiLogRepository.countMany({ ...filter, status: 'error' }),
     apiLogRepository.countSince({ status: { $in: ['fail', 'error'] } }, lastDay),
     apiLogRepository.aggregateCategoryCounts(filter),
+    apiLogRepository.aggregateStatusCounts(filter),
+    apiLogRepository.aggregateSeverityCounts(filter),
+    apiLogRepository.aggregateDailyCounts(filter),
   ]);
 
   return {
@@ -120,6 +151,15 @@ const getMonitoring = async (query = {}) => {
         category: item._id || 'api',
         count: item.count,
       })),
+      statusCounts: statusCounts.map((item) => ({
+        status: item._id || 'success',
+        count: item.count,
+      })),
+      severityCounts: severityCounts.map((item) => ({
+        severity: item._id || 'info',
+        count: item.count,
+      })),
+      dailyCounts: fillDailyCounts(dailyCounts),
     },
     pagination: {
       page: pagination.page,

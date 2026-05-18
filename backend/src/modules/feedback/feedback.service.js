@@ -7,7 +7,7 @@ const submitFeedback = async (userId, data) => {
   if (!user) throw new AppError('User not found', 404);
 
   return feedbackRepository.create({
-    user: user.id,
+    userId: user.id,
     userName: user.name,
     userEmail: user.email,
     rating: data.rating,

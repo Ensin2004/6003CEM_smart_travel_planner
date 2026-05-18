@@ -5,6 +5,7 @@ const env = require('../../config/env');
 const logger = require('../../utils/logger');
 const authRepository = require('./auth.repository');
 const apiLogService = require('../apiLogs/apiLog.service');
+const { normalizePreferences } = require('../users/user.service');
 
 const MAX_FAILED_LOGIN_ATTEMPTS = 5;
 const LOCK_STEP_MINUTES = 15;
@@ -49,7 +50,11 @@ const register = async (data) => {
   if (existingUser) throw new AppError('Email is already registered', 409);
 
   const { confirmPassword, preferences, role, ...userData } = data;
-  const user = await authRepository.create({ ...userData, role: 'user' });
+  const user = await authRepository.create({
+    ...userData,
+    preferences: normalizePreferences(preferences),
+    role: 'user',
+  });
   const accessToken = generateAccessToken(user);
   const refreshToken = generateRefreshToken(user);
 

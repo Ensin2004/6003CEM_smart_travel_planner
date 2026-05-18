@@ -117,6 +117,14 @@ function SystemErrorsPage() {
   const hasActiveFilters = Object.values(filters).some(Boolean);
   const health = summary.health || 'healthy';
   const categoryCounts = summary.categoryCounts || [];
+  const statusCounts = summary.statusCounts || [];
+  const severityCounts = summary.severityCounts || [];
+  const dailyCounts = summary.dailyCounts || [];
+  const categoryMaxCount = Math.max(...categoryCounts.map((item) => item.count), 1);
+  const statusMaxCount = Math.max(...statusCounts.map((item) => item.count), 1);
+  const severityMaxCount = Math.max(...severityCounts.map((item) => item.count), 1);
+  const dailyMaxCount = Math.max(...dailyCounts.map((item) => item.success + item.fail + item.error), 1);
+  const latestEventLabel = logs[0]?.createdAt ? formatDateTime(logs[0].createdAt) : 'No events yet';
 
   const handleFilterChange = (event) => {
     const { name, value } = event.target;
@@ -150,15 +158,21 @@ function SystemErrorsPage() {
             </span>
           </div>
         </div>
-        <button
-          className="admin-icon-action"
-          type="button"
-          onClick={() => fetchMonitoring({ showSuccess: true })}
-          disabled={isLoading}
-        >
-          <RefreshCw size={17} aria-hidden="true" />
-          Refresh
-        </button>
+        <div className="logging-hero-actions">
+          <div className="logging-live-card" aria-label="Latest monitoring event">
+            <span>Latest event</span>
+            <strong>{latestEventLabel}</strong>
+          </div>
+          <button
+            className="admin-icon-action"
+            type="button"
+            onClick={() => fetchMonitoring({ showSuccess: true })}
+            disabled={isLoading}
+          >
+            <RefreshCw size={17} aria-hidden="true" />
+            Refresh
+          </button>
+        </div>
       </div>
 
       {error && <p className="form-error logging-status">{error}</p>}
@@ -172,27 +186,98 @@ function SystemErrorsPage() {
             <strong>{summary.totalLogs ?? 0}</strong>
           </div>
         </article>
-        <article>
+        <article className="monitoring-metric-warning">
           <span className="monitoring-metric-icon"><AlertTriangle size={22} aria-hidden="true" /></span>
           <div>
             <span>Failures</span>
             <strong>{summary.failures ?? 0}</strong>
           </div>
         </article>
-        <article>
+        <article className="monitoring-metric-danger">
           <span className="monitoring-metric-icon"><ServerCrash size={22} aria-hidden="true" /></span>
           <div>
             <span>System errors</span>
             <strong>{summary.errors ?? 0}</strong>
           </div>
         </article>
-        <article>
+        <article className="monitoring-metric-security">
           <span className="monitoring-metric-icon"><ShieldAlert size={22} aria-hidden="true" /></span>
           <div>
             <span>24h failures</span>
             <strong>{summary.recentFailures ?? 0}</strong>
           </div>
         </article>
+      </div>
+
+      <div className="logging-charts">
+        <section className="logging-chart-panel" aria-labelledby="status-chart-title">
+          <div className="logging-panel-heading">
+            <div>
+              <span>Status chart</span>
+              <h3 id="status-chart-title">Events by status</h3>
+            </div>
+          </div>
+          <div className="logging-bar-chart">
+            {statusCounts.length === 0 ? (
+              <p className="logging-muted">No status activity yet.</p>
+            ) : (
+              statusCounts.map((item) => (
+                <div className={`logging-chart-bar logging-chart-bar-${item.status}`} key={item.status}>
+                  <span>{item.status}</span>
+                  <i style={{ '--bar-size': `${Math.max((item.count / statusMaxCount) * 100, 8)}%` }} />
+                  <strong>{item.count}</strong>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+
+        <section className="logging-chart-panel" aria-labelledby="severity-chart-title">
+          <div className="logging-panel-heading">
+            <div>
+              <span>Severity chart</span>
+              <h3 id="severity-chart-title">Events by severity</h3>
+            </div>
+          </div>
+          <div className="logging-bar-chart">
+            {severityCounts.length === 0 ? (
+              <p className="logging-muted">No severity activity yet.</p>
+            ) : (
+              severityCounts.map((item) => (
+                <div className={`logging-chart-bar logging-chart-bar-${item.severity}`} key={item.severity}>
+                  <span>{item.severity}</span>
+                  <i style={{ '--bar-size': `${Math.max((item.count / severityMaxCount) * 100, 8)}%` }} />
+                  <strong>{item.count}</strong>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+
+        <section className="logging-chart-panel logging-chart-panel-wide" aria-labelledby="trend-chart-title">
+          <div className="logging-panel-heading">
+            <div>
+              <span>7-day trend</span>
+              <h3 id="trend-chart-title">Daily event volume</h3>
+            </div>
+          </div>
+          <div className="logging-trend-chart">
+            {dailyCounts.map((item) => {
+              const total = item.success + item.fail + item.error;
+              return (
+                <div className="logging-trend-day" key={item.date}>
+                  <span>{new Date(item.date).toLocaleDateString('en', { weekday: 'short' })}</span>
+                  <i style={{ '--bar-size': `${Math.max((total / dailyMaxCount) * 100, total ? 8 : 0)}%` }}>
+                    <b className="logging-trend-success" style={{ '--segment-size': `${(item.success / Math.max(total, 1)) * 100}%` }} />
+                    <b className="logging-trend-fail" style={{ '--segment-size': `${(item.fail / Math.max(total, 1)) * 100}%` }} />
+                    <b className="logging-trend-error" style={{ '--segment-size': `${(item.error / Math.max(total, 1)) * 100}%` }} />
+                  </i>
+                  <strong>{total}</strong>
+                </div>
+              );
+            })}
+          </div>
+        </section>
       </div>
 
       <div className="logging-insights">
@@ -208,9 +293,15 @@ function SystemErrorsPage() {
           ) : (
             <div className="logging-category-list">
               {categoryCounts.map((item) => (
-                <span key={item.category}>
-                  {formatCategoryLabel(item.category)}
-                  <strong>{item.count}</strong>
+                <span
+                  key={item.category}
+                  style={{ '--category-share': `${Math.max((item.count / categoryMaxCount) * 100, 8)}%` }}
+                >
+                  <span>
+                    {formatCategoryLabel(item.category)}
+                    <strong>{item.count}</strong>
+                  </span>
+                  <i aria-hidden="true" />
                 </span>
               ))}
             </div>

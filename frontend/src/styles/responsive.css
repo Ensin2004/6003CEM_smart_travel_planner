@@ -173,19 +173,33 @@
     gap: 8px;
   }
 
-  .header-action-button {
+  .currency-trigger {
     width: 38px;
     padding: 0;
   }
 
-  .header-action-button svg:last-child,
-  .header-action-button {
+  .currency-trigger svg:last-child,
+  .currency-trigger {
     font-size: 0;
   }
 
-  .header-action-button svg {
+  .currency-trigger svg {
     width: 18px;
     height: 18px;
+  }
+
+  .currency-code {
+    display: none;
+  }
+
+  .language-popover,
+  .currency-popover {
+    right: -52px;
+  }
+
+  .language-grid,
+  .currency-grid {
+    grid-template-columns: 1fr;
   }
 
   .auth-page {
