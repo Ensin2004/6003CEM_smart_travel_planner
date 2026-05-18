@@ -24,6 +24,7 @@ const updateMeRules = [
   body('notificationPreferences.notificationsOff').optional().isBoolean(),
   body('notificationPreferences.tripAlerts').optional().isBoolean(),
   body('notificationPreferences.weatherAlerts').optional().isBoolean(),
+  body('notificationPreferences.packingReminder').optional().isBoolean(),
   body('notificationPreferences.errorLogs').optional().isBoolean(),
   body('notificationPreferences.systemAlerts').optional().isBoolean(),
   body('notificationPreferences.ratingFeedback').optional().isBoolean(),

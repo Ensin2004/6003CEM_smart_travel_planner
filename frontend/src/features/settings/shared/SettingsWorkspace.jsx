@@ -1,5 +1,6 @@
 import { Edit3 } from 'lucide-react';
 import { useContext, useEffect, useMemo, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { getFeedback, submitFeedback } from '../../../api/feedbackApi';
 import { getSettingsContent, updateSettingsContent } from '../../../api/settingsApi';
 import { changeMyPassword, getMe, updateMe } from '../../../api/userApi';
@@ -12,12 +13,21 @@ import NotificationSettings from './components/NotificationSettings';
 import PasswordSettings from './components/PasswordSettings';
 import ProfileSettings from './components/ProfileSettings';
 import SettingsSubnav from './components/SettingsSubnav';
-import { allNotificationKeys, maxAvatarSizeBytes, maxAvatarSizeMegabytes, sections } from './settings.constants';
+import {
+  allNotificationKeys,
+  defaultNotificationPreferences,
+  maxAvatarSizeBytes,
+  maxAvatarSizeMegabytes,
+  sections,
+} from './settings.constants';
 import './SettingsWorkspace.css';
 
 function SettingsWorkspace({ role }) {
   const { setUser } = useContext(AuthContext);
-  const [activeSection, setActiveSection] = useState('profile');
+  const location = useLocation();
+  const [activeSection, setActiveSection] = useState(
+    location.hash === '#notifications' ? 'notifications' : 'profile'
+  );
   const [profile, setProfile] = useState({
     name: '',
     email: '',
@@ -103,7 +113,10 @@ function SettingsWorkspace({ role }) {
           country: loadedUser.country || 'Malaysia',
           gender: loadedUser.gender || '',
           ageGroup: loadedUser.ageGroup || '',
-          notificationPreferences: loadedUser.notificationPreferences || {},
+          notificationPreferences: {
+            ...defaultNotificationPreferences,
+            ...(loadedUser.notificationPreferences || {}),
+          },
         });
         setContent(contentResponse.data.data.content);
         if (feedbackResponse) {

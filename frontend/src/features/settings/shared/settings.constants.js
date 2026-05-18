@@ -19,10 +19,28 @@ export const notificationCopy = {
   user: [
     ['tripAlerts', 'Trip alerts'],
     ['weatherAlerts', 'Weather alerts'],
+    ['packingReminder', 'Packing reminder'],
   ],
 };
 
-export const allNotificationKeys = ['tripAlerts', 'weatherAlerts', 'errorLogs', 'systemAlerts', 'ratingFeedback'];
+export const allNotificationKeys = [
+  'tripAlerts',
+  'weatherAlerts',
+  'packingReminder',
+  'errorLogs',
+  'systemAlerts',
+  'ratingFeedback',
+];
+
+export const defaultNotificationPreferences = {
+  notificationsOff: false,
+  tripAlerts: true,
+  weatherAlerts: true,
+  packingReminder: true,
+  errorLogs: true,
+  systemAlerts: true,
+  ratingFeedback: true,
+};
 
 export const feedbackSortOptions = [
   { value: 'all', label: 'All' },

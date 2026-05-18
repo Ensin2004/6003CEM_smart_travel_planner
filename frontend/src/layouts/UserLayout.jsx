@@ -42,7 +42,7 @@ const userMenu = [
       { to: '/explore?view=transport', label: 'Transport', icon: BriefcaseBusiness },
     ],
   },
-  { to: '/dashboard#packing-list', label: 'Packing List', icon: ListChecks},
+  { to: '/packing-lists', label: 'Packing List', icon: ListChecks},
   { to: '/dashboard#travel-document', label: 'Travel Document', icon: FileText},
   { to: '/dashboard#favourite', label: 'Favourite', icon: Heart, header: true },
   { to: '/dashboard#language-helper', label: 'Language Helper', icon: Languages},
