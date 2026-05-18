@@ -8,6 +8,7 @@ const adminRoutes = require('../modules/admin/admin.routes');
 const apiLogRoutes = require('../modules/apiLogs/apiLog.routes');
 const settingsRoutes = require('../modules/settings/settings.routes');
 const feedbackRoutes = require('../modules/feedback/feedback.routes');
+const currencyRoutes = require('../modules/currency/currency.routes');
 
 const router = express.Router();
 
@@ -15,7 +16,7 @@ router.get('/', (req, res) => {
   res.status(200).json({
     status: 'success',
     message: 'Smart Travel Planner API v1',
-    endpoints: ['/auth', '/users', '/trips', '/explore', '/admin', '/api-logs', '/settings', '/feedback'],
+    endpoints: ['/auth', '/users', '/trips', '/explore', '/admin', '/api-logs', '/settings', '/feedback', '/currency'],
   });
 });
 
@@ -27,5 +28,6 @@ router.use('/admin', adminRoutes);
 router.use('/api-logs', apiLogRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/feedback', feedbackRoutes);
+router.use('/currency', currencyRoutes);
 
 module.exports = router;

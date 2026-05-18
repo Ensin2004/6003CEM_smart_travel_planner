@@ -2,7 +2,24 @@ const AppError = require('../../utils/AppError');
 const tripRepository = require('./trip.repository');
 const exploreService = require('../explore/explore.service');
 
-const createTrip = (userId, data) => tripRepository.create({ ...data, userId });
+const normalizeTripPayload = (data = {}) => {
+  const payload = { ...data };
+
+  if (typeof payload.budget === 'number' || typeof payload.budget === 'string') {
+    payload.budget = {
+      totalAmount: Number(payload.budget) || 0,
+    };
+  }
+
+  if (payload.preferences && !payload.travelPreferences) {
+    payload.travelPreferences = payload.preferences;
+    delete payload.preferences;
+  }
+
+  return payload;
+};
+
+const createTrip = (userId, data) => tripRepository.create({ ...normalizeTripPayload(data), userId });
 
 const getMyTrips = (userId) => tripRepository.findByUserId(userId);
 
@@ -13,7 +30,7 @@ const getTripById = async (tripId, userId) => {
 };
 
 const updateTrip = async (tripId, userId, data) => {
-  const trip = await tripRepository.updateByIdAndUserId(tripId, userId, data);
+  const trip = await tripRepository.updateByIdAndUserId(tripId, userId, normalizeTripPayload(data));
   if (!trip) throw new AppError('Trip not found', 404);
   return trip;
 };
@@ -40,4 +57,5 @@ module.exports = {
   updateTrip,
   deleteTrip,
   getTripSummary,
+  normalizeTripPayload,
 };

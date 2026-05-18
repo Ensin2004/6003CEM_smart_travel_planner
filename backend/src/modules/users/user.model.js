@@ -4,8 +4,14 @@ const argon2 = require('argon2');
 const preferenceSchema = new mongoose.Schema(
   {
     travelStyle: { type: String, trim: true },
-    budgetLevel: { type: String, enum: ['low', 'medium', 'high'], default: 'medium' },
+    spendingPreference: {
+      type: String,
+      enum: ['budget', 'standard', 'luxury'],
+      default: 'standard',
+    },
     preferredActivities: [{ type: String, trim: true }],
+    preferredCurrency: { type: String, trim: true, uppercase: true, default: 'MYR' },
+    preferredLanguage: { type: String, trim: true, lowercase: true, default: 'en' },
   },
   { _id: false }
 );
@@ -70,6 +76,10 @@ const userSchema = new mongoose.Schema(
     toObject: { virtuals: true },
   }
 );
+
+userSchema.index({ role: 1 });
+userSchema.index({ status: 1 });
+userSchema.index({ createdAt: -1 });
 
 userSchema.pre('save', async function hashPassword() {
   if (!this.isModified('password')) return;

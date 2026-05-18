@@ -1,0 +1,85 @@
+openapi: 3.0.0
+info:
+  title: Smart Travel Planner API
+  version: 1.0.0
+paths:
+  /api/v1/currency:
+    get:
+      summary: List supported currencies
+      tags:
+        - Currency
+      responses:
+        '200':
+          description: Supported currency list
+          content:
+            application/json:
+              example:
+                status: success
+                message: Success
+                data:
+                  currencies:
+                    - code: USD
+                      label: US Dollar
+                    - code: MYR
+                      label: Malaysian Ringgit
+  /api/v1/currency/convert:
+    get:
+      summary: Convert an amount with Frankfurter exchange rates
+      tags:
+        - Currency
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: amount
+          required: true
+          schema:
+            type: number
+            minimum: 0
+          example: 100
+        - in: query
+          name: from
+          required: true
+          schema:
+            type: string
+          example: USD
+        - in: query
+          name: to
+          required: true
+          schema:
+            type: string
+          example: MYR
+      responses:
+        '200':
+          description: Converted amount
+          content:
+            application/json:
+              example:
+                status: success
+                message: Success
+                data:
+                  conversion:
+                    available: true
+                    base: USD
+                    target: MYR
+                    rate: 4.72
+                    date: '2026-05-18'
+                    cached: false
+                    amount: 100
+                    convertedAmount: 472
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid token
+        '429':
+          description: Too many currency conversion requests
+        '502':
+          description: External API error
+        '503':
+          description: External service unavailable
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT

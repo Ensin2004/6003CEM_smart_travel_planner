@@ -7,4 +7,14 @@ const getDashboard = catchAsync(async (req, res) => {
   sendSuccess(res, 200, { dashboard });
 });
 
-module.exports = { getDashboard };
+const getUsers = catchAsync(async (req, res) => {
+  const users = await adminService.getUsers();
+  sendSuccess(res, 200, users);
+});
+
+const removeUser = catchAsync(async (req, res) => {
+  const result = await adminService.removeUser(req.params.id, req.user.id);
+  sendSuccess(res, 200, result, 'User account removed');
+});
+
+module.exports = { getDashboard, getUsers, removeUser };

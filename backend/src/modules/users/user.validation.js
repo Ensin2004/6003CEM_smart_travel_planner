@@ -28,6 +28,10 @@ const updateMeRules = [
   body('notificationPreferences.systemAlerts').optional().isBoolean(),
   body('notificationPreferences.ratingFeedback').optional().isBoolean(),
   body('preferences.travelStyle').optional().trim().isLength({ max: 60 }),
+  body('preferences.spendingPreference')
+    .optional()
+    .isIn(['budget', 'standard', 'luxury'])
+    .withMessage('Spending preference must be budget, standard, or luxury'),
   body('preferences.budgetLevel').optional().isIn(['low', 'medium', 'high']),
   body('preferences.preferredActivities').optional().isArray(),
 ];
