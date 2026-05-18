@@ -54,6 +54,7 @@ const userSchema = new mongoose.Schema(
       notificationsOff: { type: Boolean, default: false },
       tripAlerts: { type: Boolean, default: true },
       weatherAlerts: { type: Boolean, default: true },
+      packingReminder: { type: Boolean, default: true },
       errorLogs: { type: Boolean, default: true },
       systemAlerts: { type: Boolean, default: true },
       ratingFeedback: { type: Boolean, default: true },
