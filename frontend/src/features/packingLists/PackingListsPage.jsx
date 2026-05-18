@@ -1,460 +1,117 @@
 import {
   Bell,
   Bot,
-  BriefcaseBusiness,
+  ChevronLeft,
+  ChevronRight,
+  CheckCircle2,
+  CircleAlert,
   Copy,
   Edit3,
-  FileText,
-  Laptop,
+  ListChecks,
   Luggage,
-  Pill,
   Plus,
-  Shirt,
   Search,
   Sparkles,
-  Utensils,
   Trash2,
   X,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
 import {
-  addPackingItem,
-  createPackingList,
-  deletePackingItem,
-  deletePackingList,
-  duplicatePackingList,
-  getPackingLists,
-  getPackingListTemplates,
-  updatePackingList,
-  updatePackingItem,
-} from '../../api/packingListApi';
-import { getMe } from '../../api/userApi';
-import {
-  defaultPackingCategory,
-  defaultPriorityLevel,
   formatPackingCategory,
   formatPriorityLevel,
   getPriorityClassName,
   packingCategories,
   priorityLevels,
 } from './packingList.constants';
+import { usePackingListsPage } from './hooks/usePackingListsPage';
+import { getCategoryIcon } from './packingList.utils';
 import './PackingListsPage.css';
 
-const emptyItemForm = {
-  name: '',
-  category: defaultPackingCategory,
-  priority: defaultPriorityLevel,
-  quantity: 1,
-};
-
-const getErrorMessage = (error) =>
-  error.response?.data?.message || 'Unable to update packing lists right now.';
-
-const categoryIcons = {
-  clothes: Shirt,
-  toiletries: Luggage,
-  electronics: Laptop,
-  documents: FileText,
-  medicine: Pill,
-  food: Utensils,
-  'travel essentials': BriefcaseBusiness,
-  other: Sparkles,
-};
-
-const getCategoryIcon = (category) => categoryIcons[category] || Luggage;
-
-const normalizePackingListForUi = (packingList) => ({
-  ...packingList,
-  items: (packingList.items || []).map((item) => ({
-    ...item,
-    priority: formatPriorityLevel(item.priority),
-  })),
-});
-
 function PackingListsPage() {
-  const [packingLists, setPackingLists] = useState([]);
-  const [templates, setTemplates] = useState([]);
-  const [selectedListId, setSelectedListId] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
-  const [createMode, setCreateMode] = useState('manual');
-  const [createForm, setCreateForm] = useState({
-    title: '',
-    templateKey: '',
-  });
-  const [itemForm, setItemForm] = useState(emptyItemForm);
-  const [itemFormError, setItemFormError] = useState('');
-  const [itemModalMode, setItemModalMode] = useState('');
-  const [editingItemId, setEditingItemId] = useState('');
-  const [isEditingListTitle, setIsEditingListTitle] = useState(false);
-  const [listTitleDraft, setListTitleDraft] = useState('');
-  const [confirmAction, setConfirmAction] = useState(null);
-  const [notificationPreferences, setNotificationPreferences] = useState({
-    notificationsOff: false,
-    packingReminder: true,
-  });
-  const [reminderDays, setReminderDays] = useState(2);
-  const [filters, setFilters] = useState({
-    search: '',
-    category: '',
-    packed: '',
-    priority: '',
-  });
-
-  const selectedList = useMemo(
-    () => packingLists.find((list) => list._id === selectedListId) || packingLists[0],
-    [packingLists, selectedListId]
-  );
-
-  const progress = selectedList?.progress || {
-    packedItems: selectedList?.items?.filter((item) => item.isPacked).length || 0,
-    totalItems: selectedList?.items?.length || 0,
-    percent: 0,
-  };
-
-  const unpackedImportantCount = useMemo(
-    () =>
-      selectedList?.items?.filter(
-        (item) => !item.isPacked && item.priority === 'High'
-      ).length || 0,
-    [selectedList]
-  );
-  
-  const isPackingReminderEnabled =
-    !notificationPreferences.notificationsOff && notificationPreferences.packingReminder !== false;
-
-  const filteredItems = useMemo(() => {
-    const items = selectedList?.items || [];
-    return items.filter((item) => {
-      const matchesSearch = item.name.toLowerCase().includes(filters.search.toLowerCase().trim());
-      const matchesCategory = !filters.category || item.category === filters.category;
-      const matchesPriority = !filters.priority || item.priority === filters.priority;
-      const matchesPacked =
-        !filters.packed ||
-        (filters.packed === 'packed' && item.isPacked) ||
-        (filters.packed === 'unpacked' && !item.isPacked);
-
-      return matchesSearch && matchesCategory && matchesPriority && matchesPacked;
-    });
-  }, [filters, selectedList]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadPackingLists = async () => {
-      try {
-        const [listsResponse, templatesResponse, profileResponse] = await Promise.all([
-          getPackingLists(),
-          getPackingListTemplates(),
-          getMe().catch(() => ({ data: { data: { user: {} } } })),
-        ]);
-
-        if (!isMounted) return;
-
-        const nextLists = (listsResponse.data.data.packingLists || []).map(normalizePackingListForUi);
-        const preferences = profileResponse.data.data.user.notificationPreferences || {};
-
-        setPackingLists(nextLists);
-        setTemplates(templatesResponse.data.data.templates || []);
-        setNotificationPreferences({
-          notificationsOff: Boolean(preferences.notificationsOff),
-          packingReminder: preferences.packingReminder !== false,
-        });
-        setReminderDays(nextLists[0]?.reminder?.daysBeforeTrip ?? 2);
-        setSelectedListId((current) => current || nextLists[0]?._id || '');
-        setError('');
-      } catch (requestError) {
-        if (isMounted) {
-          setError(getErrorMessage(requestError));
-        }
-      } finally {
-        if (isMounted) {
-          setIsLoading(false);
-        }
-      }
-    };
-
-    loadPackingLists();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  const replaceList = (updatedList) => {
-    const normalizedList = normalizePackingListForUi(updatedList);
-    setPackingLists((current) =>
-      current.map((list) => (list._id === normalizedList._id ? normalizedList : list))
-    );
-  };
-
-  const closeItemModal = () => {
-    setItemModalMode('');
-    setEditingItemId('');
-    setItemForm(emptyItemForm);
-    setItemFormError('');
-  };
-
-  const handleCreateList = async (event) => {
-    event.preventDefault();
-
-    if (!createForm.title.trim()) {
-      setError('Enter a packing list title.');
-      return;
-    }
-
-    if (createMode === 'template' && !createForm.templateKey) {
-      setError('Choose a template to create this list.');
-      return;
-    }
-
-    setIsSaving(true);
-    setError('');
-    setSuccessMessage('');
-
-    try {
-      const payload = {
-        title: createForm.title.trim(),
-        ...(createMode === 'template' ? { templateKey: createForm.templateKey } : {}),
-      };
-      const response = await createPackingList(payload);
-      const packingList = normalizePackingListForUi(response.data.data.packingList);
-
-      setPackingLists((current) => [packingList, ...current]);
-      setSelectedListId(packingList._id);
-      setCreateForm({ title: '', templateKey: '' });
-      setCreateMode('manual');
-      setSuccessMessage('Packing list created.');
-    } catch (requestError) {
-      setError(getErrorMessage(requestError));
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleTemplateSelect = (template) => {
-    setCreateMode('template');
-    setCreateForm({
-      title: template.title,
-      templateKey: template.key,
-    });
-  };
-
-  const handleTemplateDropdownChange = (event) => {
-    const templateKey = event.target.value;
-    const template = templates.find((candidate) => candidate.key === templateKey);
-
-    setCreateForm((current) => ({
-      ...current,
-      title: template?.title || current.title,
-      templateKey,
-    }));
-  };
-
-  const handleItemFormChange = (event) => {
-    const { name, value } = event.target;
-    setItemFormError('');
-    setItemForm((current) => ({
-      ...current,
-      [name]: name === 'quantity' ? Number(value) : value,
-    }));
-  };
-
-  const handleOpenAddItem = () => {
-    setItemForm(emptyItemForm);
-    setEditingItemId('');
-    setItemModalMode('add');
-    setItemFormError('');
-    setSuccessMessage('');
-  };
-
-  const handleEditItem = (item) => {
-    setEditingItemId(item._id);
-    setItemForm({
-      name: item.name,
-      category: item.category,
-      priority: item.priority,
-      quantity: item.quantity,
-    });
-    setItemModalMode('edit');
-    setItemFormError('');
-    setSuccessMessage('');
-  };
-
-  const handleSaveItem = async (event) => {
-    event.preventDefault();
-
-    if (!itemForm.name.trim()) {
-      setItemFormError('Item name is required.');
-      return;
-    }
-
-    if (!itemForm.category) {
-      setItemFormError('Please choose a category.');
-      return;
-    }
-
-    if (!itemForm.priority) {
-      setItemFormError('Please choose a priority.');
-      return;
-    }
-
-    if (!Number(itemForm.quantity) || Number(itemForm.quantity) < 1) {
-      setItemFormError('Quantity must be at least 1.');
-      return;
-    }
-
-    if (!selectedList) {
-      setItemFormError('Please choose a packing list first.');
-      return;
-    }
-
-    setIsSaving(true);
-    setError('');
-    setSuccessMessage('');
-
-    try {
-      const response =
-        itemModalMode === 'edit'
-          ? await updatePackingItem(selectedList._id, editingItemId, itemForm)
-          : await addPackingItem(selectedList._id, itemForm);
-
-      replaceList(response.data.data.packingList);
-      setSuccessMessage(itemModalMode === 'edit' ? 'Packing item updated.' : 'Packing item added.');
-      closeItemModal();
-    } catch (requestError) {
-      setError(getErrorMessage(requestError));
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleTogglePacked = async (item) => {
-    try {
-      const response = await updatePackingItem(selectedList._id, item._id, {
-        isPacked: !item.isPacked,
-      });
-      replaceList(response.data.data.packingList);
-    } catch (requestError) {
-      setError(getErrorMessage(requestError));
-    }
-  };
-
-  const handleStartListTitleEdit = () => {
-    if (!selectedList) return;
-    setListTitleDraft(selectedList.title);
-    setIsEditingListTitle(true);
-    setSuccessMessage('');
-  };
-
-  const handleCancelListTitleEdit = () => {
-    setIsEditingListTitle(false);
-    setListTitleDraft('');
-  };
-
-  const handleSaveListTitle = async (event) => {
-    event.preventDefault();
-
-    if (!selectedList || !listTitleDraft.trim()) {
-      setError('Packing list name is required.');
-      return;
-    }
-
-    setIsSaving(true);
-    setError('');
-    setSuccessMessage('');
-
-    try {
-      const response = await updatePackingList(selectedList._id, {
-        title: listTitleDraft.trim(),
-      });
-      replaceList(response.data.data.packingList);
-      setIsEditingListTitle(false);
-      setListTitleDraft('');
-      setSuccessMessage('Packing list name updated.');
-    } catch (requestError) {
-      setError(getErrorMessage(requestError));
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleReminderDaysChange = async (event) => {
-    const daysBeforeTrip = Number(event.target.value);
-    setReminderDays(daysBeforeTrip);
-
-    if (!selectedList) return;
-
-    try {
-      const response = await updatePackingList(selectedList._id, {
-        reminder: {
-          enabled: selectedList.reminder?.enabled ?? true,
-          daysBeforeTrip,
-        },
-      });
-      replaceList(response.data.data.packingList);
-    } catch (requestError) {
-      setError(getErrorMessage(requestError));
-    }
-  };
-
-  const runConfirmedAction = async () => {
-    if (!confirmAction) return;
-
-    setIsSaving(true);
-    setError('');
-    setSuccessMessage('');
-
-    try {
-      if (confirmAction.type === 'duplicate-list') {
-        const response = await duplicatePackingList(confirmAction.list._id, {
-          title: `${confirmAction.list.title} copy`,
-        });
-        const packingList = normalizePackingListForUi(response.data.data.packingList);
-        setPackingLists((current) => [packingList, ...current]);
-        setSelectedListId(packingList._id);
-        setSuccessMessage('Packing list duplicated.');
-      }
-
-      if (confirmAction.type === 'delete-list') {
-        await deletePackingList(confirmAction.list._id);
-        setPackingLists((current) => {
-          const nextLists = current.filter((list) => list._id !== confirmAction.list._id);
-          setSelectedListId(nextLists[0]?._id || '');
-          return nextLists;
-        });
-        setError('Packing list deleted.');
-      }
-
-      if (confirmAction.type === 'delete-item') {
-        const response = await deletePackingItem(confirmAction.list._id, confirmAction.item._id);
-        replaceList(response.data.data.packingList);
-        setError('Packing item deleted.');
-      }
-
-      setConfirmAction(null);
-    } catch (requestError) {
-      setError(getErrorMessage(requestError));
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const confirmTitle =
-    confirmAction?.type === 'duplicate-list'
-      ? 'Duplicate packing list?'
-      : confirmAction?.type === 'delete-list'
-        ? 'Delete packing list?'
-        : 'Delete packing item?';
-
-  const confirmMessage =
-    confirmAction?.type === 'duplicate-list'
-      ? `Create a copy of "${confirmAction.list.title}" with all items marked unpacked.`
-      : confirmAction?.type === 'delete-list'
-        ? `Delete "${confirmAction.list.title}" and all of its packing items.`
-        : `Delete "${confirmAction?.item?.name}" from this packing list.`;
+  const {
+    categoryOptions,
+    closeItemModal,
+    closeTemplateModal,
+    confirmAction,
+    confirmMessage,
+    confirmTitle,
+    createForm,
+    createFormError,
+    createMode,
+    customTemplates,
+    error,
+    filteredItems,
+    filteredTemplateItems,
+    filters,
+    handleCancelListTitleEdit,
+    handleCancelTemplateDescriptionEdit,
+    handleCancelTemplateTitleEdit,
+    handleCreateList,
+    handleEditItem,
+    handleEditTemplateItem,
+    handleItemFormChange,
+    handleOpenAddItem,
+    handleOpenAddTemplateItem,
+    handleOpenSaveTemplateModal,
+    handleReminderDaysChange,
+    handleSaveCurrentListAsTemplate,
+    handleSaveItem,
+    handleSaveListTitle,
+    handleSaveTemplateDescription,
+    handleSaveTemplateTitle,
+    handleStartListTitleEdit,
+    handleStartTemplateDescriptionEdit,
+    handleStartTemplateTitleEdit,
+    handleTemplateDropdownChange,
+    handleTemplatePageChange,
+    handleTemplateSaveFormChange,
+    handleTemplateSelect,
+    handleTemplateWorkspaceSelect,
+    handleTogglePacked,
+    handleToggleTemplateItemPacked,
+    isEditingListTitle,
+    isEditingTemplateDescription,
+    isEditingTemplateTitle,
+    isLoading,
+    isPackingReminderEnabled,
+    isSaving,
+    isTemplateModalOpen,
+    itemForm,
+    itemFormError,
+    itemModalMode,
+    listTitleDraft,
+    packingLists,
+    progress,
+    remainingItems,
+    reminderDays,
+    runConfirmedAction,
+    selectedList,
+    selectedTemplate,
+    selectedTemplateId,
+    setConfirmAction,
+    setCreateForm,
+    setCreateFormError,
+    setCreateMode,
+    setFilters,
+    setListTitleDraft,
+    setSelectedListId,
+    setSelectedTemplateId,
+    setTemplateDescriptionDraft,
+    setTemplateEditError,
+    setTemplateFilters,
+    setTemplateTitleDraft,
+    statusScope,
+    successMessage,
+    templateDescriptionDraft,
+    templateEditError,
+    templateEditForm,
+    templateFilters,
+    templateSaveError,
+    templateSaveForm,
+    templateTitleDraft,
+    templates,
+    unpackedImportantCount,
+    visibleTemplates,
+  } = usePackingListsPage();
 
   return (
     <section className="packing-page" aria-labelledby="packing-title">
@@ -463,18 +120,43 @@ function PackingListsPage() {
           <p className="eyebrow">Trip checklist</p>
           <h2 id="packing-title">Packing List</h2>
           <p>Plan what to bring, tick items as packed, and reuse templates for future trips.</p>
+          <div className="packing-hero-meta" aria-label="Packing list summary">
+            <span>
+              <ListChecks size={15} aria-hidden="true" />
+              {packingLists.length} list{packingLists.length === 1 ? '' : 's'}
+            </span>
+            <span>
+              <CheckCircle2 size={15} aria-hidden="true" />
+              {progress.packedItems || 0} packed
+            </span>
+            <span className={remainingItems ? 'packing-hero-health-warning' : 'packing-hero-health-ready'}>
+              <CircleAlert size={15} aria-hidden="true" />
+              {remainingItems} remaining
+            </span>
+          </div>
         </div>
-        <button className="packing-ai-top" type="button" disabled>
-          <Bot size={18} aria-hidden="true" />
-          AI suggestions coming soon
-        </button>
+        <div className="packing-hero-actions">
+          <div className="packing-live-card">
+            <span>Current progress</span>
+            <strong>{progress.percent || 0}%</strong>
+            <small>{selectedList?.title || 'No list selected'}</small>
+          </div>
+        </div>
       </div>
+
+      <datalist id="packing-category-options">
+        {categoryOptions.map((category) => (
+          <option key={category} value={category}>
+            {formatPackingCategory(category)}
+          </option>
+        ))}
+      </datalist>
 
       <form className="packing-create-panel" onSubmit={handleCreateList}>
         <div className="packing-panel-heading">
           <div>
-            <h2>Create packing list</h2>
-            <span>Select a Method</span>
+            <span>Create packing list</span>
+            <h3>Select a Method</h3>
           </div>
           <button className="secondary-action" type="submit" disabled={isSaving}>
             <Plus size={17} aria-hidden="true" />
@@ -487,6 +169,7 @@ function PackingListsPage() {
             className={createMode === 'manual' ? 'active' : ''}
             type="button"
             onClick={() => {
+              setCreateFormError('');
               setCreateMode('manual');
               setCreateForm((current) => ({ ...current, templateKey: '' }));
             }}
@@ -496,7 +179,10 @@ function PackingListsPage() {
           <button
             className={createMode === 'template' ? 'active' : ''}
             type="button"
-            onClick={() => setCreateMode('template')}
+            onClick={() => {
+              setCreateFormError('');
+              setCreateMode('template');
+            }}
           >
             Use template
           </button>
@@ -508,11 +194,37 @@ function PackingListsPage() {
             <input
               name="title"
               value={createForm.title}
-              onChange={(event) =>
-                setCreateForm((current) => ({ ...current, title: event.target.value }))
-              }
+              onChange={(event) => {
+                setCreateFormError('');
+                setCreateForm((current) => ({ ...current, title: event.target.value }));
+              }}
               placeholder="My Packing List"
             />
+          </label>
+          <label>
+            Destination
+            <input
+              name="destination"
+              value={createForm.destination}
+              onChange={(event) => {
+                setCreateFormError('');
+                setCreateForm((current) => ({ ...current, destination: event.target.value }));
+              }}
+              placeholder="Tokyo"
+            />
+          </label>
+          <label>
+            Link trip
+            <select
+              name="tripId"
+              value={createForm.tripId}
+              onChange={(event) => {
+                setCreateFormError('');
+                setCreateForm((current) => ({ ...current, tripId: event.target.value }));
+              }}
+            >
+              <option value="">Trip linking coming soon</option>
+            </select>
           </label>
           {createMode === 'template' && (
             <label>
@@ -520,7 +232,10 @@ function PackingListsPage() {
               <select
                 name="templateKey"
                 value={createForm.templateKey}
-                onChange={handleTemplateDropdownChange}
+                onChange={(event) => {
+                  setCreateFormError('');
+                  handleTemplateDropdownChange(event);
+                }}
               >
                 <option value="">Choose template</option>
                 {templates.map((template) => (
@@ -532,22 +247,45 @@ function PackingListsPage() {
             </label>
           )}
         </div>
+        {createFormError && <p className="form-error packing-status">{createFormError}</p>}
       </form>
 
       {createMode === 'template' && (
-        <div className="packing-templates">
-          {templates.map((template) => (
-            <button
-              className={createForm.templateKey === template.key ? 'active' : ''}
-              type="button"
-              key={template.key}
-              onClick={() => handleTemplateSelect(template)}
-            >
-              <Sparkles size={17} aria-hidden="true" />
-              <span>{template.title}</span>
-              <small>{template.description}</small>
-            </button>
-          ))}
+        <div className="packing-template-carousel" aria-label="Packing templates">
+          <button
+            className="packing-template-arrow"
+            type="button"
+            onClick={() => handleTemplatePageChange('previous')}
+            disabled={templates.length <= 5}
+            aria-label="Previous templates"
+          >
+            <ChevronLeft size={18} aria-hidden="true" />
+          </button>
+          <div className="packing-templates">
+            {visibleTemplates.map((template) => (
+              <button
+                className={createForm.templateKey === template.key ? 'active' : ''}
+                type="button"
+                key={template.key}
+                onClick={() => handleTemplateSelect(template)}
+              >
+                <Sparkles size={17} aria-hidden="true" />
+                <span>{template.title}</span>
+                <small>
+                  {template.source === 'custom' ? 'Custom template' : 'System template'} · {template.description}
+                </small>
+              </button>
+            ))}
+          </div>
+          <button
+            className="packing-template-arrow"
+            type="button"
+            onClick={() => handleTemplatePageChange('next')}
+            disabled={templates.length <= 5}
+            aria-label="Next templates"
+          >
+            <ChevronRight size={18} aria-hidden="true" />
+          </button>
         </div>
       )}
 
@@ -555,8 +293,8 @@ function PackingListsPage() {
         <aside className="packing-list-panel">
           <div className="packing-panel-heading">
             <div>
-              <span>View packing lists</span>
-              <h3>My lists</h3>
+              <span>View lists</span>
+              <h3>My Lists</h3>
             </div>
             <strong>{packingLists.length}</strong>
           </div>
@@ -575,10 +313,13 @@ function PackingListsPage() {
 
                 return (
                   <button
-                    className={`packing-list-card ${selectedList?._id === list._id ? 'active' : ''}`}
+                    className={`packing-list-card ${!selectedTemplate && selectedList?._id === list._id ? 'active' : ''}`}
                     type="button"
                     key={list._id}
-                    onClick={() => setSelectedListId(list._id)}
+                    onClick={() => {
+                      setSelectedListId(list._id);
+                      setSelectedTemplateId('');
+                    }}
                   >
                     <span>{list.title}</span>
                     <small>
@@ -589,14 +330,218 @@ function PackingListsPage() {
               })}
             </div>
           )}
+
+          <div className="packing-side-section">
+            <div className="packing-panel-heading">
+              <div>
+                <span>Templates</span>
+                <h3>My Templates</h3>
+              </div>
+              <strong>{customTemplates.length}</strong>
+            </div>
+            {customTemplates.length === 0 ? (
+              <p className="settings-empty">No saved templates yet.</p>
+            ) : (
+              <div className="packing-list-stack">
+                {customTemplates.map((template) => (
+                  <button
+                    className={`packing-list-card packing-template-card ${selectedTemplateId === template.key ? 'active' : ''}`}
+                    type="button"
+                    key={template.key}
+                    onClick={() => handleTemplateWorkspaceSelect(template)}
+                  >
+                    <span>{template.title}</span>
+                    <small>
+                      {(template.items || []).length} item{(template.items || []).length === 1 ? '' : 's'}
+                    </small>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </aside>
 
         <div className="packing-main">
-          {selectedList ? (
+          {selectedTemplate ? (
+            <section className="packing-detail">
+              <div className="packing-template-editor">
+                <div className="packing-detail-header">
+                  <div>
+                    <span className="packing-workspace-label">Template workspace</span>
+                    {isEditingTemplateTitle ? (
+                      <form className="packing-title-edit" onSubmit={handleSaveTemplateTitle}>
+                        <input
+                          value={templateTitleDraft}
+                          onChange={(event) => setTemplateTitleDraft(event.target.value)}
+                          aria-label="Packing template name"
+                          autoFocus
+                        />
+                        <button type="submit" disabled={isSaving}>Save</button>
+                        <button type="button" onClick={handleCancelTemplateTitleEdit}>Cancel</button>
+                      </form>
+                    ) : (
+                      <div className="packing-title-row">
+                        <h3>{templateEditForm.title}</h3>
+                        <button type="button" onClick={handleStartTemplateTitleEdit} aria-label="Edit packing template name">
+                          <Edit3 size={17} aria-hidden="true" />
+                        </button>
+                      </div>
+                    )}
+                    <p>
+                      {templateEditForm.items.length} template item{templateEditForm.items.length === 1 ? '' : 's'}
+                    </p>
+                    <div className="packing-workspace-meta" aria-label="Packing template details">
+                      <span>Destination: {selectedTemplate.destination || 'Not set'}</span>
+                      <span>Template linked: Future implementation</span>
+                    </div>
+                  </div>
+                  <div className="packing-list-actions">
+                    <button
+                      type="button"
+                      onClick={() => setConfirmAction({ type: 'duplicate-template', template: selectedTemplate })}
+                      disabled={isSaving}
+                    >
+                      <Copy size={16} aria-hidden="true" />
+                      Duplicate
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmAction({ type: 'delete-template', template: selectedTemplate })}
+                      disabled={isSaving}
+                    >
+                      <Trash2 size={16} aria-hidden="true" />
+                      Delete
+                    </button>
+                  </div>
+                </div>
+
+                <div className="packing-reminder packing-template-description">
+                  <div className="packing-template-description-summary">
+                    <div className="packing-template-description-heading">
+                      <span>Template description</span>
+                      <button
+                        type="button"
+                        onClick={handleStartTemplateDescriptionEdit}
+                        aria-label="Edit template description"
+                      >
+                        <Edit3 size={16} aria-hidden="true" />
+                      </button>
+                    </div>
+                    <p>{templateEditForm.description || 'No description added yet.'}</p>
+                  </div>
+                  {isEditingTemplateDescription && (
+                    <div className="packing-template-description-editor">
+                      <textarea
+                        value={templateDescriptionDraft}
+                        onChange={(event) => {
+                          setTemplateEditError('');
+                          setTemplateDescriptionDraft(event.target.value);
+                        }}
+                        placeholder="Template description"
+                        rows="3"
+                        autoFocus
+                      />
+                      <div className="packing-template-description-actions">
+                        <button className="secondary-action" type="button" onClick={handleCancelTemplateDescriptionEdit}>
+                          Cancel
+                        </button>
+                        <button className="primary-action" type="button" onClick={handleSaveTemplateDescription} disabled={isSaving}>
+                          Save
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                <div className="packing-filters">
+                  <span className="packing-search-field">
+                    <Search size={16} aria-hidden="true" />
+                    <input
+                      value={templateFilters.search}
+                      onChange={(event) => setTemplateFilters((current) => ({ ...current, search: event.target.value }))}
+                      placeholder="Search items"
+                    />
+                  </span>
+                  <select value={templateFilters.category} onChange={(event) => setTemplateFilters((current) => ({ ...current, category: event.target.value }))}>
+                    <option value="">All categories</option>
+                    {packingCategories.map((category) => (
+                      <option key={category} value={category}>{formatPackingCategory(category)}</option>
+                    ))}
+                  </select>
+                  <select value={templateFilters.packed} onChange={(event) => setTemplateFilters((current) => ({ ...current, packed: event.target.value }))}>
+                    <option value="">All status</option>
+                    <option value="packed">Packed</option>
+                    <option value="unpacked">Unpacked</option>
+                  </select>
+                  <select value={templateFilters.priority} onChange={(event) => setTemplateFilters((current) => ({ ...current, priority: event.target.value }))}>
+                    <option value="">All priority</option>
+                    {priorityLevels.map((priority) => <option key={priority} value={priority}>{priority}</option>)}
+                  </select>
+                </div>
+
+                {filteredTemplateItems.length === 0 ? (
+                  <p className="settings-empty">No template items match the current filters.</p>
+                ) : (
+                  <div className="packing-item-list packing-template-item-list">
+                    {filteredTemplateItems.map((item) => {
+                      const CategoryIcon = getCategoryIcon(item.category);
+
+                      return (
+                        <article className={item.isPacked ? 'packing-template-item-card packed' : 'packing-template-item-card'} key={item.id || item.index}>
+                          <label className="packing-check">
+                            <input
+                              type="checkbox"
+                              checked={Boolean(item.isPacked)}
+                              onChange={() => handleToggleTemplateItemPacked(item.index)}
+                            />
+                            <span className="sr-only">{item.isPacked ? 'Mark unpacked' : 'Mark packed'}</span>
+                          </label>
+                          <div>
+                            <div className="packing-item-title-row">
+                              <strong>{item.name}</strong>
+                              <span className={getPriorityClassName(item.priority)}>{formatPriorityLevel(item.priority)}</span>
+                            </div>
+                            <span className="packing-item-category packing-template-item-category">
+                              <CategoryIcon size={14} aria-hidden="true" />
+                              {formatPackingCategory(item.category)}
+                            </span>
+                          </div>
+                          <div className="packing-item-meta" aria-label="Template item quantity">
+                            <span className="packing-quantity">Qty {item.quantity}</span>
+                          </div>
+                          <button type="button" onClick={() => handleEditTemplateItem(item.index)} aria-label="Edit template item">
+                            <Edit3 size={16} aria-hidden="true" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setConfirmAction({ type: 'delete-template-item', item, itemIndex: item.index })}
+                            aria-label="Remove template item"
+                          >
+                            <Trash2 size={16} aria-hidden="true" />
+                          </button>
+                        </article>
+                      );
+                    })}
+                  </div>
+                )}
+
+                <div className="packing-add-row">
+                  <button className="primary-action" type="button" onClick={handleOpenAddTemplateItem}>
+                    <Plus size={17} aria-hidden="true" />
+                    Add item
+                  </button>
+                </div>
+
+                {statusScope === 'template' && error && <p className="form-error packing-status">{error}</p>}
+                {templateEditError && <p className="form-error packing-status">{templateEditError}</p>}
+                {statusScope === 'template' && successMessage && <p className="form-success packing-status">{successMessage}</p>}
+              </div>
+            </section>
+          ) : selectedList ? (
             <section className="packing-detail">
               <div className="packing-detail-header">
                 <div>
-                  <p className="eyebrow">Packing workspace</p>
+                  <span className="packing-workspace-label">Packing workspace</span>
                   {isEditingListTitle ? (
                     <form className="packing-title-edit" onSubmit={handleSaveListTitle}>
                       <input
@@ -619,21 +564,21 @@ function PackingListsPage() {
                   <p>
                     {progress.packedItems}/{progress.totalItems} items packed
                   </p>
+                  <div className="packing-workspace-meta" aria-label="Packing list trip details">
+                    <span>Destination: {selectedList.destination || 'Not set'}</span>
+                    <span>Trip linked: {selectedList.tripId ? 'Linked' : 'Future implementation'}</span>
+                  </div>
                 </div>
                 <div className="packing-list-actions">
-                  <button
-                    type="button"
-                    onClick={() => setConfirmAction({ type: 'duplicate-list', list: selectedList })}
-                    disabled={isSaving}
-                  >
+                  <button type="button" onClick={handleOpenSaveTemplateModal} disabled={isSaving}>
+                    <Sparkles size={16} aria-hidden="true" />
+                    Save as Template
+                  </button>
+                  <button type="button" onClick={() => setConfirmAction({ type: 'duplicate-list', list: selectedList })} disabled={isSaving}>
                     <Copy size={16} aria-hidden="true" />
                     Duplicate
                   </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmAction({ type: 'delete-list', list: selectedList })}
-                    disabled={isSaving}
-                  >
+                  <button type="button" onClick={() => setConfirmAction({ type: 'delete-list', list: selectedList })} disabled={isSaving}>
                     <Trash2 size={16} aria-hidden="true" />
                     Delete
                   </button>
@@ -729,11 +674,7 @@ function PackingListsPage() {
                       <button type="button" onClick={() => handleEditItem(item)} aria-label="Edit item">
                         <Edit3 size={16} aria-hidden="true" />
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => setConfirmAction({ type: 'delete-item', list: selectedList, item })}
-                        aria-label="Delete item"
-                      >
+                      <button type="button" onClick={() => setConfirmAction({ type: 'delete-item', list: selectedList, item })} aria-label="Delete item">
                         <Trash2 size={16} aria-hidden="true" />
                       </button>
                     </article>
@@ -748,16 +689,16 @@ function PackingListsPage() {
                 </button>
               </div>
 
-              {error && <p className="form-error packing-status">{error}</p>}
-              {successMessage && <p className="form-success packing-status">{successMessage}</p>}
+              {statusScope === 'packing' && error && <p className="form-error packing-status">{error}</p>}
+              {statusScope === 'packing' && successMessage && <p className="form-success packing-status">{successMessage}</p>}
             </section>
           ) : (
             <section className="packing-detail packing-empty-detail">
               <Luggage size={34} aria-hidden="true" />
               <h3>Create your first packing list</h3>
               <p>Choose manual creation or start from a ready-made template.</p>
-              {error && <p className="form-error packing-status">{error}</p>}
-              {successMessage && <p className="form-success packing-status">{successMessage}</p>}
+              {statusScope === 'packing' && error && <p className="form-error packing-status">{error}</p>}
+              {statusScope === 'packing' && successMessage && <p className="form-success packing-status">{successMessage}</p>}
             </section>
           )}
         </div>
@@ -772,7 +713,9 @@ function PackingListsPage() {
         <div className="packing-modal-backdrop" role="presentation">
           <form className="packing-modal" onSubmit={handleSaveItem} aria-labelledby="packing-item-modal-title">
             <div className="packing-modal-header">
-              <h3 id="packing-item-modal-title">{itemModalMode === 'edit' ? 'Edit item' : 'Add item'}</h3>
+              <h3 id="packing-item-modal-title">
+                {itemModalMode === 'edit' || itemModalMode === 'template-edit' ? 'Edit item' : 'Add item'}
+              </h3>
               <button type="button" onClick={closeItemModal} aria-label="Close item form">
                 <X size={18} aria-hidden="true" />
               </button>
@@ -787,7 +730,7 @@ function PackingListsPage() {
             <label>
               Category
               <select name="category" value={itemForm.category} onChange={handleItemFormChange}>
-                {packingCategories.map((category) => (
+                {categoryOptions.map((category) => (
                   <option key={category} value={category}>{formatPackingCategory(category)}</option>
                 ))}
               </select>
@@ -806,7 +749,49 @@ function PackingListsPage() {
             <div className="packing-modal-actions">
               <button className="secondary-action" type="button" onClick={closeItemModal}>Cancel</button>
               <button className="primary-action" type="submit" disabled={isSaving}>
-                {itemModalMode === 'edit' ? 'Save' : 'Add item'}
+                {itemModalMode === 'edit' || itemModalMode === 'template-edit' ? 'Save' : 'Add item'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {isTemplateModalOpen && (
+        <div className="packing-modal-backdrop" role="presentation">
+          <form className="packing-modal" onSubmit={handleSaveCurrentListAsTemplate} aria-labelledby="packing-template-modal-title">
+            <div className="packing-modal-header">
+              <h3 id="packing-template-modal-title">Save as template</h3>
+              <button type="button" onClick={closeTemplateModal} aria-label="Close template form">
+                <X size={18} aria-hidden="true" />
+              </button>
+            </div>
+
+            {templateSaveError && <p className="form-error packing-modal-status">{templateSaveError}</p>}
+
+            <label>
+              Template title
+              <input
+                name="title"
+                value={templateSaveForm.title}
+                onChange={handleTemplateSaveFormChange}
+                placeholder="Weekend essentials"
+                autoFocus
+              />
+            </label>
+            <label>
+              Description
+              <input
+                name="description"
+                value={templateSaveForm.description}
+                onChange={handleTemplateSaveFormChange}
+                placeholder="Reusable checklist for short city breaks"
+              />
+            </label>
+
+            <div className="packing-modal-actions">
+              <button className="secondary-action" type="button" onClick={closeTemplateModal}>Cancel</button>
+              <button className="primary-action" type="submit" disabled={isSaving}>
+                Save template
               </button>
             </div>
           </form>

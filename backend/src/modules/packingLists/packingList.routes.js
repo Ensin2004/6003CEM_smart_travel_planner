@@ -5,10 +5,13 @@ const packingListController = require('./packingList.controller');
 const {
   addItemRules,
   createPackingListRules,
+  createTemplateRules,
   duplicatePackingListRules,
   objectIdRule,
+  templateIdRule,
   updateItemRules,
   updatePackingListRules,
+  updateTemplateRules,
 } = require('./packingList.validation');
 
 const router = express.Router();
@@ -218,6 +221,11 @@ router.use(protect);
  *         description: Packing item deleted
  */
 router.get('/templates', packingListController.getTemplates);
+router.post('/templates', createTemplateRules, validate, packingListController.createTemplate);
+router
+  .route('/templates/:templateId')
+  .patch(updateTemplateRules, validate, packingListController.updateTemplate)
+  .delete(templateIdRule, validate, packingListController.deleteTemplate);
 
 router
   .route('/')

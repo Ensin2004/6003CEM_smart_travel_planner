@@ -3,7 +3,23 @@ const { sendSuccess } = require('../../utils/apiResponse');
 const packingListService = require('./packingList.service');
 
 const getTemplates = catchAsync(async (req, res) => {
-  sendSuccess(res, 200, { templates: packingListService.getTemplates() });
+  const templates = await packingListService.getTemplates(req.user.id);
+  sendSuccess(res, 200, { templates });
+});
+
+const createTemplate = catchAsync(async (req, res) => {
+  const template = await packingListService.createTemplate(req.user.id, req.body);
+  sendSuccess(res, 201, { template }, 'Packing template created');
+});
+
+const updateTemplate = catchAsync(async (req, res) => {
+  const template = await packingListService.updateTemplate(req.params.templateId, req.user.id, req.body);
+  sendSuccess(res, 200, { template }, 'Packing template updated');
+});
+
+const deleteTemplate = catchAsync(async (req, res) => {
+  await packingListService.deleteTemplate(req.params.templateId, req.user.id);
+  res.status(204).send();
 });
 
 const createPackingList = catchAsync(async (req, res) => {
@@ -59,12 +75,15 @@ const duplicatePackingList = catchAsync(async (req, res) => {
 module.exports = {
   addItem,
   createPackingList,
+  createTemplate,
   deleteItem,
   deletePackingList,
+  deleteTemplate,
   duplicatePackingList,
   getMyPackingLists,
   getPackingList,
   getTemplates,
   updateItem,
   updatePackingList,
+  updateTemplate,
 };
