@@ -13,11 +13,11 @@
 }
 
 .app-shell.sidebar-collapsed {
-  grid-template-columns: 86px minmax(0, 1fr);
+  grid-template-columns: 98px minmax(0, 1fr);
 }
 
 .app-shell.has-submenu.sidebar-collapsed {
-  grid-template-columns: 86px 294px minmax(0, 1fr);
+  grid-template-columns: 98px 294px minmax(0, 1fr);
 }
 
 .app-navigation {
@@ -280,11 +280,11 @@
   align-items: center;
   justify-content: center;
   gap: 5px;
-  width: 58px;
-  min-height: 62px;
+  width: 82px;
+  min-height: 78px;
   padding: 7px 4px;
   text-align: center;
-  font-size: 10.5px;
+  font-size: 12px;
   line-height: 1.2;
 }
 
@@ -294,12 +294,22 @@
 }
 
 .sidebar-collapsed .sidebar-link-label {
-  display: none;
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  color: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1.15;
+  text-align: center;
+  text-overflow: clip;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .sidebar-collapsed .sidebar-nav a.active::before {
-  top: 10px;
-  bottom: 10px;
+  top: 12px;
+  bottom: 12px;
 }
 
 .workspace {

@@ -1,7 +1,7 @@
 ﻿.logging-page {
   display: grid;
   gap: 18px;
-  max-width: 1180px;
+  width: 100%;
 }
 
 .logging-status {

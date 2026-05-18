@@ -19,10 +19,10 @@ import {
 import AppLayout from './AppLayout';
 
 const userMenu = [
-  { to: '/dashboard', label: 'Home', icon: Home, end: true },
+  { to: '/dashboard', label: 'Dashboard', icon: Home, end: true },
   {
     to: '/trips',
-    label: 'Trips',
+    label: 'My Trips',
     icon: Plane,
     children: [
       { to: '/trips', label: 'Self create', icon: ListChecks },
@@ -42,10 +42,10 @@ const userMenu = [
       { to: '/explore?view=transport', label: 'Transport', icon: BriefcaseBusiness },
     ],
   },
-  { to: '/dashboard#packing-list', label: 'Packing list', icon: ListChecks },
-  { to: '/dashboard#travel-document', label: 'Travel Document', icon: FileText },
-  { to: '/dashboard#favourite', label: 'Favourite', icon: Heart, bottom: true },
-  { to: '/dashboard#language-helper', label: 'Language helper', icon: Languages, bottom: true },
+  { to: '/dashboard#packing-list', label: 'Packing List', icon: ListChecks},
+  { to: '/dashboard#travel-document', label: 'Travel Document', icon: FileText},
+  { to: '/dashboard#favourite', label: 'Favourite', icon: Heart, header: true },
+  { to: '/dashboard#language-helper', label: 'Language Helper', icon: Languages},
   { to: '/profile', label: 'Settings', icon: Settings, bottom: true },
   { to: '/login', label: 'Logout', icon: LogOut, bottom: true },
 ];

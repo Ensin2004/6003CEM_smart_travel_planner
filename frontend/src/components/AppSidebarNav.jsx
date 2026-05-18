@@ -6,7 +6,7 @@ function AppSidebarLink({ item, active, isSidebarCollapsed, onNavigate, parentAc
   return (
     <Link
       to={item.to}
-      title={isSidebarCollapsed ? item.label : undefined}
+      aria-label={isSidebarCollapsed ? item.label : undefined}
       className={[
         item.children?.length ? 'sidebar-parent-item' : '',
         (active || parentActive) && 'active',

@@ -1,6 +1,7 @@
 import {
   Bell,
   ChevronDown,
+  Heart,
   Menu,
   WalletCards,
   X,
@@ -34,9 +35,11 @@ function AppLayout({ role, menuItems }) {
   const activeLanguage =
     availableLanguages.find((language) => language.value === selectedLanguage) ?? availableLanguages[0];
 
-  const mainMenuItems = menuItems.filter((item) => !item.bottom);
-  const bottomMenuItems = menuItems.filter((item) => item.bottom);
+  const mainMenuItems = menuItems.filter((item) => !item.bottom && !item.hidden && !item.header);
+  const bottomMenuItems = menuItems.filter((item) => item.bottom && !item.hidden && !item.header);
+  const headerMenuItems = menuItems.filter((item) => item.header && !item.hidden);
   const allMenuItems = [...mainMenuItems, ...bottomMenuItems];
+  const favouriteItem = headerMenuItems.find((item) => /favou?rite/i.test(item.label));
 
   const displayName = user?.name || user?.email || (isAdmin ? 'Admin user' : 'Traveller');
   const displayRole = isAdmin ? 'Admin' : 'Traveller';
@@ -231,6 +234,16 @@ function AppLayout({ role, menuItems }) {
               </div>
             )}
           </div>
+
+          {favouriteItem && (
+            <Link
+              className="header-icon-button"
+              to={favouriteItem.to}
+              aria-label={favouriteItem.label}
+            >
+              <Heart size={18} aria-hidden="true" />
+            </Link>
+          )}
 
           <button className="header-icon-button" type="button" aria-label="Notifications">
             <Bell size={18} aria-hidden="true" />

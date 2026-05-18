@@ -753,7 +753,7 @@ Current admin pages:
 
 ```text
 /admin                Admin dashboard
-/admin/users          User management
+/admin/users          Manage Users
 /admin/api-logs       API logs
 /admin/system-errors  System errors
 /admin/settings       System settings
