@@ -1,6 +1,7 @@
 const AppError = require('../../utils/AppError');
 const tripRepository = require('../trips/trip.repository');
 const packingListRepository = require('./packingList.repository');
+const packingTemplateRepository = require('./packingTemplate.repository');
 const packingTemplates = require('./packingList.templates');
 const {
   defaultPackingCategory,
@@ -10,16 +11,64 @@ const {
 const findTemplate = (templateKey) =>
   packingTemplates.find((template) => template.key === templateKey);
 
-const normalizeItems = (items = []) =>
-  items.map((item) => ({
-    name: item.name,
-    category: item.category || defaultPackingCategory,
-    priority: normalizePriorityLevel(item.priority),
-    quantity: item.quantity || 1,
-    isPacked: Boolean(item.isPacked),
-  }));
+const findUserTemplate = (templateId, userId) =>
+  packingTemplateRepository.findByIdAndUserId(templateId, userId);
 
-const getTemplates = () => packingTemplates;
+const normalizeItems = (items = []) =>
+  items
+    .filter((item) => item.name?.trim())
+    .map((item) => ({
+      name: item.name.trim(),
+      category: item.category?.trim() || defaultPackingCategory,
+      priority: normalizePriorityLevel(item.priority),
+      quantity: item.quantity || 1,
+      isPacked: Boolean(item.isPacked),
+    }));
+
+const normalizeName = (value = '') => value.trim().replace(/\s+/g, ' ').toLowerCase();
+
+const assertUniquePackingListTitle = async (userId, title, excludedId) => {
+  const packingLists = await packingListRepository.findByUserId(userId);
+  const normalizedTitle = normalizeName(title);
+  const existingList = packingLists.find(
+    (list) =>
+      normalizeName(list.title) === normalizedTitle &&
+      (!excludedId || list._id.toString() !== excludedId.toString())
+  );
+
+  if (existingList) throw new AppError('A packing list with this name already exists.', 409);
+};
+
+const assertUniqueItemName = (packingList, itemName, excludedItemId) => {
+  const normalizedItemName = normalizeName(itemName);
+  const duplicateItem = packingList.items.find(
+    (item) =>
+      normalizeName(item.name) === normalizedItemName &&
+      (!excludedItemId || item._id.toString() !== excludedItemId.toString())
+  );
+
+  if (duplicateItem) throw new AppError('An item with this name already exists in this packing list.', 409);
+};
+
+const getTemplates = async (userId) => {
+  const userTemplates = await packingTemplateRepository.findByUserId(userId);
+  return [
+    ...packingTemplates.map((template) => ({
+      ...template,
+      source: 'system',
+    })),
+    ...userTemplates.map((template) => ({
+      id: template._id,
+      key: template._id.toString(),
+      title: template.title,
+      destination: template.destination,
+      description: template.description || 'Custom packing template',
+      tripId: template.tripId,
+      items: template.items,
+      source: 'custom',
+    })),
+  ];
+};
 
 const getMyPackingLists = (userId) => packingListRepository.findByUserId(userId);
 
@@ -44,21 +93,31 @@ const buildTripFields = async (tripId, userId) => {
 };
 
 const createPackingList = async (userId, data) => {
-  const template = data.templateKey ? findTemplate(data.templateKey) : null;
+  const systemTemplate = data.templateKey ? findTemplate(data.templateKey) : null;
+  const userTemplate =
+    data.templateKey && !systemTemplate ? await findUserTemplate(data.templateKey, userId) : null;
+  const template = systemTemplate || userTemplate;
   if (data.templateKey && !template) throw new AppError('Packing list template not found', 404);
 
   const tripFields = await buildTripFields(data.tripId, userId);
   const items = data.items?.length ? normalizeItems(data.items) : template?.items || [];
+  const title = data.title?.trim();
+  const destination = data.destination?.trim() || tripFields.destination || template?.destination;
+
+  if (!title) throw new AppError('Packing list title is required.', 400);
+  if (!destination) throw new AppError('Destination is required.', 400);
+
+  await assertUniquePackingListTitle(userId, title);
 
   return packingListRepository.create({
     userId,
     ...tripFields,
-    title: data.title || template?.title || 'New packing list',
-    destination: data.destination || tripFields.destination,
+    title,
+    destination,
     tripStartDate: data.tripStartDate || tripFields.tripStartDate,
     tripEndDate: data.tripEndDate || tripFields.tripEndDate,
-    templateKey: template?.key,
-    items,
+    templateKey: systemTemplate?.key || userTemplate?._id.toString(),
+    items: normalizeItems(items),
     reminder: {
       enabled: data.reminder?.enabled ?? true,
       daysBeforeTrip: data.reminder?.daysBeforeTrip ?? 2,
@@ -73,6 +132,10 @@ const updatePackingList = async (listId, userId, data) => {
     Object.assign(updateData, await buildTripFields(data.tripId, userId));
   }
 
+  if (data.title) {
+    await assertUniquePackingListTitle(userId, data.title, listId);
+  }
+
   const packingList = await packingListRepository.updateByIdAndUserId(listId, userId, updateData);
   if (!packingList) throw new AppError('Packing list not found', 404);
   return packingList;
@@ -85,9 +148,12 @@ const deletePackingList = async (listId, userId) => {
 
 const addItem = async (listId, userId, data) => {
   const packingList = await getPackingListById(listId, userId);
+
+  assertUniqueItemName(packingList, data.name);
+
   packingList.items.push({
     name: data.name,
-    category: data.category || defaultPackingCategory,
+    category: data.category?.trim() || defaultPackingCategory,
     priority: normalizePriorityLevel(data.priority),
     quantity: data.quantity || 1,
     isPacked: Boolean(data.isPacked),
@@ -99,6 +165,10 @@ const updateItem = async (listId, itemId, userId, data) => {
   const packingList = await getPackingListById(listId, userId);
   const item = packingList.items.id(itemId);
   if (!item) throw new AppError('Packing item not found', 404);
+
+  if (data.name) {
+    assertUniqueItemName(packingList, data.name, itemId);
+  }
 
   Object.entries(data).forEach(([key, value]) => {
     if (value !== undefined) item[key] = key === 'priority' ? normalizePriorityLevel(value) : value;
@@ -119,11 +189,14 @@ const deleteItem = async (listId, itemId, userId) => {
 const duplicatePackingList = async (listId, userId, data) => {
   const source = await getPackingListById(listId, userId);
   const tripFields = await buildTripFields(data.tripId, userId);
+  const title = data.title || `${source.title} copy`;
+
+  await assertUniquePackingListTitle(userId, title);
 
   return packingListRepository.create({
     userId,
     ...tripFields,
-    title: data.title || `${source.title} copy`,
+    title,
     destination: data.destination || tripFields.destination || source.destination,
     tripStartDate: data.tripStartDate || tripFields.tripStartDate || source.tripStartDate,
     tripEndDate: data.tripEndDate || tripFields.tripEndDate || source.tripEndDate,
@@ -142,15 +215,84 @@ const duplicatePackingList = async (listId, userId, data) => {
   });
 };
 
+const createTemplate = async (userId, data) => {
+  const title = data.title?.trim();
+  if (!title) throw new AppError('Template title is required.', 400);
+
+  const templates = await packingTemplateRepository.findByUserId(userId);
+  const existingTemplate = templates.find((template) => normalizeName(template.title) === normalizeName(title));
+  if (existingTemplate) throw new AppError('A template with this name already exists.', 409);
+
+  const tripFields = await buildTripFields(data.tripId, userId);
+  const items = normalizeItems(data.items || []);
+  if (items.length === 0) throw new AppError('Add at least one item to save a template.', 400);
+
+  const duplicateItem = items.find(
+    (item, index) => items.findIndex((candidate) => normalizeName(candidate.name) === normalizeName(item.name)) !== index
+  );
+  if (duplicateItem) throw new AppError('Template item names must be unique.', 409);
+
+  return packingTemplateRepository.create({
+    userId,
+    ...tripFields,
+    title,
+    destination: data.destination?.trim() || tripFields.destination,
+    description: data.description?.trim(),
+    items,
+  });
+};
+
+const updateTemplate = async (templateId, userId, data) => {
+  const existingTemplate = await packingTemplateRepository.findByIdAndUserId(templateId, userId);
+  if (!existingTemplate) throw new AppError('Packing template not found', 404);
+
+  const title = data.title?.trim();
+  const description = data.description?.trim();
+  if (!title) throw new AppError('Template title is required.', 400);
+  if (!description) throw new AppError('Template description is required.', 400);
+
+  const templates = await packingTemplateRepository.findByUserId(userId);
+  const duplicateTemplate = templates.find(
+    (template) =>
+      normalizeName(template.title) === normalizeName(title) &&
+      template._id.toString() !== templateId.toString()
+  );
+  if (duplicateTemplate) throw new AppError('A template with this name already exists.', 409);
+
+  const items = normalizeItems(data.items || []);
+  if (items.length === 0) throw new AppError('Add at least one item to save a template.', 400);
+
+  const duplicateItem = items.find(
+    (item, index) => items.findIndex((candidate) => normalizeName(candidate.name) === normalizeName(item.name)) !== index
+  );
+  if (duplicateItem) throw new AppError('Template item names must be unique.', 409);
+
+  return packingTemplateRepository.updateByIdAndUserId(templateId, userId, {
+    title,
+    description,
+    destination: data.destination?.trim(),
+    items,
+  });
+};
+
+const deleteTemplate = async (templateId, userId) => {
+  const template = await packingTemplateRepository.deleteByIdAndUserId(templateId, userId);
+  if (!template) throw new AppError('Packing template not found', 404);
+  return template;
+};
+
 module.exports = {
   addItem,
   createPackingList,
+  createTemplate,
   deleteItem,
   deletePackingList,
+  deleteTemplate,
   duplicatePackingList,
   getMyPackingLists,
   getPackingListById,
   getTemplates,
   updateItem,
   updatePackingList,
+  updateTemplate,
 };
