@@ -7,6 +7,7 @@ import UserDashboard from '../features/dashboard/UserDashboard';
 import TripsPage from '../features/trips/TripsPage';
 import TripDetailsPage from '../features/trips/TripDetailsPage';
 import ExplorePage from '../features/explore/ExplorePage';
+import PackingListsPage from '../features/packingLists/PackingListsPage';
 import UserSettingsPage from '../features/settings/user/UserSettingsPage';
 import AdminDashboard from '../features/admin/AdminDashboard';
 import ApiLogsPage from '../features/admin/ApiLogsPage';
@@ -29,6 +30,7 @@ function AppRoutes() {
         <Route path="/trips" element={<TripsPage />} />
         <Route path="/trips/:id" element={<TripDetailsPage />} />
         <Route path="/explore" element={<ExplorePage />} />
+        <Route path="/packing-lists" element={<PackingListsPage />} />
         <Route path="/profile" element={<UserSettingsPage />} />
       </Route>
 

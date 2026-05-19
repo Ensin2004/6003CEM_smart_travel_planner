@@ -17,6 +17,8 @@ const findByIdWithRefreshToken = (id) => User.findById(id).select('+refreshToken
 
 const findAll = () => User.find().sort({ createdAt: -1 });
 
+const deleteById = (id) => User.findByIdAndDelete(id);
+
 const updateById = (id, data) =>
   User.findByIdAndUpdate(id, data, {
     returnDocument: 'after',
@@ -30,5 +32,6 @@ module.exports = {
   findByIdWithPassword,
   findByIdWithRefreshToken,
   findAll,
+  deleteById,
   updateById,
 };

@@ -19,21 +19,27 @@ import logo from '../assets/logo.png';
 import AppSidebarNav from '../components/AppSidebarNav';
 import SubmenuPanel from '../components/SubmenuPanel';
 import AuthContext from '../context/authContext';
+import CurrencyContext from '../context/currencyContext';
 import './AppLayout.css';
 
 function AppLayout({ role, menuItems }) {
   const isAdmin = role === 'admin';
   const location = useLocation();
   const { user } = useContext(AuthContext);
+  const currency = useContext(CurrencyContext);
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState(DEFAULT_LANGUAGE);
   const [isLanguagePickerOpen, setIsLanguagePickerOpen] = useState(false);
+  const [isCurrencyPickerOpen, setIsCurrencyPickerOpen] = useState(false);
   const languagePickerRef = useRef(null);
+  const currencyPickerRef = useRef(null);
 
   const availableLanguages = useMemo(() => getAvailableLanguages(), []);
   const activeLanguage =
     availableLanguages.find((language) => language.value === selectedLanguage) ?? availableLanguages[0];
+  const availableCurrencies = currency?.currencies ?? [];
+  const activeCurrency = currency?.activeCurrency ?? availableCurrencies[0];
 
   const mainMenuItems = menuItems.filter((item) => !item.bottom && !item.hidden && !item.header);
   const bottomMenuItems = menuItems.filter((item) => item.bottom && !item.hidden && !item.header);
@@ -99,21 +105,25 @@ function AppLayout({ role, menuItems }) {
 
   useEffect(() => {
     const handlePointerDown = (event) => {
-      if (
-        languagePickerRef.current &&
-        !languagePickerRef.current.contains(event.target)
-      ) {
+      const clickedOutsideLanguage =
+        !languagePickerRef.current || !languagePickerRef.current.contains(event.target);
+      const clickedOutsideCurrency =
+        !currencyPickerRef.current || !currencyPickerRef.current.contains(event.target);
+
+      if (clickedOutsideLanguage && clickedOutsideCurrency) {
         setIsLanguagePickerOpen(false);
+        setIsCurrencyPickerOpen(false);
       }
     };
 
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
         setIsLanguagePickerOpen(false);
+        setIsCurrencyPickerOpen(false);
       }
     };
 
-    if (isLanguagePickerOpen) {
+    if (isLanguagePickerOpen || isCurrencyPickerOpen) {
       document.addEventListener('pointerdown', handlePointerDown);
       document.addEventListener('keydown', handleKeyDown);
     }
@@ -122,12 +132,17 @@ function AppLayout({ role, menuItems }) {
       document.removeEventListener('pointerdown', handlePointerDown);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isLanguagePickerOpen]);
+  }, [isCurrencyPickerOpen, isLanguagePickerOpen]);
 
   const handleLanguageChange = (language) => {
     setSelectedLanguage(language.value);
     setIsLanguagePickerOpen(false);
     changeTranslateLanguage(language.value);
+  };
+
+  const handleCurrencyChange = (currencyOption) => {
+    currency?.changeCurrency(currencyOption.code);
+    setIsCurrencyPickerOpen(false);
   };
 
   return (
@@ -168,11 +183,53 @@ function AppLayout({ role, menuItems }) {
 
         <div className="topbar-actions">
           {!isAdmin && (
-            <button className="header-action-button" type="button">
-              <WalletCards size={17} aria-hidden="true" />
-              Currency converter
-              <ChevronDown size={15} aria-hidden="true" />
-            </button>
+            <div className="currency-picker ignore notranslate" ref={currencyPickerRef} translate="no">
+              <button
+                className="currency-trigger"
+                type="button"
+                aria-label="Select currency"
+                aria-haspopup="dialog"
+                aria-expanded={isCurrencyPickerOpen}
+                translate="no"
+                onClick={() => setIsCurrencyPickerOpen((current) => !current)}
+              >
+                <WalletCards size={17} aria-hidden="true" />
+                <span className="currency-code" translate="no">{activeCurrency?.code || 'USD'}</span>
+                <ChevronDown size={15} aria-hidden="true" />
+              </button>
+
+              {isCurrencyPickerOpen && (
+                <div
+                  className="currency-popover ignore notranslate"
+                  role="dialog"
+                  aria-label="Available currencies"
+                  translate="no"
+                >
+                  <h2 className="currency-popover-title">All Currencies</h2>
+                  {currency?.errorMessage && (
+                    <p className="currency-helper" translate="no">{currency.errorMessage}</p>
+                  )}
+                  <div className="currency-options-scroll">
+                    <div className="currency-grid">
+                      {availableCurrencies.map((currencyOption) => (
+                        <button
+                          className={`currency-option ignore notranslate ${
+                            currency?.selectedCurrency === currencyOption.code ? 'is-active' : ''
+                          }`}
+                          type="button"
+                          key={currencyOption.code}
+                          translate="no"
+                          onClick={() => handleCurrencyChange(currencyOption)}
+                        >
+                          <strong translate="no">{currencyOption.code}</strong>
+                          <span translate="no">{currencyOption.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
           )}
 
           <div className="language-picker ignore notranslate" ref={languagePickerRef} translate="no">

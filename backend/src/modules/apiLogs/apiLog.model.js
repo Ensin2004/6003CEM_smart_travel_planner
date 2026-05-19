@@ -20,10 +20,9 @@ const apiLogSchema = new mongoose.Schema(
     status: { type: String, enum: ['success', 'fail', 'error'], required: true },
     statusCode: Number,
     message: { type: String, trim: true },
-    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
     metadata: {
-      type: Map,
-      of: String,
+      type: mongoose.Schema.Types.Mixed,
       default: undefined,
     },
   },
@@ -32,5 +31,6 @@ const apiLogSchema = new mongoose.Schema(
 
 apiLogSchema.index({ createdAt: -1 });
 apiLogSchema.index({ status: 1, createdAt: -1 });
+apiLogSchema.index({ category: 1, severity: 1 });
 
-module.exports = mongoose.model('ApiLog', apiLogSchema);
+module.exports = mongoose.model('ApiLog', apiLogSchema, 'apiLogs');

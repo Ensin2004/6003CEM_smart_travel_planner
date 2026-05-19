@@ -16,6 +16,7 @@ import {
 import { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import PublicTopbar from '../../components/PublicTopbar';
+import CurrencyAmount from '../../components/currency/CurrencyAmount';
 import publicNavItems from '../../components/publicNavItems';
 import heroImage from '../../assets/landing-hero.png';
 import logo from '../../assets/logo.png';
@@ -153,7 +154,7 @@ function LandingPage() {
               <article>
                 <CreditCard size={18} />
                 <span>Budget</span>
-                <strong>$1,240</strong>
+                <strong><CurrencyAmount amount={1240} /></strong>
               </article>
               <article>
                 <Compass size={18} />

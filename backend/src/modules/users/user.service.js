@@ -1,6 +1,25 @@
 const AppError = require('../../utils/AppError');
 const userRepository = require('./user.repository');
 
+const budgetLevelToSpendingPreference = {
+  low: 'budget',
+  medium: 'standard',
+  high: 'luxury',
+};
+
+const normalizePreferences = (preferences) => {
+  if (!preferences) return preferences;
+
+  const normalized = { ...preferences };
+
+  if (!normalized.spendingPreference && normalized.budgetLevel) {
+    normalized.spendingPreference = budgetLevelToSpendingPreference[normalized.budgetLevel];
+  }
+
+  delete normalized.budgetLevel;
+  return normalized;
+};
+
 const getProfile = async (userId) => {
   const user = await userRepository.findById(userId);
   if (!user) throw new AppError('User not found', 404);
@@ -23,7 +42,7 @@ const updateProfile = async (userId, data) => {
     gender: data.gender,
     ageGroup: data.ageGroup,
     notificationPreferences: data.notificationPreferences,
-    preferences: data.preferences,
+    preferences: normalizePreferences(data.preferences),
   };
 
   Object.keys(allowed).forEach((key) => allowed[key] === undefined && delete allowed[key]);
@@ -69,4 +88,5 @@ module.exports = {
   changePassword,
   getAllUsers,
   disableUser,
+  normalizePreferences,
 };

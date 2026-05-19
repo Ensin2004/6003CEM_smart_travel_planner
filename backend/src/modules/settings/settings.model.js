@@ -18,4 +18,4 @@ const settingsContentSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-module.exports = mongoose.model('SettingsContent', settingsContentSchema);
+module.exports = mongoose.model('SettingsContent', settingsContentSchema, 'settingsContents');

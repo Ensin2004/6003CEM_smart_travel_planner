@@ -16,7 +16,22 @@ const updateByIdAndUserId = (id, userId, data) =>
 
 const deleteByIdAndUserId = (id, userId) => Trip.findOneAndDelete({ _id: id, userId });
 
+const deleteByUserId = (userId) => Trip.deleteMany({ userId });
+
 const countAll = () => Trip.countDocuments();
+
+const aggregateStatusCounts = async () => {
+  const today = Trip.getStatusBoundaryDate();
+  const [active, inactive] = await Promise.all([
+    Trip.countDocuments({ endDate: { $gte: today } }),
+    Trip.countDocuments({ endDate: { $lt: today } }),
+  ]);
+
+  return [
+    { _id: 'active', count: active },
+    { _id: 'inactive', count: inactive },
+  ].filter((item) => item.count > 0);
+};
 
 module.exports = {
   create,
@@ -25,5 +40,7 @@ module.exports = {
   findByIdAndUserId,
   updateByIdAndUserId,
   deleteByIdAndUserId,
+  deleteByUserId,
   countAll,
+  aggregateStatusCounts,
 };

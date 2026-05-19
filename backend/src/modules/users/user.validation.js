@@ -24,10 +24,15 @@ const updateMeRules = [
   body('notificationPreferences.notificationsOff').optional().isBoolean(),
   body('notificationPreferences.tripAlerts').optional().isBoolean(),
   body('notificationPreferences.weatherAlerts').optional().isBoolean(),
+  body('notificationPreferences.packingReminder').optional().isBoolean(),
   body('notificationPreferences.errorLogs').optional().isBoolean(),
   body('notificationPreferences.systemAlerts').optional().isBoolean(),
   body('notificationPreferences.ratingFeedback').optional().isBoolean(),
   body('preferences.travelStyle').optional().trim().isLength({ max: 60 }),
+  body('preferences.spendingPreference')
+    .optional()
+    .isIn(['budget', 'standard', 'luxury'])
+    .withMessage('Spending preference must be budget, standard, or luxury'),
   body('preferences.budgetLevel').optional().isIn(['low', 'medium', 'high']),
   body('preferences.preferredActivities').optional().isArray(),
 ];

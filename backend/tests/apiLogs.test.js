@@ -3,6 +3,9 @@ jest.mock('../src/modules/apiLogs/apiLog.repository', () => ({
   countMany: jest.fn(),
   countSince: jest.fn(),
   aggregateCategoryCounts: jest.fn(),
+  aggregateStatusCounts: jest.fn(),
+  aggregateSeverityCounts: jest.fn(),
+  aggregateDailyCounts: jest.fn(),
   create: jest.fn(),
 }));
 
@@ -32,6 +35,9 @@ describe('API log monitoring service', () => {
       .mockResolvedValueOnce(1);
     apiLogRepository.countSince.mockResolvedValue(2);
     apiLogRepository.aggregateCategoryCounts.mockResolvedValue([{ _id: 'api', count: 5 }]);
+    apiLogRepository.aggregateStatusCounts.mockResolvedValue([{ _id: 'fail', count: 3 }]);
+    apiLogRepository.aggregateSeverityCounts.mockResolvedValue([{ _id: 'warning', count: 3 }]);
+    apiLogRepository.aggregateDailyCounts.mockResolvedValue([]);
 
     const result = await apiLogService.getMonitoring({
       category: 'api',
@@ -52,7 +58,17 @@ describe('API log monitoring service', () => {
       recentFailures: 2,
       health: 'warning',
       categoryCounts: [{ category: 'api', count: 5 }],
+      statusCounts: [{ status: 'fail', count: 3 }],
+      severityCounts: [{ severity: 'warning', count: 3 }],
+      dailyCounts: expect.arrayContaining([
+        expect.objectContaining({
+          success: 0,
+          fail: 0,
+          error: 0,
+        }),
+      ]),
     });
+    expect(result.summary.dailyCounts).toHaveLength(7);
     expect(result.pagination).toEqual({
       page: 1,
       limit: 10,
