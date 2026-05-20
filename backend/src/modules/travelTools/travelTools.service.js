@@ -1,12 +1,16 @@
 const AppError = require('../../utils/AppError');
 const tripRepository = require('../trips/trip.repository');
-const packingListRepository = require('./packingList.repository');
-const packingTemplateRepository = require('./packingTemplate.repository');
-const packingTemplates = require('./packingList.templates');
+const {
+  documentTemplateRepository,
+  packingListRepository,
+  packingTemplateRepository,
+  tripDocumentRepository,
+} = require('./travelTools.repository');
+const packingTemplates = require('./travelTools.templates');
 const {
   defaultPackingCategory,
   normalizePriorityLevel,
-} = require('./packingList.constants');
+} = require('./travelTools.constants');
 
 const findTemplate = (templateKey) =>
   packingTemplates.find((template) => template.key === templateKey);
@@ -105,7 +109,6 @@ const createPackingList = async (userId, data) => {
   const destination = data.destination?.trim() || tripFields.destination || template?.destination;
 
   if (!title) throw new AppError('Packing list title is required.', 400);
-  if (!destination) throw new AppError('Destination is required.', 400);
 
   await assertUniquePackingListTitle(userId, title);
 
@@ -130,6 +133,10 @@ const updatePackingList = async (listId, userId, data) => {
 
   if (data.tripId) {
     Object.assign(updateData, await buildTripFields(data.tripId, userId));
+  } else if (data.tripId === null) {
+    updateData.tripId = null;
+    updateData.tripStartDate = null;
+    updateData.tripEndDate = null;
   }
 
   if (data.title) {
@@ -281,6 +288,10 @@ const deleteTemplate = async (templateId, userId) => {
   return template;
 };
 
+const getTravelDocuments = (userId) => tripDocumentRepository.findByUserId(userId);
+
+const getDocumentTemplates = (userId) => documentTemplateRepository.findByUserId(userId);
+
 module.exports = {
   addItem,
   createPackingList,
@@ -291,7 +302,9 @@ module.exports = {
   duplicatePackingList,
   getMyPackingLists,
   getPackingListById,
+  getTravelDocuments,
   getTemplates,
+  getDocumentTemplates,
   updateItem,
   updatePackingList,
   updateTemplate,

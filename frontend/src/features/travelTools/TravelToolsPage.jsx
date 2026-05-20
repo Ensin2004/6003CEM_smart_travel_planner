@@ -1,32 +1,121 @@
 import {
   Bell,
   Bot,
+  CalendarClock,
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
   CircleAlert,
+  CircleHelp,
   Copy,
+  Download,
   Edit3,
+  FileText,
+  Image,
   ListChecks,
   Luggage,
+  Maximize2,
   Plus,
   Search,
   Sparkles,
   Trash2,
+  Upload,
   X,
 } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { getTrips } from '../../api/tripApi';
 import {
   formatPackingCategory,
   formatPriorityLevel,
   getPriorityClassName,
   packingCategories,
   priorityLevels,
-} from './packingList.constants';
-import { usePackingListsPage } from './hooks/usePackingListsPage';
-import { getCategoryIcon } from './packingList.utils';
-import './PackingListsPage.css';
+} from './travelTools.constants';
+import { useTravelToolsPage } from './hooks/useTravelToolsPage';
+import { getCategoryIcon } from './travelTools.utils';
+import './TravelToolsPage.css';
 
-function PackingListsPage() {
+const documentTypes = ['Passport', 'Visa', 'Insurance', 'Ticket', 'Booking', 'Custom'];
+const acceptedTravelDocumentTypes = [
+  'image/png',
+  'image/jpeg',
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+];
+const acceptedTravelDocumentExtensions = ['.png', '.jpg', '.jpeg', '.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx'];
+const acceptedTravelDocumentInput = [...acceptedTravelDocumentTypes, ...acceptedTravelDocumentExtensions].join(',');
+
+const starterDocuments = [
+  { id: 'passport-copy', name: 'Passport copy', type: 'Passport', tripId: '', files: [] },
+  { id: 'travel-insurance', name: 'Travel insurance', type: 'Insurance', tripId: '', files: [] },
+];
+
+function TravelToolsPageFrame({ labelledBy, children }) {
+  return (
+    <section className="packing-page" aria-labelledby={labelledBy}>
+      {children}
+    </section>
+  );
+}
+
+function TravelToolsHero({ description, eyebrow, labelledBy, liveCard, meta, metaLabel, title }) {
+  return (
+    <div className="packing-hero">
+      <div>
+        <p className="eyebrow">{eyebrow}</p>
+        <h2 id={labelledBy}>{title}</h2>
+        <p>{description}</p>
+        {meta && (
+          <div className="packing-hero-meta" aria-label={metaLabel}>
+            {meta}
+          </div>
+        )}
+      </div>
+      {liveCard && <div className="packing-hero-actions">{liveCard}</div>}
+    </div>
+  );
+}
+
+const getTripOptionLabel = (trip) => {
+  const title = trip.title || trip.destination || 'Untitled trip';
+  return trip.destination && trip.destination !== title ? `${title} - ${trip.destination}` : title;
+};
+
+const renderTip = (text) => (
+  <span className="packing-tip-anchor" tabIndex="0" aria-label={text}>
+    <CircleHelp size={15} aria-hidden="true" />
+    <span className="packing-create-tip" role="tooltip">{text}</span>
+  </span>
+);
+
+const getFileExtension = (fileName = '') => {
+  const dotIndex = fileName.lastIndexOf('.');
+  return dotIndex >= 0 ? fileName.slice(dotIndex).toLowerCase() : '';
+};
+
+const getTravelDocumentPreviewType = (file) => {
+  const extension = getFileExtension(file.name);
+  if (['.png', '.jpg', '.jpeg'].includes(extension) || ['image/png', 'image/jpeg'].includes(file.type)) return 'image';
+  if (extension === '.pdf' || file.type === 'application/pdf') return 'pdf';
+  return 'office';
+};
+
+const isAcceptedTravelDocumentFile = (file) => {
+  const extension = getFileExtension(file.name);
+  return acceptedTravelDocumentTypes.includes(file.type) || acceptedTravelDocumentExtensions.includes(extension);
+};
+
+const formatFileSize = (size) => {
+  if (size >= 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(1)} MB`;
+  return `${(size / 1024).toFixed(1)} KB`;
+};
+
+function PackingListTools() {
   const {
     categoryOptions,
     closeItemModal,
@@ -52,6 +141,7 @@ function PackingListsPage() {
     handleOpenAddItem,
     handleOpenAddTemplateItem,
     handleOpenSaveTemplateModal,
+    handlePackingListTripChange,
     handleReminderDaysChange,
     handleSaveCurrentListAsTemplate,
     handleSaveItem,
@@ -67,7 +157,6 @@ function PackingListsPage() {
     handleTemplateSelect,
     handleTemplateWorkspaceSelect,
     handleTogglePacked,
-    handleToggleTemplateItemPacked,
     isEditingListTitle,
     isEditingTemplateDescription,
     isEditingTemplateTitle,
@@ -109,18 +198,21 @@ function PackingListsPage() {
     templateSaveForm,
     templateTitleDraft,
     templates,
+    trips,
     unpackedImportantCount,
     visibleTemplates,
-  } = usePackingListsPage();
+  } = useTravelToolsPage();
 
   return (
-    <section className="packing-page" aria-labelledby="packing-title">
-      <div className="packing-hero">
-        <div>
-          <p className="eyebrow">Trip checklist</p>
-          <h2 id="packing-title">Packing List</h2>
-          <p>Plan what to bring, tick items as packed, and reuse templates for future trips.</p>
-          <div className="packing-hero-meta" aria-label="Packing list summary">
+    <TravelToolsPageFrame labelledBy="packing-title">
+      <TravelToolsHero
+        labelledBy="packing-title"
+        eyebrow="Trip checklist"
+        title="Packing List"
+        description="Plan what to bring, tick items as packed, and reuse templates for future trips."
+        metaLabel="Packing list summary"
+        meta={
+          <>
             <span>
               <ListChecks size={15} aria-hidden="true" />
               {packingLists.length} list{packingLists.length === 1 ? '' : 's'}
@@ -133,16 +225,16 @@ function PackingListsPage() {
               <CircleAlert size={15} aria-hidden="true" />
               {remainingItems} remaining
             </span>
-          </div>
-        </div>
-        <div className="packing-hero-actions">
+          </>
+        }
+        liveCard={
           <div className="packing-live-card">
             <span>Current progress</span>
             <strong>{progress.percent || 0}%</strong>
             <small>{selectedList?.title || 'No list selected'}</small>
           </div>
-        </div>
-      </div>
+        }
+      />
 
       <datalist id="packing-category-options">
         {categoryOptions.map((category) => (
@@ -156,7 +248,7 @@ function PackingListsPage() {
         <div className="packing-panel-heading">
           <div>
             <span>Create packing list</span>
-            <h3>Select a Method</h3>
+            <h3>Choose to create a packing list manually or select an existing template</h3>
           </div>
           <button className="secondary-action" type="submit" disabled={isSaving}>
             <Plus size={17} aria-hidden="true" />
@@ -189,62 +281,70 @@ function PackingListsPage() {
         </div>
 
         <div className="packing-form-grid packing-form-grid-compact">
-          <label>
-            List title
-            <input
-              name="title"
-              value={createForm.title}
-              onChange={(event) => {
-                setCreateFormError('');
-                setCreateForm((current) => ({ ...current, title: event.target.value }));
-              }}
-              placeholder="My Packing List"
-            />
-          </label>
-          <label>
-            Destination
-            <input
-              name="destination"
-              value={createForm.destination}
-              onChange={(event) => {
-                setCreateFormError('');
-                setCreateForm((current) => ({ ...current, destination: event.target.value }));
-              }}
-              placeholder="Tokyo"
-            />
-          </label>
-          <label>
-            Link trip
-            <select
-              name="tripId"
-              value={createForm.tripId}
-              onChange={(event) => {
-                setCreateFormError('');
-                setCreateForm((current) => ({ ...current, tripId: event.target.value }));
-              }}
-            >
-              <option value="">Trip linking coming soon</option>
-            </select>
-          </label>
-          {createMode === 'template' && (
+          <div className="packing-create-field">
             <label>
-              Template
-              <select
-                name="templateKey"
-                value={createForm.templateKey}
+              <span className="packing-field-label">
+                List title
+                {renderTip('Create a simple name for your packing list.')}
+              </span>
+              <input
+                name="title"
+                value={createForm.title}
                 onChange={(event) => {
                   setCreateFormError('');
-                  handleTemplateDropdownChange(event);
+                  setCreateForm((current) => ({ ...current, title: event.target.value }));
+                }}
+                placeholder="My Packing List"
+              />
+            </label>
+          </div>
+          <div className="packing-create-field">
+            <label>
+              <span className="packing-field-label">
+                Link trip
+                {renderTip('Link your packing list to an existing trip.')}
+              </span>
+              <select
+                name="tripId"
+                value={createForm.tripId}
+                onChange={(event) => {
+                  setCreateFormError('');
+                  setCreateForm((current) => ({ ...current, tripId: event.target.value }));
                 }}
               >
-                <option value="">Choose template</option>
-                {templates.map((template) => (
-                  <option key={template.key} value={template.key}>
-                    {template.title}
+                <option value="">No linked trip</option>
+                {trips.map((trip) => (
+                  <option key={trip._id} value={trip._id}>
+                    {getTripOptionLabel(trip)}
                   </option>
                 ))}
               </select>
             </label>
+          </div>
+          {createMode === 'template' && (
+            <div className="packing-create-field">
+              <label>
+                <span className="packing-field-label">
+                  Template
+                  {renderTip('Create a packing list from an existing template.')}
+                </span>
+                <select
+                  name="templateKey"
+                  value={createForm.templateKey}
+                  onChange={(event) => {
+                    setCreateFormError('');
+                    handleTemplateDropdownChange(event);
+                  }}
+                >
+                  <option value="">Choose template</option>
+                  {templates.map((template) => (
+                    <option key={template.key} value={template.key}>
+                      {template.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
           )}
         </div>
         {createFormError && <p className="form-error packing-status">{createFormError}</p>}
@@ -391,8 +491,7 @@ function PackingListsPage() {
                       {templateEditForm.items.length} template item{templateEditForm.items.length === 1 ? '' : 's'}
                     </p>
                     <div className="packing-workspace-meta" aria-label="Packing template details">
-                      <span>Destination: {selectedTemplate.destination || 'Not set'}</span>
-                      <span>Template linked: Future implementation</span>
+                      <span>{selectedTemplate.source === 'custom' ? 'Custom template' : 'System template'}</span>
                     </div>
                   </div>
                   <div className="packing-list-actions">
@@ -453,7 +552,7 @@ function PackingListsPage() {
                   )}
                 </div>
 
-                <div className="packing-filters">
+                <div className="packing-filters packing-template-filters">
                   <span className="packing-search-field">
                     <Search size={16} aria-hidden="true" />
                     <input
@@ -467,11 +566,6 @@ function PackingListsPage() {
                     {packingCategories.map((category) => (
                       <option key={category} value={category}>{formatPackingCategory(category)}</option>
                     ))}
-                  </select>
-                  <select value={templateFilters.packed} onChange={(event) => setTemplateFilters((current) => ({ ...current, packed: event.target.value }))}>
-                    <option value="">All status</option>
-                    <option value="packed">Packed</option>
-                    <option value="unpacked">Unpacked</option>
                   </select>
                   <select value={templateFilters.priority} onChange={(event) => setTemplateFilters((current) => ({ ...current, priority: event.target.value }))}>
                     <option value="">All priority</option>
@@ -488,14 +582,6 @@ function PackingListsPage() {
 
                       return (
                         <article className={item.isPacked ? 'packing-template-item-card packed' : 'packing-template-item-card'} key={item.id || item.index}>
-                          <label className="packing-check">
-                            <input
-                              type="checkbox"
-                              checked={Boolean(item.isPacked)}
-                              onChange={() => handleToggleTemplateItemPacked(item.index)}
-                            />
-                            <span className="sr-only">{item.isPacked ? 'Mark unpacked' : 'Mark packed'}</span>
-                          </label>
                           <div>
                             <div className="packing-item-title-row">
                               <strong>{item.name}</strong>
@@ -565,8 +651,7 @@ function PackingListsPage() {
                     {progress.packedItems}/{progress.totalItems} items packed
                   </p>
                   <div className="packing-workspace-meta" aria-label="Packing list trip details">
-                    <span>Destination: {selectedList.destination || 'Not set'}</span>
-                    <span>Trip linked: {selectedList.tripId ? 'Linked' : 'Future implementation'}</span>
+                    <span>Trip linked: {selectedList.tripId ? 'Linked' : 'Not linked'}</span>
                   </div>
                 </div>
                 <div className="packing-list-actions">
@@ -589,6 +674,23 @@ function PackingListsPage() {
                 <span style={{ width: `${progress.percent || 0}%` }} />
               </div>
 
+              <div className="packing-trip-link-panel">
+                <label>
+                  <span className="packing-field-label">
+                    Link trip
+                    {renderTip('Choose a trip to link this list or select "No linked trip" to unlink it.')}
+                  </span>
+                  <select value={selectedList.tripId || ''} onChange={handlePackingListTripChange} disabled={isSaving}>
+                    <option value="">No linked trip</option>
+                    {trips.map((trip) => (
+                      <option key={trip._id} value={trip._id}>
+                        {getTripOptionLabel(trip)}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+
               <div className="packing-reminder">
                 <span>
                   <Bell size={17} aria-hidden="true" />
@@ -597,7 +699,13 @@ function PackingListsPage() {
                 <strong className={isPackingReminderEnabled ? 'enabled' : 'disabled'}>
                   {isPackingReminderEnabled ? 'Enabled' : 'Disabled'}
                 </strong>
+                {renderTip(
+                  isPackingReminderEnabled
+                    ? 'Packing reminders are currently enabled in your notification settings.'
+                    : 'Packing reminders are currently disabled in your notification settings.'
+                )}
                 <label>
+                  {renderTip('Choose how many days before the trip you want to be reminded.')}
                   Notify
                   <input
                     type="number"
@@ -817,8 +925,469 @@ function PackingListsPage() {
           </div>
         </div>
       )}
-    </section>
+    </TravelToolsPageFrame>
   );
 }
 
-export default PackingListsPage;
+function TravelDocumentTools() {
+  const [documents, setDocuments] = useState(starterDocuments);
+  const [selectedDocumentId, setSelectedDocumentId] = useState(starterDocuments[0].id);
+  const [trips, setTrips] = useState([]);
+  const [filters, setFilters] = useState({ search: '', type: '' });
+  const [createForm, setCreateForm] = useState({ name: '', type: 'Passport', tripId: '' });
+  const [formError, setFormError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [expandedFile, setExpandedFile] = useState(null);
+  const objectUrlsRef = useRef(new Set());
+
+  useEffect(() => {
+    let isMounted = true;
+    getTrips()
+      .then((response) => {
+        if (isMounted) setTrips(response.data.data.trips || []);
+      })
+      .catch(() => {
+        if (isMounted) setTrips([]);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => () => {
+    objectUrlsRef.current.forEach((url) => URL.revokeObjectURL(url));
+    objectUrlsRef.current.clear();
+  }, []);
+
+  const selectedDocument = useMemo(
+    () => documents.find((document) => document.id === selectedDocumentId) || documents[0],
+    [documents, selectedDocumentId]
+  );
+
+  const fileCount = documents.reduce((total, document) => total + document.files.length, 0);
+  const linkedCount = documents.filter((document) => document.tripId).length;
+  const filteredDocuments = documents.filter((document) => {
+    const matchesSearch = document.name.toLowerCase().includes(filters.search.toLowerCase().trim());
+    const matchesType = !filters.type || document.type === filters.type;
+    return matchesSearch && matchesType;
+  });
+
+  const handleCreateDocument = (event) => {
+    event.preventDefault();
+
+    if (!createForm.name.trim()) {
+      setFormError('Document name is required.');
+      return;
+    }
+
+    const nextDocument = {
+      ...createForm,
+      id: `document-${Date.now()}`,
+      name: createForm.name.trim(),
+      files: [],
+    };
+
+    setDocuments((current) => [nextDocument, ...current]);
+    setSelectedDocumentId(nextDocument.id);
+    setCreateForm({ name: '', type: 'Passport', tripId: '' });
+    setFormError('');
+    setSuccessMessage('Travel document created.');
+  };
+
+  const handleFileUpload = (event) => {
+    const uploadedFiles = Array.from(event.target.files || []);
+    if (!selectedDocument || uploadedFiles.length === 0) return;
+
+    const acceptedFiles = uploadedFiles.filter(isAcceptedTravelDocumentFile);
+    const rejectedCount = uploadedFiles.length - acceptedFiles.length;
+
+    if (acceptedFiles.length === 0) {
+      setFormError('Upload PNG, JPG, JPEG, PDF, Word, PowerPoint, or Excel files only.');
+      event.target.value = '';
+      return;
+    }
+
+    const nextFiles = acceptedFiles.map((file) => {
+      const url = URL.createObjectURL(file);
+      objectUrlsRef.current.add(url);
+
+      return {
+        id: `${file.name}-${file.lastModified}-${file.size}`,
+        name: file.name,
+        size: file.size,
+        type: file.type || getFileExtension(file.name).slice(1).toUpperCase() || 'Unknown file',
+        url,
+        previewType: getTravelDocumentPreviewType(file),
+      };
+    });
+
+    setDocuments((current) =>
+      current.map((document) =>
+        document.id === selectedDocument.id
+          ? { ...document, files: [...document.files, ...nextFiles] }
+          : document
+      )
+    );
+    setFormError(rejectedCount ? `${rejectedCount} unsupported file${rejectedCount === 1 ? '' : 's'} skipped.` : '');
+    setSuccessMessage(`${nextFiles.length} file${nextFiles.length === 1 ? '' : 's'} added to travel document.`);
+    event.target.value = '';
+  };
+
+  const handleRemoveFile = (fileId) => {
+    if (!selectedDocument) return;
+    const fileToRemove = selectedDocument.files.find((file) => file.id === fileId);
+    if (fileToRemove?.url) {
+      URL.revokeObjectURL(fileToRemove.url);
+      objectUrlsRef.current.delete(fileToRemove.url);
+    }
+    if (expandedFile?.id === fileId) setExpandedFile(null);
+    setDocuments((current) =>
+      current.map((document) =>
+        document.id === selectedDocument.id
+          ? { ...document, files: document.files.filter((file) => file.id !== fileId) }
+          : document
+      )
+    );
+  };
+
+  const handleDeleteDocument = () => {
+    if (!selectedDocument) return;
+    selectedDocument.files.forEach((file) => {
+      if (file.url) {
+        URL.revokeObjectURL(file.url);
+        objectUrlsRef.current.delete(file.url);
+      }
+    });
+    setExpandedFile(null);
+    setDocuments((current) => {
+      const nextDocuments = current.filter((document) => document.id !== selectedDocument.id);
+      setSelectedDocumentId(nextDocuments[0]?.id || '');
+      return nextDocuments;
+    });
+    setSuccessMessage('Travel document deleted.');
+  };
+
+  const renderFilePreview = (file, isExpanded = false) => {
+    if (file.previewType === 'image') {
+      return <img src={file.url} alt={file.name} />;
+    }
+
+    if (file.previewType === 'pdf') {
+      return <object data={file.url} type="application/pdf" aria-label={`${file.name} preview`} />;
+    }
+
+    return (
+      <object data={file.url} type={file.type} aria-label={`${file.name} preview`}>
+        <div className="travel-document-preview-fallback">
+          <FileText size={isExpanded ? 44 : 26} aria-hidden="true" />
+          <strong>{getFileExtension(file.name).replace('.', '').toUpperCase() || 'File'}</strong>
+          <span>Preview depends on browser support for this file type.</span>
+        </div>
+      </object>
+    );
+  };
+
+  return (
+    <TravelToolsPageFrame labelledBy="travel-document-title">
+      <TravelToolsHero
+        labelledBy="travel-document-title"
+        eyebrow="Trip files"
+        title="Travel Document"
+        description="Store copies of passports, visas, tickets, bookings, and images for each trip."
+        metaLabel="Travel document summary"
+        meta={
+          <>
+            <span>
+              <FileText size={15} aria-hidden="true" />
+              {documents.length} document{documents.length === 1 ? '' : 's'}
+            </span>
+            <span>
+              <Upload size={15} aria-hidden="true" />
+              {fileCount} file{fileCount === 1 ? '' : 's'}
+            </span>
+            <span className={linkedCount ? 'packing-hero-health-ready' : 'packing-hero-health-warning'}>
+              <CircleAlert size={15} aria-hidden="true" />
+              {linkedCount} linked
+            </span>
+          </>
+        }
+        liveCard={
+          <div className="packing-live-card">
+            <span>Current document</span>
+            <strong>{selectedDocument?.files.length || 0}</strong>
+            <small>{selectedDocument?.name || 'No document selected'}</small>
+          </div>
+        }
+      />
+
+      <form className="packing-create-panel" onSubmit={handleCreateDocument}>
+        <div className="packing-panel-heading">
+          <div>
+            <span>Create travel document</span>
+            <h3>Add a document record, then upload images or files inside the workspace</h3>
+          </div>
+          <button className="secondary-action" type="submit">
+            <Plus size={17} aria-hidden="true" />
+            Create
+          </button>
+        </div>
+
+        <div className="packing-form-grid packing-form-grid-compact">
+          <div className="packing-create-field">
+            <label>
+              <span className="packing-field-label">
+                Document name
+                {renderTip('Use a recognizable name such as "Passport scan" or "Hotel booking".')}
+              </span>
+              <input
+                value={createForm.name}
+                onChange={(event) => {
+                  setFormError('');
+                  setCreateForm((current) => ({ ...current, name: event.target.value }));
+                }}
+                placeholder="Passport scan"
+              />
+            </label>
+          </div>
+          <div className="packing-create-field">
+            <label>
+              <span className="packing-field-label">
+                Document type
+                {renderTip('Choose the closest category so documents are easier to filter later.')}
+              </span>
+              <select
+                value={createForm.type}
+                onChange={(event) => setCreateForm((current) => ({ ...current, type: event.target.value }))}
+              >
+                {documentTypes.map((type) => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div className="packing-create-field">
+            <label>
+              <span className="packing-field-label">
+                Link trip
+                {renderTip('Optionally attach this document to one of your trips.')}
+              </span>
+              <select
+                value={createForm.tripId}
+                onChange={(event) => setCreateForm((current) => ({ ...current, tripId: event.target.value }))}
+              >
+                <option value="">No linked trip</option>
+                {trips.map((trip) => (
+                  <option key={trip._id} value={trip._id}>{getTripOptionLabel(trip)}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </div>
+        {formError && <p className="form-error packing-status">{formError}</p>}
+      </form>
+
+      <div className="packing-layout">
+        <aside className="packing-list-panel">
+          <div className="packing-panel-heading">
+            <div>
+              <span>View documents</span>
+              <h3>My Documents</h3>
+            </div>
+            <strong>{documents.length}</strong>
+          </div>
+
+          <div className="packing-filters packing-template-filters">
+            <span className="packing-search-field">
+              <Search size={16} aria-hidden="true" />
+              <input
+                value={filters.search}
+                onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
+                placeholder="Search documents"
+              />
+            </span>
+            <select value={filters.type} onChange={(event) => setFilters((current) => ({ ...current, type: event.target.value }))}>
+              <option value="">All document types</option>
+              {documentTypes.map((type) => (
+                <option key={type} value={type}>{type}</option>
+              ))}
+            </select>
+          </div>
+
+          {filteredDocuments.length === 0 ? (
+            <p className="settings-empty">No travel documents match the current filters.</p>
+          ) : (
+            <div className="packing-list-stack">
+              {filteredDocuments.map((document) => (
+                <button
+                  className={`packing-list-card ${selectedDocument?.id === document.id ? 'active' : ''}`}
+                  type="button"
+                  key={document.id}
+                  onClick={() => setSelectedDocumentId(document.id)}
+                >
+                  <span>{document.name}</span>
+                  <small>{document.type} · {document.files.length} file{document.files.length === 1 ? '' : 's'}</small>
+                </button>
+              ))}
+            </div>
+          )}
+
+          <div className="packing-side-section">
+            <div className="packing-panel-heading">
+              <div>
+                <span>Templates</span>
+                <h3>Document Types</h3>
+              </div>
+              <strong>{documentTypes.length}</strong>
+            </div>
+            <div className="packing-list-stack">
+              {documentTypes.slice(0, 4).map((type) => (
+                <button
+                  className="packing-list-card packing-template-card"
+                  type="button"
+                  key={type}
+                  onClick={() => setCreateForm((current) => ({ ...current, type, name: current.name || type }))}
+                >
+                  <span>{type}</span>
+                  <small>Use as document type</small>
+                </button>
+              ))}
+            </div>
+          </div>
+        </aside>
+
+        <div className="packing-main">
+          {selectedDocument ? (
+            <section className="packing-detail">
+              <div className="packing-detail-header">
+                <div>
+                  <span className="packing-workspace-label">Document workspace</span>
+                  <div className="packing-title-row">
+                    <h3>{selectedDocument.name}</h3>
+                  </div>
+                  <p>{selectedDocument.files.length} uploaded file{selectedDocument.files.length === 1 ? '' : 's'}</p>
+                  <div className="packing-workspace-meta" aria-label="Travel document details">
+                    <span>{selectedDocument.type}</span>
+                    <span>{selectedDocument.tripId ? 'Trip linked' : 'Not linked'}</span>
+                  </div>
+                </div>
+                <div className="packing-list-actions">
+                  <button type="button" disabled>
+                    <Copy size={16} aria-hidden="true" />
+                    Duplicate
+                  </button>
+                  <button type="button" onClick={handleDeleteDocument}>
+                    <Trash2 size={16} aria-hidden="true" />
+                    Delete
+                  </button>
+                </div>
+              </div>
+
+              <div className="travel-document-upload">
+                <Upload size={28} aria-hidden="true" />
+                <strong>Upload images or files</strong>
+                <span>Accepted formats: PNG, JPG, JPEG, PDF, Word, PowerPoint, and Excel.</span>
+                <label className="primary-action">
+                  <Upload size={17} aria-hidden="true" />
+                  Choose files
+                  <input type="file" multiple accept={acceptedTravelDocumentInput} onChange={handleFileUpload} />
+                </label>
+              </div>
+
+              {selectedDocument.files.length === 0 ? (
+                <p className="settings-empty">No files uploaded yet. Add an image or document file to this workspace.</p>
+              ) : (
+                <div className="packing-item-list packing-document-file-list">
+                  {selectedDocument.files.map((file) => (
+                    <article key={file.id}>
+                      <button
+                        className="travel-document-preview-thumb"
+                        type="button"
+                        onClick={() => setExpandedFile(file)}
+                        aria-label={`Preview ${file.name}`}
+                      >
+                        {file.previewType === 'image' || file.previewType === 'pdf' ? renderFilePreview(file) : (
+                          <span className="travel-document-file-icon">
+                            {file.previewType === 'pdf'
+                              ? <FileText size={18} aria-hidden="true" />
+                              : <Image size={18} aria-hidden="true" />}
+                          </span>
+                        )}
+                        <Maximize2 size={14} aria-hidden="true" />
+                      </button>
+                      <div>
+                        <div className="packing-item-title-row">
+                          <strong>{file.name}</strong>
+                          <span className="priority-low">
+                            {file.previewType === 'image' ? 'Image' : file.previewType === 'pdf' ? 'PDF' : 'File'}
+                          </span>
+                        </div>
+                        <span className="packing-item-category">
+                          <CalendarClock size={14} aria-hidden="true" />
+                          {formatFileSize(file.size)}
+                        </span>
+                      </div>
+                      <div className="packing-item-meta" aria-label="Document file type">
+                        <span className="packing-quantity">{file.type}</span>
+                      </div>
+                      <a className="travel-document-download" href={file.url} download={file.name} aria-label={`Download ${file.name}`}>
+                        <Download size={16} aria-hidden="true" />
+                      </a>
+                      <button type="button" onClick={() => handleRemoveFile(file.id)} aria-label="Remove file">
+                        <X size={16} aria-hidden="true" />
+                      </button>
+                    </article>
+                  ))}
+                </div>
+              )}
+
+              {successMessage && <p className="form-success packing-status">{successMessage}</p>}
+              {formError && <p className="form-error packing-status">{formError}</p>}
+            </section>
+          ) : (
+            <section className="packing-detail packing-empty-detail">
+              <FileText size={34} aria-hidden="true" />
+              <h3>Create your first travel document</h3>
+              <p>Add a document record, then upload images or files into its workspace.</p>
+            </section>
+          )}
+        </div>
+      </div>
+
+      {expandedFile && (
+        <div className="packing-modal-backdrop" role="presentation">
+          <div className="packing-modal travel-document-preview-modal" role="dialog" aria-modal="true" aria-labelledby="travel-document-preview-title">
+            <div className="packing-modal-header">
+              <h3 id="travel-document-preview-title">{expandedFile.name}</h3>
+              <button type="button" onClick={() => setExpandedFile(null)} aria-label="Close preview">
+                <X size={18} aria-hidden="true" />
+              </button>
+            </div>
+            <div className="travel-document-expanded-preview">
+              {renderFilePreview(expandedFile, true)}
+            </div>
+            <div className="packing-modal-actions">
+              <a className="primary-action" href={expandedFile.url} download={expandedFile.name}>
+                <Download size={17} aria-hidden="true" />
+                Download
+              </a>
+              <button className="secondary-action" type="button" onClick={() => setExpandedFile(null)}>Close</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <button className="packing-ai-floating" type="button" disabled>
+        <Bot size={20} aria-hidden="true" />
+        <span>Ask AI</span>
+      </button>
+    </TravelToolsPageFrame>
+  );
+}
+
+function TravelToolsPage({ mode = 'packing' }) {
+  if (mode === 'documents') return <TravelDocumentTools />;
+  return <PackingListTools />;
+}
+
+export default TravelToolsPage;

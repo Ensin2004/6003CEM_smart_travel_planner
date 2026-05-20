@@ -1,4 +1,4 @@
-const { priorityLevels } = require('./packingList.constants');
+const { priorityLevels } = require('./travelTools.constants');
 
 const [highPriority, mediumPriority, lowPriority] = priorityLevels;
 

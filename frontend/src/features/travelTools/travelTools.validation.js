@@ -1,12 +1,11 @@
 import {
   defaultPackingCategory,
   formatPriorityLevel,
-} from './packingList.constants';
-import { normalizeName } from './packingList.utils';
+} from './travelTools.constants';
+import { normalizeName } from './travelTools.utils';
 
 export const validateCreatePackingList = ({ createForm, createMode, hasDuplicateListTitle }) => {
   if (!createForm.title.trim()) return 'Packing list title cannot be empty.';
-  if (!createForm.destination.trim()) return 'Destination cannot be empty.';
   if (createMode === 'template' && !createForm.templateKey) return 'Choose a template to create this list.';
   if (hasDuplicateListTitle(createForm.title)) return 'A packing list with this name already exists.';
   return '';

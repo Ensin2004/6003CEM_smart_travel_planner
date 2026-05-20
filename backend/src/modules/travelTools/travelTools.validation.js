@@ -1,5 +1,5 @@
 const { body, param } = require('express-validator');
-const { priorityLevels } = require('./packingList.constants');
+const { priorityLevels } = require('./travelTools.constants');
 
 const objectIdRule = param('id').isMongoId().withMessage('Invalid packing list id');
 const itemIdRule = param('itemId').isMongoId().withMessage('Invalid packing item id');
@@ -16,7 +16,7 @@ const itemRules = (path = '') => [
 const createPackingListRules = [
   body('title').trim().isLength({ min: 1, max: 120 }).withMessage('Packing list title is required'),
   body('tripId').optional().isMongoId().withMessage('Invalid trip id'),
-  body('destination').trim().isLength({ min: 1, max: 120 }).withMessage('Destination is required'),
+  body('destination').optional().trim().isLength({ max: 120 }),
   body('tripStartDate').optional().isISO8601().withMessage('Trip start date must be valid'),
   body('tripEndDate').optional().isISO8601().withMessage('Trip end date must be valid'),
   body('templateKey').optional().trim().isLength({ min: 1, max: 60 }),
@@ -33,7 +33,7 @@ const createPackingListRules = [
 const updatePackingListRules = [
   objectIdRule,
   body('title').optional().trim().isLength({ min: 1, max: 120 }),
-  body('tripId').optional().isMongoId().withMessage('Invalid trip id'),
+  body('tripId').optional({ nullable: true }).isMongoId().withMessage('Invalid trip id'),
   body('destination').optional().trim().isLength({ min: 1, max: 120 }),
   body('tripStartDate').optional().isISO8601().withMessage('Trip start date must be valid'),
   body('tripEndDate').optional().isISO8601().withMessage('Trip end date must be valid'),
