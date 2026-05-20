@@ -99,11 +99,10 @@ function LandingPage() {
       <section className="landing-hero" id="home" style={{ backgroundImage: `url(${heroImage})` }}>
         <div className="hero-layout">
           <div className="hero-content">
-            <p className="eyebrow">Smart travel workspace</p>
-            <h1>Plan every trip with calm, clear decisions.</h1>
+            <h1>Smart Travel Planner</h1>
             <p className="hero-copy">
-              Organize destinations, budgets, weather, attractions, notes, and
-              checklists in one workspace before you book, pack, or depart.
+              Plan every trip with calm, clear decisions by organizing destinations,
+              budgets, weather, attractions, notes, and checklists in one workspace.
             </p>
             <div className="hero-actions">
               <Link className="primary-action" to="/register">

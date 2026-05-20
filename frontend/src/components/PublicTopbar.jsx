@@ -22,9 +22,8 @@ function PublicTopbar() {
 
   return (
     <nav className="landing-nav public-topbar" aria-label="Main navigation">
-      <Link className="brand-mark" to="/">
+      <Link className="brand-mark" to="/" aria-label="Smart Travel Planner home">
         <img className="brand-logo" src={logo} alt="" aria-hidden="true" />
-        Smart Travel Planner
       </Link>
       <div className="nav-links">
         {publicNavItems.map(([Icon, label, sectionId]) => (
