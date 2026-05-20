@@ -10,13 +10,21 @@ import {
   Languages,
   ListChecks,
   LogOut,
+  Map,
   MapPinned,
   Plane,
   Settings,
   Sparkles,
   Utensils,
 } from 'lucide-react';
+import { sections as settingsSections } from '../features/settings/shared/settings.constants';
 import AppLayout from './AppLayout';
+
+const settingsChildren = settingsSections.map((section) => ({
+  to: section.id === 'profile' ? '/profile' : `/profile?section=${section.id}`,
+  label: section.label,
+  icon: section.icon,
+}));
 
 const userMenu = [
   { to: '/dashboard', label: 'Dashboard', icon: Home, end: true },
@@ -43,10 +51,11 @@ const userMenu = [
     ],
   },
   { to: '/packing-lists', label: 'Packing List', icon: ListChecks},
+  { to: '/map', label: 'Map', icon: Map },
   { to: '/dashboard#travel-document', label: 'Travel Document', icon: FileText},
   { to: '/dashboard#favourite', label: 'Favourite', icon: Heart, header: true },
   { to: '/dashboard#language-helper', label: 'Language Helper', icon: Languages},
-  { to: '/profile', label: 'Settings', icon: Settings, bottom: true },
+  { to: '/profile', label: 'Settings', icon: Settings, bottom: true, children: settingsChildren },
   { to: '/login', label: 'Logout', icon: LogOut, bottom: true },
 ];
 

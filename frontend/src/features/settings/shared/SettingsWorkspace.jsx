@@ -12,7 +12,6 @@ import FeedbackSettings from './components/FeedbackSettings';
 import NotificationSettings from './components/NotificationSettings';
 import PasswordSettings from './components/PasswordSettings';
 import ProfileSettings from './components/ProfileSettings';
-import SettingsSubnav from './components/SettingsSubnav';
 import {
   allNotificationKeys,
   defaultNotificationPreferences,
@@ -25,9 +24,6 @@ import './SettingsWorkspace.css';
 function SettingsWorkspace({ role }) {
   const { setUser } = useContext(AuthContext);
   const location = useLocation();
-  const [activeSection, setActiveSection] = useState(
-    location.hash === '#notifications' ? 'notifications' : 'profile'
-  );
   const [profile, setProfile] = useState({
     name: '',
     email: '',
@@ -75,6 +71,23 @@ function SettingsWorkspace({ role }) {
       })),
     [isAdmin]
   );
+  const visibleSectionIds = useMemo(
+    () => new Set(visibleSections.map((section) => section.id)),
+    [visibleSections]
+  );
+  const activeSection = useMemo(() => {
+    const sectionParam = new URLSearchParams(location.search).get('section');
+
+    if (sectionParam && visibleSectionIds.has(sectionParam)) {
+      return sectionParam;
+    }
+
+    if (location.hash === '#notifications' && visibleSectionIds.has('notifications')) {
+      return 'notifications';
+    }
+
+    return 'profile';
+  }, [location.hash, location.search, visibleSectionIds]);
   const filteredFeedbackEntries = useMemo(() => {
     const entries =
       ratingFilter === 'all'
@@ -326,15 +339,8 @@ function SettingsWorkspace({ role }) {
     </div>
   );
 
-  const handleSectionChange = (sectionId) => {
-    setActiveSection(sectionId);
-    setStatus({ target: '', type: '', text: '' });
-  };
-
   return (
     <section className="settings-workspace">
-      <SettingsSubnav sections={visibleSections} activeSection={activeSection} onSectionChange={handleSectionChange} />
-
       <div className="settings-content">
         {renderStatus('page')}
 
