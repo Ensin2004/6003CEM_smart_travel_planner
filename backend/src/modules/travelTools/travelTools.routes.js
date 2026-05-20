@@ -1,7 +1,7 @@
 const express = require('express');
 const { protect } = require('../../middleware/auth.middleware');
 const validate = require('../../middleware/validate.middleware');
-const packingListController = require('./packingList.controller');
+const travelToolsController = require('./travelTools.controller');
 const {
   addItemRules,
   createPackingListRules,
@@ -12,7 +12,7 @@ const {
   updateItemRules,
   updatePackingListRules,
   updateTemplateRules,
-} = require('./packingList.validation');
+} = require('./travelTools.validation');
 
 const router = express.Router();
 
@@ -220,30 +220,33 @@ router.use(protect);
  *       200:
  *         description: Packing item deleted
  */
-router.get('/templates', packingListController.getTemplates);
-router.post('/templates', createTemplateRules, validate, packingListController.createTemplate);
+router.get('/documents', travelToolsController.getTravelDocuments);
+router.get('/document-templates', travelToolsController.getDocumentTemplates);
+
+router.get('/templates', travelToolsController.getTemplates);
+router.post('/templates', createTemplateRules, validate, travelToolsController.createTemplate);
 router
   .route('/templates/:templateId')
-  .patch(updateTemplateRules, validate, packingListController.updateTemplate)
-  .delete(templateIdRule, validate, packingListController.deleteTemplate);
+  .patch(updateTemplateRules, validate, travelToolsController.updateTemplate)
+  .delete(templateIdRule, validate, travelToolsController.deleteTemplate);
 
 router
   .route('/')
-  .get(packingListController.getMyPackingLists)
-  .post(createPackingListRules, validate, packingListController.createPackingList);
+  .get(travelToolsController.getMyPackingLists)
+  .post(createPackingListRules, validate, travelToolsController.createPackingList);
 
-router.post('/:id/duplicate', duplicatePackingListRules, validate, packingListController.duplicatePackingList);
-router.post('/:id/items', addItemRules, validate, packingListController.addItem);
+router.post('/:id/duplicate', duplicatePackingListRules, validate, travelToolsController.duplicatePackingList);
+router.post('/:id/items', addItemRules, validate, travelToolsController.addItem);
 
 router
   .route('/:id/items/:itemId')
-  .patch(updateItemRules, validate, packingListController.updateItem)
-  .delete(updateItemRules.slice(0, 2), validate, packingListController.deleteItem);
+  .patch(updateItemRules, validate, travelToolsController.updateItem)
+  .delete(updateItemRules.slice(0, 2), validate, travelToolsController.deleteItem);
 
 router
   .route('/:id')
-  .get(objectIdRule, validate, packingListController.getPackingList)
-  .patch(updatePackingListRules, validate, packingListController.updatePackingList)
-  .delete(objectIdRule, validate, packingListController.deletePackingList);
+  .get(objectIdRule, validate, travelToolsController.getPackingList)
+  .patch(updatePackingListRules, validate, travelToolsController.updatePackingList)
+  .delete(objectIdRule, validate, travelToolsController.deletePackingList);
 
 module.exports = router;

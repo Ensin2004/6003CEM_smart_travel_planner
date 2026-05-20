@@ -56,7 +56,7 @@ const userMenu = [
     icon: ListChecks,
     children: [
       { to: '/packing-lists', label: 'Packing List', icon: ListChecks },
-      { to: '/dashboard#travel-document', label: 'Travel Document', icon: FileText },
+      { to: '/travel-documents', label: 'Travel Document', icon: FileText },
     ],
   },
   { to: '/map', label: 'Map', icon: Map },

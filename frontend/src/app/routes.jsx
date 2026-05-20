@@ -9,7 +9,7 @@ import TripsPage from '../features/trips/TripsPage';
 import TripDetailsPage from '../features/trips/TripDetailsPage';
 import ExplorePage from '../features/explore/ExplorePage';
 import MapPage from '../features/map/MapPage';
-import PackingListsPage from '../features/packingLists/PackingListsPage';
+import TravelToolsPage from '../features/travelTools/TravelToolsPage';
 import UserSettingsPage from '../features/settings/user/UserSettingsPage';
 import AdminDashboard from '../features/admin/AdminDashboard';
 import ApiLogsPage from '../features/admin/ApiLogsPage';
@@ -34,7 +34,8 @@ function AppRoutes() {
         <Route path="/trips/:id" element={<TripDetailsPage />} />
         <Route path="/explore" element={<ExplorePage />} />
         <Route path="/map" element={<MapPage />} />
-        <Route path="/packing-lists" element={<PackingListsPage />} />
+        <Route path="/packing-lists" element={<TravelToolsPage mode="packing" />} />
+        <Route path="/travel-documents" element={<TravelToolsPage mode="documents" />} />
         <Route path="/profile" element={<UserSettingsPage />} />
       </Route>
 
