@@ -40,6 +40,9 @@ const errorHandler = (error, req, res, next) => {
   res.status(statusCode).json({
     status: `${statusCode}`.startsWith('4') ? 'fail' : 'error',
     message: env.nodeEnv === 'production' && statusCode === 500 ? 'Internal server error' : message,
+    ...(error.code && { code: error.code }),
+    ...(error.email && { email: error.email }),
+    ...(error.verificationExpiresAt && { verificationExpiresAt: error.verificationExpiresAt }),
     ...(error.retryAfterSeconds && { retryAfterSeconds: error.retryAfterSeconds }),
     ...(env.nodeEnv === 'development' && { stack: error.stack }),
   });

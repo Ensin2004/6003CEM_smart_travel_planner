@@ -1,7 +1,7 @@
-import { CalendarDays, CheckCircle2, CloudSun, Eye, EyeOff } from 'lucide-react';
+import { CalendarDays, CheckCircle2, CloudSun, Eye, EyeOff, MailWarning } from 'lucide-react';
 import { useContext, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { login } from '../../api/authApi';
+import { login, resendVerificationEmail } from '../../api/authApi';
 import PublicTopbar from '../../components/PublicTopbar';
 import AuthContext from '../../context/authContext';
 import './AuthPage.css';
@@ -13,6 +13,9 @@ function LoginPage() {
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isPasswordVisible, setIsPasswordVisible] = useState(false);
+  const [verificationPrompt, setVerificationPrompt] = useState(null);
+  const [resendStatus, setResendStatus] = useState('');
+  const [isResending, setIsResending] = useState(false);
 
   const handleChange = (event) => {
     const { name, value } = event.target;
@@ -41,6 +44,16 @@ function LoginPage() {
       setUser(result.user);
       navigate(destination);
     } catch (requestError) {
+      if (requestError.response?.data?.code === 'EMAIL_NOT_VERIFIED') {
+        setVerificationPrompt({
+          email: requestError.response.data.email || formData.email,
+          expiresAt: requestError.response.data.verificationExpiresAt,
+          message: requestError.response.data.message,
+        });
+        setIsSubmitting(false);
+        return;
+      }
+
       const message =
         requestError.response?.data?.message ||
         requestError.response?.data?.errors?.[0]?.message ||
@@ -49,6 +62,30 @@ function LoginPage() {
       setError(message);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!verificationPrompt?.email) return;
+
+    setIsResending(true);
+    setResendStatus('');
+
+    try {
+      const response = await resendVerificationEmail({ email: verificationPrompt.email });
+      const result = response.data.data;
+      setVerificationPrompt((current) => ({
+        ...current,
+        expiresAt: result.verificationExpiresAt || current.expiresAt,
+      }));
+      setResendStatus(response.data.message || 'Verification email sent.');
+    } catch (requestError) {
+      setResendStatus(
+        requestError.response?.data?.message ||
+          'Unable to resend the verification email. Please try again.'
+      );
+    } finally {
+      setIsResending(false);
     }
   };
 
@@ -138,6 +175,50 @@ function LoginPage() {
           </p>
         </section>
       </section>
+
+      {verificationPrompt && (
+        <div className="auth-modal-backdrop" role="presentation">
+          <div className="auth-modal" role="dialog" aria-modal="true" aria-labelledby="login-verify-title">
+            <div className="auth-modal-icon warning">
+              <MailWarning size={30} />
+            </div>
+            <h3 id="login-verify-title">Email verification needed</h3>
+            <p>
+              {verificationPrompt.message ||
+                'Please verify your email before logging in. We sent a new verification link to your inbox.'}
+            </p>
+            <p>
+              Check <strong>{verificationPrompt.email}</strong> and click the verification link.
+            </p>
+            {verificationPrompt.expiresAt && (
+              <p className="auth-modal-note">
+                The newest link expires on {new Date(verificationPrompt.expiresAt).toLocaleString()}.
+              </p>
+            )}
+            {resendStatus && <p className="form-success">{resendStatus}</p>}
+            <div className="auth-modal-actions">
+              <button
+                type="button"
+                className="auth-submit"
+                onClick={() => {
+                  setVerificationPrompt(null);
+                  setResendStatus('');
+                }}
+              >
+                OK
+              </button>
+              <button
+                type="button"
+                className="auth-secondary-button"
+                onClick={handleResendVerification}
+                disabled={isResending}
+              >
+                {isResending ? 'Sending...' : 'Resend email'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

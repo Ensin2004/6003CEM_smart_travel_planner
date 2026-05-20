@@ -166,16 +166,17 @@ function AppLayout({ role, menuItems }) {
         .join(' ')}
     >
       <header className="topbar">
-        <button
-          className="header-icon-button menu-toggle"
-          type="button"
-          aria-label={isSubmenuCollapsed ? 'Expand submenu' : 'Collapse submenu'}
-          aria-pressed={isSubmenuCollapsed}
-          disabled={!activeSubmenu}
-          onClick={handleSubmenuToggle}
-        >
-          <Menu size={19} aria-hidden="true" />
-        </button>
+        {activeSubmenu && (
+          <button
+            className="header-icon-button menu-toggle"
+            type="button"
+            aria-label={isSubmenuCollapsed ? 'Expand submenu' : 'Collapse submenu'}
+            aria-pressed={isSubmenuCollapsed}
+            onClick={handleSubmenuToggle}
+          >
+            <Menu size={19} aria-hidden="true" />
+          </button>
+        )}
 
         <button
           className="header-icon-button mobile-menu-button"

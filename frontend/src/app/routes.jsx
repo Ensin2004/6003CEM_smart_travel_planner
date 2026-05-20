@@ -3,6 +3,7 @@ import LandingPage from '../features/landing/LandingPage';
 import LoginPage from '../features/auth/LoginPage';
 import RegisterPage from '../features/auth/RegisterPage';
 import ForgotPasswordPage from '../features/auth/ForgotPasswordPage';
+import VerifyEmailPage from '../features/auth/VerifyEmailPage';
 import UserDashboard from '../features/dashboard/UserDashboard';
 import TripsPage from '../features/trips/TripsPage';
 import TripDetailsPage from '../features/trips/TripDetailsPage';
@@ -25,6 +26,7 @@ function AppRoutes() {
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/verify-email" element={<VerifyEmailPage />} />
 
       <Route element={<UserLayout />}>
         <Route path="/dashboard" element={<UserDashboard />} />

@@ -160,13 +160,14 @@
 }
 
 .brand-logo {
-  width: 36px;
-  height: 36px;
+  width: auto;
+  height: 42px;
+  margin: 0 4px;
   flex: 0 0 auto;
-  border-radius: 8px;
-  object-fit: contain;
-  background: #ffffff;
-  box-shadow: 0 0 0 1px rgba(16, 42, 67, 0.1);
+  border-radius: 0;
+  object-fit: initial;
+  background: transparent;
+  box-shadow: none;
 }
 
 .nav-actions {

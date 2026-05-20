@@ -55,6 +55,10 @@ const userSchema = new mongoose.Schema(
     password: { type: String, required: true, minlength: 8, select: false },
     role: { type: String, enum: ['user', 'admin'], default: 'user' },
     status: { type: String, enum: ['active', 'disabled'], default: 'active' },
+    isEmailVerified: { type: Boolean, default: false },
+    emailVerifiedAt: { type: Date },
+    emailVerificationToken: { type: String, select: false },
+    emailVerificationExpiresAt: { type: Date, select: false },
     preferences: { type: preferenceSchema },
     notificationPreferences: {
       notificationsOff: { type: Boolean, default: false },
@@ -80,6 +84,7 @@ const userSchema = new mongoose.Schema(
 
 userSchema.index({ role: 1 });
 userSchema.index({ status: 1 });
+userSchema.index({ emailVerificationToken: 1 });
 userSchema.index({ createdAt: -1 });
 
 userSchema.pre('save', async function hashPassword() {
