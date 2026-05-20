@@ -8,7 +8,7 @@ const adminRoutes = require('../modules/admin/admin.routes');
 const apiLogRoutes = require('../modules/apiLogs/apiLog.routes');
 const settingsRoutes = require('../modules/settings/settings.routes');
 const feedbackRoutes = require('../modules/feedback/feedback.routes');
-const packingListRoutes = require('../modules/packingLists/packingList.routes');
+const travelToolsRoutes = require('../modules/travelTools/travelTools.routes');
 const currencyRoutes = require('../modules/currency/currency.routes');
 
 const router = express.Router();
@@ -35,7 +35,8 @@ router.get('/', (req, res) => {
 router.use('/auth', authRoutes);
 router.use('/users', userRoutes);
 router.use('/trips', tripRoutes);
-router.use('/packing-lists', packingListRoutes);
+router.use('/packing-lists', travelToolsRoutes);
+router.use('/travel-tools', travelToolsRoutes);
 router.use('/explore', exploreRoutes);
 router.use('/admin', adminRoutes);
 router.use('/api-logs', apiLogRoutes);

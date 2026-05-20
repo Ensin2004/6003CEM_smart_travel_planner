@@ -12,7 +12,7 @@ import {
   defaultPackingCategory,
   defaultPriorityLevel,
   formatPriorityLevel,
-} from './packingList.constants';
+} from './travelTools.constants';
 
 export const emptyItemForm = {
   name: '',

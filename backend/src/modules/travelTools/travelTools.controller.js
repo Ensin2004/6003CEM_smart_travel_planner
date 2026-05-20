@@ -1,59 +1,59 @@
 const catchAsync = require('../../utils/catchAsync');
 const { sendSuccess } = require('../../utils/apiResponse');
-const packingListService = require('./packingList.service');
+const travelToolsService = require('./travelTools.service');
 
 const getTemplates = catchAsync(async (req, res) => {
-  const templates = await packingListService.getTemplates(req.user.id);
+  const templates = await travelToolsService.getTemplates(req.user.id);
   sendSuccess(res, 200, { templates });
 });
 
 const createTemplate = catchAsync(async (req, res) => {
-  const template = await packingListService.createTemplate(req.user.id, req.body);
+  const template = await travelToolsService.createTemplate(req.user.id, req.body);
   sendSuccess(res, 201, { template }, 'Packing template created');
 });
 
 const updateTemplate = catchAsync(async (req, res) => {
-  const template = await packingListService.updateTemplate(req.params.templateId, req.user.id, req.body);
+  const template = await travelToolsService.updateTemplate(req.params.templateId, req.user.id, req.body);
   sendSuccess(res, 200, { template }, 'Packing template updated');
 });
 
 const deleteTemplate = catchAsync(async (req, res) => {
-  await packingListService.deleteTemplate(req.params.templateId, req.user.id);
+  await travelToolsService.deleteTemplate(req.params.templateId, req.user.id);
   res.status(204).send();
 });
 
 const createPackingList = catchAsync(async (req, res) => {
-  const packingList = await packingListService.createPackingList(req.user.id, req.body);
+  const packingList = await travelToolsService.createPackingList(req.user.id, req.body);
   sendSuccess(res, 201, { packingList }, 'Packing list created');
 });
 
 const getMyPackingLists = catchAsync(async (req, res) => {
-  const packingLists = await packingListService.getMyPackingLists(req.user.id);
+  const packingLists = await travelToolsService.getMyPackingLists(req.user.id);
   sendSuccess(res, 200, { packingLists });
 });
 
 const getPackingList = catchAsync(async (req, res) => {
-  const packingList = await packingListService.getPackingListById(req.params.id, req.user.id);
+  const packingList = await travelToolsService.getPackingListById(req.params.id, req.user.id);
   sendSuccess(res, 200, { packingList });
 });
 
 const updatePackingList = catchAsync(async (req, res) => {
-  const packingList = await packingListService.updatePackingList(req.params.id, req.user.id, req.body);
+  const packingList = await travelToolsService.updatePackingList(req.params.id, req.user.id, req.body);
   sendSuccess(res, 200, { packingList }, 'Packing list updated');
 });
 
 const deletePackingList = catchAsync(async (req, res) => {
-  await packingListService.deletePackingList(req.params.id, req.user.id);
+  await travelToolsService.deletePackingList(req.params.id, req.user.id);
   res.status(204).send();
 });
 
 const addItem = catchAsync(async (req, res) => {
-  const packingList = await packingListService.addItem(req.params.id, req.user.id, req.body);
+  const packingList = await travelToolsService.addItem(req.params.id, req.user.id, req.body);
   sendSuccess(res, 201, { packingList }, 'Packing item added');
 });
 
 const updateItem = catchAsync(async (req, res) => {
-  const packingList = await packingListService.updateItem(
+  const packingList = await travelToolsService.updateItem(
     req.params.id,
     req.params.itemId,
     req.user.id,
@@ -63,13 +63,23 @@ const updateItem = catchAsync(async (req, res) => {
 });
 
 const deleteItem = catchAsync(async (req, res) => {
-  const packingList = await packingListService.deleteItem(req.params.id, req.params.itemId, req.user.id);
+  const packingList = await travelToolsService.deleteItem(req.params.id, req.params.itemId, req.user.id);
   sendSuccess(res, 200, { packingList }, 'Packing item deleted');
 });
 
 const duplicatePackingList = catchAsync(async (req, res) => {
-  const packingList = await packingListService.duplicatePackingList(req.params.id, req.user.id, req.body);
+  const packingList = await travelToolsService.duplicatePackingList(req.params.id, req.user.id, req.body);
   sendSuccess(res, 201, { packingList }, 'Packing list duplicated');
+});
+
+const getTravelDocuments = catchAsync(async (req, res) => {
+  const documents = await travelToolsService.getTravelDocuments(req.user.id);
+  sendSuccess(res, 200, { documents });
+});
+
+const getDocumentTemplates = catchAsync(async (req, res) => {
+  const templates = await travelToolsService.getDocumentTemplates(req.user.id);
+  sendSuccess(res, 200, { templates });
 });
 
 module.exports = {
@@ -82,6 +92,8 @@ module.exports = {
   duplicatePackingList,
   getMyPackingLists,
   getPackingList,
+  getTravelDocuments,
+  getDocumentTemplates,
   getTemplates,
   updateItem,
   updatePackingList,

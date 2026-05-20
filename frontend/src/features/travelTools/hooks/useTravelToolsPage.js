@@ -12,13 +12,14 @@ import {
   updatePackingItem,
   updatePackingList,
   updatePackingListTemplate,
-} from '../../../api/packingListApi';
+} from '../../../api/travelToolsApi';
+import { getTrips } from '../../../api/tripApi';
 import { getMe } from '../../../api/userApi';
 import {
   defaultPackingCategory,
   formatPriorityLevel,
   packingCategories,
-} from '../packingList.constants';
+} from '../travelTools.constants';
 import {
   emptyFilters,
   emptyItemForm,
@@ -27,17 +28,18 @@ import {
   mapTemplateForEdit,
   normalizeName,
   normalizePackingListForUi,
-} from '../packingList.utils';
+} from '../travelTools.utils';
 import {
   normalizeTemplateItemsForSave,
   validateCreatePackingList,
   validateItemForm,
   validateTemplateDraft,
-} from '../packingList.validation';
+} from '../travelTools.validation';
 
-export function usePackingListsPage() {
+export function useTravelToolsPage() {
   const [packingLists, setPackingLists] = useState([]);
   const [templates, setTemplates] = useState([]);
+  const [trips, setTrips] = useState([]);
   const [selectedListId, setSelectedListId] = useState('');
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -175,9 +177,10 @@ export function usePackingListsPage() {
 
     const loadPackingLists = async () => {
       try {
-        const [listsResponse, templatesResponse, profileResponse] = await Promise.all([
+        const [listsResponse, templatesResponse, tripsResponse, profileResponse] = await Promise.all([
           getPackingLists(),
           getPackingListTemplates(),
+          getTrips().catch(() => ({ data: { data: { trips: [] } } })),
           getMe().catch(() => ({ data: { data: { user: {} } } })),
         ]);
 
@@ -188,6 +191,7 @@ export function usePackingListsPage() {
 
         setPackingLists(nextLists);
         setTemplates(templatesResponse.data.data.templates || []);
+        setTrips(tripsResponse.data.data.trips || []);
         setNotificationPreferences({
           notificationsOff: Boolean(preferences.notificationsOff),
           packingReminder: preferences.packingReminder !== false,
@@ -248,7 +252,7 @@ export function usePackingListsPage() {
     try {
       const response = await createPackingList({
         title: createForm.title.trim(),
-        destination: createForm.destination.trim(),
+        tripId: createForm.tripId || undefined,
         ...(createMode === 'template' ? { templateKey: createForm.templateKey } : {}),
       });
       const packingList = normalizePackingListForUi(response.data.data.packingList);
@@ -270,8 +274,8 @@ export function usePackingListsPage() {
     setCreateMode('template');
     setCreateForm({
       title: template.title,
-      destination: template.destination || '',
-      tripId: '',
+      destination: '',
+      tripId: createForm.tripId,
       templateKey: template.key,
     });
   };
@@ -293,9 +297,30 @@ export function usePackingListsPage() {
     setCreateForm((current) => ({
       ...current,
       title: template?.title || current.title,
-      destination: template?.destination || current.destination,
+      destination: '',
       templateKey,
     }));
+  };
+
+  const handlePackingListTripChange = async (event) => {
+    if (!selectedList) return;
+    const tripId = event.target.value;
+    setStatusScope('packing');
+    setIsSaving(true);
+    setError('');
+    setSuccessMessage('');
+
+    try {
+      const response = await updatePackingList(selectedList._id, {
+        tripId: tripId || null,
+      });
+      replaceList(response.data.data.packingList);
+      setSuccessMessage(tripId ? 'Packing list linked to trip.' : 'Packing list unlinked from trip.');
+    } catch (requestError) {
+      setError(getErrorMessage(requestError));
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleTemplatePageChange = (direction) => {
@@ -367,13 +392,6 @@ export function usePackingListsPage() {
     setSuccessMessage('');
   };
 
-  const handleToggleTemplateItemPacked = (itemIndex) => {
-    setTemplateEditForm((current) => ({
-      ...current,
-      items: current.items.map((item, index) => (index === itemIndex ? { ...item, isPacked: !item.isPacked } : item)),
-    }));
-  };
-
   const handleOpenSaveTemplateModal = () => {
     setStatusScope('packing');
     if (!selectedList) return;
@@ -433,7 +451,7 @@ export function usePackingListsPage() {
 
       setTemplates((current) => [nextTemplate, ...current]);
       setCreateMode('template');
-      setCreateForm({ title: nextTemplate.title, destination: nextTemplate.destination || '', tripId: '', templateKey: nextTemplate.key });
+      setCreateForm({ title: nextTemplate.title, destination: '', tripId: '', templateKey: nextTemplate.key });
       setSuccessMessage('Packing list saved as a template.');
       closeTemplateModal();
     } catch (requestError) {
@@ -777,6 +795,7 @@ export function usePackingListsPage() {
     handleOpenAddItem,
     handleOpenAddTemplateItem,
     handleOpenSaveTemplateModal,
+    handlePackingListTripChange,
     handleReminderDaysChange,
     handleSaveCurrentListAsTemplate,
     handleSaveItem,
@@ -792,7 +811,6 @@ export function usePackingListsPage() {
     handleTemplateSelect,
     handleTemplateWorkspaceSelect,
     handleTogglePacked,
-    handleToggleTemplateItemPacked,
     isEditingListTitle,
     isEditingTemplateDescription,
     isEditingTemplateTitle,
@@ -834,6 +852,7 @@ export function usePackingListsPage() {
     templateSaveForm,
     templateTitleDraft,
     templates,
+    trips,
     unpackedImportantCount,
     visibleTemplates,
   };
