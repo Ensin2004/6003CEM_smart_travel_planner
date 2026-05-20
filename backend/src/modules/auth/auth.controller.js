@@ -17,6 +17,19 @@ const refresh = catchAsync(async (req, res) => {
   sendSuccess(res, 200, result, 'Token refreshed');
 });
 
+const verifyEmail = catchAsync(async (req, res) => {
+  const result = await authService.verifyEmail(req.body.token);
+  sendSuccess(res, 200, result, 'Email verified. You can now log in.');
+});
+
+const resendVerificationEmail = catchAsync(async (req, res) => {
+  const result = await authService.resendVerificationEmail(req.body.email);
+  const message = result.alreadyVerified
+    ? 'This email is already verified. You can log in now.'
+    : 'Verification email sent';
+  sendSuccess(res, 200, result, message);
+});
+
 const checkPasswordResetEmail = catchAsync(async (req, res) => {
   const result = await authService.checkPasswordResetEmail(req.body.email);
   sendSuccess(res, 200, result, 'Email verified');
@@ -27,4 +40,12 @@ const resetPassword = catchAsync(async (req, res) => {
   sendSuccess(res, 200, result, 'Password reset successful');
 });
 
-module.exports = { register, login, refresh, checkPasswordResetEmail, resetPassword };
+module.exports = {
+  register,
+  login,
+  refresh,
+  verifyEmail,
+  resendVerificationEmail,
+  checkPasswordResetEmail,
+  resetPassword,
+};

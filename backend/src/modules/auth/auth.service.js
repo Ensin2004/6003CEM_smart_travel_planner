@@ -1,4 +1,5 @@
 const AppError = require('../../utils/AppError');
+const crypto = require('crypto');
 const jwt = require('jsonwebtoken');
 const { generateAccessToken, generateRefreshToken } = require('../../utils/generateTokens');
 const env = require('../../config/env');
@@ -6,6 +7,7 @@ const logger = require('../../utils/logger');
 const authRepository = require('./auth.repository');
 const apiLogService = require('../apiLogs/apiLog.service');
 const { normalizePreferences } = require('../users/user.service');
+const { sendVerificationEmail } = require('../../utils/email.service');
 
 const MAX_FAILED_LOGIN_ATTEMPTS = 5;
 const LOCK_STEP_MINUTES = 15;
@@ -45,6 +47,62 @@ const getRefreshTokenExpiresAt = () => {
   return new Date(Date.now() + value * unitMilliseconds[unit]);
 };
 
+const getClientBaseUrl = () => {
+  const fallbackOrigin = 'http://localhost:5173';
+  const origin = String(env.clientOrigin || '')
+    .split(',')
+    .map((value) => value.trim())
+    .find((value) => value && !['null', 'undefined'].includes(value.toLowerCase()));
+
+  return origin || fallbackOrigin;
+};
+
+const sanitizeUser = (user) => {
+  user.password = undefined;
+  user.refreshToken = undefined;
+  user.refreshTokenExpiresAt = undefined;
+  user.failedLoginAttempts = undefined;
+  user.loginLockUntil = undefined;
+  user.loginLockLevel = undefined;
+  user.emailVerificationToken = undefined;
+  user.emailVerificationExpiresAt = undefined;
+  return user;
+};
+
+const createEmailVerificationToken = () => {
+  const token = crypto.randomBytes(32).toString('hex');
+  const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+  const expiresAt = new Date(Date.now() + env.emailVerificationExpiresInHours * 60 * 60 * 1000);
+
+  return { token, hashedToken, expiresAt };
+};
+
+const sendUserVerificationEmail = async (user) => {
+  const { token, hashedToken, expiresAt } = createEmailVerificationToken();
+  const verificationUrl = `${getClientBaseUrl()}/verify-email?token=${token}`;
+
+  user.emailVerificationToken = hashedToken;
+  user.emailVerificationExpiresAt = expiresAt;
+  await user.save({ validateBeforeSave: false });
+
+  await sendVerificationEmail({
+    to: user.email,
+    name: user.name,
+    verificationUrl,
+    expiresAt,
+  });
+
+  return expiresAt;
+};
+
+const createEmailNotVerifiedError = (user) => {
+  const error = new AppError('Please verify your email before logging in. We sent a new verification link to your inbox.', 403);
+  error.code = 'EMAIL_NOT_VERIFIED';
+  error.email = user.email;
+  error.verificationExpiresAt = user.emailVerificationExpiresAt;
+  return error;
+};
+
 const register = async (data) => {
   const existingUser = await authRepository.findByEmail(data.email);
   if (existingUser) throw new AppError('Email is already registered', 409);
@@ -54,21 +112,13 @@ const register = async (data) => {
     ...userData,
     preferences: normalizePreferences(preferences),
     role: 'user',
+    isEmailVerified: false,
   });
-  const accessToken = generateAccessToken(user);
-  const refreshToken = generateRefreshToken(user);
+  const verificationExpiresAt = await sendUserVerificationEmail(user);
 
-  user.refreshToken = refreshToken;
-  user.refreshTokenExpiresAt = getRefreshTokenExpiresAt();
-  await user.save({ validateBeforeSave: false });
-  user.password = undefined;
-  user.refreshToken = undefined;
-  user.refreshTokenExpiresAt = undefined;
-  user.failedLoginAttempts = undefined;
-  user.loginLockUntil = undefined;
-  user.loginLockLevel = undefined;
+  sanitizeUser(user);
 
-  return { user, accessToken, refreshToken };
+  return { user, email: user.email, verificationExpiresAt };
 };
 
 const login = async ({ email, password }) => {
@@ -152,6 +202,11 @@ const login = async ({ email, password }) => {
     throw new AppError('Invalid email or password', 401);
   }
 
+  if (!user.isEmailVerified) {
+    await sendUserVerificationEmail(user);
+    throw createEmailNotVerifiedError(user);
+  }
+
   const accessToken = generateAccessToken(user);
   const refreshToken = generateRefreshToken(user);
 
@@ -162,14 +217,68 @@ const login = async ({ email, password }) => {
   user.refreshTokenExpiresAt = getRefreshTokenExpiresAt();
   await user.save({ validateBeforeSave: false });
 
-  user.password = undefined;
-  user.refreshToken = undefined;
-  user.refreshTokenExpiresAt = undefined;
-  user.failedLoginAttempts = undefined;
-  user.loginLockUntil = undefined;
-  user.loginLockLevel = undefined;
+  sanitizeUser(user);
 
   return { user, accessToken, refreshToken };
+};
+
+const verifyEmail = async (token) => {
+  const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+  const user = await authRepository.findByEmailVerificationToken(hashedToken);
+
+  if (!user) {
+    throw new AppError('This verification link is invalid or has already been used', 400);
+  }
+
+  if (user.status === 'disabled') {
+    throw new AppError('This account has been disabled', 403);
+  }
+
+  if (!user.emailVerificationExpiresAt || user.emailVerificationExpiresAt <= new Date()) {
+    user.emailVerificationToken = undefined;
+    user.emailVerificationExpiresAt = undefined;
+    await user.save({ validateBeforeSave: false });
+    throw new AppError('This verification link has expired. Please request a new verification email.', 400);
+  }
+
+  user.isEmailVerified = true;
+  user.emailVerifiedAt = new Date();
+  user.emailVerificationToken = undefined;
+  user.emailVerificationExpiresAt = undefined;
+  user.failedLoginAttempts = 0;
+  user.loginLockUntil = undefined;
+  user.loginLockLevel = 0;
+
+  const accessToken = generateAccessToken(user);
+  const refreshToken = generateRefreshToken(user);
+
+  user.refreshToken = refreshToken;
+  user.refreshTokenExpiresAt = getRefreshTokenExpiresAt();
+  await user.save({ validateBeforeSave: false });
+
+  sanitizeUser(user);
+
+  return { user, email: user.email, accessToken, refreshToken };
+};
+
+const resendVerificationEmail = async (email) => {
+  const user = await authRepository.findByEmail(email, true);
+
+  if (!user) {
+    throw new AppError('No account was found with that email address', 404);
+  }
+
+  if (user.status === 'disabled') {
+    throw new AppError('This account has been disabled', 403);
+  }
+
+  if (user.isEmailVerified) {
+    return { email: user.email, alreadyVerified: true };
+  }
+
+  const verificationExpiresAt = await sendUserVerificationEmail(user);
+
+  return { email: user.email, verificationExpiresAt };
 };
 
 const refresh = async (refreshToken) => {
@@ -243,4 +352,12 @@ const resetPassword = async ({ email, password }) => {
   return { email: user.email };
 };
 
-module.exports = { register, login, refresh, checkPasswordResetEmail, resetPassword };
+module.exports = {
+  register,
+  login,
+  refresh,
+  verifyEmail,
+  resendVerificationEmail,
+  checkPasswordResetEmail,
+  resetPassword,
+};

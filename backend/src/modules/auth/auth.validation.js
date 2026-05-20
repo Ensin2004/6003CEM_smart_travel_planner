@@ -36,6 +36,14 @@ const refreshTokenRules = [
   body('refreshToken').notEmpty().withMessage('Refresh token is required'),
 ];
 
+const verifyEmailRules = [
+  body('token').notEmpty().withMessage('Verification token is required'),
+];
+
+const resendVerificationEmailRules = [
+  body('email').isEmail().normalizeEmail().withMessage('A valid email is required'),
+];
+
 const passwordResetEmailRules = [
   body('email').isEmail().normalizeEmail().withMessage('A valid email is required'),
 ];
@@ -56,4 +64,12 @@ const resetPasswordRules = [
     .withMessage('Passwords must match'),
 ];
 
-module.exports = { registerRules, loginRules, refreshTokenRules, passwordResetEmailRules, resetPasswordRules };
+module.exports = {
+  registerRules,
+  loginRules,
+  refreshTokenRules,
+  verifyEmailRules,
+  resendVerificationEmailRules,
+  passwordResetEmailRules,
+  resetPasswordRules,
+};

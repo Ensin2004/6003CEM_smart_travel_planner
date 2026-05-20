@@ -1,6 +1,17 @@
 import axios from 'axios';
 
-const baseURL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000/api/v1';
+const getBaseURL = () => {
+  const fallbackBaseURL = 'http://localhost:5000/api/v1';
+  const configuredBaseURL = String(import.meta.env.VITE_API_BASE_URL || '').trim();
+
+  if (!configuredBaseURL || ['null', 'undefined'].includes(configuredBaseURL.toLowerCase())) {
+    return fallbackBaseURL;
+  }
+
+  return configuredBaseURL;
+};
+
+const baseURL = getBaseURL();
 
 const axiosClient = axios.create({
   baseURL,
@@ -33,6 +44,8 @@ axiosClient.interceptors.response.use(
     const isAuthFormRequest = [
       '/auth/login',
       '/auth/register',
+      '/auth/verify-email',
+      '/auth/verify-email/resend',
       '/auth/forgot-password/check-email',
       '/auth/forgot-password/reset',
     ].some((path) => requestUrl.includes(path));

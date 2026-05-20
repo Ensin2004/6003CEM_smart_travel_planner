@@ -1,9 +1,8 @@
-import { CalendarDays, ChevronDown, CloudSun, Eye, EyeOff, WalletCards } from 'lucide-react';
-import { useContext, useMemo, useState } from 'react';
+import { CalendarDays, ChevronDown, CloudSun, Eye, EyeOff, MailCheck, WalletCards } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { register } from '../../api/authApi';
+import { register, resendVerificationEmail } from '../../api/authApi';
 import PublicTopbar from '../../components/PublicTopbar';
-import AuthContext from '../../context/authContext';
 import {
   ageGroupOptions,
   countries,
@@ -16,7 +15,6 @@ import './AuthPage.css';
 
 function RegisterPage() {
   const navigate = useNavigate();
-  const { setUser } = useContext(AuthContext);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -35,6 +33,9 @@ function RegisterPage() {
   const [isCountryMenuOpen, setIsCountryMenuOpen] = useState(false);
   const [isGenderMenuOpen, setIsGenderMenuOpen] = useState(false);
   const [isAgeGroupMenuOpen, setIsAgeGroupMenuOpen] = useState(false);
+  const [verificationNotice, setVerificationNotice] = useState(null);
+  const [resendStatus, setResendStatus] = useState('');
+  const [isResending, setIsResending] = useState(false);
 
   const unmetPasswordRequirements = useMemo(
     () => passwordRequirements.filter((requirement) => !requirement.test(formData.password)),
@@ -112,12 +113,10 @@ function RegisterPage() {
         country: selectedCountry?.country || formData.country,
       });
       const result = response.data.data;
-
-      localStorage.setItem('accessToken', result.accessToken);
-      localStorage.setItem('refreshToken', result.refreshToken);
-      localStorage.setItem('user', JSON.stringify(result.user));
-      setUser(result.user);
-      navigate('/dashboard');
+      setVerificationNotice({
+        email: result.email || formData.email,
+        expiresAt: result.verificationExpiresAt,
+      });
     } catch (requestError) {
       const message =
         requestError.response?.data?.message ||
@@ -127,6 +126,30 @@ function RegisterPage() {
       setError(message);
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!verificationNotice?.email) return;
+
+    setIsResending(true);
+    setResendStatus('');
+
+    try {
+      const response = await resendVerificationEmail({ email: verificationNotice.email });
+      const result = response.data.data;
+      setVerificationNotice((current) => ({
+        ...current,
+        expiresAt: result.verificationExpiresAt || current.expiresAt,
+      }));
+      setResendStatus(response.data.message || 'Verification email sent.');
+    } catch (requestError) {
+      setResendStatus(
+        requestError.response?.data?.message ||
+          'Unable to resend the verification email. Please try again.'
+      );
+    } finally {
+      setIsResending(false);
     }
   };
 
@@ -393,6 +416,39 @@ function RegisterPage() {
           </p>
         </section>
       </section>
+
+      {verificationNotice && (
+        <div className="auth-modal-backdrop" role="presentation">
+          <div className="auth-modal" role="dialog" aria-modal="true" aria-labelledby="verify-email-title">
+            <div className="auth-modal-icon">
+              <MailCheck size={30} />
+            </div>
+            <h3 id="verify-email-title">Verify your email</h3>
+            <p>
+              We sent a verification link to <strong>{verificationNotice.email}</strong>. Please click that link before logging in.
+            </p>
+            {verificationNotice.expiresAt && (
+              <p className="auth-modal-note">
+                The link expires on {new Date(verificationNotice.expiresAt).toLocaleString()}.
+              </p>
+            )}
+            {resendStatus && <p className="form-success">{resendStatus}</p>}
+            <div className="auth-modal-actions">
+              <button type="button" className="auth-submit" onClick={() => navigate('/login')}>
+                Go to login
+              </button>
+              <button
+                type="button"
+                className="auth-secondary-button"
+                onClick={handleResendVerification}
+                disabled={isResending}
+              >
+                {isResending ? 'Sending...' : 'Resend email'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </main>
   );
 }

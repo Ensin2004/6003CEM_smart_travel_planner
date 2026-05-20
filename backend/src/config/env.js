@@ -14,6 +14,13 @@ module.exports = {
     process.env.REFRESH_JWT_SECRET || 'development-only-refresh-secret-change-me',
   refreshJwtExpiresIn: process.env.REFRESH_JWT_EXPIRES_IN || '7d',
   clientOrigin: process.env.CLIENT_ORIGIN || 'http://localhost:5173,http://127.0.0.1:5173',
+  emailVerificationExpiresInHours: Number(process.env.EMAIL_VERIFICATION_EXPIRES_IN_HOURS || 24),
+  smtpHost: process.env.SMTP_HOST || '',
+  smtpPort: Number(process.env.SMTP_PORT || 587),
+  smtpSecure: process.env.SMTP_SECURE === 'true',
+  smtpUser: process.env.SMTP_USER || '',
+  smtpPass: process.env.SMTP_PASS || '',
+  emailFrom: process.env.EMAIL_FROM || 'Smart Travel Planner <no-reply@smarttravelplanner.local>',
   openWeatherApiKey: process.env.OPENWEATHER_API_KEY || '',
   placesApiKey: process.env.PLACES_API_KEY || '',
 };
