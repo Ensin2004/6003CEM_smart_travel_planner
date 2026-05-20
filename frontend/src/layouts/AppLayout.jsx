@@ -27,7 +27,7 @@ function AppLayout({ role, menuItems }) {
   const location = useLocation();
   const { user } = useContext(AuthContext);
   const currency = useContext(CurrencyContext);
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [collapsedSubmenuTo, setCollapsedSubmenuTo] = useState(null);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState(DEFAULT_LANGUAGE);
   const [isLanguagePickerOpen, setIsLanguagePickerOpen] = useState(false);
@@ -85,6 +85,7 @@ function AppLayout({ role, menuItems }) {
   const activeSubmenu = allMenuItems.find(
     (item) => item.children?.length && isMenuItemActive(item)
   );
+  const isSubmenuCollapsed = activeSubmenu?.to === collapsedSubmenuTo;
 
   const activeSubmenuItems = activeSubmenu?.children.map((child) => ({
     ...child,
@@ -145,12 +146,20 @@ function AppLayout({ role, menuItems }) {
     setIsCurrencyPickerOpen(false);
   };
 
+  const handleSubmenuToggle = () => {
+    if (!activeSubmenu) {
+      return;
+    }
+
+    setCollapsedSubmenuTo((current) => (current === activeSubmenu.to ? null : activeSubmenu.to));
+  };
+
   return (
     <div
       className={[
         'app-shell',
         activeSubmenu ? 'has-submenu' : '',
-        isSidebarCollapsed ? 'sidebar-collapsed' : '',
+        activeSubmenu && isSubmenuCollapsed ? 'submenu-collapsed' : '',
         isMobileNavOpen ? 'mobile-nav-open' : '',
       ]
         .filter(Boolean)
@@ -160,9 +169,10 @@ function AppLayout({ role, menuItems }) {
         <button
           className="header-icon-button menu-toggle"
           type="button"
-          aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          aria-pressed={isSidebarCollapsed}
-          onClick={() => setIsSidebarCollapsed((current) => !current)}
+          aria-label={isSubmenuCollapsed ? 'Expand submenu' : 'Collapse submenu'}
+          aria-pressed={isSubmenuCollapsed}
+          disabled={!activeSubmenu}
+          onClick={handleSubmenuToggle}
         >
           <Menu size={19} aria-hidden="true" />
         </button>
@@ -330,7 +340,6 @@ function AppLayout({ role, menuItems }) {
           <div className="sidebar-menu">
             <AppSidebarNav
               ariaLabel={`${role} navigation`}
-              isSidebarCollapsed={isSidebarCollapsed}
               isItemActive={isItemActive}
               isMenuItemActive={isMenuItemActive}
               items={mainMenuItems}
@@ -340,7 +349,6 @@ function AppLayout({ role, menuItems }) {
             <div className="sidebar-nav-bottom">
               <AppSidebarNav
                 ariaLabel={`${role} utility navigation`}
-                isSidebarCollapsed={isSidebarCollapsed}
                 isItemActive={isItemActive}
                 isMenuItemActive={isMenuItemActive}
                 items={bottomMenuItems}
@@ -351,7 +359,7 @@ function AppLayout({ role, menuItems }) {
         </aside>
 
         {activeSubmenu && (
-          <div className="sidebar-submenu-panel">
+          <div className="sidebar-submenu-panel" aria-hidden={isSubmenuCollapsed}>
             <SubmenuPanel
               activeId={activeSubmenuId}
               ariaLabel={`${activeSubmenu.label} submenu`}

@@ -131,10 +131,6 @@
     grid-template-rows: auto 1fr;
   }
 
-  .app-shell.sidebar-collapsed {
-    grid-template-columns: 1fr;
-  }
-
   .workspace {
     min-width: 0;
     grid-column: 1;
@@ -340,16 +336,12 @@
     flex-basis: 50%;
   }
 
-  .sidebar-collapsed .sidebar-brand div {
-    display: block;
-  }
-
-  .sidebar-collapsed .sidebar-brand {
+  .sidebar-brand {
     justify-content: flex-start;
     padding-inline: 8px;
   }
 
-  .sidebar-collapsed .sidebar-nav a {
+  .sidebar-nav a {
     flex-direction: row;
     justify-content: flex-start;
     width: 100%;
@@ -359,10 +351,11 @@
     font-size: 14px;
   }
 
-  .sidebar-collapsed .sidebar-link-label {
+  .sidebar-link-label {
     display: inline;
     width: auto;
     font-size: 14px;
+    font-weight: 400;
     text-align: left;
     white-space: nowrap;
   }
