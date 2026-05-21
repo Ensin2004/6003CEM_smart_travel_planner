@@ -57,6 +57,14 @@ const pickImage = (item = {}) => {
   return image.url || image.photoUrl || image.thumbnailUrl || image.sizes?.medium?.url || image.sizes?.small?.url || '';
 };
 
+const buildPublicPlaceUrl = (item = {}) => {
+  if (item.website) return item.website;
+
+  const query = [getText(item.title || item.name), getText(item.address)].filter(Boolean).join(' ');
+
+  return query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : '';
+};
+
 const normalizeAttraction = (item = {}, index) => {
   const coordinates = item.gps_coordinates?.latitude || item.gps_coordinates?.longitude
     ? {
@@ -74,7 +82,7 @@ const normalizeAttraction = (item = {}, index) => {
     imageUrl: pickImage(item),
     address: getText(item.address),
     coordinates,
-    url: item.place_id_search || item.website || '',
+    url: buildPublicPlaceUrl(item),
   };
 };
 

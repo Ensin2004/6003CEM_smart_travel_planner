@@ -1,0 +1,13 @@
+:root {
+  --gradient-bright-surface:
+    radial-gradient(circle at top right, rgba(245, 158, 11, 0.18), transparent 36%),
+    radial-gradient(circle at 8% 18%, rgba(20, 184, 166, 0.16), transparent 32%),
+    linear-gradient(135deg, rgba(240, 253, 250, 0.98), rgba(255, 251, 235, 0.94)),
+    #ffffff;
+  --gradient-bright-surface-soft:
+    linear-gradient(135deg, rgba(20, 184, 166, 0.14), rgba(245, 158, 11, 0.14)),
+    var(--color-surface-soft);
+  --gradient-bright-panel:
+    linear-gradient(135deg, rgba(240, 253, 250, 0.9), rgba(255, 251, 235, 0.86)),
+    #ffffff;
+}

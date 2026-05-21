@@ -412,7 +412,7 @@ function SettingsWorkspace({ role }) {
             onContentSave={handleContentSave}
             renderPaneHeader={renderPaneHeader}
             renderStatus={renderStatus}
-            title="Terms and Condition"
+            title="Terms and Conditions"
           />
         )}
 
