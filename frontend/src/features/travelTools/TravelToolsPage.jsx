@@ -55,9 +55,9 @@ const starterDocuments = [
   { id: 'travel-insurance', name: 'Travel insurance', type: 'Insurance', tripId: '', files: [] },
 ];
 
-function TravelToolsPageFrame({ labelledBy, children }) {
+function TravelToolsPageFrame({ labelledBy, children, className = '' }) {
   return (
-    <section className="packing-page" aria-labelledby={labelledBy}>
+    <section className={`travel-tools-page ${className}`.trim()} aria-labelledby={labelledBy}>
       {children}
     </section>
   );
@@ -65,18 +65,18 @@ function TravelToolsPageFrame({ labelledBy, children }) {
 
 function TravelToolsHero({ description, eyebrow, labelledBy, liveCard, meta, metaLabel, title }) {
   return (
-    <div className="packing-hero">
+    <div className="travel-tools-hero">
       <div>
         <p className="eyebrow">{eyebrow}</p>
         <h2 id={labelledBy}>{title}</h2>
         <p>{description}</p>
         {meta && (
-          <div className="packing-hero-meta" aria-label={metaLabel}>
+          <div className="travel-tools-hero-meta" aria-label={metaLabel}>
             {meta}
           </div>
         )}
       </div>
-      {liveCard && <div className="packing-hero-actions">{liveCard}</div>}
+      {liveCard && <div className="travel-tools-hero-actions">{liveCard}</div>}
     </div>
   );
 }
@@ -87,9 +87,9 @@ const getTripOptionLabel = (trip) => {
 };
 
 const renderTip = (text) => (
-  <span className="packing-tip-anchor" tabIndex="0" aria-label={text}>
+  <span className="travel-tools-tip-anchor" tabIndex="0" aria-label={text}>
     <CircleHelp size={15} aria-hidden="true" />
-    <span className="packing-create-tip" role="tooltip">{text}</span>
+    <span className="travel-tools-create-tip" role="tooltip">{text}</span>
   </span>
 );
 
@@ -204,7 +204,7 @@ function PackingListTools() {
   } = useTravelToolsPage();
 
   return (
-    <TravelToolsPageFrame labelledBy="packing-title">
+    <TravelToolsPageFrame labelledBy="packing-title" className="travel-tools-enhanced-page">
       <TravelToolsHero
         labelledBy="packing-title"
         eyebrow="Trip checklist"
@@ -221,14 +221,14 @@ function PackingListTools() {
               <CheckCircle2 size={15} aria-hidden="true" />
               {progress.packedItems || 0} packed
             </span>
-            <span className={remainingItems ? 'packing-hero-health-warning' : 'packing-hero-health-ready'}>
+            <span className={remainingItems ? 'travel-tools-hero-health-warning' : 'travel-tools-hero-health-ready'}>
               <CircleAlert size={15} aria-hidden="true" />
               {remainingItems} remaining
             </span>
           </>
         }
         liveCard={
-          <div className="packing-live-card">
+          <div className="travel-tools-live-card">
             <span>Current progress</span>
             <strong>{progress.percent || 0}%</strong>
             <small>{selectedList?.title || 'No list selected'}</small>
@@ -244,8 +244,8 @@ function PackingListTools() {
         ))}
       </datalist>
 
-      <form className="packing-create-panel" onSubmit={handleCreateList}>
-        <div className="packing-panel-heading">
+      <form className="travel-tools-create-panel" onSubmit={handleCreateList}>
+        <div className="travel-tools-panel-heading">
           <div>
             <span>Create packing list</span>
             <h3>Choose to create a packing list manually or select an existing template</h3>
@@ -280,10 +280,10 @@ function PackingListTools() {
           </button>
         </div>
 
-        <div className="packing-form-grid packing-form-grid-compact">
-          <div className="packing-create-field">
+        <div className="travel-tools-form-grid travel-tools-form-grid-compact">
+          <div className="travel-tools-create-field">
             <label>
-              <span className="packing-field-label">
+              <span className="travel-tools-field-label">
                 List title
                 {renderTip('Create a simple name for your packing list.')}
               </span>
@@ -298,9 +298,9 @@ function PackingListTools() {
               />
             </label>
           </div>
-          <div className="packing-create-field">
+          <div className="travel-tools-create-field">
             <label>
-              <span className="packing-field-label">
+              <span className="travel-tools-field-label">
                 Link trip
                 {renderTip('Link your packing list to an existing trip.')}
               </span>
@@ -322,9 +322,9 @@ function PackingListTools() {
             </label>
           </div>
           {createMode === 'template' && (
-            <div className="packing-create-field">
+            <div className="travel-tools-create-field">
               <label>
-                <span className="packing-field-label">
+                <span className="travel-tools-field-label">
                   Template
                   {renderTip('Create a packing list from an existing template.')}
                 </span>
@@ -347,13 +347,13 @@ function PackingListTools() {
             </div>
           )}
         </div>
-        {createFormError && <p className="form-error packing-status">{createFormError}</p>}
+        {createFormError && <p className="form-error travel-tools-status">{createFormError}</p>}
       </form>
 
       {createMode === 'template' && (
-        <div className="packing-template-carousel" aria-label="Packing templates">
+        <div className="travel-tools-template-carousel" aria-label="Packing templates">
           <button
-            className="packing-template-arrow"
+            className="travel-tools-template-arrow"
             type="button"
             onClick={() => handleTemplatePageChange('previous')}
             disabled={templates.length <= 5}
@@ -361,7 +361,7 @@ function PackingListTools() {
           >
             <ChevronLeft size={18} aria-hidden="true" />
           </button>
-          <div className="packing-templates">
+          <div className="travel-tools-templates">
             {visibleTemplates.map((template) => (
               <button
                 className={createForm.templateKey === template.key ? 'active' : ''}
@@ -378,7 +378,7 @@ function PackingListTools() {
             ))}
           </div>
           <button
-            className="packing-template-arrow"
+            className="travel-tools-template-arrow"
             type="button"
             onClick={() => handleTemplatePageChange('next')}
             disabled={templates.length <= 5}
@@ -389,9 +389,9 @@ function PackingListTools() {
         </div>
       )}
 
-      <div className="packing-layout">
-        <aside className="packing-list-panel">
-          <div className="packing-panel-heading">
+      <div className="travel-tools-layout">
+        <aside className="travel-tools-list-panel">
+          <div className="travel-tools-panel-heading">
             <div>
               <span>View lists</span>
               <h3>My Lists</h3>
@@ -404,7 +404,7 @@ function PackingListTools() {
           ) : packingLists.length === 0 ? (
             <p className="settings-empty">No packing lists yet. Create one manually or start from a template.</p>
           ) : (
-            <div className="packing-list-stack">
+            <div className="travel-tools-list-stack">
               {packingLists.map((list) => {
                 const listProgress = list.progress || {
                   packedItems: list.items.filter((item) => item.isPacked).length,
@@ -413,7 +413,7 @@ function PackingListTools() {
 
                 return (
                   <button
-                    className={`packing-list-card ${!selectedTemplate && selectedList?._id === list._id ? 'active' : ''}`}
+                    className={`travel-tools-list-card ${!selectedTemplate && selectedList?._id === list._id ? 'active' : ''}`}
                     type="button"
                     key={list._id}
                     onClick={() => {
@@ -431,8 +431,8 @@ function PackingListTools() {
             </div>
           )}
 
-          <div className="packing-side-section">
-            <div className="packing-panel-heading">
+          <div className="travel-tools-side-section">
+            <div className="travel-tools-panel-heading">
               <div>
                 <span>Templates</span>
                 <h3>My Templates</h3>
@@ -442,10 +442,10 @@ function PackingListTools() {
             {customTemplates.length === 0 ? (
               <p className="settings-empty">No saved templates yet.</p>
             ) : (
-              <div className="packing-list-stack">
+              <div className="travel-tools-list-stack">
                 {customTemplates.map((template) => (
                   <button
-                    className={`packing-list-card packing-template-card ${selectedTemplateId === template.key ? 'active' : ''}`}
+                    className={`travel-tools-list-card travel-tools-template-card ${selectedTemplateId === template.key ? 'active' : ''}`}
                     type="button"
                     key={template.key}
                     onClick={() => handleTemplateWorkspaceSelect(template)}
@@ -461,15 +461,15 @@ function PackingListTools() {
           </div>
         </aside>
 
-        <div className="packing-main">
+        <div className="travel-tools-main">
           {selectedTemplate ? (
-            <section className="packing-detail">
+            <section className="travel-tools-detail">
               <div className="packing-template-editor">
-                <div className="packing-detail-header">
+                <div className="travel-tools-detail-header">
                   <div>
-                    <span className="packing-workspace-label">Template workspace</span>
+                    <span className="travel-tools-workspace-label">Template workspace</span>
                     {isEditingTemplateTitle ? (
-                      <form className="packing-title-edit" onSubmit={handleSaveTemplateTitle}>
+                      <form className="travel-tools-title-edit" onSubmit={handleSaveTemplateTitle}>
                         <input
                           value={templateTitleDraft}
                           onChange={(event) => setTemplateTitleDraft(event.target.value)}
@@ -480,7 +480,7 @@ function PackingListTools() {
                         <button type="button" onClick={handleCancelTemplateTitleEdit}>Cancel</button>
                       </form>
                     ) : (
-                      <div className="packing-title-row">
+                      <div className="travel-tools-title-row">
                         <h3>{templateEditForm.title}</h3>
                         <button type="button" onClick={handleStartTemplateTitleEdit} aria-label="Edit packing template name">
                           <Edit3 size={17} aria-hidden="true" />
@@ -490,11 +490,11 @@ function PackingListTools() {
                     <p>
                       {templateEditForm.items.length} template item{templateEditForm.items.length === 1 ? '' : 's'}
                     </p>
-                    <div className="packing-workspace-meta" aria-label="Packing template details">
+                    <div className="travel-tools-workspace-meta" aria-label="Packing template details">
                       <span>{selectedTemplate.source === 'custom' ? 'Custom template' : 'System template'}</span>
                     </div>
                   </div>
-                  <div className="packing-list-actions">
+                  <div className="travel-tools-actions">
                     <button
                       type="button"
                       onClick={() => setConfirmAction({ type: 'duplicate-template', template: selectedTemplate })}
@@ -552,8 +552,8 @@ function PackingListTools() {
                   )}
                 </div>
 
-                <div className="packing-filters packing-template-filters">
-                  <span className="packing-search-field">
+                <div className="travel-tools-filters travel-tools-template-filters">
+                  <span className="travel-tools-search-field">
                     <Search size={16} aria-hidden="true" />
                     <input
                       value={templateFilters.search}
@@ -576,24 +576,24 @@ function PackingListTools() {
                 {filteredTemplateItems.length === 0 ? (
                   <p className="settings-empty">No template items match the current filters.</p>
                 ) : (
-                  <div className="packing-item-list packing-template-item-list">
+                  <div className="travel-tools-item-list packing-template-item-list">
                     {filteredTemplateItems.map((item) => {
                       const CategoryIcon = getCategoryIcon(item.category);
 
                       return (
                         <article className={item.isPacked ? 'packing-template-item-card packed' : 'packing-template-item-card'} key={item.id || item.index}>
                           <div>
-                            <div className="packing-item-title-row">
+                            <div className="travel-tools-item-title-row">
                               <strong>{item.name}</strong>
                               <span className={getPriorityClassName(item.priority)}>{formatPriorityLevel(item.priority)}</span>
                             </div>
-                            <span className="packing-item-category packing-template-item-category">
+                            <span className="travel-tools-item-category packing-template-item-category">
                               <CategoryIcon size={14} aria-hidden="true" />
                               {formatPackingCategory(item.category)}
                             </span>
                           </div>
-                          <div className="packing-item-meta" aria-label="Template item quantity">
-                            <span className="packing-quantity">Qty {item.quantity}</span>
+                          <div className="travel-tools-item-meta" aria-label="Template item quantity">
+                            <span className="travel-tools-quantity">Qty {item.quantity}</span>
                           </div>
                           <button type="button" onClick={() => handleEditTemplateItem(item.index)} aria-label="Edit template item">
                             <Edit3 size={16} aria-hidden="true" />
@@ -611,25 +611,25 @@ function PackingListTools() {
                   </div>
                 )}
 
-                <div className="packing-add-row">
+                <div className="travel-tools-add-row">
                   <button className="primary-action" type="button" onClick={handleOpenAddTemplateItem}>
                     <Plus size={17} aria-hidden="true" />
                     Add item
                   </button>
                 </div>
 
-                {statusScope === 'template' && error && <p className="form-error packing-status">{error}</p>}
-                {templateEditError && <p className="form-error packing-status">{templateEditError}</p>}
-                {statusScope === 'template' && successMessage && <p className="form-success packing-status">{successMessage}</p>}
+                {statusScope === 'template' && error && <p className="form-error travel-tools-status">{error}</p>}
+                {templateEditError && <p className="form-error travel-tools-status">{templateEditError}</p>}
+                {statusScope === 'template' && successMessage && <p className="form-success travel-tools-status">{successMessage}</p>}
               </div>
             </section>
           ) : selectedList ? (
-            <section className="packing-detail">
-              <div className="packing-detail-header">
+            <section className="travel-tools-detail">
+              <div className="travel-tools-detail-header">
                 <div>
-                  <span className="packing-workspace-label">Packing workspace</span>
+                  <span className="travel-tools-workspace-label">Packing workspace</span>
                   {isEditingListTitle ? (
-                    <form className="packing-title-edit" onSubmit={handleSaveListTitle}>
+                    <form className="travel-tools-title-edit" onSubmit={handleSaveListTitle}>
                       <input
                         value={listTitleDraft}
                         onChange={(event) => setListTitleDraft(event.target.value)}
@@ -640,7 +640,7 @@ function PackingListTools() {
                       <button type="button" onClick={handleCancelListTitleEdit}>Cancel</button>
                     </form>
                   ) : (
-                    <div className="packing-title-row">
+                    <div className="travel-tools-title-row">
                       <h3>{selectedList.title}</h3>
                       <button type="button" onClick={handleStartListTitleEdit} aria-label="Edit packing list name">
                         <Edit3 size={17} aria-hidden="true" />
@@ -650,11 +650,11 @@ function PackingListTools() {
                   <p>
                     {progress.packedItems}/{progress.totalItems} items packed
                   </p>
-                  <div className="packing-workspace-meta" aria-label="Packing list trip details">
+                  <div className="travel-tools-workspace-meta" aria-label="Packing list trip details">
                     <span>Trip linked: {selectedList.tripId ? 'Linked' : 'Not linked'}</span>
                   </div>
                 </div>
-                <div className="packing-list-actions">
+                <div className="travel-tools-actions">
                   <button type="button" onClick={handleOpenSaveTemplateModal} disabled={isSaving}>
                     <Sparkles size={16} aria-hidden="true" />
                     Save as Template
@@ -676,7 +676,7 @@ function PackingListTools() {
 
               <div className="packing-trip-link-panel">
                 <label>
-                  <span className="packing-field-label">
+                  <span className="travel-tools-field-label">
                     Link trip
                     {renderTip('Choose a trip to link this list or select "No linked trip" to unlink it.')}
                   </span>
@@ -723,8 +723,8 @@ function PackingListTools() {
                 )}
               </div>
 
-              <div className="packing-filters">
-                <span className="packing-search-field">
+              <div className="travel-tools-filters">
+                <span className="travel-tools-search-field">
                   <Search size={16} aria-hidden="true" />
                   <input
                     value={filters.search}
@@ -752,7 +752,7 @@ function PackingListTools() {
               {filteredItems.length === 0 ? (
                 <p className="settings-empty">No packing items match the current filters.</p>
               ) : (
-                <div className="packing-item-list">
+                <div className="travel-tools-item-list">
                   {filteredItems.map((item) => (
                     <article className={item.isPacked ? 'packed' : ''} key={item._id}>
                       <label className="packing-check">
@@ -764,11 +764,11 @@ function PackingListTools() {
                         <span className="sr-only">{item.isPacked ? 'Mark unpacked' : 'Mark packed'}</span>
                       </label>
                       <div>
-                        <div className="packing-item-title-row">
+                        <div className="travel-tools-item-title-row">
                           <strong>{item.name}</strong>
                           <span className={getPriorityClassName(item.priority)}>{formatPriorityLevel(item.priority)}</span>
                         </div>
-                        <span className="packing-item-category">
+                        <span className="travel-tools-item-category">
                           {(() => {
                             const CategoryIcon = getCategoryIcon(item.category);
                             return <CategoryIcon size={14} aria-hidden="true" />;
@@ -776,8 +776,8 @@ function PackingListTools() {
                           {formatPackingCategory(item.category)}
                         </span>
                       </div>
-                      <div className="packing-item-meta" aria-label="Item quantity and priority">
-                        <span className="packing-quantity">Qty {item.quantity}</span>
+                      <div className="travel-tools-item-meta" aria-label="Item quantity and priority">
+                        <span className="travel-tools-quantity">Qty {item.quantity}</span>
                       </div>
                       <button type="button" onClick={() => handleEditItem(item)} aria-label="Edit item">
                         <Edit3 size={16} aria-hidden="true" />
@@ -790,37 +790,37 @@ function PackingListTools() {
                 </div>
               )}
 
-              <div className="packing-add-row">
+              <div className="travel-tools-add-row">
                 <button className="primary-action" type="button" onClick={handleOpenAddItem}>
                   <Plus size={17} aria-hidden="true" />
                   Add item
                 </button>
               </div>
 
-              {statusScope === 'packing' && error && <p className="form-error packing-status">{error}</p>}
-              {statusScope === 'packing' && successMessage && <p className="form-success packing-status">{successMessage}</p>}
+              {statusScope === 'packing' && error && <p className="form-error travel-tools-status">{error}</p>}
+              {statusScope === 'packing' && successMessage && <p className="form-success travel-tools-status">{successMessage}</p>}
             </section>
           ) : (
-            <section className="packing-detail packing-empty-detail">
+            <section className="travel-tools-detail travel-tools-empty-detail">
               <Luggage size={34} aria-hidden="true" />
               <h3>Create your first packing list</h3>
               <p>Choose manual creation or start from a ready-made template.</p>
-              {statusScope === 'packing' && error && <p className="form-error packing-status">{error}</p>}
-              {statusScope === 'packing' && successMessage && <p className="form-success packing-status">{successMessage}</p>}
+              {statusScope === 'packing' && error && <p className="form-error travel-tools-status">{error}</p>}
+              {statusScope === 'packing' && successMessage && <p className="form-success travel-tools-status">{successMessage}</p>}
             </section>
           )}
         </div>
       </div>
 
-      <button className="packing-ai-floating" type="button" disabled>
+      <button className="travel-tools-ai-floating" type="button" disabled>
         <Bot size={20} aria-hidden="true" />
         <span>Ask AI</span>
       </button>
 
       {itemModalMode && (
-        <div className="packing-modal-backdrop" role="presentation">
-          <form className="packing-modal" onSubmit={handleSaveItem} aria-labelledby="packing-item-modal-title">
-            <div className="packing-modal-header">
+        <div className="travel-tools-modal-backdrop" role="presentation">
+          <form className="travel-tools-modal" onSubmit={handleSaveItem} aria-labelledby="packing-item-modal-title">
+            <div className="travel-tools-modal-header">
               <h3 id="packing-item-modal-title">
                 {itemModalMode === 'edit' || itemModalMode === 'template-edit' ? 'Edit item' : 'Add item'}
               </h3>
@@ -829,7 +829,7 @@ function PackingListTools() {
               </button>
             </div>
 
-            {itemFormError && <p className="form-error packing-modal-status">{itemFormError}</p>}
+            {itemFormError && <p className="form-error travel-tools-modal-status">{itemFormError}</p>}
 
             <label>
               Item name
@@ -854,7 +854,7 @@ function PackingListTools() {
               <input name="quantity" type="number" min="1" max="999" value={itemForm.quantity} onChange={handleItemFormChange} />
             </label>
 
-            <div className="packing-modal-actions">
+            <div className="travel-tools-modal-actions">
               <button className="secondary-action" type="button" onClick={closeItemModal}>Cancel</button>
               <button className="primary-action" type="submit" disabled={isSaving}>
                 {itemModalMode === 'edit' || itemModalMode === 'template-edit' ? 'Save' : 'Add item'}
@@ -865,16 +865,16 @@ function PackingListTools() {
       )}
 
       {isTemplateModalOpen && (
-        <div className="packing-modal-backdrop" role="presentation">
-          <form className="packing-modal" onSubmit={handleSaveCurrentListAsTemplate} aria-labelledby="packing-template-modal-title">
-            <div className="packing-modal-header">
+        <div className="travel-tools-modal-backdrop" role="presentation">
+          <form className="travel-tools-modal" onSubmit={handleSaveCurrentListAsTemplate} aria-labelledby="packing-template-modal-title">
+            <div className="travel-tools-modal-header">
               <h3 id="packing-template-modal-title">Save as template</h3>
               <button type="button" onClick={closeTemplateModal} aria-label="Close template form">
                 <X size={18} aria-hidden="true" />
               </button>
             </div>
 
-            {templateSaveError && <p className="form-error packing-modal-status">{templateSaveError}</p>}
+            {templateSaveError && <p className="form-error travel-tools-modal-status">{templateSaveError}</p>}
 
             <label>
               Template title
@@ -896,7 +896,7 @@ function PackingListTools() {
               />
             </label>
 
-            <div className="packing-modal-actions">
+            <div className="travel-tools-modal-actions">
               <button className="secondary-action" type="button" onClick={closeTemplateModal}>Cancel</button>
               <button className="primary-action" type="submit" disabled={isSaving}>
                 Save template
@@ -907,16 +907,16 @@ function PackingListTools() {
       )}
 
       {confirmAction && (
-        <div className="packing-modal-backdrop" role="presentation">
-          <div className="packing-modal packing-confirm" role="dialog" aria-modal="true" aria-labelledby="packing-confirm-title">
-            <div className="packing-modal-header">
-              <h3 id="packing-confirm-title">{confirmTitle}</h3>
+        <div className="travel-tools-modal-backdrop" role="presentation">
+          <div className="travel-tools-modal travel-tools-confirm" role="dialog" aria-modal="true" aria-labelledby="travel-tools-confirm-title">
+            <div className="travel-tools-modal-header">
+              <h3 id="travel-tools-confirm-title">{confirmTitle}</h3>
               <button type="button" onClick={() => setConfirmAction(null)} aria-label="Close confirmation">
                 <X size={18} aria-hidden="true" />
               </button>
             </div>
             <p>{confirmMessage}</p>
-            <div className="packing-modal-actions">
+            <div className="travel-tools-modal-actions">
               <button className="secondary-action" type="button" onClick={() => setConfirmAction(null)}>Cancel</button>
               <button className="primary-action" type="button" onClick={runConfirmedAction} disabled={isSaving}>
                 Confirm
@@ -1089,7 +1089,7 @@ function TravelDocumentTools() {
   };
 
   return (
-    <TravelToolsPageFrame labelledBy="travel-document-title">
+    <TravelToolsPageFrame labelledBy="travel-document-title" className="travel-tools-enhanced-page">
       <TravelToolsHero
         labelledBy="travel-document-title"
         eyebrow="Trip files"
@@ -1106,14 +1106,14 @@ function TravelDocumentTools() {
               <Upload size={15} aria-hidden="true" />
               {fileCount} file{fileCount === 1 ? '' : 's'}
             </span>
-            <span className={linkedCount ? 'packing-hero-health-ready' : 'packing-hero-health-warning'}>
+            <span className={linkedCount ? 'travel-tools-hero-health-ready' : 'travel-tools-hero-health-warning'}>
               <CircleAlert size={15} aria-hidden="true" />
               {linkedCount} linked
             </span>
           </>
         }
         liveCard={
-          <div className="packing-live-card">
+          <div className="travel-tools-live-card">
             <span>Current document</span>
             <strong>{selectedDocument?.files.length || 0}</strong>
             <small>{selectedDocument?.name || 'No document selected'}</small>
@@ -1121,8 +1121,8 @@ function TravelDocumentTools() {
         }
       />
 
-      <form className="packing-create-panel" onSubmit={handleCreateDocument}>
-        <div className="packing-panel-heading">
+      <form className="travel-tools-create-panel" onSubmit={handleCreateDocument}>
+        <div className="travel-tools-panel-heading">
           <div>
             <span>Create travel document</span>
             <h3>Add a document record, then upload images or files inside the workspace</h3>
@@ -1133,10 +1133,10 @@ function TravelDocumentTools() {
           </button>
         </div>
 
-        <div className="packing-form-grid packing-form-grid-compact">
-          <div className="packing-create-field">
+        <div className="travel-tools-form-grid travel-tools-form-grid-compact">
+          <div className="travel-tools-create-field">
             <label>
-              <span className="packing-field-label">
+              <span className="travel-tools-field-label">
                 Document name
                 {renderTip('Use a recognizable name such as "Passport scan" or "Hotel booking".')}
               </span>
@@ -1150,9 +1150,9 @@ function TravelDocumentTools() {
               />
             </label>
           </div>
-          <div className="packing-create-field">
+          <div className="travel-tools-create-field">
             <label>
-              <span className="packing-field-label">
+              <span className="travel-tools-field-label">
                 Document type
                 {renderTip('Choose the closest category so documents are easier to filter later.')}
               </span>
@@ -1166,9 +1166,9 @@ function TravelDocumentTools() {
               </select>
             </label>
           </div>
-          <div className="packing-create-field">
+          <div className="travel-tools-create-field">
             <label>
-              <span className="packing-field-label">
+              <span className="travel-tools-field-label">
                 Link trip
                 {renderTip('Optionally attach this document to one of your trips.')}
               </span>
@@ -1184,12 +1184,12 @@ function TravelDocumentTools() {
             </label>
           </div>
         </div>
-        {formError && <p className="form-error packing-status">{formError}</p>}
+        {formError && <p className="form-error travel-tools-status">{formError}</p>}
       </form>
 
-      <div className="packing-layout">
-        <aside className="packing-list-panel">
-          <div className="packing-panel-heading">
+      <div className="travel-tools-layout">
+        <aside className="travel-tools-list-panel">
+          <div className="travel-tools-panel-heading">
             <div>
               <span>View documents</span>
               <h3>My Documents</h3>
@@ -1197,8 +1197,8 @@ function TravelDocumentTools() {
             <strong>{documents.length}</strong>
           </div>
 
-          <div className="packing-filters packing-template-filters">
-            <span className="packing-search-field">
+          <div className="travel-tools-filters travel-tools-template-filters">
+            <span className="travel-tools-search-field">
               <Search size={16} aria-hidden="true" />
               <input
                 value={filters.search}
@@ -1217,10 +1217,10 @@ function TravelDocumentTools() {
           {filteredDocuments.length === 0 ? (
             <p className="settings-empty">No travel documents match the current filters.</p>
           ) : (
-            <div className="packing-list-stack">
+            <div className="travel-tools-list-stack">
               {filteredDocuments.map((document) => (
                 <button
-                  className={`packing-list-card ${selectedDocument?.id === document.id ? 'active' : ''}`}
+                  className={`travel-tools-list-card ${selectedDocument?.id === document.id ? 'active' : ''}`}
                   type="button"
                   key={document.id}
                   onClick={() => setSelectedDocumentId(document.id)}
@@ -1232,18 +1232,18 @@ function TravelDocumentTools() {
             </div>
           )}
 
-          <div className="packing-side-section">
-            <div className="packing-panel-heading">
+          <div className="travel-tools-side-section">
+            <div className="travel-tools-panel-heading">
               <div>
                 <span>Templates</span>
                 <h3>Document Types</h3>
               </div>
               <strong>{documentTypes.length}</strong>
             </div>
-            <div className="packing-list-stack">
+            <div className="travel-tools-list-stack">
               {documentTypes.slice(0, 4).map((type) => (
                 <button
-                  className="packing-list-card packing-template-card"
+                  className="travel-tools-list-card travel-tools-template-card"
                   type="button"
                   key={type}
                   onClick={() => setCreateForm((current) => ({ ...current, type, name: current.name || type }))}
@@ -1256,22 +1256,22 @@ function TravelDocumentTools() {
           </div>
         </aside>
 
-        <div className="packing-main">
+        <div className="travel-tools-main">
           {selectedDocument ? (
-            <section className="packing-detail">
-              <div className="packing-detail-header">
+            <section className="travel-tools-detail">
+              <div className="travel-tools-detail-header">
                 <div>
-                  <span className="packing-workspace-label">Document workspace</span>
-                  <div className="packing-title-row">
+                  <span className="travel-tools-workspace-label">Document workspace</span>
+                  <div className="travel-tools-title-row">
                     <h3>{selectedDocument.name}</h3>
                   </div>
                   <p>{selectedDocument.files.length} uploaded file{selectedDocument.files.length === 1 ? '' : 's'}</p>
-                  <div className="packing-workspace-meta" aria-label="Travel document details">
+                  <div className="travel-tools-workspace-meta" aria-label="Travel document details">
                     <span>{selectedDocument.type}</span>
                     <span>{selectedDocument.tripId ? 'Trip linked' : 'Not linked'}</span>
                   </div>
                 </div>
-                <div className="packing-list-actions">
+                <div className="travel-tools-actions">
                   <button type="button" disabled>
                     <Copy size={16} aria-hidden="true" />
                     Duplicate
@@ -1297,7 +1297,7 @@ function TravelDocumentTools() {
               {selectedDocument.files.length === 0 ? (
                 <p className="settings-empty">No files uploaded yet. Add an image or document file to this workspace.</p>
               ) : (
-                <div className="packing-item-list packing-document-file-list">
+                <div className="travel-tools-item-list travel-tools-document-file-list">
                   {selectedDocument.files.map((file) => (
                     <article key={file.id}>
                       <button
@@ -1316,19 +1316,19 @@ function TravelDocumentTools() {
                         <Maximize2 size={14} aria-hidden="true" />
                       </button>
                       <div>
-                        <div className="packing-item-title-row">
+                        <div className="travel-tools-item-title-row">
                           <strong>{file.name}</strong>
                           <span className="priority-low">
                             {file.previewType === 'image' ? 'Image' : file.previewType === 'pdf' ? 'PDF' : 'File'}
                           </span>
                         </div>
-                        <span className="packing-item-category">
+                        <span className="travel-tools-item-category">
                           <CalendarClock size={14} aria-hidden="true" />
                           {formatFileSize(file.size)}
                         </span>
                       </div>
-                      <div className="packing-item-meta" aria-label="Document file type">
-                        <span className="packing-quantity">{file.type}</span>
+                      <div className="travel-tools-item-meta" aria-label="Document file type">
+                        <span className="travel-tools-quantity">{file.type}</span>
                       </div>
                       <a className="travel-document-download" href={file.url} download={file.name} aria-label={`Download ${file.name}`}>
                         <Download size={16} aria-hidden="true" />
@@ -1341,11 +1341,11 @@ function TravelDocumentTools() {
                 </div>
               )}
 
-              {successMessage && <p className="form-success packing-status">{successMessage}</p>}
-              {formError && <p className="form-error packing-status">{formError}</p>}
+              {successMessage && <p className="form-success travel-tools-status">{successMessage}</p>}
+              {formError && <p className="form-error travel-tools-status">{formError}</p>}
             </section>
           ) : (
-            <section className="packing-detail packing-empty-detail">
+            <section className="travel-tools-detail travel-tools-empty-detail">
               <FileText size={34} aria-hidden="true" />
               <h3>Create your first travel document</h3>
               <p>Add a document record, then upload images or files into its workspace.</p>
@@ -1355,9 +1355,9 @@ function TravelDocumentTools() {
       </div>
 
       {expandedFile && (
-        <div className="packing-modal-backdrop" role="presentation">
-          <div className="packing-modal travel-document-preview-modal" role="dialog" aria-modal="true" aria-labelledby="travel-document-preview-title">
-            <div className="packing-modal-header">
+        <div className="travel-tools-modal-backdrop" role="presentation">
+          <div className="travel-tools-modal travel-document-preview-modal" role="dialog" aria-modal="true" aria-labelledby="travel-document-preview-title">
+            <div className="travel-tools-modal-header">
               <h3 id="travel-document-preview-title">{expandedFile.name}</h3>
               <button type="button" onClick={() => setExpandedFile(null)} aria-label="Close preview">
                 <X size={18} aria-hidden="true" />
@@ -1366,7 +1366,7 @@ function TravelDocumentTools() {
             <div className="travel-document-expanded-preview">
               {renderFilePreview(expandedFile, true)}
             </div>
-            <div className="packing-modal-actions">
+            <div className="travel-tools-modal-actions">
               <a className="primary-action" href={expandedFile.url} download={expandedFile.name}>
                 <Download size={17} aria-hidden="true" />
                 Download
@@ -1377,7 +1377,7 @@ function TravelDocumentTools() {
         </div>
       )}
 
-      <button className="packing-ai-floating" type="button" disabled>
+      <button className="travel-tools-ai-floating" type="button" disabled>
         <Bot size={20} aria-hidden="true" />
         <span>Ask AI</span>
       </button>
