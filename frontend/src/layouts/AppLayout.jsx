@@ -7,7 +7,7 @@ import {
   X,
 } from 'lucide-react';
 import { useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, Outlet, useLocation } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   changeTranslateLanguage,
   DEFAULT_LANGUAGE,
@@ -25,7 +25,8 @@ import './AppLayout.css';
 function AppLayout({ role, menuItems }) {
   const isAdmin = role === 'admin';
   const location = useLocation();
-  const { user } = useContext(AuthContext);
+  const navigate = useNavigate();
+  const { logout, user } = useContext(AuthContext);
   const currency = useContext(CurrencyContext);
   const [collapsedSubmenuTo, setCollapsedSubmenuTo] = useState(null);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
@@ -95,6 +96,16 @@ function AppLayout({ role, menuItems }) {
   const activeSubmenuId = activeSubmenuItems?.find((child) => isItemActive(child, true))?.id;
 
   const closeMobileNav = () => setIsMobileNavOpen(false);
+
+  const handleNavigate = (item, event) => {
+    if (item.action === 'logout') {
+      event.preventDefault();
+      logout();
+      navigate('/login', { replace: true });
+    }
+
+    closeMobileNav();
+  };
 
   useEffect(() => {
     loadTranslateClient(DEFAULT_LANGUAGE).catch(() => {});
@@ -344,7 +355,7 @@ function AppLayout({ role, menuItems }) {
               isItemActive={isItemActive}
               isMenuItemActive={isMenuItemActive}
               items={mainMenuItems}
-              onNavigate={closeMobileNav}
+              onNavigate={handleNavigate}
             />
 
             <div className="sidebar-nav-bottom">
@@ -353,7 +364,7 @@ function AppLayout({ role, menuItems }) {
                 isItemActive={isItemActive}
                 isMenuItemActive={isMenuItemActive}
                 items={bottomMenuItems}
-                onNavigate={closeMobileNav}
+                onNavigate={handleNavigate}
               />
             </div>
           </div>

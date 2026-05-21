@@ -3,6 +3,10 @@ import { Link } from 'react-router-dom';
 function AppSidebarLink({ item, active, onNavigate, parentActive }) {
   const ItemIcon = item.icon;
 
+  const handleClick = (event) => {
+    onNavigate?.(item, event);
+  };
+
   return (
     <Link
       to={item.to}
@@ -12,7 +16,7 @@ function AppSidebarLink({ item, active, onNavigate, parentActive }) {
       ]
         .filter(Boolean)
         .join(' ')}
-      onClick={onNavigate}
+      onClick={handleClick}
     >
       <span>
         <ItemIcon size={17} aria-hidden="true" />

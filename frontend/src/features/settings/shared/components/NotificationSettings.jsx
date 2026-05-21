@@ -10,7 +10,7 @@ function NotificationSettings({
 }) {
   return (
     <section className="settings-pane settings-notifications-pane">
-      <h3>Manage Notification</h3>
+      <h3>Manage Notifications</h3>
       <div className="settings-toggle-list">
         <label className="settings-toggle">
           <span>

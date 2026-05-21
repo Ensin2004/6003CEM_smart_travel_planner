@@ -18,6 +18,7 @@ import SystemErrorsPage from '../features/admin/SystemErrorsPage';
 import AdminSettingsPage from '../features/settings/admin/AdminSettingsPage';
 import UserLayout from '../layouts/UserLayout';
 import AdminLayout from '../layouts/AdminLayout';
+import ProtectedRoute from '../components/ProtectedRoute';
 
 function AppRoutes() {
   return (
@@ -28,24 +29,28 @@ function AppRoutes() {
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
 
-      <Route element={<UserLayout />}>
-        <Route path="/dashboard" element={<UserDashboard />} />
-        <Route path="/trips" element={<TripsPage />} />
-        <Route path="/trips/:id" element={<TripDetailsPage />} />
-        <Route path="/explore" element={<ExplorePage />} />
-        <Route path="/map" element={<MapPage />} />
-        <Route path="/packing-lists" element={<TravelToolsPage mode="packing" />} />
-        <Route path="/travel-documents" element={<TravelToolsPage mode="documents" />} />
-        <Route path="/profile" element={<UserSettingsPage />} />
+      <Route element={<ProtectedRoute allowedRoles={['user']} />}>
+        <Route element={<UserLayout />}>
+          <Route path="/dashboard" element={<UserDashboard />} />
+          <Route path="/trips" element={<TripsPage />} />
+          <Route path="/trips/:id" element={<TripDetailsPage />} />
+          <Route path="/explore" element={<ExplorePage />} />
+          <Route path="/map" element={<MapPage />} />
+          <Route path="/packing-lists" element={<TravelToolsPage mode="packing" />} />
+          <Route path="/travel-documents" element={<TravelToolsPage mode="documents" />} />
+          <Route path="/profile" element={<UserSettingsPage />} />
+        </Route>
       </Route>
 
-      <Route path="/admin" element={<AdminLayout />}>
-        <Route index element={<AdminDashboard />} />
-        <Route path="users" element={<ManageUsersPage />} />
-        <Route path="api-logs" element={<ApiLogsPage />} />
-        <Route path="logging-monitoring" element={<SystemErrorsPage />} />
-        <Route path="system-errors" element={<SystemErrorsPage />} />
-        <Route path="settings" element={<AdminSettingsPage />} />
+      <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
+        <Route path="/admin" element={<AdminLayout />}>
+          <Route index element={<AdminDashboard />} />
+          <Route path="users" element={<ManageUsersPage />} />
+          <Route path="api-logs" element={<ApiLogsPage />} />
+          <Route path="logging-monitoring" element={<SystemErrorsPage />} />
+          <Route path="system-errors" element={<SystemErrorsPage />} />
+          <Route path="settings" element={<AdminSettingsPage />} />
+        </Route>
       </Route>
     </Routes>
   );

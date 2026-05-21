@@ -5,7 +5,7 @@
   height: 100vh;
   min-height: 0;
   overflow: hidden;
-  background: #f5f7fa;
+  background: var(--color-background);
   transition: grid-template-columns 0.22s ease;
 }
 

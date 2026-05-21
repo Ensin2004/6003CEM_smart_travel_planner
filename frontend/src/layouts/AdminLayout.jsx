@@ -19,7 +19,7 @@ const adminMenu = [
   { to: '/admin/users', label: 'Manage Users', icon: Users },
   { to: '/admin/logging-monitoring', label: 'Logging / Monitoring', icon: ShieldAlert },
   { to: '/admin/settings', label: 'Settings', icon: Settings, bottom: true, children: settingsChildren },
-  { to: '/login', label: 'Logout', icon: LogOut, bottom: true },
+  { to: '/login', label: 'Logout', icon: LogOut, bottom: true, action: 'logout' },
 ];
 
 function AdminLayout() {

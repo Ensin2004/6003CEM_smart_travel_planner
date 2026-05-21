@@ -1,4 +1,6 @@
-require('dotenv').config();
+const path = require('path');
+
+require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 
 module.exports = {
   nodeEnv: process.env.NODE_ENV || 'development',
@@ -23,4 +25,5 @@ module.exports = {
   emailFrom: process.env.EMAIL_FROM || 'Smart Travel Planner <no-reply@smarttravelplanner.local>',
   openWeatherApiKey: process.env.OPENWEATHER_API_KEY || '',
   placesApiKey: process.env.PLACES_API_KEY || '',
+  serpApiKey: process.env.SERPAPI_KEY || process.env.SERPAPI_API_KEY || '',
 };

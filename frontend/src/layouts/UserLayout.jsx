@@ -2,7 +2,6 @@ import {
   Bot,
   BriefcaseBusiness,
   Building2,
-  CloudSun,
   Compass,
   FileText,
   Heart,
@@ -33,8 +32,8 @@ const userMenu = [
     label: 'My Trips',
     icon: Plane,
     children: [
-      { to: '/trips', label: 'Self create', icon: ListChecks },
-      { to: '/trips?create=ai', label: 'AI create', icon: Bot },
+      { to: '/trips', label: 'Create Manually', icon: ListChecks },
+      { to: '/trips?create=ai', label: 'Create with AI', icon: Bot },
     ],
   },
   {
@@ -42,12 +41,11 @@ const userMenu = [
     label: 'Explore',
     icon: Compass,
     children: [
-      { to: '/explore?view=discover', label: 'Discover (AI)', icon: Sparkles },
-      { to: '/explore?view=weather', label: 'Weather', icon: CloudSun },
+      { to: '/explore?view=discover', label: 'AI Discovery', icon: Sparkles },
       { to: '/explore?view=attractions', label: 'Attractions', icon: MapPinned },
-      { to: '/explore?view=food', label: 'Restaurant / food', icon: Utensils },
-      { to: '/explore?view=hotels', label: 'Hotels', icon: Building2 },
-      { to: '/explore?view=transport', label: 'Transport', icon: BriefcaseBusiness },
+      { to: '/explore?view=food', label: 'Restaurants / Food', icon: Utensils },
+      { to: '/explore?view=hotels', label: 'Hotels / Rooms', icon: Building2 },
+      { to: '/explore?view=transport', label: 'Transportation', icon: BriefcaseBusiness },
     ],
   },
   {
@@ -55,15 +53,15 @@ const userMenu = [
     label: 'Travel Tools',
     icon: ListChecks,
     children: [
-      { to: '/packing-lists', label: 'Packing List', icon: ListChecks },
-      { to: '/travel-documents', label: 'Travel Document', icon: FileText },
+      { to: '/packing-lists', label: 'Packing Lists', icon: ListChecks },
+      { to: '/travel-documents', label: 'Travel Documents', icon: FileText },
     ],
   },
   { to: '/map', label: 'Map', icon: Map },
   { to: '/dashboard#favourite', label: 'Favourite', icon: Heart, header: true },
   { to: '/dashboard#language-helper', label: 'Language Helper', icon: Languages},
   { to: '/profile', label: 'Settings', icon: Settings, bottom: true, children: settingsChildren },
-  { to: '/login', label: 'Logout', icon: LogOut, bottom: true },
+  { to: '/login', label: 'Logout', icon: LogOut, bottom: true, action: 'logout' },
 ];
 
 function UserLayout() {
