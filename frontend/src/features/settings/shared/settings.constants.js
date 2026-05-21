@@ -3,9 +3,9 @@ import { Bell, CircleHelp, FileText, Lock, ShieldCheck, Star, User } from 'lucid
 export const sections = [
   { id: 'profile', label: 'Manage Profile', icon: User },
   { id: 'password', label: 'Change Password', icon: Lock },
-  { id: 'notifications', label: 'Manage Notification', icon: Bell },
+  { id: 'notifications', label: 'Manage Notifications', icon: Bell },
   { id: 'privacy', label: 'Privacy Policy', icon: ShieldCheck },
-  { id: 'terms', label: 'Terms and Condition', icon: FileText },
+  { id: 'terms', label: 'Terms and Conditions', icon: FileText },
   { id: 'support', label: 'FAQ', icon: CircleHelp },
   { id: 'feedback', label: 'Rate Us & Feedback', adminLabel: 'Ratings and Feedback', icon: Star },
 ];
