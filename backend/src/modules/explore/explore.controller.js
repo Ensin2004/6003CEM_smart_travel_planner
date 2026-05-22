@@ -23,4 +23,15 @@ const getHotels = catchAsync(async (req, res) => {
   sendSuccess(res, 200, { hotels });
 });
 
-module.exports = { getWeather, getAttractions, getHotels };
+const getRestaurants = catchAsync(async (req, res) => {
+  const restaurants = await exploreService.getRestaurantsByDestination({
+    destination: req.query.destination,
+    country: req.query.country,
+    state: req.query.state,
+    foodCategory: req.query.foodCategory,
+    start: req.query.start,
+  });
+  sendSuccess(res, 200, { restaurants });
+});
+
+module.exports = { getWeather, getAttractions, getHotels, getRestaurants };
