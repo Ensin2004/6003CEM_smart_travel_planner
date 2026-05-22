@@ -16,3 +16,14 @@ export const searchHotels = ({ destination, country, state, roomType, start }) =
       start,
     },
   });
+
+export const searchRestaurants = ({ destination, country, state, foodCategory, start }) =>
+  axiosClient.get('/explore/restaurants', {
+    params: {
+      destination,
+      country,
+      state,
+      foodCategory,
+      start,
+    },
+  });

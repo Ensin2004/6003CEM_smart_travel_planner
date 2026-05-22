@@ -15,7 +15,8 @@ import {
 import { Country, State } from 'country-state-city';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { searchAttractions, searchHotels } from '../../api/exploreApi';
+import { searchAttractions, searchHotels, searchRestaurants } from '../../api/exploreApi';
+import { foodCategoryOptions, roomTypeOptions } from './explore.constants';
 import './ExplorePage.css';
 
 const viewOptions = [
@@ -29,29 +30,31 @@ const viewOptions = [
 const getErrorMessage = (error) =>
   error.response?.data?.message || error.response?.data?.error || error.message || 'Unable to search right now.';
 
-const roomTypeOptions = [
-  { value: '', label: 'Any room' },
-  { value: 'single room', label: 'Single' },
-  { value: 'double room', label: 'Double' },
-  { value: 'family room', label: 'Family' },
-  { value: 'suite', label: 'Suite' },
-];
-
 function ExplorePage() {
   const [searchParams] = useSearchParams();
   const activeView = searchParams.get('view') || 'discover';
   const [destination, setDestination] = useState('');
   const [attractions, setAttractions] = useState([]);
   const [hotels, setHotels] = useState([]);
+  const [restaurants, setRestaurants] = useState([]);
   const [hotelFilters, setHotelFilters] = useState({
     country: '',
     countryCode: '',
     state: '',
     roomType: '',
   });
+  const [restaurantFilters, setRestaurantFilters] = useState({
+    country: '',
+    countryCode: '',
+    state: '',
+    foodCategory: '',
+  });
   const [hotelSearchCriteria, setHotelSearchCriteria] = useState(null);
+  const [restaurantSearchCriteria, setRestaurantSearchCriteria] = useState(null);
   const [nextHotelStart, setNextHotelStart] = useState(0);
+  const [nextRestaurantStart, setNextRestaurantStart] = useState(0);
   const [hasMoreHotels, setHasMoreHotels] = useState(false);
+  const [hasMoreRestaurants, setHasMoreRestaurants] = useState(false);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
   const [isSearching, setIsSearching] = useState(false);
@@ -63,29 +66,35 @@ function ExplorePage() {
   );
   const ActiveIcon = activeOption.icon;
   const isAttractionsView = activeOption.id === 'attractions';
+  const isFoodView = activeOption.id === 'food';
   const isHotelsView = activeOption.id === 'hotels';
-  const isSearchView = isAttractionsView || isHotelsView;
-  const activeItems = isHotelsView ? hotels : attractions;
+  const isFilteredSearchView = isHotelsView || isFoodView;
+  const isSearchView = isAttractionsView || isFilteredSearchView;
+  const activeItems = isHotelsView ? hotels : isFoodView ? restaurants : attractions;
+  const activeFilters = isFoodView ? restaurantFilters : hotelFilters;
   const countryOptions = useMemo(() => Country.getAllCountries(), []);
   const stateOptions = useMemo(
-    () => (hotelFilters.countryCode ? State.getStatesOfCountry(hotelFilters.countryCode) : []),
-    [hotelFilters.countryCode]
+    () => (activeFilters.countryCode ? State.getStatesOfCountry(activeFilters.countryCode) : []),
+    [activeFilters.countryCode]
   );
   const selectedRoomLabel = roomTypeOptions.find((option) => option.value === hotelFilters.roomType)?.label || 'Any room';
-  const hotelSearchLabel = [
+  const selectedFoodCategoryLabel =
+    foodCategoryOptions.find((option) => option.value === restaurantFilters.foodCategory)?.label || 'Any food';
+  const filteredSearchLabel = [
     destination.trim(),
-    hotelFilters.state.trim(),
-    hotelFilters.country.trim(),
-    hotelFilters.roomType ? selectedRoomLabel : '',
+    activeFilters.state.trim(),
+    activeFilters.country.trim(),
+    isHotelsView && hotelFilters.roomType ? selectedRoomLabel : '',
+    isFoodView && restaurantFilters.foodCategory ? selectedFoodCategoryLabel : '',
   ]
     .filter(Boolean)
     .join(', ');
   const resultCount = activeItems.length;
   const ratedCount = activeItems.filter((item) => item.rating).length;
   const topRatedCount = activeItems.filter((item) => item.rating >= 4.5).length;
-  const pricedCount = hotels.filter((hotel) => hotel.price).length;
+  const pricedCount = activeItems.filter((item) => item.price).length;
   const hasResults = resultCount > 0;
-  const destinationLabel = isHotelsView ? hotelSearchLabel || 'None' : destination.trim() || 'None';
+  const destinationLabel = isFilteredSearchView ? filteredSearchLabel || 'None' : destination.trim() || 'None';
   const searchConfig = isHotelsView
     ? {
         finderLabel: 'Hotel finder',
@@ -96,6 +105,16 @@ function ExplorePage() {
         readyText: 'Search text or filters can begin',
         matchesLabel: 'hotel matches',
       }
+    : isFoodView
+      ? {
+          finderLabel: 'Food finder',
+          searchTitle: 'Search for food',
+          resultLabel: 'Restaurant results',
+          emptyTitle: 'No restaurants loaded yet',
+          emptyText: 'Search by restaurant name, country, or location, or use the food category filter to discover matching restaurant cards.',
+          readyText: 'Search text or filters can begin',
+          matchesLabel: 'restaurant matches',
+        }
     : {
         finderLabel: 'Attraction finder',
         searchTitle: 'Search by destination',
@@ -142,10 +161,18 @@ function ExplorePage() {
     }));
   };
 
-  const handleCountryChange = (countryCode) => {
-    const selectedCountry = countryOptions.find((country) => country.isoCode === countryCode);
+  const handleRestaurantFilterChange = (field, value) => {
+    setRestaurantFilters((currentFilters) => ({
+      ...currentFilters,
+      [field]: value,
+    }));
+  };
 
-    setHotelFilters((currentFilters) => ({
+  const handleCountryChange = (countryCode, filterType = 'hotel') => {
+    const selectedCountry = countryOptions.find((country) => country.isoCode === countryCode);
+    const updateFilters = filterType === 'restaurant' ? setRestaurantFilters : setHotelFilters;
+
+    updateFilters((currentFilters) => ({
       ...currentFilters,
       country: selectedCountry?.name || '',
       countryCode,
@@ -161,6 +188,16 @@ function ExplorePage() {
   });
 
   const hasHotelCriteria = (criteria) => Boolean(criteria.destination || criteria.country || criteria.state || criteria.roomType);
+
+  const getRestaurantCriteria = () => ({
+    destination: destination.trim(),
+    country: restaurantFilters.country.trim(),
+    state: restaurantFilters.state.trim(),
+    foodCategory: restaurantFilters.foodCategory,
+  });
+
+  const hasRestaurantCriteria = (criteria) =>
+    Boolean(criteria.destination || criteria.country || criteria.state || criteria.foodCategory);
 
   const fetchHotels = async ({ criteria, start = 0, append = false }) => {
     if (!hasHotelCriteria(criteria)) {
@@ -210,12 +247,69 @@ function ExplorePage() {
     await fetchHotels({ criteria: getHotelCriteria() });
   };
 
+  const fetchRestaurants = async ({ criteria, start = 0, append = false }) => {
+    if (!hasRestaurantCriteria(criteria)) {
+      setError('Enter a restaurant name, country, location, or food category first.');
+      return;
+    }
+
+    if (append) {
+      setIsLoadingMore(true);
+    } else {
+      setIsSearching(true);
+    }
+    setError('');
+    setStatus('');
+
+    try {
+      const response = await searchRestaurants({
+        ...criteria,
+        start,
+      });
+      const nextRestaurants = response.data.data.restaurants;
+      const nextItems = nextRestaurants.items || [];
+
+      setRestaurants((currentRestaurants) => (append ? [...currentRestaurants, ...nextItems] : nextItems));
+      setRestaurantSearchCriteria(criteria);
+      setNextRestaurantStart(nextRestaurants.nextStart || start + nextItems.length);
+      setHasMoreRestaurants(Boolean(nextRestaurants.hasMore && nextItems.length));
+      setStatus(
+        nextRestaurants.available
+          ? `${append ? 'Loaded' : 'Found'} ${nextItems.length} restaurant${nextItems.length === 1 ? '' : 's'} for ${
+              nextRestaurants.query || destinationLabel
+            }.`
+          : nextRestaurants.message
+      );
+    } catch (requestError) {
+      setError(getErrorMessage(requestError));
+      if (!append) {
+        setRestaurants([]);
+        setHasMoreRestaurants(false);
+      }
+    } finally {
+      setIsSearching(false);
+      setIsLoadingMore(false);
+    }
+  };
+
+  const handleRestaurantsSearch = async (event) => {
+    event.preventDefault();
+    await fetchRestaurants({ criteria: getRestaurantCriteria() });
+  };
+
   const handleLoadMoreHotels = () => {
     if (!hotelSearchCriteria) return;
     fetchHotels({ criteria: hotelSearchCriteria, start: nextHotelStart, append: true });
   };
 
-  const handleSearch = isHotelsView ? handleHotelsSearch : handleAttractionsSearch;
+  const handleLoadMoreRestaurants = () => {
+    if (!restaurantSearchCriteria) return;
+    fetchRestaurants({ criteria: restaurantSearchCriteria, start: nextRestaurantStart, append: true });
+  };
+
+  const handleSearch = isHotelsView ? handleHotelsSearch : isFoodView ? handleRestaurantsSearch : handleAttractionsSearch;
+  const hasMoreFilteredItems = isHotelsView ? hasMoreHotels : hasMoreRestaurants;
+  const handleLoadMoreFilteredItems = isHotelsView ? handleLoadMoreHotels : handleLoadMoreRestaurants;
 
   return (
     <section className="explore-page">
@@ -248,7 +342,7 @@ function ExplorePage() {
             <Search size={18} aria-hidden="true" />
             <div>
               <strong>{resultCount || '--'}</strong>
-              <span>{isHotelsView ? 'Hotels loaded' : 'Places loaded'}</span>
+              <span>{isHotelsView ? 'Hotels loaded' : isFoodView ? 'Restaurants loaded' : 'Places loaded'}</span>
             </div>
           </article>
           <article>
@@ -259,10 +353,16 @@ function ExplorePage() {
             </div>
           </article>
           <article>
-            {isHotelsView ? <Building2 size={18} aria-hidden="true" /> : <Sparkles size={18} aria-hidden="true" />}
+            {isHotelsView ? (
+              <Building2 size={18} aria-hidden="true" />
+            ) : isFoodView ? (
+              <Utensils size={18} aria-hidden="true" />
+            ) : (
+              <Sparkles size={18} aria-hidden="true" />
+            )}
             <div>
-              <strong>{isHotelsView ? pricedCount || '--' : topRatedCount || '--'}</strong>
-              <span>{isHotelsView ? 'With prices' : 'Highly rated'}</span>
+              <strong>{isFilteredSearchView ? pricedCount || '--' : topRatedCount || '--'}</strong>
+              <span>{isFilteredSearchView ? 'With prices' : 'Highly rated'}</span>
             </div>
           </article>
         </div>
@@ -270,7 +370,7 @@ function ExplorePage() {
 
       {isSearchView ? (
         <div className="explore-workspace">
-          <form className={isHotelsView ? 'explore-search explore-search-hotels' : 'explore-search'} onSubmit={handleSearch}>
+          <form className={isFilteredSearchView ? 'explore-search explore-search-hotels' : 'explore-search'} onSubmit={handleSearch}>
             <div className="explore-search-copy">
               <span>{searchConfig.finderLabel}</span>
               <strong>{searchConfig.searchTitle}</strong>
@@ -282,14 +382,17 @@ function ExplorePage() {
                 type="search"
                 value={destination}
                 onChange={(event) => setDestination(event.target.value)}
-                placeholder={isHotelsView ? 'Hotel, country or location' : 'Tokyo, Paris, Kuala Lumpur'}
+                placeholder={isHotelsView ? 'Hotel, country or location' : isFoodView ? 'Restaurant, country or location' : 'Tokyo, Paris, Kuala Lumpur'}
               />
             </label>
-            {isHotelsView && (
-              <div className="explore-filter-row" aria-label="Hotel filters">
+            {isFilteredSearchView && (
+              <div className="explore-filter-row" aria-label={isHotelsView ? 'Hotel filters' : 'Restaurant filters'}>
                 <label className="explore-filter-field">
                   <span className="sr-only">Country</span>
-                  <select value={hotelFilters.countryCode} onChange={(event) => handleCountryChange(event.target.value)}>
+                  <select
+                    value={activeFilters.countryCode}
+                    onChange={(event) => handleCountryChange(event.target.value, isFoodView ? 'restaurant' : 'hotel')}
+                  >
                     <option value="">Country</option>
                     {countryOptions.map((country) => (
                       <option key={country.isoCode} value={country.isoCode}>
@@ -301,9 +404,13 @@ function ExplorePage() {
                 <label className="explore-filter-field">
                   <span className="sr-only">Location or state</span>
                   <select
-                    value={hotelFilters.state}
-                    onChange={(event) => handleHotelFilterChange('state', event.target.value)}
-                    disabled={!hotelFilters.countryCode}
+                    value={activeFilters.state}
+                    onChange={(event) =>
+                      isFoodView
+                        ? handleRestaurantFilterChange('state', event.target.value)
+                        : handleHotelFilterChange('state', event.target.value)
+                    }
+                    disabled={!activeFilters.countryCode}
                   >
                     <option value="">State</option>
                       {stateOptions.map((state) => (
@@ -314,10 +421,17 @@ function ExplorePage() {
                   </select>
                 </label>
                 <label className="explore-filter-field">
-                  <span className="sr-only">Room type</span>
-                  <select value={hotelFilters.roomType} onChange={(event) => handleHotelFilterChange('roomType', event.target.value)}>
-                    {roomTypeOptions.map((option) => (
-                      <option key={option.value || 'any-room'} value={option.value}>
+                  <span className="sr-only">{isFoodView ? 'Food category' : 'Room type'}</span>
+                  <select
+                    value={isFoodView ? restaurantFilters.foodCategory : hotelFilters.roomType}
+                    onChange={(event) =>
+                      isFoodView
+                        ? handleRestaurantFilterChange('foodCategory', event.target.value)
+                        : handleHotelFilterChange('roomType', event.target.value)
+                    }
+                  >
+                    {(isFoodView ? foodCategoryOptions : roomTypeOptions).map((option) => (
+                      <option key={option.value || (isFoodView ? 'any-food' : 'any-room')} value={option.value}>
                         {option.label}
                       </option>
                     ))}
@@ -338,7 +452,7 @@ function ExplorePage() {
             <div className="explore-results-heading">
               <div>
                 <span>{searchConfig.resultLabel}</span>
-                <h3>{hasResults ? `${isHotelsView ? 'Rooms' : 'Places'} for ${destinationLabel}` : 'Ready when you are'}</h3>
+                <h3>{hasResults ? `${isHotelsView ? 'Rooms' : isFoodView ? 'Food' : 'Places'} for ${destinationLabel}` : 'Ready when you are'}</h3>
               </div>
               <small>{hasResults ? `${resultCount} ${searchConfig.matchesLabel}` : searchConfig.readyText}</small>
             </div>
@@ -346,7 +460,13 @@ function ExplorePage() {
             <div className="explore-results">
               {activeItems.length === 0 ? (
                 <div className="explore-empty">
-                  {isHotelsView ? <Building2 size={34} aria-hidden="true" /> : <MapPinned size={34} aria-hidden="true" />}
+                  {isHotelsView ? (
+                    <Building2 size={34} aria-hidden="true" />
+                  ) : isFoodView ? (
+                    <Utensils size={34} aria-hidden="true" />
+                  ) : (
+                    <MapPinned size={34} aria-hidden="true" />
+                  )}
                   <h3>{searchConfig.emptyTitle}</h3>
                   <p>{searchConfig.emptyText}</p>
                 </div>
@@ -365,7 +485,13 @@ function ExplorePage() {
                   </div>
                   <div className="explore-attraction-body">
                     <div className="explore-attraction-title">
-                      <span className="explore-category">{isHotelsView && hotelFilters.roomType ? selectedRoomLabel : item.category}</span>
+                      <span className="explore-category">
+                        {isHotelsView && hotelFilters.roomType
+                          ? selectedRoomLabel
+                          : isFoodView && restaurantFilters.foodCategory
+                            ? selectedFoodCategoryLabel
+                            : item.category}
+                      </span>
                       <h3>{item.name}</h3>
                     </div>
                     <div className="explore-card-meta">
@@ -377,9 +503,9 @@ function ExplorePage() {
                         <MessageCircle size={14} aria-hidden="true" />
                         {item.reviewCount ? item.reviewCount.toLocaleString() : 'No'} reviews
                       </span>
-                      {isHotelsView && item.price && (
+                      {isFilteredSearchView && item.price && (
                         <span>
-                          <Building2 size={14} aria-hidden="true" />
+                          {isHotelsView ? <Building2 size={14} aria-hidden="true" /> : <Utensils size={14} aria-hidden="true" />}
                           {item.price}
                         </span>
                       )}
@@ -392,7 +518,7 @@ function ExplorePage() {
                     )}
                     {item.url && (
                       <a className="explore-card-link" href={item.url} target="_blank" rel="noreferrer">
-                        {isHotelsView ? 'View hotel' : 'View place'}
+                        {isHotelsView ? 'View hotel' : isFoodView ? 'View restaurant' : 'View place'}
                         <ExternalLink size={14} aria-hidden="true" />
                       </a>
                     )}
@@ -401,8 +527,8 @@ function ExplorePage() {
               ))
               )}
             </div>
-            {isHotelsView && hasMoreHotels && (
-              <button className="explore-view-more" type="button" onClick={handleLoadMoreHotels} disabled={isLoadingMore}>
+            {isFilteredSearchView && hasMoreFilteredItems && (
+              <button className="explore-view-more" type="button" onClick={handleLoadMoreFilteredItems} disabled={isLoadingMore}>
                 {isLoadingMore ? <LoaderCircle className="explore-spin" size={17} aria-hidden="true" /> : <Search size={17} aria-hidden="true" />}
                 {isLoadingMore ? 'Loading...' : 'View more'}
               </button>
