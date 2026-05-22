@@ -12,4 +12,15 @@ const getAttractions = catchAsync(async (req, res) => {
   sendSuccess(res, 200, { attractions });
 });
 
-module.exports = { getWeather, getAttractions };
+const getHotels = catchAsync(async (req, res) => {
+  const hotels = await exploreService.getHotelsByDestination({
+    destination: req.query.destination,
+    country: req.query.country,
+    state: req.query.state,
+    roomType: req.query.roomType,
+    start: req.query.start,
+  });
+  sendSuccess(res, 200, { hotels });
+});
+
+module.exports = { getWeather, getAttractions, getHotels };
