@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import {
   BedDouble,
@@ -9,10 +9,12 @@ import {
   LocateFixed,
   MapPin,
   Mountain,
+  Navigation,
   Plane,
   Search,
   ShoppingBag,
   Star,
+  SquarePen,
   TrainFront,
   Trash2,
   Utensils,
@@ -20,10 +22,10 @@ import {
   ZoomIn,
   ZoomOut,
 } from 'lucide-react';
-import { MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from 'react-leaflet';
+import { MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { searchOpenStreetMapPlaces } from '../../api/mapApi';
+import { getRouteBetweenPlaces, searchOpenStreetMapCategoryPlaces, searchOpenStreetMapPlaces } from '../../api/mapApi';
 import './MapPage.css';
 
 const defaultCenter = [5.4141, 100.3288];
@@ -36,11 +38,27 @@ const categoryConfig = {
   food: { label: 'Food', icon: Utensils, color: '#f97316' },
   attractions: { label: 'Attractions', icon: Mountain, color: '#0891b2' },
   shopping: { label: 'Shopping', icon: ShoppingBag, color: '#db2777' },
+  custom: { label: 'Custom', icon: MapPin, color: '#16a34a' },
   saved: { label: 'Saved', icon: Heart, color: '#ef4444' },
 };
 
-const filterOrder = ['hotels', 'airports', 'train', 'food', 'attractions', 'shopping', 'saved'];
+const filterOrder = ['hotels', 'airports', 'train', 'food', 'attractions', 'shopping', 'custom', 'saved'];
 const userMarkersStorageKey = 'smartTravelPlanner.map.userMarkers';
+const fallbackUserLocation = {
+  id: 'user-location',
+  name: 'My location',
+  lat: defaultCenter[0],
+  lng: defaultCenter[1],
+  isFallback: true,
+};
+
+const routeModeOptions = [
+  { id: 'car', label: 'Car' },
+  { id: 'walking', label: 'Walking' },
+  { id: 'bike', label: 'Bike' },
+  { id: 'train', label: 'Train' },
+  { id: 'plane', label: 'Plane' },
+];
 
 const mapTileLayers = {
   default: {
@@ -53,461 +71,55 @@ const mapTileLayers = {
   },
 };
 
-const fallbackPlaceImages = {
-  hotels: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=640&q=80',
-  airports: 'https://images.unsplash.com/photo-1436491865332-7a61a109cc05?auto=format&fit=crop&w=640&q=80',
-  train: 'https://images.unsplash.com/photo-1474487548417-781cb71495f3?auto=format&fit=crop&w=640&q=80',
-  food: 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=640&q=80',
-  attractions: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=640&q=80',
-  shopping: 'https://images.unsplash.com/photo-1481437156560-3205f6a55735?auto=format&fit=crop&w=640&q=80',
-  saved: 'https://images.unsplash.com/photo-1500534314209-a25ddb2bd429?auto=format&fit=crop&w=640&q=80',
+const categoryPanelPlace = {
+  id: 'category-panel',
+  name: 'Map results',
+  lat: defaultCenter[0],
+  lng: defaultCenter[1],
+  zoom: defaultZoom,
+  panelMode: 'category',
 };
 
-const penangLandCoordinates = [
-  [5.4141, 100.3288],
-  [5.4382, 100.3091],
-  [5.3999, 100.2733],
-  [5.4177, 100.3404],
-  [5.3333, 100.3065],
-  [5.3942, 100.3664],
-  [5.3634, 100.4595],
-  [5.4757, 100.2498],
-  [5.4705, 100.2455],
-  [5.2971, 100.2779],
-];
+const getPlaceAddress = (place) => place.address || place.displayName || 'Location details unavailable';
 
-const recommendationOffsets = [
-  [0.012, 0.014],
-  [0.018, -0.018],
-  [-0.014, 0.016],
-  [-0.018, -0.012],
-  [0.026, 0.004],
-  [-0.026, -0.004],
-  [0.006, -0.03],
-  [-0.006, 0.03],
-  [0.034, -0.026],
-  [-0.034, 0.026],
-];
+const formatCategoryPlace = (place, categoryId) => ({
+  ...place,
+  categoryId,
+  address: getPlaceAddress(place),
+  hours: place.hours || 'Hours unavailable',
+  rating: place.rating || 'N/A',
+  reviews: place.reviews || 'OpenStreetMap result',
+  summary: place.summary || 'Place result from OpenStreetMap.',
+});
 
-const createReviewItems = (name) => [
-  {
-    id: `${name}-review-1`,
-    author: 'Alicia Tan',
-    rating: '5.0',
-    text: 'Easy to visit, clean surroundings, and worth adding to a short itinerary.',
-  },
-  {
-    id: `${name}-review-2`,
-    author: 'Daniel Wong',
-    rating: '4.5',
-    text: 'Good location with plenty of nearby food and transport options.',
-  },
-  {
-    id: `${name}-review-3`,
-    author: 'Mei Chen',
-    rating: '4.0',
-    text: 'Best experience when visiting outside peak hours.',
-  },
-];
+const formatDistance = (meters) => {
+  if (!Number.isFinite(meters)) {
+    return 'Distance unavailable';
+  }
 
-const getPlaceImage = (categoryId, name = '') => {
-  const encodedName = encodeURIComponent(name || categoryConfig[categoryId]?.label || 'travel');
-  return `https://source.unsplash.com/640x420/?${encodedName},travel`;
+  if (meters < 1000) {
+    return `${Math.round(meters)} m`;
+  }
+
+  return `${(meters / 1000).toFixed(1)} km`;
 };
 
-const cityRecommendationSets = {
-  default: [
-  {
-    id: 'george-town',
-    rank: 'No.1',
-    name: 'George Town',
-    score: '5.9',
-    stay: '2-4 days recommended',
-    highlight: 'Pinang Peranakan Mansion',
-    lat: 5.4141,
-    lng: 100.3288,
-    image: 'https://images.unsplash.com/photo-1609856626407-31caec6804d5?auto=format&fit=crop&w=240&q=80',
-  },
-  {
-    id: 'batu-ferringhi',
-    rank: 'No.2',
-    name: 'Batu Ferringhi',
-    score: '2.9',
-    stay: '2-4 days recommended',
-    highlight: 'Batu Ferringhi Beach',
-    lat: 5.4753,
-    lng: 100.2467,
-    image: 'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=240&q=80',
-  },
-  {
-    id: 'jelutong',
-    rank: 'No.3',
-    name: 'Jelutong',
-    score: '2.1',
-    stay: 'Urban food stops',
-    highlight: 'Karpal Singh Drive',
-    lat: 5.3915,
-    lng: 100.3168,
-    image: 'https://images.unsplash.com/photo-1524231757912-21f4fe3a7200?auto=format&fit=crop&w=240&q=80',
-  },
-  {
-    id: 'southwest-penang',
-    rank: 'No.4',
-    name: 'Southwest Penang Island',
-    score: '1.9',
-    stay: 'Nature and farms',
-    highlight: 'Entopia by Penang Butterfly Farm',
-    lat: 5.3337,
-    lng: 100.2249,
-    image: 'https://images.unsplash.com/photo-1531973576160-7125cd663d86?auto=format&fit=crop&w=240&q=80',
-  },
-  {
-    id: 'bukit-mertajam',
-    rank: 'No.5',
-    name: 'Bukit Mertajam',
-    score: '1.8',
-    stay: 'Local heritage',
-    highlight: 'Minor Basilica of St. Anne',
-    lat: 5.363,
-    lng: 100.4667,
-    image: 'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=240&q=80',
-  },
-  ],
-  japan: [
-    {
-      id: 'tokyo',
-      rank: 'No.1',
-      name: 'Tokyo',
-      score: '9.8',
-      stay: '4-6 days recommended',
-      highlight: 'Shibuya Crossing',
-      lat: 35.6762,
-      lng: 139.6503,
-      image: 'https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?auto=format&fit=crop&w=240&q=80',
-    },
-    {
-      id: 'kyoto',
-      rank: 'No.2',
-      name: 'Kyoto',
-      score: '8.9',
-      stay: '3-5 days recommended',
-      highlight: 'Fushimi Inari Taisha',
-      lat: 35.0116,
-      lng: 135.7681,
-      image: 'https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&w=240&q=80',
-    },
-    {
-      id: 'osaka',
-      rank: 'No.3',
-      name: 'Osaka',
-      score: '8.4',
-      stay: '2-4 days recommended',
-      highlight: 'Dotonbori',
-      lat: 34.6937,
-      lng: 135.5023,
-      image: 'https://images.unsplash.com/photo-1590559899731-a382839e5549?auto=format&fit=crop&w=240&q=80',
-    },
-    {
-      id: 'sapporo',
-      rank: 'No.4',
-      name: 'Sapporo',
-      score: '7.5',
-      stay: '2-4 days recommended',
-      highlight: 'Odori Park',
-      lat: 43.0618,
-      lng: 141.3545,
-      image: 'https://images.unsplash.com/photo-1610016302534-6f67f1c968d8?auto=format&fit=crop&w=240&q=80',
-    },
-    {
-      id: 'fukuoka',
-      rank: 'No.5',
-      name: 'Fukuoka',
-      score: '7.2',
-      stay: '2-3 days recommended',
-      highlight: 'Canal City Hakata',
-      lat: 33.5902,
-      lng: 130.4017,
-      image: 'https://images.unsplash.com/photo-1528360983277-13d401cdc186?auto=format&fit=crop&w=240&q=80',
-    },
-  ],
+const formatDuration = (seconds) => {
+  if (!Number.isFinite(seconds)) {
+    return 'Time unavailable';
+  }
+
+  const minutes = Math.max(1, Math.round(seconds / 60));
+
+  if (minutes < 60) {
+    return `${minutes} min`;
+  }
+
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+
+  return remainingMinutes ? `${hours} hr ${remainingMinutes} min` : `${hours} hr`;
 };
-
-const placeDetailsFallback = {
-  hours: 'Open today: 9:00 AM - 8:00 PM',
-  address: 'Penang, Malaysia',
-  rating: '4.6',
-  reviews: '1,284 reviews',
-  summary: 'Popular with travellers for convenient access, nearby food, and easy trip planning.',
-  image: fallbackPlaceImages.attractions,
-};
-
-const categoryMarkers = {
-  hotels: [
-    {
-      id: 'hotel-eo',
-      name: 'Eastern & Oriental Hotel',
-      address: '10 Lebuh Farquhar, George Town',
-      hours: 'Open 24 hours',
-      rating: '4.7',
-      reviews: '4,218 reviews',
-      lat: 5.4238,
-      lng: 100.3359,
-    },
-    {
-      id: 'hotel-shangri-la',
-      name: 'Shangri-La Rasa Sayang',
-      address: 'Batu Ferringhi Beach',
-      hours: 'Open 24 hours',
-      rating: '4.6',
-      reviews: '5,902 reviews',
-      lat: 5.4757,
-      lng: 100.2498,
-    },
-  ],
-  airports: [
-    {
-      id: 'airport-penang',
-      name: 'Penang International Airport',
-      address: 'Bayan Lepas, Penang',
-      hours: 'Open 24 hours',
-      rating: '4.1',
-      reviews: '8,364 reviews',
-      lat: 5.2971,
-      lng: 100.2779,
-    },
-    {
-      id: 'airport-langkawi',
-      name: 'Langkawi International Airport',
-      address: 'Padang Matsirat, Langkawi',
-      hours: 'Open 24 hours',
-      rating: '4.2',
-      reviews: '3,118 reviews',
-      lat: 6.3297,
-      lng: 99.7287,
-    },
-  ],
-  train: [
-    {
-      id: 'train-butterworth',
-      name: 'Butterworth Railway Station',
-      address: 'Penang Sentral, Butterworth',
-      hours: 'Open today: 5:00 AM - 12:00 AM',
-      rating: '4.0',
-      reviews: '1,536 reviews',
-      lat: 5.3942,
-      lng: 100.3664,
-    },
-    {
-      id: 'train-bukit-mertajam',
-      name: 'Bukit Mertajam KTM Station',
-      address: 'Jalan Stesen, Bukit Mertajam',
-      hours: 'Open today: 5:30 AM - 11:30 PM',
-      rating: '3.9',
-      reviews: '824 reviews',
-      lat: 5.3634,
-      lng: 100.4595,
-    },
-  ],
-  food: [
-    {
-      id: 'food-line-clear',
-      name: 'Line Clear Nasi Kandar',
-      address: '177 Jalan Penang, George Town',
-      hours: 'Open today: 10:00 AM - 10:00 PM',
-      rating: '4.3',
-      reviews: '6,702 reviews',
-      lat: 5.4193,
-      lng: 100.3312,
-    },
-    {
-      id: 'food-gurney',
-      name: 'Gurney Drive Hawker Centre',
-      address: 'Persiaran Gurney, George Town',
-      hours: 'Open today: 6:00 PM - 11:30 PM',
-      rating: '4.2',
-      reviews: '9,418 reviews',
-      lat: 5.4382,
-      lng: 100.3091,
-    },
-  ],
-  attractions: [
-    {
-      id: 'attr-kek-lok-si',
-      name: 'Kek Lok Si Temple',
-      address: 'Air Itam, Penang',
-      hours: 'Open today: 8:30 AM - 5:30 PM',
-      rating: '4.5',
-      reviews: '12,860 reviews',
-      lat: 5.3999,
-      lng: 100.2733,
-    },
-    {
-      id: 'attr-penang-hill',
-      name: 'Penang Hill',
-      address: 'Bukit Bendera, Penang',
-      hours: 'Open today: 6:30 AM - 10:00 PM',
-      rating: '4.4',
-      reviews: '18,430 reviews',
-      lat: 5.4084,
-      lng: 100.2777,
-    },
-    {
-      id: 'attr-peranakan',
-      name: 'Pinang Peranakan Mansion',
-      address: '29 Church Street, George Town',
-      hours: 'Open today: 9:30 AM - 5:00 PM',
-      rating: '4.6',
-      reviews: '5,216 reviews',
-      lat: 5.4177,
-      lng: 100.3404,
-    },
-  ],
-  shopping: [
-    {
-      id: 'shop-gurney-plaza',
-      name: 'Gurney Plaza',
-      address: '170 Persiaran Gurney, George Town',
-      hours: 'Open today: 10:00 AM - 10:00 PM',
-      rating: '4.4',
-      reviews: '16,902 reviews',
-      lat: 5.4378,
-      lng: 100.3109,
-    },
-    {
-      id: 'shop-queensbay',
-      name: 'Queensbay Mall',
-      address: 'Persiaran Bayan Indah, Bayan Lepas',
-      hours: 'Open today: 10:30 AM - 10:30 PM',
-      rating: '4.4',
-      reviews: '20,114 reviews',
-      lat: 5.3333,
-      lng: 100.3065,
-    },
-  ],
-  saved: [
-    {
-      id: 'saved-chew-jetty',
-      name: 'Chew Jetty',
-      address: 'Pengkalan Weld, George Town',
-      hours: 'Open today: 9:00 AM - 9:00 PM',
-      rating: '4.1',
-      reviews: '8,009 reviews',
-      lat: 5.4136,
-      lng: 100.3419,
-    },
-    {
-      id: 'saved-tropical-spice',
-      name: 'Tropical Spice Garden',
-      address: 'Teluk Bahang, Penang',
-      hours: 'Open today: 9:00 AM - 4:30 PM',
-      rating: '4.5',
-      reviews: '2,431 reviews',
-      lat: 5.4705,
-      lng: 100.2455,
-    },
-  ],
-};
-
-const categoryRecommendationNames = {
-  hotels: [
-    'The Prestige Hotel Penang',
-    'Seven Terraces',
-    'G Hotel Kelawai',
-    'Lone Pine Penang',
-    'JEN Penang Georgetown',
-    'Areca Hotel Penang',
-    'Campbell House',
-    'The Edison George Town',
-  ],
-  airports: [
-    'Sultan Abdul Halim Airport',
-    'Sultan Azlan Shah Airport',
-    'Hat Yai International Airport',
-    'Kuala Lumpur International Airport',
-    'Subang Airport',
-    'Sultan Ismail Petra Airport',
-    'Sultan Mahmud Airport',
-    'Senai International Airport',
-  ],
-  train: [
-    'Penang Sentral',
-    'Nibong Tebal KTM Station',
-    'Sungai Petani KTM Station',
-    'Taiping Railway Station',
-    'Ipoh Railway Station',
-    'Alor Setar Railway Station',
-    'Padang Besar Railway Station',
-    'Kuala Lumpur Sentral',
-  ],
-  food: [
-    'Teksen Restaurant',
-    'Sister Curry Mee',
-    'Joo Hooi Cafe',
-    'Hameediyah Restaurant',
-    'Tai Tong Restaurant',
-    'China House',
-    'Kimberley Street Food Night Market',
-    'Deen Maju Nasi Kandar',
-  ],
-  attractions: [
-    'Chew Jetty',
-    'Clan Jetties of Penang',
-    'Fort Cornwallis',
-    'Khoo Kongsi',
-    'Entopia by Penang Butterfly Farm',
-    'Penang National Park',
-    'Wonderfood Museum',
-  ],
-  shopping: [
-    '1st Avenue Mall',
-    'Prangin Mall',
-    'Straits Quay',
-    'Design Village Outlet Mall',
-    'Sunshine Central',
-    'Komtar',
-    'Chowrasta Market',
-    'Hin Bus Depot Market',
-  ],
-  saved: [
-    'Armenian Street',
-    'Kapitan Keling Mosque',
-    'Penang Street Art',
-    'The Habitat Penang Hill',
-    'Batu Ferringhi Night Market',
-    'Tropical Fruit Farm',
-    'ESCAPE Penang',
-    'Dhammikarama Burmese Temple',
-  ],
-};
-
-const buildCategoryPlaces = (categoryId, places) => {
-  const extraNames = categoryRecommendationNames[categoryId] || [];
-  const supplementalPlaces = extraNames.slice(0, Math.max(0, 10 - places.length)).map((name, index) => ({
-    id: `${categoryId}-recommended-${index + 1}`,
-    name,
-    address: `Recommended ${categoryConfig[categoryId].label.toLowerCase()} near Penang`,
-    hours: index % 3 === 0 ? 'Open 24 hours' : 'Open today: 10:00 AM - 9:00 PM',
-    rating: (4.1 + (index % 6) * 0.1).toFixed(1),
-    reviews: `${(index + 2) * 731} reviews`,
-    lat: penangLandCoordinates[(index + places.length) % penangLandCoordinates.length][0],
-    lng: penangLandCoordinates[(index + places.length) % penangLandCoordinates.length][1],
-  }));
-
-  return [...places, ...supplementalPlaces].slice(0, 10).map((place, index) => ({
-    ...place,
-    categoryId,
-    image: place.image || getPlaceImage(categoryId, place.name),
-    reviewItems: place.reviewItems || createReviewItems(place.name),
-    rank: `No.${index + 1}`,
-  }));
-};
-
-const categoryPlaces = Object.fromEntries(
-  Object.entries(categoryMarkers).map(([categoryId, places]) => [
-    categoryId,
-    buildCategoryPlaces(categoryId, places),
-  ])
-);
 
 const loadUserMarkers = () => {
   try {
@@ -522,54 +134,10 @@ const saveUserMarkers = (markers) => {
   localStorage.setItem(userMarkersStorageKey, JSON.stringify(markers));
 };
 
-const getCurrentLocationLabel = (place) => {
-  if (!place?.name || place.id === 'category-panel') {
-    return 'current map area';
-  }
-
-  return place.name;
-};
-
-const getLocalizedCategoryPlaces = (categoryId, place, mapCenter = defaultCenter) => {
-  const basePlaces = categoryPlaces[categoryId] || [];
-  const centerLat = Number.isFinite(mapCenter?.[0]) ? mapCenter[0] : defaultCenter[0];
-  const centerLng = Number.isFinite(mapCenter?.[1]) ? mapCenter[1] : defaultCenter[1];
-  const locationLabel = getCurrentLocationLabel(place);
-  const isPenangArea = `${place?.name || ''} ${place?.displayName || ''}`.toLowerCase().includes('penang');
-  const isNearDefaultCenter = Math.abs(centerLat - defaultCenter[0]) < 0.2 && Math.abs(centerLng - defaultCenter[1]) < 0.2;
-
-  if ((isPenangArea || place?.id === 'penang') && isNearDefaultCenter) {
-    return basePlaces;
-  }
-
-  return basePlaces.map((basePlace, index) => {
-    const [latOffset, lngOffset] = recommendationOffsets[index % recommendationOffsets.length];
-
-    return {
-      ...basePlace,
-      id: `${categoryId}-${place?.id || 'current'}-${index + 1}`,
-      address: `${categoryConfig[categoryId].label} near ${locationLabel}`,
-      lat: centerLat + latOffset,
-      lng: centerLng + lngOffset,
-      rank: `No.${index + 1}`,
-    };
-  });
-};
-
 const isCountryResult = (place) => (
   place?.category === 'boundary' ||
   ['country', 'state', 'province', 'administrative'].includes(place?.type)
 );
-
-const getCityRecommendations = (place) => {
-  const text = `${place?.name || ''} ${place?.displayName || ''}`.toLowerCase();
-
-  if (text.includes('japan')) {
-    return cityRecommendationSets.japan;
-  }
-
-  return cityRecommendationSets.default;
-};
 
 const inferCategoryFromSearch = (query, place) => {
   const text = `${query} ${place?.category || ''} ${place?.type || ''}`.toLowerCase();
@@ -601,11 +169,21 @@ const createMapIcon = (pin, categoryId) => {
   });
 };
 
+const createUserLocationIcon = () => (
+  L.divIcon({
+    className: '',
+    html: '<span class="travel-user-location-pin"></span>',
+    iconSize: [24, 24],
+    iconAnchor: [12, 12],
+    popupAnchor: [0, -12],
+  })
+);
+
 function MapFocus({ place }) {
   const map = useMap();
 
   useEffect(() => {
-    if (place) {
+    if (place?.panelMode !== 'category' && place?.lat && place?.lng) {
       map.flyTo([place.lat, place.lng], place.zoom || 12, { duration: 0.75 });
     }
   }, [map, place]);
@@ -613,9 +191,16 @@ function MapFocus({ place }) {
   return null;
 }
 
-function MapToolControls({ mapType, onToggleMapType, panelOpen }) {
+function MapToolControls({
+  isAddingMarker,
+  isLayerMenuOpen,
+  mapType,
+  onSelectMapType,
+  onToggleAddMarker,
+  onToggleLayerMenu,
+  panelOpen,
+}) {
   const map = useMap();
-  const nextMapTypeLabel = mapType === 'default' ? 'Satellite map' : 'Default map';
 
   return (
     <div className={['map-tool-stack', panelOpen ? 'is-panel-open' : 'is-panel-closed'].join(' ')} aria-label="Map controls">
@@ -629,53 +214,112 @@ function MapToolControls({ mapType, onToggleMapType, panelOpen }) {
         <LocateFixed size={21} aria-hidden="true" />
       </button>
       <button
+        className={isAddingMarker ? 'is-active' : ''}
         type="button"
-        onClick={onToggleMapType}
-        aria-label={`Switch to ${nextMapTypeLabel}`}
-        data-tooltip={nextMapTypeLabel}
+        onClick={onToggleAddMarker}
+        aria-label={isAddingMarker ? 'Cancel marker placement' : 'Add marker'}
+        data-tooltip={isAddingMarker ? 'Click map to place marker' : 'Add marker'}
+      >
+        <MapPin size={21} aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        onClick={onToggleLayerMenu}
+        aria-expanded={isLayerMenuOpen}
+        aria-label="Choose map layer"
+        data-tooltip="Map layers"
       >
         <Layers size={21} aria-hidden="true" />
       </button>
+      {isLayerMenuOpen ? (
+        <div className="map-layer-menu" aria-label="Map layer options">
+          {Object.entries(mapTileLayers).map(([layerId]) => (
+            <button
+              className={mapType === layerId ? 'is-selected' : ''}
+              key={layerId}
+              type="button"
+              onClick={() => onSelectMapType(layerId)}
+            >
+              {layerId === 'default' ? 'Default map' : 'Satellite map'}
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }
 
-function MapClickHandler({ onAddMarker }) {
+function MapClickHandler({ isAddingMarker, onAddMarker }) {
   useMapEvents({
     click(event) {
-      onAddMarker(event.latlng);
+      if (isAddingMarker) {
+        onAddMarker(event.latlng);
+      }
     },
   });
 
   return null;
 }
 
-function MapViewportTracker({ onCenterChange }) {
+function MapViewportTracker({ onViewportChange }) {
+  const map = useMap();
+
+  useEffect(() => {
+    const center = map.getCenter();
+    const bounds = map.getBounds();
+
+    onViewportChange({
+      center: [center.lat, center.lng],
+      bounds: {
+        north: bounds.getNorth(),
+        south: bounds.getSouth(),
+        east: bounds.getEast(),
+        west: bounds.getWest(),
+      },
+    });
+  }, [map, onViewportChange]);
+
   useMapEvents({
     moveend(event) {
+      const mapInstance = event.target;
       const center = event.target.getCenter();
-      onCenterChange([center.lat, center.lng]);
+      const bounds = mapInstance.getBounds();
+
+      onViewportChange({
+        center: [center.lat, center.lng],
+        bounds: {
+          north: bounds.getNorth(),
+          south: bounds.getSouth(),
+          east: bounds.getEast(),
+          west: bounds.getWest(),
+        },
+      });
     },
   });
 
   return null;
 }
 
-function PlaceDetails({ onRemove, place, categoryId }) {
-  const [isReviewOpen, setIsReviewOpen] = useState(false);
+function PlaceDetails({
+  categoryId,
+  onAddRoutePoint,
+  onClearRoute,
+  onCalculateRoute,
+  onRenameCustomMarker,
+  onRemove,
+  place,
+  route,
+  routeMode,
+  routePoints,
+  routeStatus,
+  onRouteModeChange,
+}) {
   const category = categoryConfig[categoryId] || categoryConfig.attractions;
   const CategoryIcon = category.icon;
-  const details = {
-    ...placeDetailsFallback,
-    ...place,
-    image: place?.image || getPlaceImage(categoryId, place?.name),
-    reviewItems: place?.reviewItems || createReviewItems(place?.name || 'place'),
-  };
+  const details = formatCategoryPlace(place || {}, categoryId);
 
   return (
     <div className="map-place-details">
-      <img className="map-detail-image" src={details.image} alt={details.name} loading="lazy" />
-
       <div className="map-detail-category" style={{ '--detail-color': category.color }}>
         <CategoryIcon size={17} aria-hidden="true" />
         {category.label}
@@ -683,28 +327,102 @@ function PlaceDetails({ onRemove, place, categoryId }) {
 
       <div className="map-detail-rating">
         <strong>{details.rating}</strong>
-        <button type="button" onClick={() => setIsReviewOpen((isOpen) => !isOpen)}>
+        <span className="map-detail-review-count">
           <Star size={14} fill="currentColor" aria-hidden="true" />
           {details.reviews}
+        </span>
+      </div>
+
+      <p>{details.summary}</p>
+
+      {details.custom ? (
+        <label className="map-custom-marker-name">
+          <span>
+            <SquarePen size={15} aria-hidden="true" />
+            Marker name
+          </span>
+          <input
+            type="text"
+            defaultValue={details.name}
+            onBlur={(event) => onRenameCustomMarker(details.id, event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                event.currentTarget.blur();
+              }
+            }}
+          />
+        </label>
+      ) : null}
+
+      <div className="map-route-actions">
+        <button
+          type="button"
+          onClick={() => onAddRoutePoint(details)}
+        >
+          <Navigation size={16} aria-hidden="true" />
+          Add to route
+        </button>
+        <button
+          type="button"
+          onClick={onCalculateRoute}
+          disabled={routeStatus === 'loading' || routePoints.length < 2}
+        >
+          <Navigation size={16} aria-hidden="true" />
+          {routeStatus === 'loading' ? 'Calculating route...' : 'Calculate route'}
+        </button>
+        <button
+          type="button"
+          onClick={onClearRoute}
+          disabled={!routePoints.length && !route}
+        >
+          Clear route
         </button>
       </div>
 
-      {isReviewOpen ? (
-        <div className="map-review-list">
-          {details.reviewItems.map((review) => (
-            <article key={review.id}>
-              <strong>{review.author}</strong>
-              <span>
-                <Star size={12} fill="currentColor" aria-hidden="true" />
-                {review.rating}
-              </span>
-              <p>{review.text}</p>
-            </article>
-          ))}
+      <div className="map-route-mode-list" aria-label="Transport mode">
+        {routeModeOptions.map((mode) => (
+          <button
+            className={routeMode === mode.id ? 'is-active' : ''}
+            key={mode.id}
+            type="button"
+            onClick={() => onRouteModeChange(mode.id)}
+          >
+            {mode.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="map-route-point-list">
+        {routePoints.map((point, index) => (
+          <span key={`${point.id}-${index}`}>
+            {index + 1}. {point.name}
+          </span>
+        ))}
+        {!routePoints.length ? (
+          <span>Add two or more points to calculate a route.</span>
+        ) : null}
+      </div>
+
+      {route ? (
+        <div className="map-route-summary" role="status">
+          <strong>{formatDistance(route.distanceMeters)}</strong>
+          <span>
+            {formatDuration(route.durationSeconds)} by {routeModeOptions.find((mode) => mode.id === route.mode)?.label || 'route'}
+            {route.estimated ? ' (estimated)' : ''}
+          </span>
         </div>
       ) : null}
 
-      <p>{details.summary}</p>
+      <div className="map-route-actions">
+        <button
+          type="button"
+          onClick={() => onAddRoutePoint(details, { calculateFromUserLocation: true })}
+          disabled={routeStatus === 'loading'}
+        >
+          <Navigation size={16} aria-hidden="true" />
+          {routeStatus === 'loading' ? 'Calculating route...' : 'Route from my location'}
+        </button>
+      </div>
 
       <dl>
         <div>
@@ -735,36 +453,34 @@ function PlaceDetails({ onRemove, place, categoryId }) {
 
 function MapPage() {
   const [query, setQuery] = useState('Penang');
-  const [activeCategories, setActiveCategories] = useState(['attractions']);
+  const [activeCategories, setActiveCategories] = useState([]);
+  const [categoryResults, setCategoryResults] = useState({});
   const [suggestions, setSuggestions] = useState([]);
   const [isSuggestionOpen, setIsSuggestionOpen] = useState(false);
   const [customMarkers, setCustomMarkers] = useState(() => loadUserMarkers());
   const [isPanelOpen, setIsPanelOpen] = useState(true);
+  const [isAddingMarker, setIsAddingMarker] = useState(false);
+  const [isLayerMenuOpen, setIsLayerMenuOpen] = useState(false);
   const [mapType, setMapType] = useState('default');
   const [mapCenter, setMapCenter] = useState(defaultCenter);
-  const [selectedPlace, setSelectedPlace] = useState({
-    id: 'penang',
-    name: 'Penang',
-    displayName: 'Penang, Malaysia',
-    lat: defaultCenter[0],
-    lng: defaultCenter[1],
-    zoom: defaultZoom,
-    panelMode: 'country',
-  });
+  const [mapBounds, setMapBounds] = useState(null);
+  const [selectedPlace, setSelectedPlace] = useState(categoryPanelPlace);
+  const [userLocation, setUserLocation] = useState(fallbackUserLocation);
+  const [route, setRoute] = useState(null);
+  const [routeMode, setRouteMode] = useState('car');
+  const [routePoints, setRoutePoints] = useState([]);
+  const [routeStatus, setRouteStatus] = useState('idle');
   const [status, setStatus] = useState('idle');
   const [message, setMessage] = useState('');
 
-  const panelMode = selectedPlace?.panelMode || (isCountryResult(selectedPlace) ? 'country' : 'place');
+  const panelMode = selectedPlace?.panelMode || 'category';
   const selectedCategory = selectedPlace?.categoryId || activeCategories[0] || 'attractions';
-  const selectedCountryCities = useMemo(() => getCityRecommendations(selectedPlace), [selectedPlace]);
   const selectedCategoryLabels = activeCategories.length
     ? activeCategories.map((categoryId) => categoryConfig[categoryId].label).join(', ')
     : 'No categories selected';
 
   const visibleMarkers = useMemo(() => {
-    const selectedCategoryPlaces = activeCategories.flatMap((categoryId) => (
-      getLocalizedCategoryPlaces(categoryId, selectedPlace, mapCenter)
-    ));
+    const selectedCategoryPlaces = activeCategories.flatMap((categoryId) => categoryResults[categoryId] || []);
     const mapPlaces = [...selectedCategoryPlaces, ...customMarkers];
     const isSelectedCategoryMarker = mapPlaces.some((place) => place.id === selectedPlace?.id);
 
@@ -773,20 +489,33 @@ function MapPage() {
     }
 
     return mapPlaces;
-  }, [activeCategories, customMarkers, mapCenter, panelMode, selectedPlace]);
+  }, [activeCategories, categoryResults, customMarkers, panelMode, selectedPlace]);
 
-  const topCategoryRecommendationGroups = useMemo(
+  const visibleCategoryResults = useMemo(() => (
+    Object.fromEntries(
+      activeCategories
+        .filter((categoryId) => categoryId !== 'custom' && categoryId !== 'saved')
+        .map((categoryId) => [categoryId, categoryResults[categoryId] || []])
+    )
+  ), [activeCategories, categoryResults]);
+
+  const categoryResultGroups = useMemo(
     () => activeCategories.map((categoryId) => ({
       categoryId,
-      places: getLocalizedCategoryPlaces(categoryId, selectedPlace, mapCenter).slice(0, 10),
+      places: categoryId === 'custom' ? customMarkers : visibleCategoryResults[categoryId] || [],
     })),
-    [activeCategories, mapCenter, selectedPlace]
+    [activeCategories, customMarkers, visibleCategoryResults]
   );
-  const categoryRecommendationCount = topCategoryRecommendationGroups.reduce(
+  const categoryResultCount = categoryResultGroups.reduce(
     (total, group) => total + group.places.length,
     0
   );
   const activeTileLayer = mapTileLayers[mapType];
+
+  const handleViewportChange = useCallback((viewport) => {
+    setMapCenter(viewport.center);
+    setMapBounds(viewport.bounds);
+  }, []);
 
   useEffect(() => {
     const trimmedQuery = query.trim();
@@ -816,6 +545,87 @@ function MapPage() {
   }, [query]);
 
   useEffect(() => {
+    if (!navigator.geolocation) {
+      return undefined;
+    }
+
+    const watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        setUserLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+          isFallback: false,
+        });
+      },
+      () => undefined,
+      { enableHighAccuracy: true, maximumAge: 60000, timeout: 10000 }
+    );
+
+    return () => navigator.geolocation.clearWatch(watchId);
+  }, []);
+
+  useEffect(() => {
+    const searchableCategories = activeCategories.filter((categoryId) => (
+      categoryId !== 'saved' && categoryId !== 'custom'
+    ));
+
+    if (!searchableCategories.length) {
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    const timerId = window.setTimeout(async () => {
+      setStatus('loading');
+      setMessage('Loading places from OpenStreetMap...');
+
+      try {
+        const results = await Promise.all(
+          searchableCategories.map(async (categoryId) => {
+            const places = await searchOpenStreetMapCategoryPlaces(categoryId, mapCenter, {
+              bounds: mapBounds,
+              limit: categoryId === 'attractions' || categoryId === 'shopping' ? 60 : 30,
+              signal: controller.signal,
+            });
+
+            return [categoryId, places.map((place) => formatCategoryPlace(place, categoryId))];
+          })
+        );
+
+        if (controller.signal.aborted) {
+          return;
+        }
+
+        setCategoryResults((currentResults) => {
+          const nextResults = {};
+          const resultEntries = Object.fromEntries(results);
+
+          activeCategories.forEach((categoryId) => {
+            if (categoryId === 'custom' || categoryId === 'saved') {
+              return;
+            }
+
+            nextResults[categoryId] = resultEntries[categoryId] || currentResults[categoryId] || [];
+          });
+
+          return nextResults;
+        });
+        setStatus('success');
+        setMessage('');
+      } catch (error) {
+        if (error.name !== 'AbortError') {
+          setStatus('error');
+          setMessage(error.message || 'Unable to load map places.');
+        }
+      }
+    }, 350);
+
+    return () => {
+      window.clearTimeout(timerId);
+      controller.abort();
+    };
+  }, [activeCategories, mapBounds, mapCenter]);
+
+  useEffect(() => {
     saveUserMarkers(customMarkers);
   }, [customMarkers]);
 
@@ -842,22 +652,14 @@ function MapPage() {
       }
 
       const place = places[0];
-      const nextPanelMode = isCountryResult(place) ? 'country' : 'place';
       const nextCategory = inferCategoryFromSearch(trimmedQuery, place);
 
-      if (nextPanelMode === 'place') {
-        setActiveCategories([nextCategory]);
-      }
-
       setSelectedPlace({
-        ...placeDetailsFallback,
-        ...place,
+        ...formatCategoryPlace(place, nextCategory),
         address: place.displayName,
         categoryId: nextCategory,
-        image: getPlaceImage(nextCategory, place.name),
-        reviewItems: createReviewItems(place.name),
-        zoom: nextPanelMode === 'country' ? 6 : 13,
-        panelMode: nextPanelMode,
+        zoom: isCountryResult(place) ? 6 : 13,
+        panelMode: 'place',
       });
       setMapCenter([place.lat, place.lng]);
       setStatus('success');
@@ -880,7 +682,9 @@ function MapPage() {
       return [...currentCategories, categoryId];
     });
     setSelectedPlace((currentPlace) => ({
-      ...currentPlace,
+      ...categoryPanelPlace,
+      lat: currentPlace?.lat || mapCenter[0],
+      lng: currentPlace?.lng || mapCenter[1],
       panelMode: 'category',
     }));
     setIsPanelOpen(true);
@@ -902,6 +706,86 @@ function MapPage() {
     setIsPanelOpen(true);
   };
 
+  const calculateRoute = async (points = routePoints, mode = routeMode) => {
+    if (points.length < 2) {
+      setStatus('error');
+      setMessage('Add at least two route points.');
+      return;
+    }
+
+    setRouteStatus('loading');
+    setStatus('loading');
+    setMessage('Calculating route...');
+
+    try {
+      const routeDetails = await getRouteBetweenPlaces(points, null, { mode });
+
+      setRoute({
+        ...routeDetails,
+        points,
+      });
+      setRouteStatus('success');
+      setStatus('success');
+      setMessage('');
+    } catch (error) {
+      setRoute(null);
+      setRouteStatus('error');
+      setStatus('error');
+      setMessage(error.message || 'Unable to calculate route.');
+    }
+  };
+
+  const handleAddRoutePoint = (place, options = {}) => {
+    if (!place?.lat || !place?.lng) {
+      setStatus('error');
+      setMessage('Select a valid place before adding it to the route.');
+      return;
+    }
+
+    const routePoint = {
+      id: place.id,
+      name: place.name,
+      lat: place.lat,
+      lng: place.lng,
+    };
+    const nextPoints = options.calculateFromUserLocation
+      ? [
+        {
+          id: userLocation.id,
+          name: userLocation.isFallback ? 'Default location' : 'My location',
+          lat: userLocation.lat,
+          lng: userLocation.lng,
+        },
+        routePoint,
+      ]
+      : [...routePoints, routePoint];
+
+    setRoutePoints(nextPoints);
+    setRoute(null);
+
+    if (options.calculateFromUserLocation) {
+      calculateRoute(nextPoints, routeMode);
+    }
+  };
+
+  const handleCalculateRoute = () => {
+    calculateRoute(routePoints, routeMode);
+  };
+
+  const handleClearRoute = () => {
+    setRoute(null);
+    setRoutePoints([]);
+    setRouteStatus('idle');
+  };
+
+  const handleRouteModeChange = (nextMode) => {
+    setRouteMode(nextMode);
+
+    if (routePoints.length >= 2) {
+      calculateRoute(routePoints, nextMode);
+    }
+  };
+
   const handleAddCustomMarker = (latlng) => {
     const markerNumber = customMarkers.length + 1;
     const nextMarker = {
@@ -909,24 +793,15 @@ function MapPage() {
       name: `My marker ${markerNumber}`,
       address: `${latlng.lat.toFixed(5)}, ${latlng.lng.toFixed(5)}`,
       hours: 'Custom marker',
-      rating: 'Saved',
+      rating: 'Custom',
       reviews: 'Personal place',
       summary: 'A custom place added to the travel map.',
-      image: fallbackPlaceImages.saved,
       lat: latlng.lat,
       lng: latlng.lng,
-      categoryId: 'saved',
+      categoryId: 'custom',
       custom: true,
       panelMode: 'place',
       zoom: 14,
-      reviewItems: [
-        {
-          id: `custom-marker-${Date.now()}-note`,
-          author: 'Personal note',
-          rating: 'Saved',
-          text: 'Use this marker to remember a place for the trip.',
-        },
-      ],
     };
 
     setCustomMarkers((markers) => [...markers, nextMarker]);
@@ -935,58 +810,52 @@ function MapPage() {
     setQuery(nextMarker.name);
     setMessage('');
     setStatus('success');
+    setIsAddingMarker(false);
     setIsPanelOpen(true);
   };
 
   const handleRemoveCustomMarker = (markerId) => {
     setCustomMarkers((markers) => markers.filter((marker) => marker.id !== markerId));
+    setRoute((currentRoute) => (
+      currentRoute?.points?.some((point) => point.id === markerId) ? null : currentRoute
+    ));
+    setRoutePoints((points) => points.filter((point) => point.id !== markerId));
     setSelectedPlace((currentPlace) => (
       currentPlace?.id === markerId
-        ? { ...currentPlace, id: 'category-panel', name: 'Top Places', panelMode: 'category', lat: defaultCenter[0], lng: defaultCenter[1], zoom: defaultZoom }
+        ? categoryPanelPlace
         : currentPlace
     ));
   };
 
-  const handleSelectCity = (city) => {
-    setSelectedPlace({
-      ...placeDetailsFallback,
-      id: city.id,
-      name: city.name,
-      displayName: `${city.name}, ${selectedPlace?.name || 'Destination'}`,
-      address: `${city.name}, ${selectedPlace?.name || 'Destination'}`,
-      lat: city.lat,
-      lng: city.lng,
-      categoryId: activeCategories[0],
-      image: city.image,
-      reviewItems: createReviewItems(city.name),
-      zoom: 12,
-      panelMode: 'place',
-    });
-    setMapCenter([city.lat, city.lng]);
-    setQuery(city.name);
-    setStatus('success');
-    setMessage('');
-    setIsSuggestionOpen(false);
-    setIsPanelOpen(true);
+  const handleRenameCustomMarker = (markerId, nextName) => {
+    const trimmedName = nextName.trim();
+
+    if (!trimmedName) {
+      return;
+    }
+
+    setCustomMarkers((markers) => markers.map((marker) => (
+      marker.id === markerId ? { ...marker, name: trimmedName } : marker
+    )));
+    setRoutePoints((points) => points.map((point) => (
+      point.id === markerId ? { ...point, name: trimmedName } : point
+    )));
+    setSelectedPlace((currentPlace) => (
+      currentPlace?.id === markerId
+        ? { ...currentPlace, name: trimmedName }
+        : currentPlace
+    ));
   };
 
   const handleSelectSuggestion = (place) => {
-    const nextPanelMode = isCountryResult(place) ? 'country' : 'place';
     const nextCategory = inferCategoryFromSearch(query, place);
 
-    if (nextPanelMode === 'place') {
-      setActiveCategories([nextCategory]);
-    }
-
     setSelectedPlace({
-      ...placeDetailsFallback,
-      ...place,
+      ...formatCategoryPlace(place, nextCategory),
       address: place.displayName,
       categoryId: nextCategory,
-      image: getPlaceImage(nextCategory, place.name),
-      reviewItems: createReviewItems(place.name),
-      zoom: nextPanelMode === 'country' ? 6 : 13,
-      panelMode: nextPanelMode,
+      zoom: isCountryResult(place) ? 6 : 13,
+      panelMode: 'place',
     });
     setMapCenter([place.lat, place.lng]);
     setQuery(place.name);
@@ -1035,7 +904,7 @@ function MapPage() {
             </button>
           ) : null}
           {isSuggestionOpen && suggestions.length ? (
-            <div className="map-search-suggestions" role="listbox" aria-label="Search recommendations">
+            <div className="map-search-suggestions" role="listbox" aria-label="Search results">
               {suggestions.map((place) => (
                 <button
                   key={place.id}
@@ -1082,6 +951,12 @@ function MapPage() {
         </p>
       ) : null}
 
+      {isAddingMarker ? (
+        <p className="map-add-marker-hint" role="status">
+          Click anywhere on the map to place your marker.
+        </p>
+      ) : null}
+
       <div className="map-canvas" aria-label="Interactive travel map">
         <MapContainer
           center={defaultCenter}
@@ -1095,13 +970,37 @@ function MapPage() {
             url={activeTileLayer.url}
           />
           <MapFocus place={selectedPlace} />
-          <MapClickHandler onAddMarker={handleAddCustomMarker} />
-          <MapViewportTracker onCenterChange={setMapCenter} />
+          <MapClickHandler isAddingMarker={isAddingMarker} onAddMarker={handleAddCustomMarker} />
+          <MapViewportTracker onViewportChange={handleViewportChange} />
           <MapToolControls
+            isAddingMarker={isAddingMarker}
+            isLayerMenuOpen={isLayerMenuOpen}
             mapType={mapType}
             panelOpen={isPanelOpen}
-            onToggleMapType={() => setMapType((currentType) => (currentType === 'default' ? 'satellite' : 'default'))}
+            onSelectMapType={(nextType) => {
+              setMapType(nextType);
+              setIsLayerMenuOpen(false);
+            }}
+            onToggleAddMarker={() => setIsAddingMarker((currentValue) => !currentValue)}
+            onToggleLayerMenu={() => setIsLayerMenuOpen((currentValue) => !currentValue)}
           />
+          {userLocation ? (
+            <Marker
+              position={[userLocation.lat, userLocation.lng]}
+              icon={createUserLocationIcon()}
+              zIndexOffset={1000}
+            >
+              <Tooltip direction="top" offset={[0, -12]}>
+                You are here
+              </Tooltip>
+            </Marker>
+          ) : null}
+          {route?.coordinates?.length ? (
+            <Polyline
+              positions={route.coordinates}
+              pathOptions={{ color: '#2563eb', opacity: 0.9, weight: 5 }}
+            />
+          ) : null}
           {visibleMarkers.map((pin) => (
             <Marker
               key={pin.id}
@@ -1144,79 +1043,53 @@ function MapPage() {
       ) : null}
 
       {isPanelOpen ? (
-      <aside className="map-destination-panel" aria-label="Destination recommendations">
+      <aside className="map-destination-panel" aria-label="Map results">
         <div className="map-panel-header">
           <button type="button" aria-label="Close destination panel" onClick={() => setIsPanelOpen(false)}>
             <X size={22} aria-hidden="true" />
           </button>
           <h2 id="map-page-title">
-            {panelMode === 'category' ? 'Top Places' : selectedPlace?.name || 'Penang'}
+            {panelMode === 'category' ? 'Map results' : selectedPlace?.name || 'Selected place'}
             <ChevronRight size={18} aria-hidden="true" />
           </h2>
           <p>
-            {panelMode === 'country' ? '2-5 days recommended' : selectedCategoryLabels}
+            {panelMode === 'category' ? selectedCategoryLabels : categoryConfig[selectedCategory]?.label}
             <span>|</span>
-            {panelMode === 'country'
-              ? 'Recommended cities'
-              : `${categoryRecommendationCount} recommended places`}
+            {panelMode === 'category'
+              ? `${categoryResultCount} places found`
+              : 'Place details'}
           </p>
         </div>
 
-        {panelMode === 'country' ? (
+        {panelMode === 'category' ? (
           <>
             <div className="map-panel-section">
-              <h3>Top Cities</h3>
-              <p>Calculated using destination interest and traveller activity</p>
+              <h3>Places on the map</h3>
+              <p>Results are loaded from OpenStreetMap for the visible area.</p>
             </div>
 
             <div className="map-city-list">
-              {selectedCountryCities.map((city) => (
-                <button
-                  className={selectedPlace?.id === city.id ? 'is-active' : ''}
-                  key={city.id}
-                  type="button"
-                  onClick={() => handleSelectCity(city)}
-                >
-                  <span className="map-city-image-wrap">
-                    <img src={city.image} alt="" loading="lazy" />
-                    <strong>{city.rank}</strong>
-                  </span>
-                  <span className="map-city-content">
-                    <span className="map-city-title">{city.name}</span>
-                    <span className="map-city-meta">
-                      <Star size={12} fill="currentColor" aria-hidden="true" />
-                      {city.score}
-                      <small>{city.stay}</small>
-                    </span>
-                    <span className="map-city-tag">{city.highlight}</span>
-                  </span>
-                </button>
-              ))}
-            </div>
-          </>
-        ) : panelMode === 'category' ? (
-          <>
-            <div className="map-panel-section">
-              <h3>Top Places</h3>
-              <p>Top 10 recommendations from selected categories</p>
-            </div>
-
-            <div className="map-city-list">
-              {!categoryRecommendationCount ? (
+              {!activeCategories.length ? (
                 <div className="map-empty-selection">
-                  Select one or more categories to show recommendations and markers.
+                  Select a category to show places and markers on the map.
                 </div>
               ) : null}
 
-              {topCategoryRecommendationGroups.map((group) => {
+              {activeCategories.length && !categoryResultCount && status !== 'loading' ? (
+                <div className="map-empty-selection">
+                  No places found in this map area. Move the map or choose another category.
+                </div>
+              ) : null}
+
+              {categoryResultGroups.map((group) => {
                 const category = categoryConfig[group.categoryId];
                 const GroupIcon = category.icon;
 
                 return (
-                  <section className="map-category-recommendation-group" key={group.categoryId}>
+                  <section className="map-category-result-group" key={group.categoryId}>
                     <h4 style={{ '--group-color': category.color }}>
                       <GroupIcon size={15} aria-hidden="true" />
-                      Top 10 {category.label}
+                      {category.label}
                     </h4>
 
                     {group.places.map((place) => {
@@ -1234,14 +1107,12 @@ function MapPage() {
                             style={{ '--rank-color': categoryConfig[place.categoryId].color }}
                           >
                             <PlaceIcon size={22} aria-hidden="true" />
-                            <strong>{place.rank}</strong>
                           </span>
                           <span className="map-city-content">
                             <span className="map-city-title">{place.name}</span>
                             <span className="map-city-meta">
-                              <Star size={12} fill="currentColor" aria-hidden="true" />
-                              {place.rating}
-                              <small>{place.reviews}</small>
+                              <MapPin size={12} aria-hidden="true" />
+                              <small>{place.type || place.category || 'place'}</small>
                             </span>
                             <span className="map-city-tag">{place.address}</span>
                           </span>
@@ -1257,7 +1128,16 @@ function MapPage() {
           <PlaceDetails
             place={selectedPlace}
             categoryId={selectedCategory}
+            route={route}
+            routeMode={routeMode}
+            routePoints={routePoints}
+            routeStatus={routeStatus}
+            onAddRoutePoint={handleAddRoutePoint}
+            onCalculateRoute={handleCalculateRoute}
+            onClearRoute={handleClearRoute}
+            onRenameCustomMarker={handleRenameCustomMarker}
             onRemove={handleRemoveCustomMarker}
+            onRouteModeChange={handleRouteModeChange}
           />
         )}
       </aside>
