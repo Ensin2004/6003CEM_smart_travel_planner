@@ -12,9 +12,10 @@ import {
   Star,
   Utensils,
 } from 'lucide-react';
+import { Country, State } from 'country-state-city';
 import { useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { searchAttractions } from '../../api/exploreApi';
+import { searchAttractions, searchHotels } from '../../api/exploreApi';
 import './ExplorePage.css';
 
 const viewOptions = [
@@ -28,25 +29,82 @@ const viewOptions = [
 const getErrorMessage = (error) =>
   error.response?.data?.message || error.response?.data?.error || error.message || 'Unable to search right now.';
 
+const roomTypeOptions = [
+  { value: '', label: 'Any room' },
+  { value: 'single room', label: 'Single' },
+  { value: 'double room', label: 'Double' },
+  { value: 'family room', label: 'Family' },
+  { value: 'suite', label: 'Suite' },
+];
+
 function ExplorePage() {
   const [searchParams] = useSearchParams();
   const activeView = searchParams.get('view') || 'discover';
   const [destination, setDestination] = useState('');
   const [attractions, setAttractions] = useState([]);
+  const [hotels, setHotels] = useState([]);
+  const [hotelFilters, setHotelFilters] = useState({
+    country: '',
+    countryCode: '',
+    state: '',
+    roomType: '',
+  });
+  const [hotelSearchCriteria, setHotelSearchCriteria] = useState(null);
+  const [nextHotelStart, setNextHotelStart] = useState(0);
+  const [hasMoreHotels, setHasMoreHotels] = useState(false);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
   const [isSearching, setIsSearching] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
   const activeOption = useMemo(
     () => viewOptions.find((option) => option.id === activeView) || viewOptions[0],
     [activeView]
   );
   const ActiveIcon = activeOption.icon;
-  const destinationLabel = destination.trim() || 'your next city';
-  const resultCount = attractions.length;
-  const ratedCount = attractions.filter((attraction) => attraction.rating).length;
-  const topRatedCount = attractions.filter((attraction) => attraction.rating >= 4.5).length;
-  const hasAttractionResults = resultCount > 0;
+  const isAttractionsView = activeOption.id === 'attractions';
+  const isHotelsView = activeOption.id === 'hotels';
+  const isSearchView = isAttractionsView || isHotelsView;
+  const activeItems = isHotelsView ? hotels : attractions;
+  const countryOptions = useMemo(() => Country.getAllCountries(), []);
+  const stateOptions = useMemo(
+    () => (hotelFilters.countryCode ? State.getStatesOfCountry(hotelFilters.countryCode) : []),
+    [hotelFilters.countryCode]
+  );
+  const selectedRoomLabel = roomTypeOptions.find((option) => option.value === hotelFilters.roomType)?.label || 'Any room';
+  const hotelSearchLabel = [
+    destination.trim(),
+    hotelFilters.state.trim(),
+    hotelFilters.country.trim(),
+    hotelFilters.roomType ? selectedRoomLabel : '',
+  ]
+    .filter(Boolean)
+    .join(', ');
+  const resultCount = activeItems.length;
+  const ratedCount = activeItems.filter((item) => item.rating).length;
+  const topRatedCount = activeItems.filter((item) => item.rating >= 4.5).length;
+  const pricedCount = hotels.filter((hotel) => hotel.price).length;
+  const hasResults = resultCount > 0;
+  const destinationLabel = isHotelsView ? hotelSearchLabel || 'None' : destination.trim() || 'None';
+  const searchConfig = isHotelsView
+    ? {
+        finderLabel: 'Hotel finder',
+        searchTitle: 'Search for hotels',
+        resultLabel: 'Hotel results',
+        emptyTitle: 'No hotels loaded yet',
+        emptyText: 'Search by hotel name, country, or location, or use the filters to discover matching hotel cards.',
+        readyText: 'Search text or filters can begin',
+        matchesLabel: 'hotel matches',
+      }
+    : {
+        finderLabel: 'Attraction finder',
+        searchTitle: 'Search by destination',
+        resultLabel: 'Attraction results',
+        emptyTitle: 'No attractions loaded yet',
+        emptyText: 'Search a destination to see attraction cards with photos, ratings, reviews, and addresses.',
+        readyText: 'Search a city to begin',
+        matchesLabel: 'curated matches',
+      };
 
   const handleAttractionsSearch = async (event) => {
     event.preventDefault();
@@ -77,6 +135,88 @@ function ExplorePage() {
     }
   };
 
+  const handleHotelFilterChange = (field, value) => {
+    setHotelFilters((currentFilters) => ({
+      ...currentFilters,
+      [field]: value,
+    }));
+  };
+
+  const handleCountryChange = (countryCode) => {
+    const selectedCountry = countryOptions.find((country) => country.isoCode === countryCode);
+
+    setHotelFilters((currentFilters) => ({
+      ...currentFilters,
+      country: selectedCountry?.name || '',
+      countryCode,
+      state: '',
+    }));
+  };
+
+  const getHotelCriteria = () => ({
+    destination: destination.trim(),
+    country: hotelFilters.country.trim(),
+    state: hotelFilters.state.trim(),
+    roomType: hotelFilters.roomType,
+  });
+
+  const hasHotelCriteria = (criteria) => Boolean(criteria.destination || criteria.country || criteria.state || criteria.roomType);
+
+  const fetchHotels = async ({ criteria, start = 0, append = false }) => {
+    if (!hasHotelCriteria(criteria)) {
+      setError('Enter a hotel name, country, location, or room type first.');
+      return;
+    }
+
+    if (append) {
+      setIsLoadingMore(true);
+    } else {
+      setIsSearching(true);
+    }
+    setError('');
+    setStatus('');
+
+    try {
+      const response = await searchHotels({
+        ...criteria,
+        start,
+      });
+      const nextHotels = response.data.data.hotels;
+      const nextItems = nextHotels.items || [];
+
+      setHotels((currentHotels) => (append ? [...currentHotels, ...nextItems] : nextItems));
+      setHotelSearchCriteria(criteria);
+      setNextHotelStart(nextHotels.nextStart || start + nextItems.length);
+      setHasMoreHotels(Boolean(nextHotels.hasMore && nextItems.length));
+      setStatus(
+        nextHotels.available
+          ? `${append ? 'Loaded' : 'Found'} ${nextItems.length} hotel${nextItems.length === 1 ? '' : 's'} for ${nextHotels.query || destinationLabel}.`
+          : nextHotels.message
+      );
+    } catch (requestError) {
+      setError(getErrorMessage(requestError));
+      if (!append) {
+        setHotels([]);
+        setHasMoreHotels(false);
+      }
+    } finally {
+      setIsSearching(false);
+      setIsLoadingMore(false);
+    }
+  };
+
+  const handleHotelsSearch = async (event) => {
+    event.preventDefault();
+    await fetchHotels({ criteria: getHotelCriteria() });
+  };
+
+  const handleLoadMoreHotels = () => {
+    if (!hotelSearchCriteria) return;
+    fetchHotels({ criteria: hotelSearchCriteria, start: nextHotelStart, append: true });
+  };
+
+  const handleSearch = isHotelsView ? handleHotelsSearch : handleAttractionsSearch;
+
   return (
     <section className="explore-page">
       <div className="explore-hero">
@@ -88,27 +228,27 @@ function ExplorePage() {
           <h2>{activeOption.label}</h2>
           <p>Find popular stops, ratings, reviews, and addresses from live destination data before adding places into the rest of your trip plan.</p>
         </div>
-        {activeOption.id === 'attractions' && (
-          <div className="explore-hero-panel" aria-label="Attraction search summary">
+        {isSearchView && (
+          <div className="explore-hero-panel" aria-label={`${activeOption.label} search summary`}>
             <div>
               <span>Current search</span>
               <strong>{destinationLabel}</strong>
             </div>
-            <small>{resultCount ? `${resultCount} places loaded` : 'Ready to discover places'}</small>
+            <small>{resultCount ? `${resultCount} result${resultCount === 1 ? '' : 's'} loaded` : 'Ready to discover places'}</small>
             <div className="explore-hero-meter" aria-hidden="true">
-              <span style={{ width: hasAttractionResults ? '100%' : '38%' }} />
+              <span style={{ width: hasResults ? '100%' : '38%' }} />
             </div>
           </div>
         )}
       </div>
 
-      {activeOption.id === 'attractions' && (
-        <div className="explore-insights" aria-label="Attraction result summary">
+      {isSearchView && (
+        <div className="explore-insights" aria-label={`${activeOption.label} result summary`}>
           <article>
             <Search size={18} aria-hidden="true" />
             <div>
               <strong>{resultCount || '--'}</strong>
-              <span>Places loaded</span>
+              <span>{isHotelsView ? 'Hotels loaded' : 'Places loaded'}</span>
             </div>
           </article>
           <article>
@@ -119,21 +259,21 @@ function ExplorePage() {
             </div>
           </article>
           <article>
-            <Sparkles size={18} aria-hidden="true" />
+            {isHotelsView ? <Building2 size={18} aria-hidden="true" /> : <Sparkles size={18} aria-hidden="true" />}
             <div>
-              <strong>{topRatedCount || '--'}</strong>
-              <span>Highly rated</span>
+              <strong>{isHotelsView ? pricedCount || '--' : topRatedCount || '--'}</strong>
+              <span>{isHotelsView ? 'With prices' : 'Highly rated'}</span>
             </div>
           </article>
         </div>
       )}
 
-      {activeOption.id === 'attractions' ? (
+      {isSearchView ? (
         <div className="explore-workspace">
-          <form className="explore-search" onSubmit={handleAttractionsSearch}>
+          <form className={isHotelsView ? 'explore-search explore-search-hotels' : 'explore-search'} onSubmit={handleSearch}>
             <div className="explore-search-copy">
-              <span>Attraction finder</span>
-              <strong>Search by destination</strong>
+              <span>{searchConfig.finderLabel}</span>
+              <strong>{searchConfig.searchTitle}</strong>
             </div>
             <label>
               <span className="sr-only">Destination</span>
@@ -142,9 +282,49 @@ function ExplorePage() {
                 type="search"
                 value={destination}
                 onChange={(event) => setDestination(event.target.value)}
-                placeholder="Tokyo, Paris, Kuala Lumpur"
+                placeholder={isHotelsView ? 'Hotel, country or location' : 'Tokyo, Paris, Kuala Lumpur'}
               />
             </label>
+            {isHotelsView && (
+              <div className="explore-filter-row" aria-label="Hotel filters">
+                <label className="explore-filter-field">
+                  <span className="sr-only">Country</span>
+                  <select value={hotelFilters.countryCode} onChange={(event) => handleCountryChange(event.target.value)}>
+                    <option value="">Country</option>
+                    {countryOptions.map((country) => (
+                      <option key={country.isoCode} value={country.isoCode}>
+                        {country.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="explore-filter-field">
+                  <span className="sr-only">Location or state</span>
+                  <select
+                    value={hotelFilters.state}
+                    onChange={(event) => handleHotelFilterChange('state', event.target.value)}
+                    disabled={!hotelFilters.countryCode}
+                  >
+                    <option value="">State</option>
+                      {stateOptions.map((state) => (
+                        <option key={state.isoCode} value={state.name}>
+                          {state.name}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+                <label className="explore-filter-field">
+                  <span className="sr-only">Room type</span>
+                  <select value={hotelFilters.roomType} onChange={(event) => handleHotelFilterChange('roomType', event.target.value)}>
+                    {roomTypeOptions.map((option) => (
+                      <option key={option.value || 'any-room'} value={option.value}>
+                        {option.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </div>
+            )}
             <button className="primary-action" type="submit" disabled={isSearching}>
               {isSearching ? <LoaderCircle className="explore-spin" size={17} aria-hidden="true" /> : <Search size={17} aria-hidden="true" />}
               {isSearching ? 'Searching...' : 'Search'}
@@ -157,25 +337,25 @@ function ExplorePage() {
           <section className="explore-results-shell">
             <div className="explore-results-heading">
               <div>
-                <span>Attraction results</span>
-                <h3>{hasAttractionResults ? `Places for ${destinationLabel}` : 'Ready when you are'}</h3>
+                <span>{searchConfig.resultLabel}</span>
+                <h3>{hasResults ? `${isHotelsView ? 'Rooms' : 'Places'} for ${destinationLabel}` : 'Ready when you are'}</h3>
               </div>
-              <small>{hasAttractionResults ? `${resultCount} curated matches` : 'Search a city to begin'}</small>
+              <small>{hasResults ? `${resultCount} ${searchConfig.matchesLabel}` : searchConfig.readyText}</small>
             </div>
 
             <div className="explore-results">
-              {attractions.length === 0 ? (
+              {activeItems.length === 0 ? (
                 <div className="explore-empty">
-                  <MapPinned size={34} aria-hidden="true" />
-                  <h3>No attractions loaded yet</h3>
-                  <p>Search a destination to see attraction cards with photos, ratings, reviews, and addresses.</p>
+                  {isHotelsView ? <Building2 size={34} aria-hidden="true" /> : <MapPinned size={34} aria-hidden="true" />}
+                  <h3>{searchConfig.emptyTitle}</h3>
+                  <p>{searchConfig.emptyText}</p>
                 </div>
             ) : (
-              attractions.map((attraction, index) => (
-                <article className="explore-attraction" key={attraction.id}>
+              activeItems.map((item, index) => (
+                <article className="explore-attraction" key={`${item.id}-${index}`}>
                   <div className="explore-attraction-media">
-                    {attraction.imageUrl ? (
-                      <img src={attraction.imageUrl} alt="" loading="lazy" />
+                    {item.imageUrl ? (
+                      <img src={item.imageUrl} alt="" loading="lazy" />
                     ) : (
                       <div className="explore-attraction-image">
                         <Image size={28} aria-hidden="true" />
@@ -185,28 +365,34 @@ function ExplorePage() {
                   </div>
                   <div className="explore-attraction-body">
                     <div className="explore-attraction-title">
-                      <span className="explore-category">{attraction.category}</span>
-                      <h3>{attraction.name}</h3>
+                      <span className="explore-category">{isHotelsView && hotelFilters.roomType ? selectedRoomLabel : item.category}</span>
+                      <h3>{item.name}</h3>
                     </div>
                     <div className="explore-card-meta">
                       <span>
                         <Star size={14} aria-hidden="true" />
-                        {attraction.rating ? attraction.rating : 'No rating'}
+                        {item.rating ? item.rating : 'No rating'}
                       </span>
                       <span>
                         <MessageCircle size={14} aria-hidden="true" />
-                        {attraction.reviewCount ? attraction.reviewCount.toLocaleString() : 'No'} reviews
+                        {item.reviewCount ? item.reviewCount.toLocaleString() : 'No'} reviews
                       </span>
+                      {isHotelsView && item.price && (
+                        <span>
+                          <Building2 size={14} aria-hidden="true" />
+                          {item.price}
+                        </span>
+                      )}
                     </div>
-                    {attraction.address && (
+                    {item.address && (
                       <p className="explore-address">
                         <MapPin size={15} aria-hidden="true" />
-                        {attraction.address}
+                        {item.address}
                       </p>
                     )}
-                    {attraction.url && (
-                      <a className="explore-card-link" href={attraction.url} target="_blank" rel="noreferrer">
-                        View place
+                    {item.url && (
+                      <a className="explore-card-link" href={item.url} target="_blank" rel="noreferrer">
+                        {isHotelsView ? 'View hotel' : 'View place'}
                         <ExternalLink size={14} aria-hidden="true" />
                       </a>
                     )}
@@ -215,6 +401,12 @@ function ExplorePage() {
               ))
               )}
             </div>
+            {isHotelsView && hasMoreHotels && (
+              <button className="explore-view-more" type="button" onClick={handleLoadMoreHotels} disabled={isLoadingMore}>
+                {isLoadingMore ? <LoaderCircle className="explore-spin" size={17} aria-hidden="true" /> : <Search size={17} aria-hidden="true" />}
+                {isLoadingMore ? 'Loading...' : 'View more'}
+              </button>
+            )}
           </section>
         </div>
       ) : (

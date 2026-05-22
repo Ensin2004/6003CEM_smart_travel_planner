@@ -178,6 +178,11 @@
   box-shadow: 0 8px 18px rgba(16, 42, 67, 0.035);
 }
 
+.explore-search-hotels {
+  grid-template-columns: minmax(120px, 150px) minmax(200px, 0.85fr) minmax(460px, 1.35fr) auto;
+  column-gap: 10px;
+}
+
 .explore-search-copy {
   display: grid;
   gap: 4px;
@@ -194,7 +199,8 @@
   white-space: nowrap;
 }
 
-.explore-search label {
+.explore-search label,
+.explore-filter-field {
   display: flex;
   gap: 9px;
   align-items: center;
@@ -210,13 +216,15 @@
     background 0.18s ease;
 }
 
-.explore-search label:focus-within {
+.explore-search label:focus-within,
+.explore-filter-field:focus-within {
   border-color: rgba(15, 118, 110, 0.48);
   background: #ffffff;
   box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.1);
 }
 
-.explore-search input {
+.explore-search input,
+.explore-search select {
   width: 100%;
   min-width: 0;
   border: 0;
@@ -225,8 +233,25 @@
   font-size: 15px;
 }
 
-.explore-search input:focus {
+.explore-search input:focus,
+.explore-search select:focus {
   outline: none;
+}
+
+.explore-search select {
+  cursor: pointer;
+}
+
+.explore-search select:disabled {
+  cursor: not-allowed;
+  color: var(--muted);
+}
+
+.explore-filter-row {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
 }
 
 .explore-search .primary-action {
@@ -520,6 +545,42 @@
     align-items: start;
     flex-direction: column;
   }
+
+  .explore-filter-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.explore-view-more {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  justify-self: center;
+  min-height: 44px;
+  border: 1px solid rgba(15, 118, 110, 0.2);
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--teal);
+  padding: 0 18px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease;
+}
+
+.explore-view-more:hover:not(:disabled) {
+  border-color: rgba(15, 118, 110, 0.36);
+  box-shadow: 0 8px 18px rgba(16, 42, 67, 0.055);
+  transform: translateY(-1px);
+}
+
+.explore-view-more:disabled {
+  cursor: not-allowed;
+  opacity: 0.72;
 }
 
 @media (max-width: 720px) {

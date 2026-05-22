@@ -18,7 +18,7 @@ const fallbackAttractions = (destination, message = 'Attractions temporarily una
   items: [],
 });
 
-const recordAttractionsFailure = (message, statusCode, destination) =>
+const recordPlacesFailure = (endpoint, message, statusCode, metadata) =>
   env.nodeEnv === 'test'
     ? Promise.resolve()
     : apiLogService
@@ -26,15 +26,16 @@ const recordAttractionsFailure = (message, statusCode, destination) =>
           service: 'serpapi',
           category: 'api',
           severity: statusCode === 429 ? 'warning' : 'error',
-          endpoint: 'attractions',
+          endpoint,
           status: 'fail',
           statusCode,
           message,
-          metadata: {
-            destination,
-          },
+          metadata,
         })
-        .catch((error) => logger.error(`Failed to record attractions API event: ${error.message}`));
+        .catch((error) => logger.error(`Failed to record ${endpoint} API event: ${error.message}`));
+
+const recordAttractionsFailure = (message, statusCode, destination) =>
+  recordPlacesFailure('attractions', message, statusCode, { destination });
 
 const getText = (value) => {
   if (!value) return '';
@@ -118,7 +119,7 @@ const getAttractionsByDestination = async (destination) => {
     const attractions = {
       available: true,
       destination,
-      items: rawItems.slice(0, 12).map(normalizeAttraction),
+      items: rawItems.map(normalizeAttraction),
       lastUpdated: new Date().toISOString(),
     };
 
