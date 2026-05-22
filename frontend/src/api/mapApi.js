@@ -1,4 +1,26 @@
 const NOMINATIM_SEARCH_URL = 'https://nominatim.openstreetmap.org/search';
+const OSRM_ROUTE_URL = 'https://router.project-osrm.org/route/v1';
+const routeModeProfiles = {
+  car: 'driving',
+  bike: 'cycling',
+  walking: 'foot',
+};
+const estimatedModeSpeedsKph = {
+  walking: 5,
+  car: 45,
+  bike: 16,
+  train: 80,
+  plane: 700,
+};
+
+const categorySearchTerms = {
+  hotels: ['hotel', 'resort', 'guest house'],
+  airports: ['airport'],
+  train: ['train station', 'railway station'],
+  food: ['restaurant', 'cafe', 'food court'],
+  attractions: ['tourist attraction', 'museum', 'viewpoint', 'monument', 'art gallery'],
+  shopping: ['shopping mall', 'hypermarket', 'supermarket', 'department store', 'marketplace'],
+};
 
 const getOpenStreetMapErrorMessage = (status) => {
   if (status === 429) {
@@ -11,6 +33,17 @@ const getOpenStreetMapErrorMessage = (status) => {
 
   return 'Unable to search this location.';
 };
+
+const normalizeOpenStreetMapPlace = (place, fallbackName = 'Selected place') => ({
+  id: `${place.osm_type}-${place.osm_id}`,
+  name: place.name || place.display_name?.split(',')[0] || fallbackName,
+  displayName: place.display_name || 'Location',
+  lat: Number(place.lat),
+  lng: Number(place.lon),
+  category: place.category || 'place',
+  type: place.type || 'location',
+  importance: Number(place.importance || 0),
+});
 
 export const searchOpenStreetMapPlaces = async (query, options = {}) => {
   const trimmedQuery = String(query || '').trim();
@@ -40,15 +73,163 @@ export const searchOpenStreetMapPlaces = async (query, options = {}) => {
   const places = await response.json();
 
   return places
-    .map((place) => ({
-      id: `${place.osm_type}-${place.osm_id}`,
-      name: place.name || place.display_name?.split(',')[0] || 'Selected place',
-      displayName: place.display_name || 'Location',
-      lat: Number(place.lat),
-      lng: Number(place.lon),
-      category: place.category || 'place',
-      type: place.type || 'location',
-      importance: Number(place.importance || 0),
-    }))
+    .map((place) => normalizeOpenStreetMapPlace(place))
     .filter((place) => Number.isFinite(place.lat) && Number.isFinite(place.lng));
+};
+
+export const searchOpenStreetMapCategoryPlaces = async (categoryId, center, options = {}) => {
+  const searchTerms = categorySearchTerms[categoryId] || [];
+  const lat = Number(center?.[0]);
+  const lng = Number(center?.[1]);
+
+  if (!searchTerms.length || !Number.isFinite(lat) || !Number.isFinite(lng)) {
+    return [];
+  }
+
+  const radius = Number(options.radius || 0.18);
+  const bounds = options.bounds;
+  const viewbox = bounds
+    ? [
+      Number(bounds.west).toFixed(5),
+      Number(bounds.north).toFixed(5),
+      Number(bounds.east).toFixed(5),
+      Number(bounds.south).toFixed(5),
+    ].join(',')
+    : [
+      (lng - radius).toFixed(5),
+      (lat + radius).toFixed(5),
+      (lng + radius).toFixed(5),
+      (lat - radius).toFixed(5),
+    ].join(',');
+  const limitPerTerm = Math.max(8, Math.ceil((options.limit || 40) / searchTerms.length));
+
+  const responses = await Promise.all(searchTerms.map(async (searchTerm) => {
+    const params = new URLSearchParams({
+      q: searchTerm,
+      format: 'jsonv2',
+      addressdetails: '1',
+      limit: String(limitPerTerm),
+      bounded: '1',
+      viewbox,
+    });
+
+    const response = await fetch(`${NOMINATIM_SEARCH_URL}?${params.toString()}`, {
+      headers: {
+        Accept: 'application/json',
+      },
+      signal: options.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(getOpenStreetMapErrorMessage(response.status));
+    }
+
+    return response.json();
+  }));
+
+  const uniquePlaces = new Map();
+
+  responses.flat().forEach((place) => {
+    const normalizedPlace = normalizeOpenStreetMapPlace(place, categoryId);
+
+    if (Number.isFinite(normalizedPlace.lat) && Number.isFinite(normalizedPlace.lng)) {
+      uniquePlaces.set(normalizedPlace.id, normalizedPlace);
+    }
+  });
+
+  return [...uniquePlaces.values()]
+    .sort((firstPlace, secondPlace) => secondPlace.importance - firstPlace.importance)
+    .slice(0, options.limit || 40);
+};
+
+const toRadians = (degrees) => degrees * (Math.PI / 180);
+
+const getDistanceMeters = (firstPoint, secondPoint) => {
+  const earthRadiusMeters = 6371000;
+  const firstLat = toRadians(Number(firstPoint.lat));
+  const secondLat = toRadians(Number(secondPoint.lat));
+  const latDifference = toRadians(Number(secondPoint.lat) - Number(firstPoint.lat));
+  const lngDifference = toRadians(Number(secondPoint.lng) - Number(firstPoint.lng));
+  const haversineValue = Math.sin(latDifference / 2) ** 2
+    + Math.cos(firstLat) * Math.cos(secondLat) * Math.sin(lngDifference / 2) ** 2;
+
+  return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(haversineValue), Math.sqrt(1 - haversineValue));
+};
+
+const getEstimatedRoute = (points, mode) => {
+  const distanceMeters = points.slice(1).reduce((totalDistance, point, index) => (
+    totalDistance + getDistanceMeters(points[index], point)
+  ), 0);
+  const speedKph = estimatedModeSpeedsKph[mode] || estimatedModeSpeedsKph.car;
+
+  return {
+    distanceMeters,
+    durationSeconds: distanceMeters / ((speedKph * 1000) / 3600),
+    coordinates: points.map((point) => [Number(point.lat), Number(point.lng)]),
+    estimated: true,
+    mode,
+  };
+};
+
+export const getRouteBetweenPlaces = async (pointsOrOrigin, destination, options = {}) => {
+  const points = Array.isArray(pointsOrOrigin)
+    ? pointsOrOrigin
+    : [pointsOrOrigin, destination];
+  const mode = options.mode || 'car';
+  const validPoints = points
+    .map((point) => ({
+      ...point,
+      lat: Number(point?.lat),
+      lng: Number(point?.lng),
+    }))
+    .filter((point) => Number.isFinite(point.lat) && Number.isFinite(point.lng));
+
+  if (validPoints.length < 2) {
+    throw new Error('Route needs at least two points.');
+  }
+
+  if (!routeModeProfiles[mode]) {
+    return getEstimatedRoute(validPoints, mode);
+  }
+
+  const coordinates = validPoints.map((point) => `${point.lng},${point.lat}`).join(';');
+  const params = new URLSearchParams({
+    overview: 'full',
+    geometries: 'geojson',
+    steps: 'false',
+  });
+
+  try {
+    const response = await fetch(`${OSRM_ROUTE_URL}/${routeModeProfiles[mode]}/${coordinates}?${params.toString()}`, {
+      headers: {
+        Accept: 'application/json',
+      },
+      signal: options.signal,
+    });
+
+    if (!response.ok) {
+      return getEstimatedRoute(validPoints, mode);
+    }
+
+    const routeData = await response.json();
+    const route = routeData.routes?.[0];
+
+    if (!route) {
+      return getEstimatedRoute(validPoints, mode);
+    }
+
+    return {
+      distanceMeters: route.distance,
+      durationSeconds: route.duration,
+      coordinates: route.geometry.coordinates.map(([lng, lat]) => [lat, lng]),
+      estimated: false,
+      mode,
+    };
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw error;
+    }
+
+    return getEstimatedRoute(validPoints, mode);
+  }
 };
