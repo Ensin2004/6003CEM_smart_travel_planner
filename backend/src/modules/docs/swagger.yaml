@@ -3,6 +3,316 @@ info:
   title: Smart Travel Planner API
   version: 1.0.0
 paths:
+  /api/v1/map/places:
+    get:
+      summary: Search map places with rich Google Maps details
+      tags:
+        - Map
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: category
+          required: true
+          schema:
+            type: string
+            enum: [hotels, airports, train, food, attractions, shopping]
+          example: attractions
+        - in: query
+          name: latitude
+          required: true
+          schema:
+            type: number
+          example: 5.4141
+        - in: query
+          name: longitude
+          required: true
+          schema:
+            type: number
+          example: 100.3288
+        - in: query
+          name: destination
+          required: false
+          schema:
+            type: string
+          example: Penang
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 60
+          example: 30
+      responses:
+        '200':
+          description: Normalized map places with images, ratings, prices, hours, and coordinates
+          content:
+            application/json:
+              example:
+                status: success
+                message: Success
+                data:
+                  places:
+                    available: true
+                    category: attractions
+                    items:
+                      - id: ChIJ123
+                        name: Kek Lok Si Temple
+                        rating: 4.4
+                        reviews: 10482
+                        price: Price unavailable
+                        hours: Open now
+                        imageUrl: https://example.com/photo.jpg
+                        address: Air Itam, Penang
+                        lat: 5.4001
+                        lng: 100.2731
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid token
+        '429':
+          description: Too many third-party API requests
+        '503':
+          description: External map service unavailable
+  /api/v1/map/place-details:
+    get:
+      summary: Get richer details for a selected map place
+      tags:
+        - Map
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: category
+          required: true
+          schema:
+            type: string
+            enum: [hotels, airports, train, food, attractions, shopping]
+          example: food
+        - in: query
+          name: name
+          required: true
+          schema:
+            type: string
+          example: Penang Road Famous Teochew Chendul
+        - in: query
+          name: address
+          required: false
+          schema:
+            type: string
+          example: George Town, Penang
+      responses:
+        '200':
+          description: Normalized selected place details
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid token
+        '429':
+          description: Too many third-party API requests
+  /api/v1/map/weather:
+    get:
+      summary: Get weather for the selected map place
+      tags:
+        - Map
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: destination
+          required: true
+          schema:
+            type: string
+          example: Kek Lok Si Temple
+        - in: query
+          name: date
+          required: false
+          schema:
+            type: string
+            format: date
+          example: '2026-05-23'
+        - in: query
+          name: latitude
+          required: false
+          schema:
+            type: number
+          example: 5.4001
+        - in: query
+          name: longitude
+          required: false
+          schema:
+            type: number
+          example: 100.2731
+        - in: query
+          name: locationLabel
+          required: false
+          schema:
+            type: string
+          example: Kek Lok Si Temple
+      responses:
+        '200':
+          description: Parsed Open-Meteo forecast for a map place
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid token
+        '429':
+          description: Too many third-party API requests
+        '503':
+          description: Weather service unavailable
+  /api/v1/explore/weather:
+    get:
+      summary: Get destination weather by travel date
+      tags:
+        - Explore
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: destination
+          required: true
+          schema:
+            type: string
+            minLength: 2
+          example: Tokyo
+        - in: query
+          name: date
+          required: false
+          schema:
+            type: string
+            format: date
+          example: '2026-06-01'
+        - in: query
+          name: latitude
+          required: false
+          schema:
+            type: number
+            minimum: -90
+            maximum: 90
+          example: 35.6895
+        - in: query
+          name: longitude
+          required: false
+          schema:
+            type: number
+            minimum: -180
+            maximum: 180
+          example: 139.6917
+        - in: query
+          name: locationLabel
+          required: false
+          schema:
+            type: string
+          example: Tokyo Tower, Tokyo
+      responses:
+        '200':
+          description: Parsed Open-Meteo destination forecast
+          content:
+            application/json:
+              example:
+                status: success
+                message: Success
+                data:
+                  weather:
+                    available: true
+                    destination: Tokyo
+                    requestedDate: '2026-06-01'
+                    forecastType: forecast
+                    source: Open-Meteo Forecast
+                    location:
+                      name: Tokyo
+                      label: Tokyo, Japan
+                      country: Japan
+                      latitude: 35.6895
+                      longitude: 139.6917
+                      timezone: Asia/Tokyo
+                    temperature:
+                      min: 21.4
+                      max: 27.2
+                      mean: 24.1
+                      unit: C
+                    condition: Light rain
+                    icon: cloud-rain
+                    precipitation:
+                      amountMm: 4.5
+                      probability: 65
+                    windSpeed:
+                      max: 18
+                      unit: km/h
+                    travelTip: Keep outdoor plans flexible and save a few indoor options.
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid token
+        '429':
+          description: Too many third-party API requests
+        '503':
+          description: External weather service unavailable
+  /api/v1/explore/ai-recommendations:
+    post:
+      summary: Generate AI recommendations from Explore results
+      tags:
+        - Explore
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              view: food
+              destination: Penang
+              date: '2026-06-01'
+              weather:
+                available: true
+                condition: Light rain
+                travelTip: Keep outdoor plans flexible.
+              items:
+                - name: Penang Road Famous Teochew Chendul
+                  category: Dessert shop
+                  rating: 4.1
+                  reviewCount: 8516
+                  price: $$
+                  openState: Closed - Opens 9 AM Sat
+                  address: George Town, Penang
+      responses:
+        '200':
+          description: Parsed AI recommendations
+          content:
+            application/json:
+              example:
+                status: success
+                message: Success
+                data:
+                  recommendations:
+                    available: true
+                    summary: Choose the popular dessert stop first, then keep indoor options nearby if rain continues.
+                    recommendationMode: ai
+                    stats:
+                      totalResults: 20
+                      averageRating: 4.3
+                      openNowCount: 8
+                      pricedCount: 12
+                      bestValueCount: 5
+                    picks:
+                      - itemName: Penang Road Famous Teochew Chendul
+                        reason: Strong review count and clear price tier.
+                        bestFor: dessert stop
+                        caution: Check opening time before going.
+                        score: 86
+                    tips:
+                      - Save one nearby indoor dining option.
+                    nextActions:
+                      - Open the place page to confirm current hours.
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid token
+        '429':
+          description: Too many third-party API requests
+        '503':
+          description: AI service unavailable
   /api/v1/currency:
     get:
       summary: List supported currencies

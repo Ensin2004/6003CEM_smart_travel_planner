@@ -23,7 +23,11 @@ module.exports = {
   smtpUser: process.env.SMTP_USER || '',
   smtpPass: process.env.SMTP_PASS || '',
   emailFrom: process.env.EMAIL_FROM || 'Smart Travel Planner <no-reply@smarttravelplanner.local>',
-  openWeatherApiKey: process.env.OPENWEATHER_API_KEY || '',
   placesApiKey: process.env.PLACES_API_KEY || '',
   serpApiKey: process.env.SERPAPI_KEY || process.env.SERPAPI_API_KEY || '',
+  serpApiDailyLimit: Number(process.env.SERPAPI_DAILY_LIMIT || 100),
+  openMeteoDailyLimit: Number(process.env.OPEN_METEO_DAILY_LIMIT || 500),
+  geminiApiKey: process.env.GEMINI_API_KEY || '',
+  geminiModel: process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite',
+  geminiDailyLimit: Number(process.env.GEMINI_DAILY_LIMIT || 100),
 };

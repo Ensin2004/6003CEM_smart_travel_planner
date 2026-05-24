@@ -41,4 +41,12 @@ const thirdPartyApiRateLimit = rateLimit({
   handler: rateLimitHandler('Too many travel data requests. Please try again later.'),
 });
 
-module.exports = { authRateLimit, thirdPartyApiRateLimit };
+const mapWeatherRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: rateLimitHandler('Too many weather requests. Please try again later.'),
+});
+
+module.exports = { authRateLimit, mapWeatherRateLimit, thirdPartyApiRateLimit };

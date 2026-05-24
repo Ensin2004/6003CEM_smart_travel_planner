@@ -1,11 +1,15 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import {
   BedDouble,
   ChevronRight,
+  CloudSun,
   Clock3,
+  DollarSign,
+  Image,
   Heart,
   Layers,
+  LoaderCircle,
   LocateFixed,
   MapPin,
   Mountain,
@@ -25,7 +29,16 @@ import {
 import { MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip, useMap, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { getRouteBetweenPlaces, searchOpenStreetMapCategoryPlaces, searchOpenStreetMapPlaces } from '../../api/mapApi';
+import { convertCurrency } from '../../api/currencyApi';
+import {
+  getMapPlaceDetails,
+  getMapWeather,
+  getRouteBetweenPlaces,
+  searchMapCategoryPlaces,
+  searchOpenStreetMapCategoryPlaces,
+  searchOpenStreetMapPlaces,
+} from '../../api/mapApi';
+import CurrencyContext from '../../context/currencyContext';
 import './MapPage.css';
 
 const defaultCenter = [5.4141, 100.3288];
@@ -84,13 +97,64 @@ const getPlaceAddress = (place) => place.address || place.displayName || 'Locati
 
 const formatCategoryPlace = (place, categoryId) => ({
   ...place,
+  lat: Number(place.lat ?? place.coordinates?.latitude),
+  lng: Number(place.lng ?? place.coordinates?.longitude),
   categoryId,
   address: getPlaceAddress(place),
-  hours: place.hours || 'Hours unavailable',
+  imageUrl: place.imageUrl || place.imageUrls?.[0] || '',
+  imageUrls: place.imageUrls || (place.imageUrl ? [place.imageUrl] : []),
+  hours: place.hours || place.hoursSummary || place.openState || 'Hours unavailable',
   rating: place.rating || 'N/A',
-  reviews: place.reviews || 'OpenStreetMap result',
-  summary: place.summary || 'Place result from OpenStreetMap.',
+  reviews: place.reviews || place.reviewCount || 'No reviews yet',
+  price: place.price || place.priceDetail?.display || 'Price unavailable',
+  phone: place.phone || '',
+  openState: place.openState || '',
+  url: place.url || '',
+  summary: place.summary || place.category || 'Place result from map data.',
 });
+
+const getDateKey = (date = new Date()) => date.toISOString().slice(0, 10);
+
+const formatTemperature = (value) => (Number.isFinite(Number(value)) ? `${Math.round(Number(value))} C` : '--');
+
+const formatMoney = (amount, currencyCode) =>
+  new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency: currencyCode,
+    maximumFractionDigits: 2,
+  }).format(amount);
+
+const getPriceConversionKey = (item, targetCurrency) =>
+  `${item.id}:${item.priceDetail?.display || item.price || 'price'}:${targetCurrency}`;
+
+const getOriginalPriceText = (item) => item.priceDetail?.display || item.price || 'Price unavailable';
+
+const getOpenStatus = (openState = '') => {
+  const normalizedState = openState.toLowerCase();
+
+  if (normalizedState.includes('closed')) {
+    return { label: 'Closed', tone: 'closed' };
+  }
+
+  if (normalizedState.includes('open')) {
+    return { label: 'Open now', tone: 'open' };
+  }
+
+  return { label: 'Hours unknown', tone: 'unknown' };
+};
+
+const getRouteModeNote = (route) => {
+  if (!route) return 'Not calculated';
+  if (route.mode === 'train' || route.mode === 'plane') {
+    return 'Estimated only, confirm availability';
+  }
+  return route.estimated ? 'Estimated route' : 'Mapped route';
+};
+
+const isCanceledRequest = (error) => error.name === 'AbortError' || error.name === 'CanceledError';
+
+const getPlaceRequestKey = (placeId, lat, lng) =>
+  `${placeId || 'place'}:${Number(lat).toFixed(4)}:${Number(lng).toFixed(4)}`;
 
 const formatDistance = (meters) => {
   if (!Number.isFinite(meters)) {
@@ -300,8 +364,31 @@ function MapViewportTracker({ onViewportChange }) {
   return null;
 }
 
+function StarRating({ rating, size = 14 }) {
+  const normalizedRating = Math.max(0, Math.min(Number(rating) || 0, 5));
+
+  return (
+    <div className="map-star-rating" aria-label={`${normalizedRating || 'No'} out of 5 stars`}>
+      {[1, 2, 3, 4, 5].map((star) => {
+        const fillPercent = Math.max(0, Math.min(normalizedRating - (star - 1), 1)) * 100;
+
+        return (
+          <span className="map-star" key={star} aria-hidden="true">
+            <Star size={size} />
+            <span style={{ width: `${fillPercent}%` }}>
+              <Star size={size} fill="currentColor" />
+            </span>
+          </span>
+        );
+      })}
+    </div>
+  );
+}
+
 function PlaceDetails({
   categoryId,
+  detailStatus,
+  getConvertedPriceText,
   onAddRoutePoint,
   onClearRoute,
   onCalculateRoute,
@@ -311,29 +398,91 @@ function PlaceDetails({
   route,
   routeMode,
   routePoints,
+  routeResults,
   routeStatus,
+  weather,
+  weatherStatus,
   onRouteModeChange,
 }) {
   const category = categoryConfig[categoryId] || categoryConfig.attractions;
   const CategoryIcon = category.icon;
   const details = formatCategoryPlace(place || {}, categoryId);
+  const openStatus = getOpenStatus(details.openState || details.hours);
+  const convertedPriceText = getConvertedPriceText(details);
 
   return (
     <div className="map-place-details">
+      {details.imageUrl ? (
+        <img className="map-detail-image" src={details.imageUrl} alt="" loading="lazy" />
+      ) : (
+        <div className="map-detail-image map-detail-image-empty">
+          <Image size={28} aria-hidden="true" />
+        </div>
+      )}
+
       <div className="map-detail-category" style={{ '--detail-color': category.color }}>
         <CategoryIcon size={17} aria-hidden="true" />
         {category.label}
       </div>
 
+      {detailStatus === 'loading' ? (
+        <p className="map-detail-loading">
+          <LoaderCircle size={15} aria-hidden="true" />
+          Loading richer place details...
+        </p>
+      ) : null}
+
       <div className="map-detail-rating">
-        <strong>{details.rating}</strong>
+        <StarRating rating={details.rating} size={17} />
+        <strong>{details.rating && details.rating !== 'N/A' ? `${Number(details.rating).toFixed(1)} stars` : 'No rating'}</strong>
         <span className="map-detail-review-count">
-          <Star size={14} fill="currentColor" aria-hidden="true" />
-          {details.reviews}
+          {Number(details.reviews) ? `${Number(details.reviews).toLocaleString()} reviews` : details.reviews}
         </span>
       </div>
 
       <p>{details.summary}</p>
+
+      <div className="map-detail-facts">
+        <span>
+          <DollarSign size={15} aria-hidden="true" />
+          <span>
+            <small>Original</small>
+            <strong>{getOriginalPriceText(details)}</strong>
+            {convertedPriceText ? <em>{convertedPriceText}</em> : null}
+          </span>
+        </span>
+        <span>
+          <Clock3 size={15} aria-hidden="true" />
+          <span>
+            <small>Working hour</small>
+            <strong>{details.openState || details.hours || 'Opening hours unavailable'}</strong>
+          </span>
+          <mark className={`map-open-badge is-${openStatus.tone}`}>{openStatus.label}</mark>
+        </span>
+      </div>
+
+      <section className="map-weather-card" aria-label={`${details.name} weather`}>
+        <div>
+          <CloudSun size={18} aria-hidden="true" />
+          <strong>Weather near this place</strong>
+        </div>
+        {weatherStatus === 'loading' ? (
+          <p>
+            <LoaderCircle className="map-spin" size={15} aria-hidden="true" />
+            Checking forecast...
+          </p>
+        ) : weather?.available ? (
+          <>
+            <div className="map-weather-main">
+              <strong>{formatTemperature(weather.temperature?.mean)}</strong>
+              <span>{weather.condition}</span>
+            </div>
+            <p>{weather.travelTip}</p>
+          </>
+        ) : (
+          <p>{weather?.message || 'Weather appears when place coordinates are available.'}</p>
+        )}
+      </section>
 
       {details.custom ? (
         <label className="map-custom-marker-name">
@@ -354,75 +503,74 @@ function PlaceDetails({
         </label>
       ) : null}
 
-      <div className="map-route-actions">
-        <button
-          type="button"
-          onClick={() => onAddRoutePoint(details)}
-        >
-          <Navigation size={16} aria-hidden="true" />
-          Add to route
-        </button>
-        <button
-          type="button"
-          onClick={onCalculateRoute}
-          disabled={routeStatus === 'loading' || routePoints.length < 2}
-        >
-          <Navigation size={16} aria-hidden="true" />
-          {routeStatus === 'loading' ? 'Calculating route...' : 'Calculate route'}
-        </button>
-        <button
-          type="button"
-          onClick={onClearRoute}
-          disabled={!routePoints.length && !route}
-        >
-          Clear route
-        </button>
-      </div>
-
-      <div className="map-route-mode-list" aria-label="Transport mode">
-        {routeModeOptions.map((mode) => (
-          <button
-            className={routeMode === mode.id ? 'is-active' : ''}
-            key={mode.id}
-            type="button"
-            onClick={() => onRouteModeChange(mode.id)}
-          >
-            {mode.label}
+      <section className="map-route-planner" aria-label="Route planner">
+        <div className="map-route-header">
+          <div>
+            <strong>Route planner</strong>
+            <span>{routePoints.length >= 2 ? `${routePoints.length} stops selected` : 'Add two or more stops'}</span>
+          </div>
+          <button type="button" onClick={onClearRoute} disabled={!routePoints.length && !route}>
+            Clear
           </button>
-        ))}
-      </div>
-
-      <div className="map-route-point-list">
-        {routePoints.map((point, index) => (
-          <span key={`${point.id}-${index}`}>
-            {index + 1}. {point.name}
-          </span>
-        ))}
-        {!routePoints.length ? (
-          <span>Add two or more points to calculate a route.</span>
-        ) : null}
-      </div>
-
-      {route ? (
-        <div className="map-route-summary" role="status">
-          <strong>{formatDistance(route.distanceMeters)}</strong>
-          <span>
-            {formatDuration(route.durationSeconds)} by {routeModeOptions.find((mode) => mode.id === route.mode)?.label || 'route'}
-            {route.estimated ? ' (estimated)' : ''}
-          </span>
         </div>
-      ) : null}
 
-      <div className="map-route-actions">
-        <button
-          type="button"
-          onClick={() => onAddRoutePoint(details, { calculateFromUserLocation: true })}
-          disabled={routeStatus === 'loading'}
-        >
-          <Navigation size={16} aria-hidden="true" />
-          {routeStatus === 'loading' ? 'Calculating route...' : 'Route from my location'}
-        </button>
-      </div>
+        <div className="map-route-actions">
+          <button type="button" onClick={() => onAddRoutePoint(details)}>
+            <Navigation size={16} aria-hidden="true" />
+            Add stop
+          </button>
+          <button
+            type="button"
+            onClick={() => onAddRoutePoint(details, { calculateFromUserLocation: true })}
+            disabled={routeStatus === 'loading'}
+          >
+            <Navigation size={16} aria-hidden="true" />
+            From my location
+          </button>
+          <button
+            className="map-route-primary"
+            type="button"
+            onClick={onCalculateRoute}
+            disabled={routeStatus === 'loading' || routePoints.length < 2}
+          >
+            {routeStatus === 'loading' ? <LoaderCircle className="map-spin" size={16} aria-hidden="true" /> : <Navigation size={16} aria-hidden="true" />}
+            {routeStatus === 'loading' ? 'Checking routes' : 'Compare all modes'}
+          </button>
+        </div>
+
+        <div className="map-route-point-list">
+          {routePoints.map((point, index) => (
+            <span key={`${point.id}-${index}`}>
+              {index + 1}. {point.name}
+            </span>
+          ))}
+          {!routePoints.length ? (
+            <span>No route stops selected yet.</span>
+          ) : null}
+        </div>
+
+        <div className="map-route-mode-grid" aria-label="Route options">
+          {routeModeOptions.map((mode) => {
+            const modeRoute = routeResults[mode.id];
+            const isActive = routeMode === mode.id;
+
+            return (
+              <button
+                className={isActive ? 'is-active' : ''}
+                key={mode.id}
+                type="button"
+                onClick={() => onRouteModeChange(mode.id)}
+                disabled={!modeRoute}
+              >
+                <strong>{mode.label}</strong>
+                <span>{modeRoute ? formatDuration(modeRoute.durationSeconds) : '--'}</span>
+                <small>{modeRoute ? formatDistance(modeRoute.distanceMeters) : getRouteModeNote(modeRoute)}</small>
+                {modeRoute ? <em>{getRouteModeNote(modeRoute)}</em> : null}
+              </button>
+            );
+          })}
+        </div>
+      </section>
 
       <dl>
         <div>
@@ -432,6 +580,12 @@ function PlaceDetails({
           </dt>
           <dd>{details.hours}</dd>
         </div>
+        {details.phone ? (
+          <div>
+            <dt>Phone</dt>
+            <dd>{details.phone}</dd>
+          </div>
+        ) : null}
         <div>
           <dt>
             <MapPin size={15} aria-hidden="true" />
@@ -452,6 +606,9 @@ function PlaceDetails({
 }
 
 function MapPage() {
+  const currency = useContext(CurrencyContext);
+  const loadedPlaceDetailsRef = useRef(new Set());
+  const placeWeatherCacheRef = useRef(new Map());
   const [query, setQuery] = useState('Penang');
   const [activeCategories, setActiveCategories] = useState([]);
   const [categoryResults, setCategoryResults] = useState({});
@@ -469,7 +626,12 @@ function MapPage() {
   const [route, setRoute] = useState(null);
   const [routeMode, setRouteMode] = useState('car');
   const [routePoints, setRoutePoints] = useState([]);
+  const [routeResults, setRouteResults] = useState({});
   const [routeStatus, setRouteStatus] = useState('idle');
+  const [priceConversions, setPriceConversions] = useState({});
+  const [placeDetailStatus, setPlaceDetailStatus] = useState('idle');
+  const [placeWeather, setPlaceWeather] = useState(null);
+  const [placeWeatherStatus, setPlaceWeatherStatus] = useState('idle');
   const [status, setStatus] = useState('idle');
   const [message, setMessage] = useState('');
 
@@ -511,6 +673,15 @@ function MapPage() {
     0
   );
   const activeTileLayer = mapTileLayers[mapType];
+  const selectedCurrency = currency?.selectedCurrency || 'USD';
+  const supportedCurrencyCodes = useMemo(() => currency?.currencies?.map((option) => option.code) || [], [currency?.currencies]);
+  const selectedPlaceId = selectedPlace?.id;
+  const selectedPlaceName = selectedPlace?.name;
+  const selectedPlaceCategoryId = selectedPlace?.categoryId;
+  const selectedPlaceAddress = selectedPlace?.address || selectedPlace?.displayName;
+  const selectedPlaceLat = selectedPlace?.lat;
+  const selectedPlaceLng = selectedPlace?.lng;
+  const selectedPlaceIsCustom = selectedPlace?.custom;
 
   const handleViewportChange = useCallback((viewport) => {
     setMapCenter(viewport.center);
@@ -576,16 +747,41 @@ function MapPage() {
     const controller = new AbortController();
     const timerId = window.setTimeout(async () => {
       setStatus('loading');
-      setMessage('Loading places from OpenStreetMap...');
+      setMessage('Loading places with live map details...');
 
       try {
-        const results = await Promise.all(
+        const results = await Promise.allSettled(
           searchableCategories.map(async (categoryId) => {
-            const places = await searchOpenStreetMapCategoryPlaces(categoryId, mapCenter, {
-              bounds: mapBounds,
-              limit: categoryId === 'attractions' || categoryId === 'shopping' ? 60 : 30,
-              signal: controller.signal,
-            });
+            const resultLimit = categoryId === 'attractions' || categoryId === 'shopping' ? 60 : 30;
+            let places = [];
+
+            try {
+              const mapPlaces = await searchMapCategoryPlaces(categoryId, mapCenter, {
+                limit: resultLimit,
+                signal: controller.signal,
+              });
+              places = mapPlaces.available ? mapPlaces.items || [] : [];
+            } catch (error) {
+              if (isCanceledRequest(error)) {
+                throw error;
+              }
+            }
+
+            if (!places.length) {
+              try {
+                places = await searchOpenStreetMapCategoryPlaces(categoryId, mapCenter, {
+                  bounds: mapBounds,
+                  limit: resultLimit,
+                  signal: controller.signal,
+                });
+              } catch (error) {
+                if (isCanceledRequest(error)) {
+                  throw error;
+                }
+
+                places = [];
+              }
+            }
 
             return [categoryId, places.map((place) => formatCategoryPlace(place, categoryId))];
           })
@@ -595,26 +791,47 @@ function MapPage() {
           return;
         }
 
+        const completedResults = results.filter((result) => result.status === 'fulfilled');
+        const canceledResult = results.find((result) => result.status === 'rejected' && isCanceledRequest(result.reason));
+
+        if (canceledResult) {
+          return;
+        }
+
         setCategoryResults((currentResults) => {
           const nextResults = {};
-          const resultEntries = Object.fromEntries(results);
+          const resultEntries = Object.fromEntries(completedResults.map((result) => result.value));
 
           activeCategories.forEach((categoryId) => {
             if (categoryId === 'custom' || categoryId === 'saved') {
               return;
             }
 
-            nextResults[categoryId] = resultEntries[categoryId] || currentResults[categoryId] || [];
+            const refreshedPlaces = resultEntries[categoryId];
+            const existingPlaces = currentResults[categoryId] || [];
+
+            nextResults[categoryId] = refreshedPlaces?.length ? refreshedPlaces : existingPlaces;
           });
 
           return nextResults;
         });
-        setStatus('success');
-        setMessage('');
+
+        const loadedPlaceCount = completedResults.reduce((total, result) => total + result.value[1].length, 0);
+
+        if (loadedPlaceCount) {
+          setStatus('success');
+          setMessage('');
+        } else if (completedResults.length) {
+          setStatus('success');
+          setMessage('');
+        } else {
+          setStatus('empty');
+          setMessage('Map markers are temporarily unavailable. Try again shortly.');
+        }
       } catch (error) {
-        if (error.name !== 'AbortError') {
+        if (!isCanceledRequest(error)) {
           setStatus('error');
-          setMessage(error.message || 'Unable to load map places.');
+          setMessage('Map markers are temporarily unavailable. Existing markers are kept when possible.');
         }
       }
     }, 350);
@@ -628,6 +845,208 @@ function MapPage() {
   useEffect(() => {
     saveUserMarkers(customMarkers);
   }, [customMarkers]);
+
+  useEffect(() => {
+    const convertibleItems = visibleMarkers.filter((item) => {
+      const detail = item.priceDetail;
+      return (
+        detail?.currency &&
+        detail.amount !== null &&
+        !detail.isTier &&
+        detail.currency !== selectedCurrency &&
+        supportedCurrencyCodes.includes(detail.currency) &&
+        supportedCurrencyCodes.includes(selectedCurrency)
+      );
+    });
+
+    if (!convertibleItems.length) {
+      return undefined;
+    }
+
+    const missingItems = convertibleItems.filter((item) => !priceConversions[getPriceConversionKey(item, selectedCurrency)]);
+
+    if (!missingItems.length) {
+      return undefined;
+    }
+
+    let isActive = true;
+
+    Promise.all(
+      missingItems.map(async (item) => {
+        const detail = item.priceDetail;
+        const key = getPriceConversionKey(item, selectedCurrency);
+
+        try {
+          const response = await convertCurrency({
+            amount: detail.amount,
+            from: detail.currency,
+            to: selectedCurrency,
+          });
+          const conversion = response.data.data.conversion;
+          const convertedMaxAmount =
+            detail.maxAmount !== null && conversion.rate
+              ? Number((detail.maxAmount * conversion.rate).toFixed(2))
+              : null;
+
+          return {
+            key,
+            value: {
+              amount: conversion.convertedAmount,
+              maxAmount: convertedMaxAmount,
+              currency: selectedCurrency,
+            },
+          };
+        } catch {
+          return {
+            key,
+            value: null,
+          };
+        }
+      })
+    ).then((results) => {
+      if (!isActive) return;
+      setPriceConversions((currentConversions) => ({
+        ...currentConversions,
+        ...Object.fromEntries(results.map((result) => [result.key, result.value])),
+      }));
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, [priceConversions, selectedCurrency, supportedCurrencyCodes, visibleMarkers]);
+
+  useEffect(() => {
+    if (panelMode !== 'place' || !selectedPlaceName || selectedPlaceIsCustom) {
+      return undefined;
+    }
+
+    const detailsKey = getPlaceRequestKey(selectedPlaceId, selectedPlaceLat, selectedPlaceLng);
+
+    if (loadedPlaceDetailsRef.current.has(detailsKey)) {
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    const detailsRequest = {
+      id: selectedPlaceId,
+      name: selectedPlaceName,
+      categoryId: selectedPlaceCategoryId,
+      address: selectedPlaceAddress,
+      lat: selectedPlaceLat,
+      lng: selectedPlaceLng,
+    };
+
+    const loadPlaceDetails = async () => {
+      setPlaceDetailStatus('loading');
+
+      try {
+        const details = await getMapPlaceDetails(detailsRequest, { signal: controller.signal });
+
+        if (!controller.signal.aborted && details.available && details.item) {
+          loadedPlaceDetailsRef.current.add(detailsKey);
+          setSelectedPlace((currentPlace) => (
+            currentPlace?.id === detailsRequest.id
+              ? {
+                  ...currentPlace,
+                  ...formatCategoryPlace(details.item, currentPlace.categoryId || detailsRequest.categoryId),
+                  id: currentPlace.id,
+                  panelMode: 'place',
+                  zoom: currentPlace.zoom,
+                }
+              : currentPlace
+          ));
+        }
+        loadedPlaceDetailsRef.current.add(detailsKey);
+        setPlaceDetailStatus('success');
+      } catch (error) {
+        if (error.name !== 'AbortError' && error.name !== 'CanceledError') {
+          setPlaceDetailStatus('error');
+        }
+      }
+    };
+
+    loadPlaceDetails();
+
+    return () => controller.abort();
+  }, [
+    panelMode,
+    selectedPlaceAddress,
+    selectedPlaceCategoryId,
+    selectedPlaceId,
+    selectedPlaceIsCustom,
+    selectedPlaceLat,
+    selectedPlaceLng,
+    selectedPlaceName,
+  ]);
+
+  useEffect(() => {
+    if (panelMode !== 'place' || !selectedPlaceName || !selectedPlaceLat || !selectedPlaceLng) {
+      return undefined;
+    }
+
+    const weatherKey = `${getPlaceRequestKey(selectedPlaceId, selectedPlaceLat, selectedPlaceLng)}:${getDateKey()}`;
+    const cachedWeather = placeWeatherCacheRef.current.get(weatherKey);
+
+    if (cachedWeather) {
+      window.queueMicrotask(() => {
+        setPlaceWeather(cachedWeather);
+        setPlaceWeatherStatus(cachedWeather.available ? 'success' : 'error');
+      });
+      return undefined;
+    }
+
+    const controller = new AbortController();
+    const weatherRequest = {
+      id: selectedPlaceId,
+      destination: selectedPlaceName,
+      date: getDateKey(),
+      latitude: selectedPlaceLat,
+      longitude: selectedPlaceLng,
+      locationLabel: selectedPlaceName,
+    };
+
+    const loadPlaceWeather = async () => {
+      setPlaceWeatherStatus('loading');
+
+      try {
+        const weather = await getMapWeather(
+          weatherRequest,
+          { signal: controller.signal }
+        );
+
+        if (!controller.signal.aborted) {
+          placeWeatherCacheRef.current.set(weatherKey, weather);
+          setPlaceWeather(weather);
+          setPlaceWeatherStatus(weather.available ? 'success' : 'error');
+        }
+      } catch (error) {
+        if (error.name !== 'AbortError' && error.name !== 'CanceledError') {
+          const fallbackWeather = {
+            available: false,
+            message:
+              error.response?.status === 429
+                ? 'Weather is paused for a moment because map data requests are busy. Try this place again shortly.'
+                : error.response?.data?.message || error.message || 'Weather temporarily unavailable',
+          };
+
+          placeWeatherCacheRef.current.set(weatherKey, fallbackWeather);
+          setPlaceWeather(fallbackWeather);
+          setPlaceWeatherStatus('error');
+        }
+      }
+    };
+
+    loadPlaceWeather();
+
+    return () => controller.abort();
+  }, [
+    panelMode,
+    selectedPlaceId,
+    selectedPlaceLat,
+    selectedPlaceLng,
+    selectedPlaceName,
+  ]);
 
   const handleSearch = async (event) => {
     event.preventDefault();
@@ -667,6 +1086,9 @@ function MapPage() {
       setSuggestions([]);
       setIsSuggestionOpen(false);
       setIsPanelOpen(true);
+      setPlaceWeather(null);
+      setPlaceWeatherStatus('idle');
+      setPlaceDetailStatus('idle');
     } catch (error) {
       setStatus('error');
       setMessage(error.message || 'Unable to search this location.');
@@ -690,6 +1112,9 @@ function MapPage() {
     setIsPanelOpen(true);
     setStatus('idle');
     setMessage('');
+    setPlaceWeather(null);
+    setPlaceWeatherStatus('idle');
+    setPlaceDetailStatus('idle');
   };
 
   const handleSelectMarker = (marker) => {
@@ -704,9 +1129,12 @@ function MapPage() {
     setMessage('');
     setIsSuggestionOpen(false);
     setIsPanelOpen(true);
+    setPlaceWeather(null);
+    setPlaceWeatherStatus('idle');
+    setPlaceDetailStatus('idle');
   };
 
-  const calculateRoute = async (points = routePoints, mode = routeMode) => {
+  const calculateRoute = async (points = routePoints) => {
     if (points.length < 2) {
       setStatus('error');
       setMessage('Add at least two route points.');
@@ -715,20 +1143,31 @@ function MapPage() {
 
     setRouteStatus('loading');
     setStatus('loading');
-    setMessage('Calculating route...');
+    setMessage('Comparing route options...');
 
     try {
-      const routeDetails = await getRouteBetweenPlaces(points, null, { mode });
+      const routeEntries = await Promise.all(
+        routeModeOptions.map(async (mode) => {
+          try {
+            const routeDetails = await getRouteBetweenPlaces(points, null, { mode: mode.id });
 
-      setRoute({
-        ...routeDetails,
-        points,
-      });
+            return [mode.id, { ...routeDetails, points }];
+          } catch {
+            return [mode.id, null];
+          }
+        })
+      );
+      const nextRouteResults = Object.fromEntries(routeEntries.filter(([, modeRoute]) => modeRoute));
+      const preferredRoute = nextRouteResults[routeMode] || nextRouteResults.car || Object.values(nextRouteResults)[0] || null;
+
+      setRouteResults(nextRouteResults);
+      setRoute(preferredRoute);
       setRouteStatus('success');
       setStatus('success');
       setMessage('');
     } catch (error) {
       setRoute(null);
+      setRouteResults({});
       setRouteStatus('error');
       setStatus('error');
       setMessage(error.message || 'Unable to calculate route.');
@@ -762,28 +1201,27 @@ function MapPage() {
 
     setRoutePoints(nextPoints);
     setRoute(null);
+    setRouteResults({});
 
     if (options.calculateFromUserLocation) {
-      calculateRoute(nextPoints, routeMode);
+      calculateRoute(nextPoints);
     }
   };
 
   const handleCalculateRoute = () => {
-    calculateRoute(routePoints, routeMode);
+    calculateRoute(routePoints);
   };
 
   const handleClearRoute = () => {
     setRoute(null);
+    setRouteResults({});
     setRoutePoints([]);
     setRouteStatus('idle');
   };
 
   const handleRouteModeChange = (nextMode) => {
     setRouteMode(nextMode);
-
-    if (routePoints.length >= 2) {
-      calculateRoute(routePoints, nextMode);
-    }
+    setRoute(routeResults[nextMode] || route);
   };
 
   const handleAddCustomMarker = (latlng) => {
@@ -812,12 +1250,20 @@ function MapPage() {
     setStatus('success');
     setIsAddingMarker(false);
     setIsPanelOpen(true);
+    setPlaceWeather(null);
+    setPlaceWeatherStatus('idle');
+    setPlaceDetailStatus('idle');
   };
 
   const handleRemoveCustomMarker = (markerId) => {
     setCustomMarkers((markers) => markers.filter((marker) => marker.id !== markerId));
     setRoute((currentRoute) => (
       currentRoute?.points?.some((point) => point.id === markerId) ? null : currentRoute
+    ));
+    setRouteResults((currentResults) => (
+      Object.values(currentResults).some((modeRoute) => modeRoute?.points?.some((point) => point.id === markerId))
+        ? {}
+        : currentResults
     ));
     setRoutePoints((points) => points.filter((point) => point.id !== markerId));
     setSelectedPlace((currentPlace) => (
@@ -864,7 +1310,37 @@ function MapPage() {
     setStatus('success');
     setMessage('');
     setIsPanelOpen(true);
+    setPlaceWeather(null);
+    setPlaceWeatherStatus('idle');
+    setPlaceDetailStatus('idle');
   };
+
+  const getConvertedPriceText = useCallback(
+    (item) => {
+      const detail = item.priceDetail;
+
+      if (!detail?.currency || detail.amount === null || detail.isTier) {
+        return '';
+      }
+
+      if (detail.currency === selectedCurrency) {
+        return '';
+      }
+
+      const convertedPrice = priceConversions[getPriceConversionKey(item, selectedCurrency)];
+
+      if (!convertedPrice) {
+        return '';
+      }
+
+      const convertedAmount = formatMoney(convertedPrice.amount, convertedPrice.currency);
+      const convertedMaxAmount =
+        convertedPrice.maxAmount !== null ? ` - ${formatMoney(convertedPrice.maxAmount, convertedPrice.currency)}` : '';
+
+      return `Approx. ${convertedAmount}${convertedMaxAmount}`;
+    },
+    [priceConversions, selectedCurrency]
+  );
 
   return (
     <section className="map-page map-discovery-page" aria-labelledby="map-page-title">
@@ -1077,7 +1553,7 @@ function MapPage() {
 
               {activeCategories.length && !categoryResultCount && status !== 'loading' ? (
                 <div className="map-empty-selection">
-                  No places found in this map area. Move the map or choose another category.
+                  Markers are still loading or temporarily unavailable. Move the map slightly or try again shortly.
                 </div>
               ) : null}
 
@@ -1094,6 +1570,9 @@ function MapPage() {
 
                     {group.places.map((place) => {
                       const PlaceIcon = categoryConfig[place.categoryId].icon;
+                      const hasImage = Boolean(place.imageUrl);
+                      const openStatus = getOpenStatus(place.openState || place.hours);
+                      const convertedPriceText = getConvertedPriceText(place);
 
                       return (
                         <button
@@ -1102,17 +1581,36 @@ function MapPage() {
                           type="button"
                           onClick={() => handleSelectMarker(place)}
                         >
-                          <span
-                            className="map-place-rank"
-                            style={{ '--rank-color': categoryConfig[place.categoryId].color }}
-                          >
-                            <PlaceIcon size={22} aria-hidden="true" />
-                          </span>
+                          {hasImage ? (
+                            <span className="map-city-image-wrap">
+                              <img src={place.imageUrl} alt="" loading="lazy" />
+                            </span>
+                          ) : (
+                            <span
+                              className="map-place-rank"
+                              style={{ '--rank-color': categoryConfig[place.categoryId].color }}
+                            >
+                              <PlaceIcon size={22} aria-hidden="true" />
+                            </span>
+                          )}
                           <span className="map-city-content">
                             <span className="map-city-title">{place.name}</span>
-                            <span className="map-city-meta">
-                              <MapPin size={12} aria-hidden="true" />
-                              <small>{place.type || place.category || 'place'}</small>
+                            <span className="map-city-rating">
+                              <StarRating rating={place.rating} size={12} />
+                              <small>
+                                {place.rating && place.rating !== 'N/A' ? `${Number(place.rating).toFixed(1)}` : 'No rating'}
+                                {Number(place.reviews) ? ` | ${Number(place.reviews).toLocaleString()} reviews` : ''}
+                              </small>
+                            </span>
+                            <span className="map-city-meta map-city-hours">
+                              <Clock3 size={12} aria-hidden="true" />
+                              <small>{place.openState || place.hours || 'Hours unavailable'}</small>
+                              <em className={`map-open-badge is-${openStatus.tone}`}>{openStatus.label}</em>
+                            </span>
+                            <span className="map-city-meta map-city-price">
+                              <DollarSign size={12} aria-hidden="true" />
+                              <small>{getOriginalPriceText(place)}</small>
+                              {convertedPriceText ? <em>{convertedPriceText}</em> : null}
                             </span>
                             <span className="map-city-tag">{place.address}</span>
                           </span>
@@ -1128,10 +1626,15 @@ function MapPage() {
           <PlaceDetails
             place={selectedPlace}
             categoryId={selectedCategory}
+            detailStatus={placeDetailStatus}
+            getConvertedPriceText={getConvertedPriceText}
             route={route}
             routeMode={routeMode}
             routePoints={routePoints}
+            routeResults={routeResults}
             routeStatus={routeStatus}
+            weather={placeWeather}
+            weatherStatus={placeWeatherStatus}
             onAddRoutePoint={handleAddRoutePoint}
             onCalculateRoute={handleCalculateRoute}
             onClearRoute={handleClearRoute}

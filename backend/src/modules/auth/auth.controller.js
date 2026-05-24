@@ -17,6 +17,11 @@ const refresh = catchAsync(async (req, res) => {
   sendSuccess(res, 200, result, 'Token refreshed');
 });
 
+const logout = catchAsync(async (req, res) => {
+  const result = await authService.logout(req.body.refreshToken);
+  sendSuccess(res, 200, result, 'Logout successful');
+});
+
 const verifyEmail = catchAsync(async (req, res) => {
   const result = await authService.verifyEmail(req.body.token);
   sendSuccess(res, 200, result, 'Email verified. You can now log in.');
@@ -44,6 +49,7 @@ module.exports = {
   register,
   login,
   refresh,
+  logout,
   verifyEmail,
   resendVerificationEmail,
   checkPasswordResetEmail,
