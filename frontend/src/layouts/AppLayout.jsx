@@ -2,7 +2,10 @@ import {
   Bell,
   ChevronDown,
   Heart,
+  LogOut,
   Menu,
+  Settings,
+  User,
   WalletCards,
   X,
 } from 'lucide-react';
@@ -33,8 +36,10 @@ function AppLayout({ role, menuItems }) {
   const [selectedLanguage, setSelectedLanguage] = useState(DEFAULT_LANGUAGE);
   const [isLanguagePickerOpen, setIsLanguagePickerOpen] = useState(false);
   const [isCurrencyPickerOpen, setIsCurrencyPickerOpen] = useState(false);
+  const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const languagePickerRef = useRef(null);
   const currencyPickerRef = useRef(null);
+  const profileMenuRef = useRef(null);
 
   const availableLanguages = useMemo(() => getAvailableLanguages(), []);
   const activeLanguage =
@@ -43,13 +48,20 @@ function AppLayout({ role, menuItems }) {
   const activeCurrency = currency?.activeCurrency ?? availableCurrencies[0];
 
   const mainMenuItems = menuItems.filter((item) => !item.bottom && !item.hidden && !item.header);
-  const bottomMenuItems = menuItems.filter((item) => item.bottom && !item.hidden && !item.header);
+  const accountSettingsItem = menuItems.find((item) => item.bottom && item.children?.length && !item.hidden);
+  const accountLogoutItem = menuItems.find((item) => item.action === 'logout' && !item.hidden);
+  const bottomMenuItems = menuItems.filter(
+    (item) => item.bottom && !item.hidden && !item.header && item !== accountSettingsItem && item !== accountLogoutItem
+  );
   const headerMenuItems = menuItems.filter((item) => item.header && !item.hidden);
-  const allMenuItems = [...mainMenuItems, ...bottomMenuItems];
+  const allMenuItems = [...mainMenuItems, ...bottomMenuItems, accountSettingsItem].filter(Boolean);
   const favouriteItem = headerMenuItems.find((item) => /favou?rite/i.test(item.label));
+  const profileItem = accountSettingsItem?.children?.find((item) => /profile/i.test(item.label));
+  const settingsDropdownItems = accountSettingsItem?.children?.filter((item) => item !== profileItem) ?? [];
 
   const displayName = user?.name || user?.email || (isAdmin ? 'Admin user' : 'Traveller');
   const displayRole = isAdmin ? 'Admin' : 'Traveller';
+  const avatarUrl = user?.avatarUrl || user?.profileImage;
 
   const initials = useMemo(
     () =>
@@ -121,10 +133,19 @@ function AppLayout({ role, menuItems }) {
         !languagePickerRef.current || !languagePickerRef.current.contains(event.target);
       const clickedOutsideCurrency =
         !currencyPickerRef.current || !currencyPickerRef.current.contains(event.target);
+      const clickedOutsideProfile =
+        !profileMenuRef.current || !profileMenuRef.current.contains(event.target);
 
-      if (clickedOutsideLanguage && clickedOutsideCurrency) {
+      if (clickedOutsideLanguage) {
         setIsLanguagePickerOpen(false);
+      }
+
+      if (clickedOutsideCurrency) {
         setIsCurrencyPickerOpen(false);
+      }
+
+      if (clickedOutsideProfile) {
+        setIsProfileMenuOpen(false);
       }
     };
 
@@ -132,10 +153,11 @@ function AppLayout({ role, menuItems }) {
       if (event.key === 'Escape') {
         setIsLanguagePickerOpen(false);
         setIsCurrencyPickerOpen(false);
+        setIsProfileMenuOpen(false);
       }
     };
 
-    if (isLanguagePickerOpen || isCurrencyPickerOpen) {
+    if (isLanguagePickerOpen || isCurrencyPickerOpen || isProfileMenuOpen) {
       document.addEventListener('pointerdown', handlePointerDown);
       document.addEventListener('keydown', handleKeyDown);
     }
@@ -144,7 +166,7 @@ function AppLayout({ role, menuItems }) {
       document.removeEventListener('pointerdown', handlePointerDown);
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [isCurrencyPickerOpen, isLanguagePickerOpen]);
+  }, [isCurrencyPickerOpen, isLanguagePickerOpen, isProfileMenuOpen]);
 
   const handleLanguageChange = (language) => {
     setSelectedLanguage(language.value);
@@ -155,6 +177,11 @@ function AppLayout({ role, menuItems }) {
   const handleCurrencyChange = (currencyOption) => {
     currency?.changeCurrency(currencyOption.code);
     setIsCurrencyPickerOpen(false);
+  };
+
+  const handleProfileMenuNavigate = (item, event) => {
+    handleNavigate(item, event);
+    setIsProfileMenuOpen(false);
   };
 
   const handleSubmenuToggle = () => {
@@ -213,7 +240,11 @@ function AppLayout({ role, menuItems }) {
                 aria-haspopup="dialog"
                 aria-expanded={isCurrencyPickerOpen}
                 translate="no"
-                onClick={() => setIsCurrencyPickerOpen((current) => !current)}
+                onClick={() => {
+                  setIsLanguagePickerOpen(false);
+                  setIsProfileMenuOpen(false);
+                  setIsCurrencyPickerOpen((current) => !current);
+                }}
               >
                 <WalletCards size={17} aria-hidden="true" />
                 <span className="currency-code" translate="no">{activeCurrency?.code || 'USD'}</span>
@@ -262,7 +293,11 @@ function AppLayout({ role, menuItems }) {
               aria-haspopup="dialog"
               aria-expanded={isLanguagePickerOpen}
               translate="no"
-              onClick={() => setIsLanguagePickerOpen((current) => !current)}
+              onClick={() => {
+                setIsCurrencyPickerOpen(false);
+                setIsProfileMenuOpen(false);
+                setIsLanguagePickerOpen((current) => !current);
+              }}
             >
               {activeLanguage.flagUrl && (
                 <img
@@ -327,6 +362,93 @@ function AppLayout({ role, menuItems }) {
           <button className="header-icon-button" type="button" aria-label="Notifications">
             <Bell size={18} aria-hidden="true" />
           </button>
+
+          <div className="profile-menu" ref={profileMenuRef}>
+            <button
+              className="profile-menu-trigger"
+              type="button"
+              aria-label="Open profile menu"
+              aria-haspopup="menu"
+              aria-expanded={isProfileMenuOpen}
+              onClick={() => {
+                setIsCurrencyPickerOpen(false);
+                setIsLanguagePickerOpen(false);
+                setIsProfileMenuOpen((current) => !current);
+              }}
+            >
+              <span className="profile-menu-avatar" aria-hidden="true">
+                {avatarUrl ? <img src={avatarUrl} alt="" /> : initials}
+              </span>
+              <ChevronDown size={15} aria-hidden="true" />
+            </button>
+
+            {isProfileMenuOpen && (
+              <div className="profile-menu-popover" role="menu" aria-label="Profile menu">
+                <div className="profile-menu-summary">
+                  <span className="profile-menu-avatar profile-menu-avatar-large" aria-hidden="true">
+                    {avatarUrl ? <img src={avatarUrl} alt="" /> : initials}
+                  </span>
+                  <div>
+                    <strong>{displayName}</strong>
+                    <small>{displayRole}</small>
+                  </div>
+                </div>
+
+                <div className="profile-menu-list">
+                  <Link
+                    className="profile-menu-item"
+                    to={profileItem?.to || accountSettingsItem?.to || (isAdmin ? '/admin/settings' : '/profile')}
+                    role="menuitem"
+                    onClick={() => setIsProfileMenuOpen(false)}
+                  >
+                    <User size={17} aria-hidden="true" />
+                    <span>Profile</span>
+                  </Link>
+
+                  {accountSettingsItem && (
+                    <Link
+                      className="profile-menu-item"
+                      to={accountSettingsItem.to}
+                      role="menuitem"
+                      onClick={() => setIsProfileMenuOpen(false)}
+                    >
+                      <Settings size={17} aria-hidden="true" />
+                      <span>Settings</span>
+                    </Link>
+                  )}
+
+                  {settingsDropdownItems.map((item) => {
+                    const ItemIcon = item.icon;
+
+                    return (
+                      <Link
+                        className="profile-menu-subitem"
+                        to={item.to}
+                        key={item.to}
+                        role="menuitem"
+                        onClick={() => setIsProfileMenuOpen(false)}
+                      >
+                        <ItemIcon size={15} aria-hidden="true" />
+                        <span>{item.label}</span>
+                      </Link>
+                    );
+                  })}
+
+                  {accountLogoutItem && (
+                    <Link
+                      className="profile-menu-item profile-menu-logout"
+                      to={accountLogoutItem.to}
+                      role="menuitem"
+                      onClick={(event) => handleProfileMenuNavigate(accountLogoutItem, event)}
+                    >
+                      <LogOut size={17} aria-hidden="true" />
+                      <span>Logout</span>
+                    </Link>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
@@ -339,16 +461,6 @@ function AppLayout({ role, menuItems }) {
 
       <div className="app-navigation">
         <aside className="sidebar">
-          <div className="sidebar-profile">
-            <div className="sidebar-avatar" aria-hidden="true">
-              {user?.profileImage ? <img src={user.profileImage} alt="" /> : initials}
-            </div>
-            <div>
-              <strong>{displayName}</strong>
-              <small>{displayRole}</small>
-            </div>
-          </div>
-
           <div className="sidebar-menu">
             <AppSidebarNav
               ariaLabel={`${role} navigation`}

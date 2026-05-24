@@ -24,6 +24,7 @@ module.exports = {
   smtpPass: process.env.SMTP_PASS || '',
   emailFrom: process.env.EMAIL_FROM || 'Smart Travel Planner <no-reply@smarttravelplanner.local>',
   placesApiKey: process.env.PLACES_API_KEY || '',
+  geoapifyApiKey: process.env.GEOAPIFY_API_KEY || process.env.GEOAPIFY_KEY || '',
   serpApiKey: process.env.SERPAPI_KEY || process.env.SERPAPI_API_KEY || '',
   serpApiDailyLimit: Number(process.env.SERPAPI_DAILY_LIMIT || 100),
   openMeteoDailyLimit: Number(process.env.OPEN_METEO_DAILY_LIMIT || 500),
