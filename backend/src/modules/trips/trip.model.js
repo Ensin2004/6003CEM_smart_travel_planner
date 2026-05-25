@@ -30,6 +30,45 @@ const travelPreferenceSchema = new mongoose.Schema(
     hotel: { type: Boolean, default: false },
     attractions: { type: Boolean, default: true },
     transport: { type: Boolean, default: false },
+    companions: [{ type: String, trim: true, maxlength: 40 }],
+    styles: [{ type: String, trim: true, maxlength: 40 }],
+    pace: { type: String, enum: ['relaxed', 'moderate', 'packed'], default: 'moderate' },
+    accommodation: { type: String, enum: ['economy', 'comfort', 'premium', 'luxury'], default: 'comfort' },
+    transportModes: [{ type: String, trim: true, maxlength: 40 }],
+  },
+  { _id: false }
+);
+
+const destinationSegmentSchema = new mongoose.Schema(
+  {
+    country: { type: String, trim: true, maxlength: 80 },
+    city: { type: String, required: true, trim: true, maxlength: 120 },
+    placeName: { type: String, trim: true, maxlength: 160 },
+    startDate: { type: Date, required: true },
+    endDate: { type: Date, required: true },
+    order: { type: Number, min: 1, default: 1 },
+    notes: { type: String, trim: true, maxlength: 500 },
+    coordinates: {
+      latitude: { type: Number, min: -90, max: 90 },
+      longitude: { type: Number, min: -180, max: 180 },
+    },
+  },
+  { _id: true }
+);
+
+const documentChecklistSchema = new mongoose.Schema(
+  {
+    enabled: { type: Boolean, default: false },
+    documentTypes: [{ type: String, trim: true, maxlength: 80 }],
+  },
+  { _id: false }
+);
+
+const dateFlexibilitySchema = new mongoose.Schema(
+  {
+    mode: { type: String, enum: ['exact', 'flexible'], default: 'exact' },
+    windowDays: { type: Number, min: 0, max: 30, default: 0 },
+    preferredMonth: { type: String, trim: true, maxlength: 20 },
   },
   { _id: false }
 );
@@ -50,6 +89,9 @@ const tripSchema = new mongoose.Schema(
     budget: { type: budgetSchema, default: () => ({}) },
     planningMode: { type: String, enum: ['self', 'ai'], default: 'self' },
     travelPreferences: { type: travelPreferenceSchema, default: () => ({}) },
+    destinationSegments: { type: [destinationSegmentSchema], default: [] },
+    documentChecklist: { type: documentChecklistSchema, default: () => ({}) },
+    dateFlexibility: { type: dateFlexibilitySchema, default: () => ({}) },
     routeOptimizationEnabled: { type: Boolean, default: false },
     budgetOptimizationEnabled: { type: Boolean, default: false },
     notes: [noteSchema],
