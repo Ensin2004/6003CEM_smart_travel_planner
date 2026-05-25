@@ -5,78 +5,348 @@ const apiLogService = require('../apiLogs/apiLog.service');
 
 const weatherCache = new Map();
 const CACHE_TTL_MS = 30 * 60 * 1000;
+const NEAR_TERM_DAYS = 16;
+const SEASONAL_DAYS = 214;
+
+const dailyUsage = {
+  date: '',
+  count: 0,
+};
+
+const weatherCodeMap = {
+  0: ['Clear', 'sun'],
+  1: ['Mostly clear', 'sun'],
+  2: ['Partly cloudy', 'cloud-sun'],
+  3: ['Overcast', 'cloud'],
+  45: ['Fog', 'cloud-fog'],
+  48: ['Depositing rime fog', 'cloud-fog'],
+  51: ['Light drizzle', 'cloud-drizzle'],
+  53: ['Drizzle', 'cloud-drizzle'],
+  55: ['Dense drizzle', 'cloud-drizzle'],
+  61: ['Light rain', 'cloud-rain'],
+  63: ['Rain', 'cloud-rain'],
+  65: ['Heavy rain', 'cloud-rain'],
+  71: ['Light snow', 'cloud-snow'],
+  73: ['Snow', 'cloud-snow'],
+  75: ['Heavy snow', 'cloud-snow'],
+  80: ['Rain showers', 'cloud-rain'],
+  81: ['Rain showers', 'cloud-rain'],
+  82: ['Heavy rain showers', 'cloud-rain'],
+  95: ['Thunderstorm', 'cloud-lightning'],
+  96: ['Thunderstorm with hail', 'cloud-lightning'],
+  99: ['Thunderstorm with hail', 'cloud-lightning'],
+};
+
+const getTodayKey = () => new Date().toISOString().slice(0, 10);
+
+const getDaysFromToday = (date) => {
+  const today = new Date(`${getTodayKey()}T00:00:00.000Z`);
+  const target = new Date(`${date}T00:00:00.000Z`);
+  return Math.round((target - today) / (24 * 60 * 60 * 1000));
+};
 
 const fallbackWeather = (message = 'Weather temporarily unavailable') => ({
   available: false,
   message,
 });
 
-const recordWeatherFailure = (message, statusCode, destination) =>
+const consumeDailyQuota = () => {
+  const today = getTodayKey();
+  const dailyLimit = Math.max(Number(env.openMeteoDailyLimit) || 500, 0);
+
+  if (dailyUsage.date !== today) {
+    dailyUsage.date = today;
+    dailyUsage.count = 0;
+  }
+
+  if (dailyUsage.count >= dailyLimit) {
+    return false;
+  }
+
+  dailyUsage.count += 1;
+  return true;
+};
+
+const recordWeatherFailure = (message, statusCode, metadata) =>
   env.nodeEnv === 'test'
     ? Promise.resolve()
     : apiLogService
         .recordEvent({
-          service: 'openweathermap',
+          service: 'open-meteo',
           category: 'api',
           severity: statusCode === 429 ? 'warning' : 'error',
           endpoint: 'weather',
           status: 'fail',
           statusCode,
           message,
-          metadata: {
-            destination,
-          },
+          metadata,
         })
         .catch((error) => logger.error(`Failed to record weather API event: ${error.message}`));
 
-const getWeatherByDestination = async (destination) => {
-  if (!env.openWeatherApiKey || env.nodeEnv === 'test') {
-    return fallbackWeather('Weather API key is not configured');
+const classifyWeatherError = (error) => {
+  if (error.isDailyLimit) {
+    return { message: 'Daily weather API limit reached. Please try again tomorrow.', statusCode: 429 };
   }
 
-  const cacheKey = destination.toLowerCase();
+  if (error.response?.status === 429) {
+    return { message: 'Weather API rate limit reached', statusCode: 429 };
+  }
+
+  if (error.code === 'ECONNABORTED') {
+    return { message: 'Weather service timeout', statusCode: 503 };
+  }
+
+  if (!error.response) {
+    return { message: 'Weather service network error', statusCode: 503 };
+  }
+
+  return { message: 'Weather temporarily unavailable', statusCode: error.response.status || 503 };
+};
+
+const getWeatherCondition = (code) => {
+  const [condition, icon] = weatherCodeMap[Number(code)] || ['Weather outlook', 'cloud'];
+  return { condition, icon };
+};
+
+const getLocationLabel = (location) =>
+  location.label || [location.name, location.admin1, location.country].filter(Boolean).join(', ');
+
+const getTravelTip = ({ condition, precipitationAmount, precipitationProbability, temperatureMax, forecastType }) => {
+  const lowerCondition = condition.toLowerCase();
+
+  if (forecastType === 'seasonal') {
+    return 'Use this as a planning signal, then recheck closer to the travel date.';
+  }
+
+  if (lowerCondition.includes('thunder') || precipitationAmount >= 15 || precipitationProbability >= 70) {
+    return 'Plan indoor stops, nearby dining, and shorter walking transfers.';
+  }
+
+  if (lowerCondition.includes('rain') || lowerCondition.includes('drizzle')) {
+    return 'Keep outdoor plans flexible and save a few indoor options.';
+  }
+
+  if (temperatureMax >= 32) {
+    return 'Prioritize shaded attractions, water breaks, and air-conditioned food stops.';
+  }
+
+  if (temperatureMax <= 8) {
+    return 'Choose warm indoor stops and check transit walking time.';
+  }
+
+  return 'Good conditions for flexible sightseeing and dining plans.';
+};
+
+const geocodeDestination = async (destination) => {
+  const response = await axios.get('https://geocoding-api.open-meteo.com/v1/search', {
+    params: {
+      name: destination,
+      count: 1,
+      language: 'en',
+      format: 'json',
+    },
+    timeout: 5000,
+  });
+
+  const location = response.data?.results?.[0];
+
+  if (!location) {
+    return null;
+  }
+
+  return {
+    name: location.name,
+    country: location.country,
+    countryCode: location.country_code,
+    admin1: location.admin1,
+    latitude: location.latitude,
+    longitude: location.longitude,
+    timezone: location.timezone || 'auto',
+  };
+};
+
+const getCoordinateLocation = ({ latitude, longitude, locationLabel }) => {
+  const parsedLatitude = Number(latitude);
+  const parsedLongitude = Number(longitude);
+
+  if (!Number.isFinite(parsedLatitude) || !Number.isFinite(parsedLongitude)) {
+    return null;
+  }
+
+  return {
+    name: locationLabel || 'Selected area',
+    country: '',
+    countryCode: '',
+    admin1: '',
+    latitude: parsedLatitude,
+    longitude: parsedLongitude,
+    timezone: 'auto',
+    label: locationLabel || `${parsedLatitude.toFixed(4)}, ${parsedLongitude.toFixed(4)}`,
+  };
+};
+
+const fetchNearTermForecast = async (location, date) =>
+  axios.get('https://api.open-meteo.com/v1/forecast', {
+    params: {
+      latitude: location.latitude,
+      longitude: location.longitude,
+      daily: [
+        'weather_code',
+        'temperature_2m_max',
+        'temperature_2m_min',
+        'temperature_2m_mean',
+        'apparent_temperature_mean',
+        'precipitation_sum',
+        'precipitation_probability_max',
+        'wind_speed_10m_max',
+      ].join(','),
+      start_date: date,
+      end_date: date,
+      timezone: location.timezone || 'auto',
+    },
+    timeout: 6000,
+  });
+
+const fetchSeasonalForecast = async (location, date) =>
+  axios.get('https://seasonal-api.open-meteo.com/v1/seasonal', {
+    params: {
+      latitude: location.latitude,
+      longitude: location.longitude,
+      daily: [
+        'weather_code',
+        'temperature_2m_max',
+        'temperature_2m_min',
+        'temperature_2m_mean',
+        'precipitation_sum',
+        'wind_speed_10m_max',
+      ].join(','),
+      start_date: date,
+      end_date: date,
+      models: 'ecmwf_seasonal_seamless_mean',
+      timezone: location.timezone || 'auto',
+    },
+    timeout: 8000,
+  });
+
+const normalizeForecast = ({ destination, date, location, response, forecastType }) => {
+  const daily = response.data?.daily || {};
+  const index = daily.time?.findIndex((time) => time === date) ?? -1;
+
+  if (index < 0) {
+    return fallbackWeather('Weather forecast is unavailable for this date.');
+  }
+
+  const weatherCode = daily.weather_code?.[index];
+  const { condition, icon } = getWeatherCondition(weatherCode);
+  const temperatureMax = Number(daily.temperature_2m_max?.[index]);
+  const temperatureMin = Number(daily.temperature_2m_min?.[index]);
+  const temperatureMean = Number(daily.temperature_2m_mean?.[index]);
+  const precipitationAmount = Number(daily.precipitation_sum?.[index] || 0);
+  const precipitationProbability = daily.precipitation_probability_max?.[index] ?? null;
+
+  return {
+    available: true,
+    destination,
+    requestedDate: date,
+    forecastType,
+    source: forecastType === 'seasonal' ? 'Open-Meteo Seasonal Forecast' : 'Open-Meteo Forecast',
+    location: {
+      name: location.name,
+      label: getLocationLabel(location),
+      country: location.country,
+      admin1: location.admin1,
+      latitude: location.latitude,
+      longitude: location.longitude,
+      timezone: location.timezone,
+    },
+    temperature: {
+      min: Number.isFinite(temperatureMin) ? temperatureMin : null,
+      max: Number.isFinite(temperatureMax) ? temperatureMax : null,
+      mean: Number.isFinite(temperatureMean) ? temperatureMean : null,
+      unit: 'C',
+    },
+    condition,
+    icon,
+    precipitation: {
+      amountMm: precipitationAmount,
+      probability: precipitationProbability,
+    },
+    windSpeed: {
+      max: daily.wind_speed_10m_max?.[index] ?? null,
+      unit: 'km/h',
+    },
+    travelTip: getTravelTip({
+      condition,
+      precipitationAmount,
+      precipitationProbability,
+      temperatureMax,
+      forecastType,
+    }),
+    accuracyNote:
+      forecastType === 'seasonal'
+        ? 'Long-range seasonal guidance is approximate and should be rechecked closer to the trip.'
+        : 'Forecast is based on the searched destination, not the user current location.',
+    lastUpdated: new Date().toISOString(),
+  };
+};
+
+const getWeatherByDestination = async (destination, date = getTodayKey(), locationInput = {}) => {
+  const normalizedDestination = (destination || '').trim();
+  const requestedDate = date || getTodayKey();
+  const daysFromToday = getDaysFromToday(requestedDate);
+  const coordinateLocation = getCoordinateLocation(locationInput);
+
+  if (daysFromToday < 0) {
+    return fallbackWeather('Choose today or a future travel date.');
+  }
+
+  if (daysFromToday > SEASONAL_DAYS) {
+    return fallbackWeather('Weather outlook is available up to about 7 months ahead.');
+  }
+
+  const cacheKey = coordinateLocation
+    ? `${coordinateLocation.latitude}:${coordinateLocation.longitude}|${requestedDate}`
+    : `${normalizedDestination.toLowerCase()}|${requestedDate}`;
   const cached = weatherCache.get(cacheKey);
 
   if (cached && Date.now() - cached.createdAt < CACHE_TTL_MS) {
     return { ...cached.data, cached: true };
   }
 
-  try {
-    const response = await axios.get('https://api.openweathermap.org/data/2.5/weather', {
-      params: {
-        q: destination,
-        appid: env.openWeatherApiKey,
-        units: 'metric',
-      },
-      timeout: 5000,
-    });
+  if (!consumeDailyQuota()) {
+    const error = new Error('Daily weather API limit reached. Please try again tomorrow.');
+    error.isDailyLimit = true;
+    const { message, statusCode } = classifyWeatherError(error);
+    recordWeatherFailure(message, statusCode, { destination: normalizedDestination, date: requestedDate });
+    return fallbackWeather(message);
+  }
 
-    const weather = {
-      available: true,
-      destination,
-      temperature: response.data.main.temp,
-      humidity: response.data.main.humidity,
-      condition: response.data.weather[0].main,
-      description: response.data.weather[0].description,
-      icon: response.data.weather[0].icon,
-      lastUpdated: new Date().toISOString(),
-    };
+  try {
+    const location = coordinateLocation || (await geocodeDestination(normalizedDestination));
+
+    if (!location) {
+      return fallbackWeather('Destination weather location could not be found. Try a city, state, or country name.');
+    }
+
+    const forecastType = daysFromToday > NEAR_TERM_DAYS ? 'seasonal' : 'forecast';
+    const response =
+      forecastType === 'seasonal'
+        ? await fetchSeasonalForecast(location, requestedDate)
+        : await fetchNearTermForecast(location, requestedDate);
+    const weather = normalizeForecast({
+      destination: normalizedDestination,
+      date: requestedDate,
+      location,
+      response,
+      forecastType,
+    });
 
     weatherCache.set(cacheKey, { data: weather, createdAt: Date.now() });
     return weather;
   } catch (error) {
-    if (error.response?.status === 401) {
-      recordWeatherFailure('External service configuration error', 502, destination);
-      return fallbackWeather('External service configuration error');
-    }
-
-    if (error.response?.status === 429) {
-      recordWeatherFailure('Weather API rate limit reached', 429, destination);
-      return fallbackWeather('Weather API rate limit reached');
-    }
-
-    recordWeatherFailure('Weather temporarily unavailable', error.response?.status || 503, destination);
-    return fallbackWeather();
+    const { message, statusCode } = classifyWeatherError(error);
+    recordWeatherFailure(message, statusCode, { destination: normalizedDestination, date: requestedDate });
+    return fallbackWeather(message);
   }
 };
 

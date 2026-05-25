@@ -1,3 +1,5 @@
+import axiosClient from './axiosClient';
+
 const NOMINATIM_SEARCH_URL = 'https://nominatim.openstreetmap.org/search';
 const OSRM_ROUTE_URL = 'https://router.project-osrm.org/route/v1';
 const routeModeProfiles = {
@@ -33,6 +35,8 @@ const getOpenStreetMapErrorMessage = (status) => {
 
   return 'Unable to search this location.';
 };
+
+const isAbortError = (error) => error.name === 'AbortError' || error.name === 'CanceledError';
 
 const normalizeOpenStreetMapPlace = (place, fallbackName = 'Selected place') => ({
   id: `${place.osm_type}-${place.osm_id}`,
@@ -103,7 +107,7 @@ export const searchOpenStreetMapCategoryPlaces = async (categoryId, center, opti
     ].join(',');
   const limitPerTerm = Math.max(8, Math.ceil((options.limit || 40) / searchTerms.length));
 
-  const responses = await Promise.all(searchTerms.map(async (searchTerm) => {
+  const responses = await Promise.allSettled(searchTerms.map(async (searchTerm) => {
     const params = new URLSearchParams({
       q: searchTerm,
       format: 'jsonv2',
@@ -127,9 +131,18 @@ export const searchOpenStreetMapCategoryPlaces = async (categoryId, center, opti
     return response.json();
   }));
 
+  const failedRequest = responses.find((result) => result.status === 'rejected');
+
+  if (failedRequest && isAbortError(failedRequest.reason)) {
+    throw failedRequest.reason;
+  }
+
   const uniquePlaces = new Map();
 
-  responses.flat().forEach((place) => {
+  responses
+    .filter((result) => result.status === 'fulfilled')
+    .flatMap((result) => result.value)
+    .forEach((place) => {
     const normalizedPlace = normalizeOpenStreetMapPlace(place, categoryId);
 
     if (Number.isFinite(normalizedPlace.lat) && Number.isFinite(normalizedPlace.lng)) {
@@ -140,6 +153,51 @@ export const searchOpenStreetMapCategoryPlaces = async (categoryId, center, opti
   return [...uniquePlaces.values()]
     .sort((firstPlace, secondPlace) => secondPlace.importance - firstPlace.importance)
     .slice(0, options.limit || 40);
+};
+
+export const searchMapCategoryPlaces = async (categoryId, center, options = {}) => {
+  const response = await axiosClient.get('/map/places', {
+    params: {
+      category: categoryId,
+      destination: options.destination,
+      latitude: center?.[0],
+      longitude: center?.[1],
+      limit: options.limit,
+    },
+    signal: options.signal,
+  });
+
+  return response.data.data.places;
+};
+
+export const getMapPlaceDetails = async (place, options = {}) => {
+  const response = await axiosClient.get('/map/place-details', {
+    params: {
+      category: place.categoryId,
+      name: place.name,
+      address: place.address || place.displayName,
+      latitude: place.lat,
+      longitude: place.lng,
+    },
+    signal: options.signal,
+  });
+
+  return response.data.data.details;
+};
+
+export const getMapWeather = async ({ destination, date, latitude, longitude, locationLabel }, options = {}) => {
+  const response = await axiosClient.get('/map/weather', {
+    params: {
+      destination,
+      date,
+      latitude,
+      longitude,
+      locationLabel,
+    },
+    signal: options.signal,
+  });
+
+  return response.data.data.weather;
 };
 
 const toRadians = (degrees) => degrees * (Math.PI / 180);

@@ -1,7 +1,15 @@
 import axiosClient from './axiosClient';
 
-export const searchWeather = (destination) =>
-  axiosClient.get('/explore/weather', { params: { destination } });
+export const searchWeather = ({ destination, date, latitude, longitude, locationLabel }) =>
+  axiosClient.get('/explore/weather', {
+    params: {
+      destination,
+      date,
+      latitude,
+      longitude,
+      locationLabel,
+    },
+  });
 
 export const searchAttractions = (destination) =>
   axiosClient.get('/explore/attractions', { params: { destination } });
@@ -26,4 +34,13 @@ export const searchRestaurants = ({ destination, country, state, foodCategory, s
       foodCategory,
       start,
     },
+  });
+
+export const getAiRecommendations = ({ view, destination, date, weather, items }) =>
+  axiosClient.post('/explore/ai-recommendations', {
+    view,
+    destination,
+    date,
+    weather,
+    items,
   });
