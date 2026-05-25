@@ -12,6 +12,11 @@ const geoapifyClient = axios.create({
   timeout: 10000,
 });
 
+const restCountriesClient = axios.create({
+  baseURL: 'https://restcountries.com',
+  timeout: 10000,
+});
+
 const cache = new Map();
 const CACHE_TTL_MS = 15 * 60 * 1000;
 
@@ -191,6 +196,90 @@ const normalizeGuideItem = (item = {}, index = 0, fallbackType = 'Destination') 
 
 const getCountryCodeFilter = (countryCode) => (countryCode ? `countrycode:${countryCode.toLowerCase()}` : '');
 
+const regionFilters = new Set(['Asia', 'Europe', 'North America', 'South America', 'Oceania', 'Africa', 'Antarctica', 'Other']);
+
+const getCountryName = (country = {}) => country.name?.common || country.name?.official || '';
+
+const getCountryRegion = (country = {}) => country.continents?.find((continent) => regionFilters.has(continent)) || 'Other';
+
+const normalizeCountry = (country = {}) => {
+  const name = getCountryName(country);
+  const region = getCountryRegion(country);
+
+  return {
+    id: country.cca2,
+    name,
+    type: 'Country',
+    region: [region, country.subregion].filter(Boolean).join(' - '),
+    continent: region,
+    country: name,
+    countryCode: country.cca2,
+    imageUrl: country.flags?.png || country.flags?.svg || '',
+    flagUrl: country.flags?.png || country.flags?.svg || '',
+    currency: Object.keys(country.currencies || {}).join(', '),
+    coordinates: {
+      latitude: Number(country.latlng?.[0]),
+      longitude: Number(country.latlng?.[1]),
+    },
+  };
+};
+
+const getCountryList = async ({ region = '', search = '', currentCountry = '', currentCountryCode = '', limit = 24, page = 1 }) => {
+  const currentPage = Math.max(Number(page) || 1, 1);
+  const pageSize = Math.min(Number(limit) || 24, 48);
+  const normalizedRegion = region === 'All' ? '' : region;
+  const normalizedSearch = search.trim().toLowerCase();
+  const excludedCountry = currentCountry.trim().toLowerCase();
+  const excludedCountryCode = currentCountryCode.trim().toUpperCase();
+
+  try {
+    const countries = await withCache('countries', { source: 'restcountries-v3.1' }, async () => {
+      const response = await restCountriesClient.get('/v3.1/all', {
+        params: {
+          fields: 'name,cca2,flags,region,subregion,continents,latlng,currencies',
+        },
+      });
+
+      return response.data;
+    });
+
+    const filteredCountries = countries
+      .filter((country) => country.cca2 && getCountryName(country))
+      .map(normalizeCountry)
+      .filter((country) => country.countryCode !== excludedCountryCode && country.name.toLowerCase() !== excludedCountry)
+      .filter((country) => !normalizedRegion || country.continent === normalizedRegion)
+      .filter((country) => !normalizedSearch || country.name.toLowerCase().includes(normalizedSearch))
+      .sort((first, second) => first.name.localeCompare(second.name));
+    const start = (currentPage - 1) * pageSize;
+    const items = filteredCountries.slice(start, start + pageSize);
+
+    return {
+      available: true,
+      items,
+      pagination: {
+        page: currentPage,
+        limit: pageSize,
+        total: filteredCountries.length,
+        totalPages: Math.max(Math.ceil(filteredCountries.length / pageSize), 1),
+        hasMore: start + pageSize < filteredCountries.length,
+      },
+    };
+  } catch {
+    return {
+      available: false,
+      message: 'Country directory temporarily unavailable',
+      items: [],
+      pagination: {
+        page: currentPage,
+        limit: pageSize,
+        total: 0,
+        totalPages: 1,
+        hasMore: false,
+      },
+    };
+  }
+};
+
 const getDestinationList = async ({ country, countryCode, mode = 'domestic', region = '', limit = 24, page = 1, search = '' }) => {
   const currentPage = Math.max(Number(page) || 1, 1);
   const pageSize = Math.min(Number(limit) || 24, 48);
@@ -328,6 +417,7 @@ const getDestinationDetails = async ({ destination, country, latitude, longitude
 };
 
 module.exports = {
+  getCountryList,
   getDestinationList,
   getDestinationDetails,
 };

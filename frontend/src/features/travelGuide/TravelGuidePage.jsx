@@ -16,11 +16,6 @@ import { getTravelGuideCountries, getTravelGuideDestinations } from '../../api/t
 import useAuth from '../../hooks/useAuth';
 import './TravelGuidePage.css';
 
-const getCountryName = (country = {}) => country.name?.common || country.name?.official || '';
-
-const getCountryCode = (countries = [], countryName = '') =>
-  countries.find((country) => getCountryName(country).toLowerCase() === countryName.toLowerCase())?.cca2 || '';
-
 const getErrorMessage = (error) =>
   error.response?.data?.message || error.response?.data?.error || error.message || 'Unable to load travel guides right now.';
 
@@ -35,20 +30,6 @@ const regionFilters = {
   Antarctica: 'Antarctica',
   Other: 'Other',
 };
-
-const supportedRegionNames = new Set(Object.values(regionFilters).filter(Boolean));
-
-const getCountryRegion = (country) => {
-  const continent = country.continents?.find((name) => supportedRegionNames.has(name));
-
-  if (continent) {
-    return continent;
-  }
-
-  return 'Other';
-};
-
-const getCurrencyCodes = (currencies = {}) => Object.keys(currencies).join(', ');
 
 function DestinationCard({ destination, onOpen }) {
   return (
@@ -65,38 +46,10 @@ function TravelGuidePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const userCountry = user?.country || 'Malaysia';
-  const [countries, setCountries] = useState([]);
-  const [countryDirectoryError, setCountryDirectoryError] = useState('');
-  const [isLoadingCountries, setIsLoadingCountries] = useState(false);
-  const userCountryCode = useMemo(() => getCountryCode(countries, userCountry), [countries, userCountry]);
+  const userCountryCode = user?.countryCode || '';
   const [guideMode, setGuideMode] = useState('domestic');
   const [selectedOverseasCountry, setSelectedOverseasCountry] = useState(null);
   const [activeRegion, setActiveRegion] = useState('All');
-  const overseasCountries = useMemo(
-    () =>
-      countries
-        .filter((country) => country.cca2 !== userCountryCode)
-        .filter((country) => {
-          const targetRegion = regionFilters[activeRegion];
-          return !targetRegion || getCountryRegion(country) === targetRegion;
-        })
-        .map((country) => ({
-          id: country.cca2,
-          name: getCountryName(country),
-          type: 'Country',
-          region: [getCountryRegion(country), country.subregion].filter(Boolean).join(' - '),
-          country: getCountryName(country),
-          countryCode: country.cca2,
-          imageUrl: country.flags?.png || country.flags?.svg || '',
-          flagUrl: country.flags?.png || country.flags?.svg || '',
-          currency: getCurrencyCodes(country.currencies),
-          coordinates: {
-            latitude: Number(country.latlng?.[0]),
-            longitude: Number(country.latlng?.[1]),
-          },
-        })),
-    [activeRegion, countries, userCountryCode]
-  );
   const [searchTerm, setSearchTerm] = useState('');
   const [destinations, setDestinations] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, hasMore: false });
@@ -125,71 +78,41 @@ function TravelGuidePage() {
   useEffect(() => {
     let isActive = true;
 
-    const loadCountries = async () => {
-      setIsLoadingCountries(true);
-      setCountryDirectoryError('');
-
-      try {
-        const response = await getTravelGuideCountries();
-        const sortedCountries = (response.data || [])
-          .filter((country) => country.cca2 && getCountryName(country))
-          .sort((first, second) => getCountryName(first).localeCompare(getCountryName(second)));
-
-        if (!isActive) return;
-
-        setCountries(sortedCountries);
-      } catch (requestError) {
-        if (!isActive) return;
-        setCountries([]);
-        setCountryDirectoryError(getErrorMessage(requestError));
-      } finally {
-        if (isActive) {
-          setIsLoadingCountries(false);
-        }
-      }
-    };
-
-    loadCountries();
-
-    return () => {
-      isActive = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    let isActive = true;
-
     const loadDestinations = async () => {
       setIsLoading(true);
-      setError(isCountryDirectory ? countryDirectoryError : '');
+      setError('');
       setStatus('');
 
       if (isCountryDirectory) {
-        if (isLoadingCountries) {
-          return;
-        }
+        try {
+          const response = await getTravelGuideCountries({
+            currentCountry: userCountry,
+            currentCountryCode: userCountryCode,
+            region: regionFilters[activeRegion],
+            limit: 24,
+            page: 1,
+            search: searchTerm.trim(),
+          });
+          const countryGuide = response.data.data.countries;
 
-        if (countryDirectoryError) {
+          if (!isActive) return;
+
+          setDestinations(countryGuide.items || []);
+          setPagination(countryGuide.pagination || { page: 1, totalPages: 1, hasMore: false });
+          setStatus(
+            countryGuide.available
+              ? `${countryGuide.items?.length || 0} countr${countryGuide.items?.length === 1 ? 'y' : 'ies'} loaded.`
+              : countryGuide.message
+          );
+        } catch (requestError) {
+          if (!isActive) return;
           setDestinations([]);
-          setPagination({ page: 1, totalPages: 1, hasMore: false });
-          setIsLoading(false);
-          return;
+          setError(getErrorMessage(requestError));
+        } finally {
+          if (isActive) {
+            setIsLoading(false);
+          }
         }
-
-        const normalizedSearch = searchTerm.trim().toLowerCase();
-        const countries = overseasCountries.filter((country) => !normalizedSearch || country.name.toLowerCase().includes(normalizedSearch));
-        const pageItems = countries.slice(0, 24);
-
-        setDestinations(pageItems);
-        setPagination({
-          page: 1,
-          limit: 24,
-          total: countries.length,
-          totalPages: Math.max(Math.ceil(countries.length / 24), 1),
-          hasMore: countries.length > 24,
-        });
-        setStatus(`${pageItems.length} countr${pageItems.length === 1 ? 'y' : 'ies'} loaded.`);
-        setIsLoading(false);
         return;
       }
 
@@ -203,6 +126,7 @@ function TravelGuidePage() {
           search: searchTerm.trim(),
         });
         const guide = response.data.data.guide;
+
 
         if (!isActive) return;
 
@@ -226,10 +150,8 @@ function TravelGuidePage() {
       isActive = false;
     };
   }, [
-    countryDirectoryError,
+    activeRegion,
     isCountryDirectory,
-    isLoadingCountries,
-    overseasCountries,
     searchTerm,
     selectedOverseasCountry,
     userCountry,
@@ -282,20 +204,25 @@ function TravelGuidePage() {
     setError('');
 
     if (isCountryDirectory) {
-      const normalizedSearch = searchTerm.trim().toLowerCase();
-      const countries = overseasCountries.filter((country) => !normalizedSearch || country.name.toLowerCase().includes(normalizedSearch));
-      const startIndex = (nextPage - 1) * 24;
-      const pageItems = countries.slice(startIndex, startIndex + 24);
+      try {
+        const response = await getTravelGuideCountries({
+          currentCountry: userCountry,
+          currentCountryCode: userCountryCode,
+          region: regionFilters[activeRegion],
+          limit: 24,
+          page: nextPage,
+          search: searchTerm.trim(),
+        });
+        const countryGuide = response.data.data.countries;
 
-      setDestinations(pageItems);
-      setPagination({
-        page: nextPage,
-        limit: 24,
-        total: countries.length,
-        totalPages: Math.max(Math.ceil(countries.length / 24), 1),
-        hasMore: startIndex + 24 < countries.length,
-      });
-      setIsLoading(false);
+        setDestinations(countryGuide.items || []);
+        setPagination(countryGuide.pagination || pagination);
+        setStatus(`${countryGuide.items?.length || 0} countr${countryGuide.items?.length === 1 ? 'y' : 'ies'} loaded.`);
+      } catch (requestError) {
+        setError(getErrorMessage(requestError));
+      } finally {
+        setIsLoading(false);
+      }
       return;
     }
 

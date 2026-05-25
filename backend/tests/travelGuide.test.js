@@ -11,6 +11,15 @@ describe('Travel guide routes', () => {
     expect(response.body.status).toBe('fail');
   });
 
+  test('requires authentication for country lists', async () => {
+    const response = await request(app)
+      .get('/api/v1/travel-guide/countries')
+      .query({ currentCountry: 'Malaysia', region: 'Asia' });
+
+    expect(response.statusCode).toBe(401);
+    expect(response.body.status).toBe('fail');
+  });
+
   test('requires authentication for destination details', async () => {
     const response = await request(app)
       .get('/api/v1/travel-guide/destination')

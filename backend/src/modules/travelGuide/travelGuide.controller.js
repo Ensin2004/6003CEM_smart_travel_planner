@@ -16,6 +16,19 @@ const getDestinations = catchAsync(async (req, res) => {
   sendSuccess(res, 200, { guide });
 });
 
+const getCountries = catchAsync(async (req, res) => {
+  const countries = await travelGuideService.getCountryList({
+    currentCountry: req.query.currentCountry,
+    currentCountryCode: req.query.currentCountryCode,
+    region: req.query.region,
+    limit: req.query.limit,
+    page: req.query.page,
+    search: req.query.search,
+  });
+
+  sendSuccess(res, 200, { countries });
+});
+
 const getDestinationDetails = catchAsync(async (req, res) => {
   const guide = await travelGuideService.getDestinationDetails({
     destination: req.query.destination,
@@ -32,6 +45,7 @@ const getDestinationDetails = catchAsync(async (req, res) => {
 });
 
 module.exports = {
+  getCountries,
   getDestinations,
   getDestinationDetails,
 };

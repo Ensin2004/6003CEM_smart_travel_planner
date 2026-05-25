@@ -8,6 +8,15 @@ const validate = require('../../middleware/validate.middleware');
 const router = express.Router();
 
 router.get(
+  '/countries',
+  protect,
+  thirdPartyApiRateLimit,
+  travelGuideValidation.countryListRules,
+  validate,
+  travelGuideController.getCountries
+);
+
+router.get(
   '/destinations',
   protect,
   thirdPartyApiRateLimit,
