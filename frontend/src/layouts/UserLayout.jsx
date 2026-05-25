@@ -1,5 +1,4 @@
 import {
-  Bot,
   BookOpenCheck,
   BriefcaseBusiness,
   Building2,
@@ -32,10 +31,6 @@ const userMenu = [
     to: '/trips',
     label: 'My Trips',
     icon: Plane,
-    children: [
-      { to: '/trips', label: 'Create Manually', icon: ListChecks },
-      { to: '/trips?create=ai', label: 'Create with AI', icon: Bot },
-    ],
   },
   {
     to: '/explore',
