@@ -36,6 +36,8 @@ const refreshTokenRules = [
   body('refreshToken').notEmpty().withMessage('Refresh token is required'),
 ];
 
+const logoutRules = refreshTokenRules;
+
 const verifyEmailRules = [
   body('token').notEmpty().withMessage('Verification token is required'),
 ];
@@ -68,6 +70,7 @@ module.exports = {
   registerRules,
   loginRules,
   refreshTokenRules,
+  logoutRules,
   verifyEmailRules,
   resendVerificationEmailRules,
   passwordResetEmailRules,

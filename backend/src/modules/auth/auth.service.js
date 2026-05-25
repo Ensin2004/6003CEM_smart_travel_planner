@@ -316,6 +316,23 @@ const refresh = async (refreshToken) => {
   return { user, accessToken, refreshToken: nextRefreshToken };
 };
 
+const logout = async (refreshToken) => {
+  try {
+    const decoded = jwt.verify(refreshToken, env.refreshJwtSecret);
+    const user = await authRepository.findByIdWithRefreshToken(decoded.userId);
+
+    if (user && user.refreshToken === refreshToken) {
+      user.refreshToken = undefined;
+      user.refreshTokenExpiresAt = undefined;
+      await user.save();
+    }
+  } catch {
+    // Logout stays idempotent even when the token has already expired.
+  }
+
+  return { loggedOut: true };
+};
+
 const checkPasswordResetEmail = async (email) => {
   const user = await authRepository.findByEmail(email);
 
@@ -356,6 +373,7 @@ module.exports = {
   register,
   login,
   refresh,
+  logout,
   verifyEmail,
   resendVerificationEmail,
   checkPasswordResetEmail,

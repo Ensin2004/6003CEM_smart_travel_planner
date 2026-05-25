@@ -9,7 +9,9 @@ const apiLogRoutes = require('../modules/apiLogs/apiLog.routes');
 const settingsRoutes = require('../modules/settings/settings.routes');
 const feedbackRoutes = require('../modules/feedback/feedback.routes');
 const travelToolsRoutes = require('../modules/travelTools/travelTools.routes');
+const travelGuideRoutes = require('../modules/travelGuide/travelGuide.routes');
 const currencyRoutes = require('../modules/currency/currency.routes');
+const mapRoutes = require('../modules/map/map.routes');
 
 const router = express.Router();
 
@@ -22,12 +24,14 @@ router.get('/', (req, res) => {
       '/users',
       '/trips',
       '/packing-lists',
+      '/travel-guide',
       '/explore',
       '/admin',
       '/api-logs',
       '/settings',
       '/feedback',
       '/currency',
+      '/map',
     ],
   });
 });
@@ -37,11 +41,13 @@ router.use('/users', userRoutes);
 router.use('/trips', tripRoutes);
 router.use('/packing-lists', travelToolsRoutes);
 router.use('/travel-tools', travelToolsRoutes);
+router.use('/travel-guide', travelGuideRoutes);
 router.use('/explore', exploreRoutes);
 router.use('/admin', adminRoutes);
 router.use('/api-logs', apiLogRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/feedback', feedbackRoutes);
 router.use('/currency', currencyRoutes);
+router.use('/map', mapRoutes);
 
 module.exports = router;

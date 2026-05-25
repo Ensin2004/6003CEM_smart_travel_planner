@@ -13,4 +13,11 @@ describe('Auth validation', () => {
     expect(response.body.status).toBe('fail');
     expect(response.body.errors.length).toBeGreaterThan(0);
   });
+
+  test('rejects logout without refresh token', async () => {
+    const response = await request(app).post('/api/v1/auth/logout').send({});
+
+    expect(response.statusCode).toBe(400);
+    expect(response.body.status).toBe('fail');
+  });
 });

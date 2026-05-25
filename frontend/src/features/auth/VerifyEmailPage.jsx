@@ -1,4 +1,4 @@
-import { CheckCircle2, MailCheck, RefreshCw, XCircle } from 'lucide-react';
+import { CheckCircle2, RefreshCw, XCircle } from 'lucide-react';
 import { useContext, useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { resendVerificationEmail, verifyEmail } from '../../api/authApi';

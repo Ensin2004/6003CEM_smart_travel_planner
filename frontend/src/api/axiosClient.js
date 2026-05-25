@@ -44,6 +44,7 @@ axiosClient.interceptors.response.use(
     const isAuthFormRequest = [
       '/auth/login',
       '/auth/register',
+      '/auth/logout',
       '/auth/verify-email',
       '/auth/verify-email/resend',
       '/auth/forgot-password/check-email',
