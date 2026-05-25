@@ -13,13 +13,12 @@ import {
   LoaderCircle,
   MapPin,
   Sparkles,
-  Star,
   Sun,
-  WalletCards,
 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import { getTravelGuideDestinationDetails } from '../../api/travelGuideApi';
+import PlaceCard from '../../components/place/PlaceCard';
 import './TravelGuidePage.css';
 
 const getDateKey = () => new Date().toISOString().slice(0, 10);
@@ -61,67 +60,9 @@ const getWeatherScore = (place, scenario, category) => {
 const sortForWeather = (items, scenario, category) =>
   [...items].sort((first, second) => getWeatherScore(second, scenario, category) - getWeatherScore(first, scenario, category));
 
-function RatingLine({ place }) {
-  const normalizedRating = Math.max(0, Math.min(Number(place.rating) || 0, 5));
+const getCarouselImageCount = (item) => item.imageUrls?.length || (item.imageUrl ? 1 : 0);
 
-  return (
-    <div className="travel-guide-card-rating">
-      <div className="travel-guide-star-rating" aria-label={`${normalizedRating || 'No'} out of 5 stars`}>
-        {[1, 2, 3, 4, 5].map((star) => {
-          const fillPercent = Math.max(0, Math.min(normalizedRating - (star - 1), 1)) * 100;
-
-          return (
-            <span className="travel-guide-star" key={star} aria-hidden="true">
-              <Star size={15} />
-              <span style={{ width: `${fillPercent}%` }}>
-                <Star size={15} fill="currentColor" />
-              </span>
-            </span>
-          );
-        })}
-      </div>
-      <strong>{place.rating ? `${Number(place.rating).toFixed(1)} stars` : 'No rating'}</strong>
-      <span>{place.reviewCount ? `${Number(place.reviewCount).toLocaleString()} reviews` : 'No reviews'}</span>
-    </div>
-  );
-}
-
-function PlaceCard({ place }) {
-  return (
-    <article className="travel-guide-place-card">
-      <img src={place.imageUrl || place.imageUrls?.[0]} alt="" loading="lazy" />
-      <div>
-        <span>{place.category || place.type || 'Place'}</span>
-        <h3>{place.name}</h3>
-        <RatingLine place={place} />
-        <div className="travel-guide-card-facts">
-          <div className="travel-guide-card-price-row">
-            <WalletCards size={16} aria-hidden="true" />
-            <div>
-              <span>Price range</span>
-              <strong>{place.price || place.priceDetail?.display || 'Price unavailable'}</strong>
-            </div>
-          </div>
-          <div className="travel-guide-card-status-row">
-            <span>{place.openState || 'Hours unavailable'}</span>
-          </div>
-        </div>
-        <p>
-          <MapPin size={14} aria-hidden="true" />
-          {place.address || 'Address details unavailable'}
-        </p>
-        {place.url && (
-          <a href={place.url} target="_blank" rel="noreferrer">
-            View details
-            <ExternalLink size={13} aria-hidden="true" />
-          </a>
-        )}
-      </div>
-    </article>
-  );
-}
-
-function GuideCarousel({ id, title, introTitle, introText, items, rowIndex, onMove, onMore }) {
+function GuideCarousel({ id, title, introTitle, introText, items, rowIndex, onMove, onMore, onMoveCardCarousel, getCardCarouselIndex }) {
   const visibleItems = items.slice(rowIndex, rowIndex + 3);
   const canMoveBack = rowIndex > 0;
   const canMoveNext = rowIndex + 3 < items.length;
@@ -144,7 +85,16 @@ function GuideCarousel({ id, title, introTitle, introText, items, rowIndex, onMo
           <ChevronLeft size={18} aria-hidden="true" />
         </button>
         <div className="travel-guide-row-window">
-          {visibleItems.length ? visibleItems.map((place) => <PlaceCard place={place} key={`${title}-${place.id}-${place.name}`} />) : (
+          {visibleItems.length ? visibleItems.map((place, index) => (
+            <PlaceCard
+              carouselIndex={getCardCarouselIndex(place.id || place.name, getCarouselImageCount(place))}
+              index={rowIndex + index}
+              item={place}
+              key={`${title}-${place.id}-${place.name}`}
+              onMoveCarousel={onMoveCardCarousel}
+              type={id === 'stays' ? 'hotels' : id === 'food' ? 'food' : 'attractions'}
+            />
+          )) : (
             <div className="travel-guide-mini-empty">
               <p>No results returned for this row.</p>
             </div>
@@ -180,6 +130,7 @@ function TravelGuideDestinationPage() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [rowIndexes, setRowIndexes] = useState({ things: 0, stays: 0, food: 0 });
+  const [cardCarouselIndexes, setCardCarouselIndexes] = useState({});
 
   const destinationLabel = useMemo(() => [destination, country].filter(Boolean).join(', '), [country, destination]);
   const gallery = guide?.gallery?.length ? guide.gallery : guide?.heroImageUrl ? [guide.heroImageUrl] : [];
@@ -279,6 +230,21 @@ function TravelGuideDestinationPage() {
     });
   };
 
+  const getCardCarouselIndex = (itemId, imageCount) =>
+    Math.min(cardCarouselIndexes[itemId] || 0, Math.max(imageCount - 1, 0));
+
+  const moveCardCarousel = (itemId, imageCount, direction) => {
+    setCardCarouselIndexes((currentIndexes) => {
+      const currentIndex = currentIndexes[itemId] || 0;
+      const nextIndex = (currentIndex + direction + imageCount) % imageCount;
+
+      return {
+        ...currentIndexes,
+        [itemId]: nextIndex,
+      };
+    });
+  };
+
   const renderSingleCategory = (category) => {
     const option = categoryOptions.find((item) => item.id === category);
     const items = categories[category] || [];
@@ -293,7 +259,16 @@ function TravelGuideDestinationPage() {
           <small>{items.length} result{items.length === 1 ? '' : 's'} loaded</small>
         </div>
         <div className="travel-guide-place-grid">
-          {items.map((place) => <PlaceCard place={place} key={`${category}-${place.id}-${place.name}`} />)}
+          {items.map((place, index) => (
+            <PlaceCard
+              carouselIndex={getCardCarouselIndex(place.id || place.name, getCarouselImageCount(place))}
+              index={index}
+              item={place}
+              key={`${category}-${place.id}-${place.name}`}
+              onMoveCarousel={moveCardCarousel}
+              type={category === 'hotels' ? 'hotels' : category === 'restaurants' ? 'food' : 'attractions'}
+            />
+          ))}
         </div>
         <button className="travel-guide-view-more" type="button" onClick={() => handleViewMore(category)} disabled={isLoadingMore || isLoading}>
           {isLoadingMore ? <LoaderCircle className="travel-guide-spin" size={16} aria-hidden="true" /> : <Sparkles size={16} aria-hidden="true" />}
@@ -470,7 +445,9 @@ function TravelGuideDestinationPage() {
                 introText="Sightseeing ideas ranked around ratings, reviews, and the selected weather mode."
                 items={categories.attractions.slice(0, 8)}
                 rowIndex={rowIndexes.things || 0}
+                getCardCarouselIndex={getCardCarouselIndex}
                 onMove={moveRow}
+                onMoveCardCarousel={moveCardCarousel}
                 onMore={() => handleViewMore('attractions')}
               />
               <GuideCarousel
@@ -480,7 +457,9 @@ function TravelGuideDestinationPage() {
                 introText="Stay options to compare by rating, location signals, and price visibility."
                 items={categories.hotels.slice(0, 8)}
                 rowIndex={rowIndexes.stays || 0}
+                getCardCarouselIndex={getCardCarouselIndex}
                 onMove={moveRow}
+                onMoveCardCarousel={moveCardCarousel}
                 onMore={() => handleViewMore('hotels')}
               />
               <GuideCarousel
@@ -490,7 +469,9 @@ function TravelGuideDestinationPage() {
                 introText="Food spots for quick shortlist building, with ratings and review counts when available."
                 items={categories.restaurants.slice(0, 8)}
                 rowIndex={rowIndexes.food || 0}
+                getCardCarouselIndex={getCardCarouselIndex}
                 onMove={moveRow}
+                onMoveCardCarousel={moveCardCarousel}
                 onMore={() => handleViewMore('restaurants')}
               />
             </>

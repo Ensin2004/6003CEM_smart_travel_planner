@@ -10,15 +10,16 @@ import {
   Search,
   SlidersHorizontal,
 } from 'lucide-react';
-import { Country } from 'country-state-city';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getTravelGuideDestinations } from '../../api/travelGuideApi';
+import { getTravelGuideCountries, getTravelGuideDestinations } from '../../api/travelGuideApi';
 import useAuth from '../../hooks/useAuth';
 import './TravelGuidePage.css';
 
-const getCountryCode = (countryName = '') =>
-  Country.getAllCountries().find((country) => country.name.toLowerCase() === countryName.toLowerCase())?.isoCode || '';
+const getCountryName = (country = {}) => country.name?.common || country.name?.official || '';
+
+const getCountryCode = (countries = [], countryName = '') =>
+  countries.find((country) => getCountryName(country).toLowerCase() === countryName.toLowerCase())?.cca2 || '';
 
 const getErrorMessage = (error) =>
   error.response?.data?.message || error.response?.data?.error || error.message || 'Unable to load travel guides right now.';
@@ -31,25 +32,23 @@ const regionFilters = {
   'South America': 'South America',
   Oceania: 'Oceania',
   Africa: 'Africa',
+  Antarctica: 'Antarctica',
+  Other: 'Other',
 };
 
-const southAmericaCountryCodes = new Set(['AR', 'BO', 'BR', 'CL', 'CO', 'EC', 'FK', 'GF', 'GY', 'PE', 'PY', 'SR', 'UY', 'VE']);
-const oceaniaCountryCodes = new Set(['AS', 'AU', 'CK', 'FJ', 'FM', 'GU', 'KI', 'MH', 'MP', 'NC', 'NF', 'NR', 'NU', 'NZ', 'PF', 'PG', 'PN', 'PW', 'SB', 'TK', 'TO', 'TV', 'UM', 'VU', 'WF', 'WS']);
+const supportedRegionNames = new Set(Object.values(regionFilters).filter(Boolean));
 
 const getCountryRegion = (country) => {
-  if (southAmericaCountryCodes.has(country.isoCode)) return 'South America';
-  if (oceaniaCountryCodes.has(country.isoCode)) return 'Oceania';
+  const continent = country.continents?.find((name) => supportedRegionNames.has(name));
 
-  const timezonePrefix = country.timezones?.[0]?.zoneName?.split('/')?.[0];
-
-  if (timezonePrefix === 'Europe') return 'Europe';
-  if (timezonePrefix === 'Africa') return 'Africa';
-  if (timezonePrefix === 'Asia') return 'Asia';
-  if (timezonePrefix === 'Australia' || timezonePrefix === 'Pacific') return 'Oceania';
-  if (timezonePrefix === 'America') return 'North America';
+  if (continent) {
+    return continent;
+  }
 
   return 'Other';
 };
+
+const getCurrencyCodes = (currencies = {}) => Object.keys(currencies).join(', ');
 
 function DestinationCard({ destination, onOpen }) {
   return (
@@ -66,32 +65,37 @@ function TravelGuidePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const userCountry = user?.country || 'Malaysia';
-  const userCountryCode = useMemo(() => getCountryCode(userCountry), [userCountry]);
+  const [countries, setCountries] = useState([]);
+  const [countryDirectoryError, setCountryDirectoryError] = useState('');
+  const [isLoadingCountries, setIsLoadingCountries] = useState(false);
+  const userCountryCode = useMemo(() => getCountryCode(countries, userCountry), [countries, userCountry]);
   const [guideMode, setGuideMode] = useState('domestic');
   const [selectedOverseasCountry, setSelectedOverseasCountry] = useState(null);
   const [activeRegion, setActiveRegion] = useState('All');
   const overseasCountries = useMemo(
     () =>
-      Country.getAllCountries()
-        .filter((country) => country.isoCode !== userCountryCode)
+      countries
+        .filter((country) => country.cca2 !== userCountryCode)
         .filter((country) => {
           const targetRegion = regionFilters[activeRegion];
           return !targetRegion || getCountryRegion(country) === targetRegion;
         })
         .map((country) => ({
-          id: country.isoCode,
-          name: country.name,
+          id: country.cca2,
+          name: getCountryName(country),
           type: 'Country',
-          region: country.currency ? `Currency ${country.currency}` : 'Overseas',
-          country: country.name,
-          countryCode: country.isoCode,
-          imageUrl: `https://source.unsplash.com/900x640/?${encodeURIComponent(`${country.name} travel landmark`)}`,
+          region: [getCountryRegion(country), country.subregion].filter(Boolean).join(' - '),
+          country: getCountryName(country),
+          countryCode: country.cca2,
+          imageUrl: country.flags?.png || country.flags?.svg || '',
+          flagUrl: country.flags?.png || country.flags?.svg || '',
+          currency: getCurrencyCodes(country.currencies),
           coordinates: {
-            latitude: Number(country.latitude),
-            longitude: Number(country.longitude),
+            latitude: Number(country.latlng?.[0]),
+            longitude: Number(country.latlng?.[1]),
           },
         })),
-    [activeRegion, userCountryCode]
+    [activeRegion, countries, userCountryCode]
   );
   const [searchTerm, setSearchTerm] = useState('');
   const [destinations, setDestinations] = useState([]);
@@ -114,19 +118,64 @@ function TravelGuidePage() {
         .filter(Boolean)
         .join(' ')
         .toLowerCase()
-        .includes(normalizedSearch)
+      .includes(normalizedSearch)
     );
   }, [destinations, searchTerm]);
 
   useEffect(() => {
     let isActive = true;
 
+    const loadCountries = async () => {
+      setIsLoadingCountries(true);
+      setCountryDirectoryError('');
+
+      try {
+        const response = await getTravelGuideCountries();
+        const sortedCountries = (response.data || [])
+          .filter((country) => country.cca2 && getCountryName(country))
+          .sort((first, second) => getCountryName(first).localeCompare(getCountryName(second)));
+
+        if (!isActive) return;
+
+        setCountries(sortedCountries);
+      } catch (requestError) {
+        if (!isActive) return;
+        setCountries([]);
+        setCountryDirectoryError(getErrorMessage(requestError));
+      } finally {
+        if (isActive) {
+          setIsLoadingCountries(false);
+        }
+      }
+    };
+
+    loadCountries();
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isActive = true;
+
     const loadDestinations = async () => {
       setIsLoading(true);
-      setError('');
+      setError(isCountryDirectory ? countryDirectoryError : '');
       setStatus('');
 
       if (isCountryDirectory) {
+        if (isLoadingCountries) {
+          return;
+        }
+
+        if (countryDirectoryError) {
+          setDestinations([]);
+          setPagination({ page: 1, totalPages: 1, hasMore: false });
+          setIsLoading(false);
+          return;
+        }
+
         const normalizedSearch = searchTerm.trim().toLowerCase();
         const countries = overseasCountries.filter((country) => !normalizedSearch || country.name.toLowerCase().includes(normalizedSearch));
         const pageItems = countries.slice(0, 24);
@@ -176,7 +225,16 @@ function TravelGuidePage() {
     return () => {
       isActive = false;
     };
-  }, [isCountryDirectory, overseasCountries, searchTerm, selectedOverseasCountry, userCountry, userCountryCode]);
+  }, [
+    countryDirectoryError,
+    isCountryDirectory,
+    isLoadingCountries,
+    overseasCountries,
+    searchTerm,
+    selectedOverseasCountry,
+    userCountry,
+    userCountryCode,
+  ]);
 
   const loadMoreDestinations = () => {
     changePage(Math.min(pagination.page + 1, pagination.totalPages));
