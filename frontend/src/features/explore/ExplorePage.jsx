@@ -1,17 +1,11 @@
 import {
   Building2,
   CalendarDays,
-  ChevronLeft,
-  ChevronRight,
   CloudSun,
   Compass,
-  Clock,
   Droplets,
-  Image,
   LoaderCircle,
-  MapPin,
   MapPinned,
-  Phone,
   Search,
   Sparkles,
   Star,
@@ -23,6 +17,7 @@ import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { convertCurrency } from '../../api/currencyApi';
 import { getAiRecommendations, searchAttractions, searchHotels, searchRestaurants, searchWeather } from '../../api/exploreApi';
+import PlaceCard from '../../components/place/PlaceCard';
 import CurrencyContext from '../../context/currencyContext';
 import { foodCategoryOptions, roomTypeOptions } from './explore.constants';
 import './ExplorePage.css';
@@ -65,41 +60,6 @@ const formatMoney = (amount, currencyCode) =>
 
 const getPriceConversionKey = (item, targetCurrency) =>
   `${item.id}:${item.priceDetail?.display || item.price || 'price'}:${targetCurrency}`;
-
-const getOpenStatus = (openState = '') => {
-  const normalizedState = openState.toLowerCase();
-
-  if (normalizedState.includes('closed')) {
-    return { label: 'Closed', tone: 'closed' };
-  }
-
-  if (normalizedState.includes('open')) {
-    return { label: 'Open now', tone: 'open' };
-  }
-
-  return { label: 'Hours unknown', tone: 'unknown' };
-};
-
-function StarRating({ rating }) {
-  const normalizedRating = Math.max(0, Math.min(Number(rating) || 0, 5));
-
-  return (
-    <div className="explore-star-rating" aria-label={`${normalizedRating || 'No'} out of 5 stars`}>
-      {[1, 2, 3, 4, 5].map((star) => {
-        const fillPercent = Math.max(0, Math.min(normalizedRating - (star - 1), 1)) * 100;
-
-        return (
-          <span className="explore-star" key={star} aria-hidden="true">
-            <Star size={16} />
-            <span style={{ width: `${fillPercent}%` }}>
-              <Star size={16} fill="currentColor" />
-            </span>
-          </span>
-        );
-      })}
-    </div>
-  );
-}
 
 function ExplorePage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -968,103 +928,25 @@ function ExplorePage() {
                   <p>{searchConfig.emptyText}</p>
                 </div>
             ) : (
-              activeItems.map((item, index) => {
-                const galleryImages = item.imageUrls?.length ? item.imageUrls : item.imageUrl ? [item.imageUrl] : [];
-                const convertedPriceText = getConvertedPriceText(item);
-                const carouselIndex = getCarouselIndex(item.id, galleryImages.length);
-                const openStatus = getOpenStatus(item.openState);
-
-                return (
-                  <article className="explore-attraction" key={`${item.id}-${index}`}>
-                    <div className="explore-attraction-media">
-                      {galleryImages.length ? (
-                        <div className="explore-card-carousel" aria-label={`${item.name} images`}>
-                          <div className="explore-card-track" style={{ transform: `translateX(-${carouselIndex * 100}%)` }}>
-                            {galleryImages.map((imageUrl, imageIndex) => (
-                              <img src={imageUrl} alt="" loading="lazy" key={`${item.id}-image-${imageIndex}`} />
-                            ))}
-                          </div>
-                          {galleryImages.length > 1 && (
-                            <div className="explore-carousel-controls">
-                              <button
-                                type="button"
-                                aria-label="Previous image"
-                                onClick={() => moveCarousel(item.id, galleryImages.length, -1)}
-                              >
-                                <ChevronLeft size={16} />
-                              </button>
-                              <span>{carouselIndex + 1}/{galleryImages.length}</span>
-                              <button
-                                type="button"
-                                aria-label="Next image"
-                                onClick={() => moveCarousel(item.id, galleryImages.length, 1)}
-                              >
-                                <ChevronRight size={16} />
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      ) : (
-                        <div className="explore-attraction-image">
-                          <Image size={28} aria-hidden="true" />
-                        </div>
-                      )}
-                      <span className="explore-card-rank">#{index + 1}</span>
-                    </div>
-                    <div className="explore-attraction-body">
-                      <div className="explore-attraction-title">
-                        <span className="explore-category">
-                          {isHotelsView && hotelFilters.roomType
-                            ? selectedRoomLabel
-                            : isFoodView && restaurantFilters.foodCategory
-                              ? selectedFoodCategoryLabel
-                              : item.category}
-                        </span>
-                        <h3>{item.name}</h3>
-                      </div>
-
-                      <div className="explore-card-rating">
-                        <StarRating rating={item.rating} />
-                        <strong>{item.rating ? `${Number(item.rating).toFixed(1)} stars` : 'No rating'}</strong>
-                        <span>{item.reviewCount ? `${item.reviewCount.toLocaleString()} reviews` : 'No reviews yet'}</span>
-                      </div>
-
-                      <div className="explore-card-facts" aria-label={`${item.name} details`}>
-                        <div className="explore-card-price-row">
-                          {isHotelsView ? <Building2 size={16} aria-hidden="true" /> : isFoodView ? <Utensils size={16} aria-hidden="true" /> : <MapPinned size={16} aria-hidden="true" />}
-                          <div>
-                            <span>Price range</span>
-                            <strong>{getOriginalPriceText(item)}</strong>
-                          </div>
-                          {convertedPriceText && <small>{convertedPriceText}</small>}
-                        </div>
-
-                        <div className="explore-card-status-row">
-                          <span className={`explore-open-badge is-${openStatus.tone}`}>{openStatus.label}</span>
-                          <div>
-                            <Clock size={15} aria-hidden="true" />
-                            <span>{item.openState || 'Opening hours unavailable'}</span>
-                          </div>
-                        </div>
-
-                        {item.phone && (
-                          <div className="explore-card-contact">
-                            <Phone size={15} aria-hidden="true" />
-                            <a href={`tel:${item.phone}`}>{item.phone}</a>
-                          </div>
-                        )}
-                      </div>
-
-                      {item.address && (
-                        <p className="explore-address">
-                          <MapPin size={15} aria-hidden="true" />
-                          {item.address}
-                        </p>
-                      )}
-                    </div>
-                  </article>
-                );
-              })
+              activeItems.map((item, index) => (
+                <PlaceCard
+                  carouselIndex={getCarouselIndex(item.id || item.name, item.imageUrls?.length || (item.imageUrl ? 1 : 0))}
+                  categoryLabel={
+                    isHotelsView && hotelFilters.roomType
+                      ? selectedRoomLabel
+                      : isFoodView && restaurantFilters.foodCategory
+                        ? selectedFoodCategoryLabel
+                        : item.category
+                  }
+                  convertedPriceText={getConvertedPriceText(item)}
+                  index={index}
+                  item={item}
+                  key={`${item.id}-${index}`}
+                  onMoveCarousel={moveCarousel}
+                  originalPriceText={getOriginalPriceText(item)}
+                  type={isHotelsView ? 'hotels' : isFoodView ? 'food' : 'attractions'}
+                />
+              ))
               )}
             </div>
             {isFilteredSearchView && hasMoreFilteredItems && (

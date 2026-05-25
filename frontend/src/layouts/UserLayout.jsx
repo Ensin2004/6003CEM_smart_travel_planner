@@ -1,4 +1,5 @@
 import {
+  BookOpenCheck,
   BriefcaseBusiness,
   Building2,
   Compass,
@@ -43,6 +44,7 @@ const userMenu = [
       { to: '/explore?view=transport', label: 'Transportation', icon: BriefcaseBusiness },
     ],
   },
+  { to: '/travel-guide', label: 'Travel Guide', icon: BookOpenCheck },
   {
     to: '/packing-lists',
     label: 'Travel Tools',

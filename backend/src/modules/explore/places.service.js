@@ -26,21 +26,23 @@ const normalizeAttraction = (item = {}, index) => ({
   priceDetail: getPriceDetail(item.price || item.price_level),
 });
 
-const getAttractionsByDestination = async (destination) => {
+const getAttractionsByDestination = async (destination, start = 0) => {
   if (!env.serpApiKey || env.nodeEnv === 'test') {
     return fallbackAttractions(destination, 'SerpApi key is not configured');
   }
 
   try {
+    const pageStart = Math.max(Number(start) || 0, 0);
     const attractions = await searchGoogleMaps({
       cache: attractionsCache,
-      cacheKey: destination.toLowerCase(),
+      cacheKey: `${destination.toLowerCase()}:${pageStart}`,
       query: `attractions in ${destination}`,
+      start: pageStart,
       metadata: { destination },
       mapItem: normalizeAttraction,
     });
 
-    const { query, nextStart, hasMore, ...publicAttractions } = attractions;
+    const { query, ...publicAttractions } = attractions;
     return publicAttractions;
   } catch (error) {
     const { message, statusCode } = getGoogleMapsFailureMessage(error);

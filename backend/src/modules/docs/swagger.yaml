@@ -3,6 +3,245 @@ info:
   title: Smart Travel Planner API
   version: 1.0.0
 paths:
+  /api/v1/travel-guide/countries:
+    get:
+      summary: List overseas countries for the travel guide directory
+      tags:
+        - Travel Guide
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: currentCountry
+          required: false
+          schema:
+            type: string
+          example: Malaysia
+        - in: query
+          name: currentCountryCode
+          required: false
+          schema:
+            type: string
+          example: MY
+        - in: query
+          name: region
+          required: false
+          schema:
+            type: string
+            enum: [Asia, Europe, North America, South America, Oceania, Africa, Antarctica, Other]
+          example: Asia
+        - in: query
+          name: search
+          required: false
+          schema:
+            type: string
+          example: Japan
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+          example: 1
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 30
+          example: 24
+      responses:
+        '200':
+          description: Paginated country cards using REST Countries data
+          content:
+            application/json:
+              example:
+                status: success
+                message: Success
+                data:
+                  countries:
+                    available: true
+                    items:
+                      - id: JP
+                        name: Japan
+                        type: Country
+                        region: Asia - Eastern Asia
+                        continent: Asia
+                        countryCode: JP
+                        imageUrl: https://flagcdn.com/w320/jp.png
+                        flagUrl: https://flagcdn.com/w320/jp.png
+                        currency: JPY
+                        coordinates:
+                          latitude: 36
+                          longitude: 138
+                    pagination:
+                      page: 1
+                      limit: 24
+                      total: 50
+                      totalPages: 3
+                      hasMore: true
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid token
+        '429':
+          description: Too many third-party API requests
+        '503':
+          description: External service unavailable
+  /api/v1/travel-guide/destinations:
+    get:
+      summary: List travel guide destinations or overseas countries
+      tags:
+        - Travel Guide
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: country
+          required: true
+          schema:
+            type: string
+          example: Malaysia
+        - in: query
+          name: countryCode
+          required: false
+          schema:
+            type: string
+          example: MY
+        - in: query
+          name: mode
+          required: false
+          schema:
+            type: string
+            enum: [domestic, overseas]
+          example: domestic
+        - in: query
+          name: search
+          required: false
+          schema:
+            type: string
+          example: beach
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+          example: 1
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 30
+          example: 24
+      responses:
+        '200':
+          description: Paginated travel guide destination cards
+          content:
+            application/json:
+              example:
+                status: success
+                message: Success
+                data:
+                  guide:
+                    available: true
+                    mode: domestic
+                    country: Malaysia
+                    items:
+                      - id: place-1
+                        name: Kuala Lumpur
+                        type: Tourist attraction
+                        rating: 4.6
+                        reviewCount: 12000
+                        imageUrl: https://example.com/photo.jpg
+                    pagination:
+                      page: 1
+                      limit: 24
+                      total: 88
+                      totalPages: 4
+                      hasMore: true
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid token
+        '429':
+          description: Too many third-party API requests
+        '503':
+          description: External service unavailable
+  /api/v1/travel-guide/destination:
+    get:
+      summary: Get selected destination guide details
+      tags:
+        - Travel Guide
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: destination
+          required: true
+          schema:
+            type: string
+          example: Singapore
+        - in: query
+          name: country
+          required: false
+          schema:
+            type: string
+          example: Singapore
+        - in: query
+          name: date
+          required: false
+          schema:
+            type: string
+            format: date
+          example: '2026-05-25'
+        - in: query
+          name: latitude
+          required: false
+          schema:
+            type: number
+          example: 1.3521
+        - in: query
+          name: longitude
+          required: false
+          schema:
+            type: number
+          example: 103.8198
+        - in: query
+          name: attractionStart
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+          example: 0
+        - in: query
+          name: restaurantStart
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+          example: 0
+        - in: query
+          name: hotelStart
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+          example: 0
+      responses:
+        '200':
+          description: Destination guide details with weather, recommendations, map coordinates, and categorized places
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid token
+        '429':
+          description: Too many third-party API requests
+        '503':
+          description: External service unavailable
   /api/v1/map/places:
     get:
       summary: Search map places with rich Google Maps details
