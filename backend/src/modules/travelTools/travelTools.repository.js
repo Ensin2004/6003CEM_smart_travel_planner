@@ -23,7 +23,10 @@ const packingListRepository = {
 };
 
 const packingTemplateRepository = makeOwnedRepository(PackingTemplate);
-const tripDocumentRepository = makeOwnedRepository(TripDocument);
+const tripDocumentRepository = {
+  ...makeOwnedRepository(TripDocument),
+  save: (document) => document.save(),
+};
 const documentTemplateRepository = makeOwnedRepository(DocumentTemplate, { updatedAt: -1, createdAt: -1 });
 
 module.exports = {

@@ -12,6 +12,72 @@ const {
   normalizePriorityLevel,
 } = require('./travelTools.constants');
 
+const allowedDocumentTypes = ['Passport', 'Visa', 'Insurance', 'Ticket', 'Booking', 'Custom'];
+const allowedDocumentItemTypes = ['Passport', 'Visa', 'Insurance', 'Ticket', 'Booking', 'Transport', 'Health', 'Contact', 'Custom'];
+const allowedDocumentMimeTypes = [
+  'image/png',
+  'image/jpeg',
+  'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.ms-powerpoint',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+];
+
+const standardDocumentTemplates = [
+  {
+    key: 'europe-vacation',
+    name: 'Europe Vacation',
+    title: 'Europe Vacation',
+    documentType: 'Custom',
+    description: 'Documents commonly needed for multi-city Europe trips.',
+    source: 'system',
+    items: [
+      { name: 'Passport', documentType: 'Passport', uploadLabel: 'Upload scan' },
+      { name: 'Visa', documentType: 'Visa', uploadLabel: 'Upload Schengen visa PDF' },
+      { name: 'Travel Insurance', documentType: 'Insurance', uploadLabel: 'Upload travel insurance policy' },
+      { name: 'Flight Booking', documentType: 'Ticket', uploadLabel: 'Upload e-ticket' },
+      { name: 'Hotel Reservation', documentType: 'Booking', uploadLabel: 'Upload booking confirmation' },
+      { name: 'Train Tickets', documentType: 'Transport', uploadLabel: 'Upload intercity train tickets' },
+      { name: 'Vaccination Certificate', documentType: 'Health', uploadLabel: 'Upload certificate if required' },
+      { name: 'Emergency Contacts', documentType: 'Contact', uploadLabel: 'Upload emergency contact sheet' },
+      { name: 'Local Transport Pass', documentType: 'Transport', uploadLabel: 'Upload metro card or bus pass' },
+    ],
+  },
+  {
+    key: 'business-trip',
+    name: 'Business Trip',
+    title: 'Business Trip',
+    documentType: 'Custom',
+    description: 'Core documents for meetings, bookings, and company travel.',
+    source: 'system',
+    items: [
+      { name: 'Passport', documentType: 'Passport', uploadLabel: 'Upload passport scan' },
+      { name: 'Visa', documentType: 'Visa', uploadLabel: 'Upload work or entry visa' },
+      { name: 'Flight Booking', documentType: 'Ticket', uploadLabel: 'Upload flight itinerary' },
+      { name: 'Hotel Reservation', documentType: 'Booking', uploadLabel: 'Upload hotel confirmation' },
+      { name: 'Travel Insurance', documentType: 'Insurance', uploadLabel: 'Upload insurance policy' },
+    ],
+  },
+  {
+    key: 'family-holiday',
+    name: 'Family Holiday',
+    title: 'Family Holiday',
+    documentType: 'Custom',
+    description: 'Shared document list for family travel.',
+    source: 'system',
+    items: [
+      { name: 'Family Passports', documentType: 'Passport', uploadLabel: 'Upload passport scans' },
+      { name: 'Travel Insurance', documentType: 'Insurance', uploadLabel: 'Upload family insurance policy' },
+      { name: 'Flight Booking', documentType: 'Ticket', uploadLabel: 'Upload flight tickets' },
+      { name: 'Hotel Reservation', documentType: 'Booking', uploadLabel: 'Upload booking confirmation' },
+      { name: 'Emergency Contacts', documentType: 'Contact', uploadLabel: 'Upload contact sheet' },
+    ],
+  },
+];
+
 const findTemplate = (templateKey) =>
   packingTemplates.find((template) => template.key === templateKey);
 
@@ -290,22 +356,262 @@ const deleteTemplate = async (templateId, userId) => {
 
 const getTravelDocuments = (userId) => tripDocumentRepository.findByUserId(userId);
 
-const getDocumentTemplates = (userId) => documentTemplateRepository.findByUserId(userId);
+const getDocumentTemplates = async (userId) => {
+  const templates = await documentTemplateRepository.findByUserId(userId);
+  return [
+    ...standardDocumentTemplates,
+    ...templates.map((template) => ({
+      id: template._id,
+      key: template._id.toString(),
+      name: template.name,
+      title: template.name,
+      documentType: allowedDocumentTypes.includes(template.documentType)
+        ? template.documentType
+        : `${template.documentType || 'custom'}`.replace(/^\w/, (letter) => letter.toUpperCase()),
+      description: template.description,
+      fileNames: template.fileNames || [],
+      items: template.items || [],
+      source: 'custom',
+    })),
+  ];
+};
+
+const normalizeDocumentFile = (file) => ({
+  name: file.name.trim(),
+  mimeType: file.mimeType,
+  size: Number(file.size) || 0,
+  dataUrl: file.dataUrl,
+  previewType: file.previewType || (file.mimeType.startsWith('image/') ? 'image' : file.mimeType === 'application/pdf' ? 'pdf' : 'office'),
+});
+
+const normalizeDocumentItems = (items = []) =>
+  items
+    .filter((item) => item.name?.trim())
+    .map((item) => ({
+      name: item.name.trim(),
+      documentType: allowedDocumentItemTypes.includes(item.documentType) ? item.documentType : 'Custom',
+      uploadLabel: item.uploadLabel?.trim() || `Upload ${item.name.trim()}`,
+      files: (item.files || []).map(normalizeDocumentFile),
+    }));
+
+const findDocumentTemplate = async (templateKey, userId) => {
+  const systemTemplate = standardDocumentTemplates.find((template) => template.key === templateKey);
+  if (systemTemplate) return systemTemplate;
+
+  const userTemplate = templateKey ? await documentTemplateRepository.findByIdAndUserId(templateKey, userId) : null;
+  if (!userTemplate) return null;
+
+  return {
+    key: userTemplate._id.toString(),
+    name: userTemplate.name,
+    title: userTemplate.name,
+    documentType: userTemplate.documentType,
+    items: userTemplate.items || [],
+  };
+};
+
+const assertUniqueDocumentName = async (userId, name, excludedId) => {
+  const documents = await tripDocumentRepository.findByUserId(userId);
+  const normalizedName = normalizeName(name);
+  const existingDocument = documents.find(
+    (document) =>
+      normalizeName(document.name) === normalizedName &&
+      (!excludedId || document._id.toString() !== excludedId.toString())
+  );
+
+  if (existingDocument) throw new AppError('A travel document with this name already exists.', 409);
+};
+
+const getTravelDocumentById = async (documentId, userId) => {
+  const document = await tripDocumentRepository.findByIdAndUserId(documentId, userId);
+  if (!document) throw new AppError('Travel document not found', 404);
+  return document;
+};
+
+const createTravelDocument = async (userId, data) => {
+  const name = data.name?.trim();
+  if (!name) throw new AppError('Document name is required.', 400);
+
+  await assertUniqueDocumentName(userId, name);
+  const tripFields = await buildTripFields(data.tripId, userId);
+  const template = data.templateKey ? await findDocumentTemplate(data.templateKey, userId) : null;
+  if (data.templateKey && !template) throw new AppError('Travel document template not found', 404);
+  const items = normalizeDocumentItems(data.items?.length ? data.items : template?.items || []);
+
+  return tripDocumentRepository.create({
+    userId,
+    tripId: tripFields.tripId,
+    name,
+    type: allowedDocumentTypes.includes(data.type) ? data.type : 'Custom',
+    templateKey: template?.key,
+    items,
+    files: [],
+  });
+};
+
+const updateTravelDocument = async (documentId, userId, data) => {
+  const updateData = {};
+
+  if (data.name) {
+    await assertUniqueDocumentName(userId, data.name, documentId);
+    updateData.name = data.name.trim();
+  }
+
+  if (data.type) updateData.type = allowedDocumentTypes.includes(data.type) ? data.type : 'Custom';
+
+  if (data.tripId) {
+    const tripFields = await buildTripFields(data.tripId, userId);
+    updateData.tripId = tripFields.tripId;
+  } else if (data.tripId === null) {
+    updateData.tripId = null;
+  }
+
+  const document = await tripDocumentRepository.updateByIdAndUserId(documentId, userId, updateData);
+  if (!document) throw new AppError('Travel document not found', 404);
+  return document;
+};
+
+const deleteTravelDocument = async (documentId, userId) => {
+  const document = await tripDocumentRepository.deleteByIdAndUserId(documentId, userId);
+  if (!document) throw new AppError('Travel document not found', 404);
+};
+
+const addTravelDocumentFiles = async (documentId, userId, files, itemId) => {
+  const document = await getTravelDocumentById(documentId, userId);
+  const nextFiles = (files || []).map(normalizeDocumentFile);
+
+  if (nextFiles.length === 0) throw new AppError('Upload at least one supported file.', 400);
+
+  const unsupportedFile = nextFiles.find((file) => !allowedDocumentMimeTypes.includes(file.mimeType));
+  if (unsupportedFile) throw new AppError('Upload PNG, JPG, JPEG, PDF, Word, PowerPoint, or Excel files only.', 400);
+
+  if (itemId) {
+    const item = document.items.id(itemId);
+    if (!item) throw new AppError('Travel document item not found', 404);
+    item.files.push(...nextFiles);
+  } else {
+    document.files.push(...nextFiles);
+  }
+  return tripDocumentRepository.save(document);
+};
+
+const deleteTravelDocumentFile = async (documentId, fileId, userId) => {
+  const document = await getTravelDocumentById(documentId, userId);
+  let file = document.files.id(fileId);
+  let parentItem = null;
+  if (!file) {
+    parentItem = document.items.find((item) => item.files.id(fileId));
+    file = parentItem?.files.id(fileId);
+  }
+  if (!file) throw new AppError('Travel document file not found', 404);
+
+  file.deleteOne();
+  return tripDocumentRepository.save(document);
+};
+
+const addTravelDocumentItem = async (documentId, userId, data) => {
+  const document = await getTravelDocumentById(documentId, userId);
+  const [item] = normalizeDocumentItems([data]);
+  if (!item) throw new AppError('Document file name is required.', 400);
+  document.items.push(item);
+  return tripDocumentRepository.save(document);
+};
+
+const deleteTravelDocumentItem = async (documentId, itemId, userId) => {
+  const document = await getTravelDocumentById(documentId, userId);
+  const item = document.items.id(itemId);
+  if (!item) throw new AppError('Travel document item not found', 404);
+
+  item.deleteOne();
+  return tripDocumentRepository.save(document);
+};
+
+const duplicateTravelDocument = async (documentId, userId, data = {}) => {
+  const source = await getTravelDocumentById(documentId, userId);
+  const title = data.name?.trim() || `${source.name} copy`;
+  const tripFields = await buildTripFields(data.tripId, userId);
+
+  await assertUniqueDocumentName(userId, title);
+
+  return tripDocumentRepository.create({
+    userId,
+    tripId: tripFields.tripId || source.tripId,
+    name: title,
+    type: source.type,
+    templateKey: source.templateKey,
+    items: source.items.map((item) => ({
+      name: item.name,
+      documentType: item.documentType,
+      uploadLabel: item.uploadLabel,
+      files: item.files.map((file) => ({
+        name: file.name,
+        mimeType: file.mimeType,
+        size: file.size,
+        dataUrl: file.dataUrl,
+        previewType: file.previewType,
+      })),
+    })),
+    files: source.files.map((file) => ({
+      name: file.name,
+      mimeType: file.mimeType,
+      size: file.size,
+      dataUrl: file.dataUrl,
+      previewType: file.previewType,
+    })),
+  });
+};
+
+const createDocumentTemplate = async (userId, data) => {
+  const name = data.name?.trim();
+  if (!name) throw new AppError('Template name is required.', 400);
+
+  const templates = await documentTemplateRepository.findByUserId(userId);
+  const existingTemplate = templates.find((template) => normalizeName(template.name) === normalizeName(name));
+  if (existingTemplate) throw new AppError('A document template with this name already exists.', 409);
+
+  const sourceDocument = data.documentId ? await getTravelDocumentById(data.documentId, userId) : null;
+  const documentType = allowedDocumentTypes.includes(data.documentType)
+    ? data.documentType
+    : sourceDocument?.type || 'Custom';
+
+  return documentTemplateRepository.create({
+    userId,
+    name,
+    documentType,
+    description: data.description?.trim() || '',
+    fileNames: sourceDocument?.files?.map((file) => file.name) || [],
+    items: sourceDocument?.items?.map((item) => ({
+      name: item.name,
+      documentType: item.documentType,
+      uploadLabel: item.uploadLabel,
+    })) || normalizeDocumentItems(data.items || []),
+  });
+};
 
 module.exports = {
   addItem,
+  addTravelDocumentItem,
+  addTravelDocumentFiles,
   createPackingList,
+  createDocumentTemplate,
   createTemplate,
+  createTravelDocument,
   deleteItem,
   deletePackingList,
   deleteTemplate,
+  deleteTravelDocument,
+  deleteTravelDocumentFile,
+  deleteTravelDocumentItem,
+  duplicateTravelDocument,
   duplicatePackingList,
   getMyPackingLists,
   getPackingListById,
+  getTravelDocumentById,
   getTravelDocuments,
   getTemplates,
   getDocumentTemplates,
   updateItem,
   updatePackingList,
   updateTemplate,
+  updateTravelDocument,
 };
