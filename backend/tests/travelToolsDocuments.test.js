@@ -9,10 +9,12 @@ jest.mock('../src/modules/users/user.repository', () => ({
 jest.mock('../src/modules/travelTools/travelTools.service', () => ({
   addTravelDocumentFiles: jest.fn(),
   deleteTravelDocumentItem: jest.fn(),
+  deleteDocumentTemplate: jest.fn(),
   createDocumentTemplate: jest.fn(),
   createTravelDocument: jest.fn(),
   duplicateTravelDocument: jest.fn(),
   getTravelDocuments: jest.fn(),
+  updateDocumentTemplate: jest.fn(),
 }));
 
 const userRepository = require('../src/modules/users/user.repository');
@@ -147,6 +149,55 @@ describe('Travel document routes', () => {
     expect(travelToolsService.deleteTravelDocumentItem).toHaveBeenCalledWith(
       '507f1f77bcf86cd799439012',
       '507f1f77bcf86cd799439015',
+      userId
+    );
+  });
+
+  test('updates a saved travel document template for the authenticated user', async () => {
+    travelToolsService.updateDocumentTemplate.mockResolvedValue({
+      _id: '507f1f77bcf86cd799439014',
+      userId,
+      name: 'Updated Europe Vacation',
+      documentType: 'Custom',
+      items: [{ name: 'Passport', documentType: 'Passport', uploadLabel: 'Upload scan' }],
+    });
+
+    const response = await request(app)
+      .patch('/api/v1/travel-tools/document-templates/507f1f77bcf86cd799439014')
+      .set('Authorization', `Bearer ${token}`)
+      .send({
+        name: 'Updated Europe Vacation',
+        documentType: 'Custom',
+        items: [{ name: 'Passport', documentType: 'Passport', uploadLabel: 'Upload scan' }],
+      });
+
+    expect(response.statusCode).toBe(200);
+    expect(response.body.data.template.name).toBe('Updated Europe Vacation');
+    expect(travelToolsService.updateDocumentTemplate).toHaveBeenCalledWith(
+      '507f1f77bcf86cd799439014',
+      userId,
+      {
+        name: 'Updated Europe Vacation',
+        documentType: 'Custom',
+        items: [{ name: 'Passport', documentType: 'Passport', uploadLabel: 'Upload scan' }],
+      }
+    );
+  });
+
+  test('deletes a saved travel document template for the authenticated user', async () => {
+    travelToolsService.deleteDocumentTemplate.mockResolvedValue({
+      _id: '507f1f77bcf86cd799439014',
+      userId,
+      name: 'Europe Vacation',
+    });
+
+    const response = await request(app)
+      .delete('/api/v1/travel-tools/document-templates/507f1f77bcf86cd799439014')
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(response.statusCode).toBe(204);
+    expect(travelToolsService.deleteDocumentTemplate).toHaveBeenCalledWith(
+      '507f1f77bcf86cd799439014',
       userId
     );
   });

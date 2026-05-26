@@ -588,6 +588,35 @@ const createDocumentTemplate = async (userId, data) => {
   });
 };
 
+const updateDocumentTemplate = async (templateId, userId, data) => {
+  const existingTemplate = await documentTemplateRepository.findByIdAndUserId(templateId, userId);
+  if (!existingTemplate) throw new AppError('Document template not found', 404);
+
+  const name = data.name?.trim();
+  if (!name) throw new AppError('Template name is required.', 400);
+
+  const templates = await documentTemplateRepository.findByUserId(userId);
+  const duplicateTemplate = templates.find(
+    (template) =>
+      normalizeName(template.name) === normalizeName(name) &&
+      template._id.toString() !== templateId.toString()
+  );
+  if (duplicateTemplate) throw new AppError('A document template with this name already exists.', 409);
+
+  return documentTemplateRepository.updateByIdAndUserId(templateId, userId, {
+    name,
+    documentType: allowedDocumentTypes.includes(data.documentType) ? data.documentType : 'Custom',
+    description: data.description?.trim() || '',
+    items: normalizeDocumentItems(data.items || []),
+  });
+};
+
+const deleteDocumentTemplate = async (templateId, userId) => {
+  const template = await documentTemplateRepository.deleteByIdAndUserId(templateId, userId);
+  if (!template) throw new AppError('Document template not found', 404);
+  return template;
+};
+
 module.exports = {
   addItem,
   addTravelDocumentItem,
@@ -598,6 +627,7 @@ module.exports = {
   createTravelDocument,
   deleteItem,
   deletePackingList,
+  deleteDocumentTemplate,
   deleteTemplate,
   deleteTravelDocument,
   deleteTravelDocumentFile,
@@ -611,6 +641,7 @@ module.exports = {
   getTemplates,
   getDocumentTemplates,
   updateItem,
+  updateDocumentTemplate,
   updatePackingList,
   updateTemplate,
   updateTravelDocument,

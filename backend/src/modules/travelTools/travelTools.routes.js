@@ -12,11 +12,13 @@ const {
   deleteTravelDocumentItemRules,
   deleteTravelDocumentFileRules,
   documentIdRule,
+  documentTemplateIdRule,
   duplicatePackingListRules,
   duplicateTravelDocumentRules,
   objectIdRule,
   templateIdRule,
   updateItemRules,
+  updateDocumentTemplateRules,
   updatePackingListRules,
   updateTravelDocumentRules,
   updateTemplateRules,
@@ -408,6 +410,68 @@ router.use(protect);
  *       400:
  *         description: Validation error
  *
+ * /travel-tools/document-templates/{templateId}:
+ *   patch:
+ *     summary: Update a saved travel document template
+ *     tags: [Travel Documents]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: templateId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name]
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Europe Vacation
+ *               description:
+ *                 type: string
+ *                 example: Saved custom template for Europe travel documents
+ *               items:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     name:
+ *                       type: string
+ *                       example: Passport
+ *                     documentType:
+ *                       type: string
+ *                       example: Passport
+ *                     uploadLabel:
+ *                       type: string
+ *                       example: Upload scan
+ *     responses:
+ *       200:
+ *         description: Travel document template updated
+ *       404:
+ *         description: Travel document template not found
+ *   delete:
+ *     summary: Delete a saved travel document template
+ *     tags: [Travel Documents]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: templateId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       204:
+ *         description: Travel document template deleted
+ *       404:
+ *         description: Travel document template not found
+ *
  * /travel-tools/documents/{documentId}:
  *   patch:
  *     summary: Update travel document metadata
@@ -455,6 +519,10 @@ router
   .route('/document-templates')
   .get(travelToolsController.getDocumentTemplates)
   .post(createDocumentTemplateRules, validate, travelToolsController.createDocumentTemplate);
+router
+  .route('/document-templates/:templateId')
+  .patch(updateDocumentTemplateRules, validate, travelToolsController.updateDocumentTemplate)
+  .delete(documentTemplateIdRule, validate, travelToolsController.deleteDocumentTemplate);
 
 router.get('/templates', travelToolsController.getTemplates);
 router.post('/templates', createTemplateRules, validate, travelToolsController.createTemplate);

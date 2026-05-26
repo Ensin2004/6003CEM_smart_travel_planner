@@ -182,9 +182,25 @@
 }
 
 .travel-tools-ai-top:disabled,
-.travel-tools-ai-floating:disabled {
+.travel-tools-ai-floating:disabled,
+.travel-tools-actions .primary-action:disabled,
+.travel-tools-modal-actions .primary-action:disabled,
+.travel-tools-add-row .primary-action:disabled {
   cursor: not-allowed;
   opacity: 0.78;
+}
+
+.travel-tools-actions .primary-action:disabled,
+.travel-tools-actions .primary-action:disabled:hover,
+.travel-tools-modal-actions .primary-action:disabled,
+.travel-tools-modal-actions .primary-action:disabled:hover,
+.travel-tools-add-row .primary-action:disabled,
+.travel-tools-add-row .primary-action:disabled:hover {
+  border-color: #cbd5e1;
+  background: #e2e8f0;
+  color: #64748b;
+  box-shadow: none;
+  transform: none;
 }
 
 .travel-tools-layout {
@@ -1194,6 +1210,7 @@
 }
 
 .document-template-card {
+  position: relative;
   display: grid;
   align-content: start;
   gap: 8px;
@@ -1204,6 +1221,17 @@
   background: #ffffff;
   color: var(--ink);
   text-align: left;
+}
+
+.document-template-select {
+  display: grid;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  box-shadow: none;
 }
 
 .document-template-card.active,
@@ -1229,7 +1257,7 @@
   line-height: 1.45;
 }
 
-.document-template-card div {
+.document-template-select div {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
@@ -1237,7 +1265,7 @@
   overflow: hidden;
 }
 
-.document-template-card em {
+.document-template-select em {
   padding: 3px 7px;
   border-radius: 999px;
   background: #f1f5f9;
@@ -1245,6 +1273,112 @@
   font-size: 12px;
   font-style: normal;
   font-weight: var(--font-weight-semibold);
+}
+
+.document-template-menu {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+
+.document-template-menu > button {
+  display: grid;
+  width: 34px;
+  min-height: 34px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--color-primary);
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
+}
+
+.document-template-menu > button:hover {
+  border-color: rgba(15, 118, 110, 0.28);
+  background: #f8fafc;
+}
+
+.document-template-menu-panel {
+  position: absolute;
+  top: 40px;
+  right: 0;
+  z-index: 9;
+  display: grid;
+  gap: 4px;
+  min-width: 132px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
+}
+
+.document-template-menu-panel button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-start;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--navy);
+  font-weight: var(--font-weight-semibold);
+  box-shadow: none;
+}
+
+.document-template-menu-panel button:hover {
+  background: #f8fafc;
+  color: var(--color-primary);
+}
+
+.document-template-menu-panel button:last-child:hover {
+  background: #fef2f2;
+  color: var(--color-danger);
+}
+
+.travel-document-template-editor.travel-tools-form-grid {
+  grid-template-columns: minmax(0, 0.5fr) minmax(0, 1fr);
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.document-template-item-edit {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(130px, 0.35fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.document-template-item-edit input,
+.document-template-item-edit select {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 12px;
+  background: #ffffff;
+  color: var(--ink);
+  font: inherit;
+  outline: none;
+}
+
+.document-template-item-edit select {
+  padding-right: 44px;
+  appearance: none;
+  background:
+    linear-gradient(45deg, transparent 50%, #64748b 50%) calc(100% - 24px) 50% / 6px 6px no-repeat,
+    linear-gradient(135deg, #64748b 50%, transparent 50%) calc(100% - 18px) 50% / 6px 6px no-repeat,
+    #ffffff;
+}
+
+.document-template-item-edit input:focus,
+.document-template-item-edit select:focus {
+  border-color: var(--teal);
+  box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.16);
 }
 
 .travel-document-item-form.travel-tools-form-grid {
@@ -1986,6 +2120,8 @@
   }
 
   .travel-document-item-form.travel-tools-form-grid,
+  .travel-document-template-editor.travel-tools-form-grid,
+  .document-template-item-edit,
   .travel-document-list-item {
     grid-template-columns: 1fr;
   }

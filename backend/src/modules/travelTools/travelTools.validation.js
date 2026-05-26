@@ -4,6 +4,7 @@ const { priorityLevels } = require('./travelTools.constants');
 const objectIdRule = param('id').isMongoId().withMessage('Invalid packing list id');
 const itemIdRule = param('itemId').isMongoId().withMessage('Invalid packing item id');
 const templateIdRule = param('templateId').isMongoId().withMessage('Invalid packing template id');
+const documentTemplateIdRule = param('templateId').isMongoId().withMessage('Invalid document template id');
 const documentIdRule = param('documentId').isMongoId().withMessage('Invalid travel document id');
 const fileIdRule = param('fileId').isMongoId().withMessage('Invalid travel document file id');
 const documentItemIdRule = param('itemId').isMongoId().withMessage('Invalid travel document item id');
@@ -158,6 +159,11 @@ const createDocumentTemplateRules = [
   body('items.*.uploadLabel').optional().trim().isLength({ max: 180 }),
 ];
 
+const updateDocumentTemplateRules = [
+  documentTemplateIdRule,
+  ...createDocumentTemplateRules,
+];
+
 const addTravelDocumentItemRules = [
   documentIdRule,
   body('name').trim().isLength({ min: 1, max: 140 }).withMessage('Document file name is required'),
@@ -179,11 +185,13 @@ module.exports = {
   deleteTravelDocumentItemRules,
   deleteTravelDocumentFileRules,
   documentIdRule,
+  documentTemplateIdRule,
   duplicatePackingListRules,
   duplicateTravelDocumentRules,
   objectIdRule,
   templateIdRule,
   updateItemRules,
+  updateDocumentTemplateRules,
   updatePackingListRules,
   updateTravelDocumentRules,
   updateTemplateRules,

@@ -140,6 +140,16 @@ const createDocumentTemplate = catchAsync(async (req, res) => {
   sendSuccess(res, 201, { template }, 'Document template created');
 });
 
+const updateDocumentTemplate = catchAsync(async (req, res) => {
+  const template = await travelToolsService.updateDocumentTemplate(req.params.templateId, req.user.id, req.body);
+  sendSuccess(res, 200, { template }, 'Document template updated');
+});
+
+const deleteDocumentTemplate = catchAsync(async (req, res) => {
+  await travelToolsService.deleteDocumentTemplate(req.params.templateId, req.user.id);
+  res.status(204).send();
+});
+
 module.exports = {
   addItem,
   addTravelDocumentItem,
@@ -150,6 +160,7 @@ module.exports = {
   createTravelDocument,
   deleteItem,
   deletePackingList,
+  deleteDocumentTemplate,
   deleteTemplate,
   deleteTravelDocument,
   deleteTravelDocumentFile,
@@ -162,6 +173,7 @@ module.exports = {
   getDocumentTemplates,
   getTemplates,
   updateItem,
+  updateDocumentTemplate,
   updatePackingList,
   updateTravelDocument,
   updateTemplate,
