@@ -393,19 +393,19 @@ function TripsPage() {
 
           <div className="trip-directory-stats" aria-label="Trip directory summary">
             <span>
-              <ListChecks size={16} aria-hidden="true" />
-              <strong>{trips.length}</strong>
-              saved trip{trips.length === 1 ? '' : 's'}
+              <i><ListChecks size={17} aria-hidden="true" /></i>
+              <small>Saved trips</small>
+              <strong>{trips.length} trip{trips.length === 1 ? '' : 's'}</strong>
             </span>
             <span>
-              <MapPin size={16} aria-hidden="true" />
-              <strong>{new Set(trips.map((trip) => trip.country).filter(Boolean)).size}</strong>
-              countr{new Set(trips.map((trip) => trip.country).filter(Boolean)).size === 1 ? 'y' : 'ies'}
+              <i><MapPin size={17} aria-hidden="true" /></i>
+              <small>Countries</small>
+              <strong>{new Set(trips.map((trip) => trip.country).filter(Boolean)).size} countr{new Set(trips.map((trip) => trip.country).filter(Boolean)).size === 1 ? 'y' : 'ies'}</strong>
             </span>
             <span>
-              <CalendarDays size={16} aria-hidden="true" />
-              <strong>{trips.filter((trip) => new Date(trip.endDate) >= new Date(today)).length}</strong>
-              upcoming
+              <i><CalendarDays size={17} aria-hidden="true" /></i>
+              <small>Upcoming</small>
+              <strong>{trips.filter((trip) => new Date(trip.endDate) >= new Date(today)).length} active</strong>
             </span>
           </div>
 
@@ -507,11 +507,26 @@ function TripsPage() {
             </span>
           </div>
 
-          <section className="trip-create-section trip-essentials-section" aria-labelledby="essentials-title">
+          <nav className="trip-step-nav" aria-label="Trip creation steps">
+            <a href="#trip-step-basics">
+              <span>01</span>
+              <strong>Trip Basics</strong>
+            </a>
+            <a href="#trip-step-destination">
+              <span>02</span>
+              <strong>Destination</strong>
+            </a>
+            <a href="#trip-step-preferences">
+              <span>03</span>
+              <strong>Preferences</strong>
+            </a>
+          </nav>
+
+          <section id="trip-step-basics" className="trip-create-section trip-essentials-section" aria-labelledby="essentials-title">
             <div className="trip-section-heading">
               <span className="trip-section-icon"><CalendarDays size={18} aria-hidden="true" /></span>
               <div>
-                <span className="trip-section-step-label">Step 1</span>
+                <span className="trip-section-step-label">Step 01</span>
                 <h3 id="essentials-title">Trip Basics</h3>
                 <p>Give the trip a name, date range, and total budget.</p>
               </div>
@@ -595,11 +610,11 @@ function TripsPage() {
             </div>
           </section>
 
-          <section className="trip-create-section" aria-labelledby="destinations-title">
+          <section id="trip-step-destination" className="trip-create-section" aria-labelledby="destinations-title">
             <div className="trip-section-heading">
               <span className="trip-section-icon trip-section-icon-destination"><MapPin size={18} aria-hidden="true" /></span>
               <div>
-                <span className="trip-section-step-label">Step 2</span>
+                <span className="trip-section-step-label">Step 02</span>
                 <h3 id="destinations-title">Destination</h3>
                 <p>Choose the main place for this trip. Extra stops are optional.</p>
               </div>
@@ -676,11 +691,11 @@ function TripsPage() {
             </label>
           )}
 
-          <details className="trip-optional-details">
+          <details id="trip-step-preferences" className="trip-optional-details">
             <summary>
               <span>
                 <em className="trip-section-icon trip-section-icon-preferences"><Sparkles size={18} aria-hidden="true" /></em>
-                <span className="trip-section-step-label">Step 3</span>
+                <span className="trip-section-step-label">Step 03</span>
                 <strong>Preferences and setup</strong>
                 <small>Optional travel style, packing list, and document checklist</small>
               </span>
