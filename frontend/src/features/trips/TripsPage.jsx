@@ -379,7 +379,11 @@ function TripsPage() {
             <div>
               <span>Trip workspace</span>
               <h3 id="my-trips-title">My Trips</h3>
-              <p>Review saved trips, jump back into planning, and keep upcoming destinations easy to scan.</p>
+              <p>Pick up planning where you left off, compare upcoming routes, and keep every destination visible.</p>
+            </div>
+            <div className="trip-directory-hero-card" aria-hidden="true">
+              <span>{trips.length}</span>
+              <small>saved plans</small>
             </div>
             <button type="button" onClick={() => setActiveView('create')}>
               <Plus size={16} aria-hidden="true" />
@@ -433,6 +437,9 @@ function TripsPage() {
 
                 return (
                   <Link className="trip-directory-card" to={`/trips/${trip._id}`} key={trip._id}>
+                    <div className="trip-directory-card-art">
+                      <MapPin size={20} aria-hidden="true" />
+                    </div>
                     <div className="trip-directory-card-top">
                       <span>{trip.planningMode === 'ai' ? 'AI assisted' : 'Manual plan'}</span>
                       <em>{tripDays} day{tripDays === 1 ? '' : 's'}</em>
@@ -461,8 +468,8 @@ function TripsPage() {
           <div className="trip-create-hero">
             <div>
               <span>New trip setup</span>
-              <h3>Start with the parts that define the trip.</h3>
-              <p>Keep the creation flow short. The itinerary page handles daily planning, notes, ideas, and budget distribution.</p>
+              <h3>Shape the trip foundation.</h3>
+              <p>Set the core details now, then use the details page for daily timing, places, notes, and budget distribution.</p>
             </div>
             <div className="trip-create-actions">
               <div className="trip-mode-toggle" role="group" aria-label="Trip creation mode">
@@ -502,8 +509,9 @@ function TripsPage() {
 
           <section className="trip-create-section trip-essentials-section" aria-labelledby="essentials-title">
             <div className="trip-section-heading">
-              <span className="trip-step-badge">Step 1</span>
+              <span className="trip-section-icon"><CalendarDays size={18} aria-hidden="true" /></span>
               <div>
+                <span className="trip-section-step-label">Step 1</span>
                 <h3 id="essentials-title">Trip Basics</h3>
                 <p>Give the trip a name, date range, and total budget.</p>
               </div>
@@ -589,8 +597,9 @@ function TripsPage() {
 
           <section className="trip-create-section" aria-labelledby="destinations-title">
             <div className="trip-section-heading">
-              <span className="trip-step-badge">Step 2</span>
+              <span className="trip-section-icon trip-section-icon-destination"><MapPin size={18} aria-hidden="true" /></span>
               <div>
+                <span className="trip-section-step-label">Step 2</span>
                 <h3 id="destinations-title">Destination</h3>
                 <p>Choose the main place for this trip. Extra stops are optional.</p>
               </div>
@@ -670,7 +679,8 @@ function TripsPage() {
           <details className="trip-optional-details">
             <summary>
               <span>
-                <em className="trip-step-badge">Step 3</em>
+                <em className="trip-section-icon trip-section-icon-preferences"><Sparkles size={18} aria-hidden="true" /></em>
+                <span className="trip-section-step-label">Step 3</span>
                 <strong>Preferences and setup</strong>
                 <small>Optional travel style, packing list, and document checklist</small>
               </span>
