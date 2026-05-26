@@ -24,6 +24,31 @@ const today = new Date().toISOString().slice(0, 10);
 const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
 const documentOptions = ['Passport', 'Visa', 'Flight ticket', 'Hotel booking', 'Insurance'];
 const styleOptions = ['Food', 'Culture', 'Nature', 'Shopping', 'Relaxing'];
+const flexibleDayOptions = [1, 2, 3, 4, 5, 6, 7];
+
+const getMonthOptions = () => Array.from({ length: 12 }, (_, index) => {
+  const date = new Date();
+  date.setDate(1);
+  date.setMonth(date.getMonth() + index);
+
+  return {
+    value: date.toISOString().slice(0, 7),
+    label: date.toLocaleDateString(undefined, { month: 'long' }),
+    year: date.getFullYear(),
+  };
+});
+
+const getFlexibleDateRange = (monthValue, days) => {
+  const [year, month] = String(monthValue || today.slice(0, 7)).split('-').map(Number);
+  const start = new Date(year, month - 1, 1);
+  const end = new Date(start);
+  end.setDate(start.getDate() + Math.max(1, Number(days) || 1) - 1);
+
+  return {
+    startDate: start.toISOString().slice(0, 10),
+    endDate: end.toISOString().slice(0, 10),
+  };
+};
 
 const createEmptySegment = (order = 1, startDate = today, endDate = tomorrow) => ({
   city: '',
@@ -52,7 +77,7 @@ function TripsPage() {
   const currency = useContext(CurrencyContext);
   const activeCurrencyCode = currency?.activeCurrency?.code || currency?.selectedCurrency || 'MYR';
   const [countries, setCountries] = useState([]);
-  const [primaryCityOptions, setPrimaryCityOptions] = useState([]);
+  const [stateOptionsByCountry, setStateOptionsByCountry] = useState({});
   const [createMode, setCreateMode] = useState('self');
   const [activeView, setActiveView] = useState('create');
   const [trips, setTrips] = useState([]);
@@ -67,6 +92,7 @@ function TripsPage() {
     endDate: tomorrow,
     dateMode: 'exact',
     flexibleWindowDays: 3,
+    flexibleMonth: today.slice(0, 7),
     budgetAmount: '',
     aiPrompt: '',
     styles: [],
@@ -110,7 +136,11 @@ function TripsPage() {
   const previewSegments = form.destinationSegments.filter((segment) => segment.city.trim());
   const totalBudget = Number(form.budgetAmount || 0);
   const primarySegment = form.destinationSegments[0];
-  const durationDays = getDurationDays(form.startDate, form.endDate);
+  const flexibleMonthOptions = useMemo(() => getMonthOptions(), []);
+  const displayedDateRange = form.dateMode === 'flexible'
+    ? getFlexibleDateRange(form.flexibleMonth, form.flexibleWindowDays)
+    : { startDate: form.startDate, endDate: form.endDate };
+  const durationDays = getDurationDays(displayedDateRange.startDate, displayedDateRange.endDate);
 
   useEffect(() => {
     let isMounted = true;
@@ -136,12 +166,15 @@ function TripsPage() {
     let isMounted = true;
 
     import('country-state-city')
-      .then(({ City }) => {
-        if (isMounted) setPrimaryCityOptions(City.getCitiesOfCountry(primarySegment.countryCode).slice(0, 120));
+      .then(({ State }) => {
+        if (isMounted) {
+          setStateOptionsByCountry((current) => ({
+            ...current,
+            [primarySegment.countryCode]: State.getStatesOfCountry(primarySegment.countryCode),
+          }));
+        }
       })
-      .catch(() => {
-        if (isMounted) setPrimaryCityOptions([]);
-      });
+      .catch(() => {});
 
     return () => {
       isMounted = false;
@@ -166,7 +199,16 @@ function TripsPage() {
   const updateSegmentCountry = (index, countryCode) => {
     const country = countries.find((item) => item.isoCode === countryCode);
     setFormError('');
-    if (index === 0) setPrimaryCityOptions([]);
+    if (countryCode && !stateOptionsByCountry[countryCode]) {
+      import('country-state-city')
+        .then(({ State }) => {
+          setStateOptionsByCountry((current) => ({
+            ...current,
+            [countryCode]: State.getStatesOfCountry(countryCode),
+          }));
+        })
+        .catch(() => {});
+    }
     setForm((current) => ({
       ...current,
       destinationSegments: current.destinationSegments.map((segment, segmentIndex) =>
@@ -210,7 +252,7 @@ function TripsPage() {
 
     if (!form.title.trim()) return 'Trip title is required.';
     if (!segments.length) return 'Add at least one destination.';
-    if (new Date(form.endDate) < new Date(form.startDate)) return 'Trip end date cannot be before start date.';
+    if (form.dateMode === 'exact' && new Date(form.endDate) < new Date(form.startDate)) return 'Trip end date cannot be before start date.';
     if (!Number.isFinite(totalBudget) || totalBudget < 0) return 'Budget must be a valid number.';
 
     const invalidSegment = segments.find((segment) => new Date(segment.endDate) < new Date(segment.startDate));
@@ -230,14 +272,18 @@ function TripsPage() {
     setIsSaving(true);
     setFormError('');
 
+    const submitDates = form.dateMode === 'flexible'
+      ? getFlexibleDateRange(form.flexibleMonth, form.flexibleWindowDays)
+      : { startDate: form.startDate, endDate: form.endDate };
+
     const segments = form.destinationSegments
       .filter((segment) => segment.city.trim())
       .map((segment, index) => ({
         city: segment.city.trim(),
         country: segment.country.trim(),
         countryCode: segment.countryCode,
-        startDate: segment.startDate,
-        endDate: segment.endDate,
+        startDate: form.dateMode === 'flexible' ? submitDates.startDate : segment.startDate,
+        endDate: form.dateMode === 'flexible' ? submitDates.endDate : segment.endDate,
         order: index + 1,
       }));
 
@@ -245,8 +291,8 @@ function TripsPage() {
       title: form.title.trim(),
       destination: segments[0].city,
       country: segments[0].country,
-      startDate: form.startDate,
-      endDate: form.endDate,
+      startDate: submitDates.startDate,
+      endDate: submitDates.endDate,
       planningMode: createMode,
       budget: {
         totalAmount: Number(form.budgetAmount || 0),
@@ -257,6 +303,9 @@ function TripsPage() {
       dateFlexibility: {
         mode: form.dateMode,
         windowDays: form.dateMode === 'flexible' ? Number(form.flexibleWindowDays) : 0,
+        preferredMonth: form.dateMode === 'flexible'
+          ? flexibleMonthOptions.find((month) => month.value === form.flexibleMonth)?.label || ''
+          : '',
       },
       travelPreferences: {
         styles: form.styles.map((value) => value.toLowerCase().replace(/\s+/g, '-')),
@@ -326,15 +375,41 @@ function TripsPage() {
 
       {activeView === 'my-trips' ? (
         <section className="trip-directory" aria-labelledby="my-trips-title">
-          <div className="trip-directory-header">
+          <div className="trip-directory-hero">
             <div>
-              <span>Saved trips</span>
+              <span>Trip workspace</span>
               <h3 id="my-trips-title">My Trips</h3>
+              <p>Review saved trips, jump back into planning, and keep upcoming destinations easy to scan.</p>
             </div>
             <button type="button" onClick={() => setActiveView('create')}>
               <Plus size={16} aria-hidden="true" />
               New trip
             </button>
+          </div>
+
+          <div className="trip-directory-stats" aria-label="Trip directory summary">
+            <span>
+              <ListChecks size={16} aria-hidden="true" />
+              <strong>{trips.length}</strong>
+              saved trip{trips.length === 1 ? '' : 's'}
+            </span>
+            <span>
+              <MapPin size={16} aria-hidden="true" />
+              <strong>{new Set(trips.map((trip) => trip.country).filter(Boolean)).size}</strong>
+              countr{new Set(trips.map((trip) => trip.country).filter(Boolean)).size === 1 ? 'y' : 'ies'}
+            </span>
+            <span>
+              <CalendarDays size={16} aria-hidden="true" />
+              <strong>{trips.filter((trip) => new Date(trip.endDate) >= new Date(today)).length}</strong>
+              upcoming
+            </span>
+          </div>
+
+          <div className="trip-directory-header">
+            <div>
+              <span>Saved trips</span>
+              <h4>Trip library</h4>
+            </div>
           </div>
 
           <label className="trip-search-field trip-search-field-large">
@@ -353,18 +428,30 @@ function TripsPage() {
             </div>
           ) : (
             <div className="trip-directory-grid">
-              {visibleTrips.map((trip) => (
-                <Link className="trip-directory-card" to={`/trips/${trip._id}`} key={trip._id}>
-                  <span>{trip.planningMode === 'ai' ? 'AI assisted' : 'Manual plan'}</span>
-                  <strong>{trip.title || trip.destination}</strong>
-                  <small><CalendarDays size={14} aria-hidden="true" />{formatDateRange(trip.startDate, trip.endDate)}</small>
-                  <small><MapPin size={14} aria-hidden="true" />{[trip.destination, trip.country].filter(Boolean).join(', ')}</small>
-                  <em>
-                    Open details
-                    <ArrowRight size={15} aria-hidden="true" />
-                  </em>
-                </Link>
-              ))}
+              {visibleTrips.map((trip) => {
+                const tripDays = getDurationDays(trip.startDate, trip.endDate);
+
+                return (
+                  <Link className="trip-directory-card" to={`/trips/${trip._id}`} key={trip._id}>
+                    <div className="trip-directory-card-top">
+                      <span>{trip.planningMode === 'ai' ? 'AI assisted' : 'Manual plan'}</span>
+                      <em>{tripDays} day{tripDays === 1 ? '' : 's'}</em>
+                    </div>
+                    <strong>{trip.title || trip.destination}</strong>
+                    <div className="trip-directory-card-meta">
+                      <small><CalendarDays size={14} aria-hidden="true" />{formatDateRange(trip.startDate, trip.endDate)}</small>
+                      <small><MapPin size={14} aria-hidden="true" />{[trip.destination, trip.country].filter(Boolean).join(', ')}</small>
+                    </div>
+                    <div className="trip-directory-card-footer">
+                      <span>{trip.dateFlexibility?.mode === 'flexible' ? 'Flexible dates' : 'Exact dates'}</span>
+                      <em>
+                        Open details
+                        <ArrowRight size={15} aria-hidden="true" />
+                      </em>
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           )}
         </section>
@@ -397,24 +484,25 @@ function TripsPage() {
 
           <div className="trip-form-summary" aria-label="Trip setup summary">
             <span>
-              <CalendarDays size={15} aria-hidden="true" />
-              <strong>{durationDays}</strong>
-              day{durationDays === 1 ? '' : 's'}
+              <i><CalendarDays size={17} aria-hidden="true" /></i>
+              <small>Trip length</small>
+              <strong>{durationDays} day{durationDays === 1 ? '' : 's'}</strong>
             </span>
             <span>
-              <MapPin size={15} aria-hidden="true" />
-              <strong>{previewSegments.length || 0}</strong>
-              stop{previewSegments.length === 1 ? '' : 's'}
+              <i><MapPin size={17} aria-hidden="true" /></i>
+              <small>Stops</small>
+              <strong>{previewSegments.length || 0} stop{previewSegments.length === 1 ? '' : 's'}</strong>
             </span>
             <span>
-              <WalletCards size={15} aria-hidden="true" />
+              <i><WalletCards size={17} aria-hidden="true" /></i>
+              <small>Budget currency</small>
               <strong>{activeCurrencyCode}</strong>
-              budget
             </span>
           </div>
 
           <section className="trip-create-section trip-essentials-section" aria-labelledby="essentials-title">
             <div className="trip-section-heading">
+              <span className="trip-step-badge">Step 1</span>
               <div>
                 <h3 id="essentials-title">Trip Basics</h3>
                 <p>Give the trip a name, date range, and total budget.</p>
@@ -448,33 +536,60 @@ function TripsPage() {
                   Flexible
                 </button>
               </div>
-              <div className="trip-form-grid">
-                <label>
-                  <span>Start date</span>
-                  <input type="date" value={form.startDate} onChange={(event) => updateField('startDate', event.target.value)} />
-                </label>
-                <label>
-                  <span>End date</span>
-                  <input type="date" value={form.endDate} onChange={(event) => updateField('endDate', event.target.value)} />
-                </label>
-                {form.dateMode === 'flexible' && (
+              {form.dateMode === 'exact' ? (
+                <div className="trip-form-grid">
                   <label>
-                    <span>Flexible by days</span>
-                    <input
-                      type="number"
-                      min="1"
-                      max="30"
-                      value={form.flexibleWindowDays}
-                      onChange={(event) => updateField('flexibleWindowDays', event.target.value)}
-                    />
+                    <span>Start date</span>
+                    <input type="date" value={form.startDate} onChange={(event) => updateField('startDate', event.target.value)} />
                   </label>
-                )}
-              </div>
+                  <label>
+                    <span>End date</span>
+                    <input type="date" value={form.endDate} onChange={(event) => updateField('endDate', event.target.value)} />
+                  </label>
+                </div>
+              ) : (
+                <div className="trip-flexible-picker">
+                  <div>
+                    <span className="trip-field-title">Days</span>
+                    <div className="trip-flexible-options">
+                      {flexibleDayOptions.map((days) => (
+                        <button
+                          className={Number(form.flexibleWindowDays) === days ? 'active' : ''}
+                          type="button"
+                          key={days}
+                          onClick={() => updateField('flexibleWindowDays', days)}
+                        >
+                          {days} day{days === 1 ? '' : 's'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <span className="trip-field-title">Month</span>
+                    <div className="trip-flexible-options">
+                      {flexibleMonthOptions.map((month) => (
+                        <button
+                          className={form.flexibleMonth === month.value ? 'active' : ''}
+                          type="button"
+                          key={month.value}
+                          onClick={() => updateField('flexibleMonth', month.value)}
+                        >
+                          {month.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <p className="trip-flexible-summary">
+                    We'll create a {durationDays}-day planning window in {flexibleMonthOptions.find((month) => month.value === form.flexibleMonth)?.label}.
+                  </p>
+                </div>
+              )}
             </div>
           </section>
 
           <section className="trip-create-section" aria-labelledby="destinations-title">
             <div className="trip-section-heading">
+              <span className="trip-step-badge">Step 2</span>
               <div>
                 <h3 id="destinations-title">Destination</h3>
                 <p>Choose the main place for this trip. Extra stops are optional.</p>
@@ -482,15 +597,8 @@ function TripsPage() {
             </div>
 
             <p className="trip-section-helper">
-              Choose a country first, then enter a city or destination. Additional stops can be added here, while daily planning happens on the details page.
+              Choose a country first, then select the state or region you want recommendations for. Additional stops can be added here, while daily planning happens on the details page.
             </p>
-            <datalist id="primary-city-options">
-              {primaryCityOptions.map((city) => (
-                <option key={`${city.name}-${city.stateCode}`} value={city.name}>
-                  {city.stateCode ? `${city.name}, ${city.stateCode}` : city.name}
-                </option>
-              ))}
-            </datalist>
             <div className="trip-segment-list trip-simple-segments">
               {form.destinationSegments.map((segment, index) => (
                 <article className="trip-segment-card" key={`${segment.order}-${index}`}>
@@ -506,22 +614,30 @@ function TripsPage() {
                       </select>
                     </label>
                     <label>
-                      <span>City or destination</span>
-                      <input
-                        list={index === 0 ? 'primary-city-options' : undefined}
+                      <span>State or region</span>
+                      <select
                         value={segment.city}
                         onChange={(event) => updateSegment(index, 'city', event.target.value)}
-                        placeholder={segment.countryCode ? 'Start typing a city' : 'Select country first'}
-                      />
+                        disabled={!segment.countryCode}
+                      >
+                        <option value="">{segment.countryCode ? 'Select state or region' : 'Select country first'}</option>
+                        {(stateOptionsByCountry[segment.countryCode] || []).map((state) => (
+                          <option key={state.isoCode} value={state.name}>{state.name}</option>
+                        ))}
+                      </select>
                     </label>
-                    <label>
-                      <span>From</span>
-                      <input type="date" value={segment.startDate} onChange={(event) => updateSegment(index, 'startDate', event.target.value)} />
-                    </label>
-                    <label>
-                      <span>To</span>
-                      <input type="date" value={segment.endDate} onChange={(event) => updateSegment(index, 'endDate', event.target.value)} />
-                    </label>
+                    {form.dateMode === 'exact' && (
+                      <>
+                        <label>
+                          <span>From</span>
+                          <input type="date" value={segment.startDate} onChange={(event) => updateSegment(index, 'startDate', event.target.value)} />
+                        </label>
+                        <label>
+                          <span>To</span>
+                          <input type="date" value={segment.endDate} onChange={(event) => updateSegment(index, 'endDate', event.target.value)} />
+                        </label>
+                      </>
+                    )}
                   </div>
                   {form.destinationSegments.length > 1 && (
                     <button className="trip-remove-segment" type="button" onClick={() => removeSegment(index)}>
@@ -533,7 +649,7 @@ function TripsPage() {
             </div>
             <button className="trip-secondary-link" type="button" onClick={addSegment}>
               <Plus size={16} aria-hidden="true" />
-              Add another country or city
+              Add another country or state
             </button>
           </section>
 
@@ -554,6 +670,7 @@ function TripsPage() {
           <details className="trip-optional-details">
             <summary>
               <span>
+                <em className="trip-step-badge">Step 3</em>
                 <strong>Preferences and setup</strong>
                 <small>Optional travel style, packing list, and document checklist</small>
               </span>

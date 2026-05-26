@@ -20,9 +20,9 @@ function TripMapPreview({ className = '', places = [], zoom }) {
 
   return (
     <div className={`shared-trip-map ${className}`.trim()}>
-      <MapContainer center={mapCenter} zoom={mapZoom} scrollWheelZoom={false} zoomControl={false} className="shared-trip-leaflet-map">
+      <MapContainer center={mapCenter} zoom={mapZoom} scrollWheelZoom={false} zoomControl={false} attributionControl={false} className="shared-trip-leaflet-map">
         <TileLayer
-          attribution="&copy; OpenStreetMap contributors"
+          attribution=""
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         {mapPoints.length > 1 && <Polyline positions={mapPoints} pathOptions={{ color: '#0f766e', weight: 4 }} />}

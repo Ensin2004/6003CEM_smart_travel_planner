@@ -38,6 +38,11 @@ const getOpenStreetMapErrorMessage = (status) => {
 
 const isAbortError = (error) => error.name === 'AbortError' || error.name === 'CanceledError';
 
+const getOpenStreetMapImage = (place = {}) => {
+  const image = place.extratags?.image || place.extratags?.wikimedia_commons;
+  return /^https?:\/\//i.test(image || '') ? image : '';
+};
+
 const normalizeOpenStreetMapPlace = (place, fallbackName = 'Selected place') => ({
   id: `${place.osm_type}-${place.osm_id}`,
   name: place.name || place.display_name?.split(',')[0] || fallbackName,
@@ -47,6 +52,8 @@ const normalizeOpenStreetMapPlace = (place, fallbackName = 'Selected place') => 
   category: place.category || 'place',
   type: place.type || 'location',
   importance: Number(place.importance || 0),
+  imageUrl: getOpenStreetMapImage(place),
+  openState: place.extratags?.opening_hours || '',
 });
 
 export const searchOpenStreetMapPlaces = async (query, options = {}) => {
@@ -60,6 +67,7 @@ export const searchOpenStreetMapPlaces = async (query, options = {}) => {
     q: trimmedQuery,
     format: 'jsonv2',
     addressdetails: '1',
+    extratags: '1',
     limit: String(options.limit || 6),
   });
 
@@ -112,6 +120,7 @@ export const searchOpenStreetMapCategoryPlaces = async (categoryId, center, opti
       q: searchTerm,
       format: 'jsonv2',
       addressdetails: '1',
+      extratags: '1',
       limit: String(limitPerTerm),
       bounded: '1',
       viewbox,
@@ -167,7 +176,8 @@ export const searchMapCategoryPlaces = async (categoryId, center, options = {}) 
     signal: options.signal,
   });
 
-  return response.data.data.places;
+  const places = response.data.data.places;
+  return Array.isArray(places) ? places : places?.items || [];
 };
 
 export const getMapPlaceDetails = async (place, options = {}) => {
