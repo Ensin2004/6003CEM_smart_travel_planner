@@ -1,5 +1,6 @@
 ﻿const TRANSLATE_SCRIPT_ID = 'translate-js-client';
 const TRANSLATE_SCRIPT_SRC = 'https://cdn.staticfile.net/translate.js/3.18.66/translate.js';
+const LANGUAGE_STORAGE_KEY = 'smartTravelPlanner.language';
 
 export const DEFAULT_LANGUAGE = 'english';
 
@@ -28,7 +29,6 @@ const languageLabels = {
   vietnamese: 'Tiếng Việt',
   afrikaans: 'Afrikaans',
   amharic: 'አማርኛ',
-  aymara: 'Aymar aru',
   azerbaijani: 'Azərbaycanca',
   bengali: 'বাংলা',
   bosnian: 'Bosnian',
@@ -50,10 +50,8 @@ const languageLabels = {
   dutch: 'Nederlands',
   italian: 'Italiano',
   indonesian: 'Bahasa Indonesia',
-  igbo: 'Igbo',
   icelandic: 'Íslenska',
   hebrew: 'עברית',
-  georgian: 'ქართული',
   khmer: 'ភាសាខ្មែរ',
   kannada: 'ಕನ್ನಡ',
   kurdish: 'Kurdî',
@@ -78,52 +76,20 @@ const languageLabels = {
   quechua: 'Runa Simi',
   romanian: 'Română',
   kinyarwanda: 'Kinyarwanda',
-  sanskrit: 'संस्कृतम्',
-  sindhi: 'سنڌي',
-  singapore: 'සිංහල',
   slovak: 'Slovenčina',
   slovene: 'Slovenščina',
   samoan: 'Gagana Samoa',
-  shona: 'Shona',
-  somali: 'Somali',
   albanian: 'Shqip',
   swedish: 'Svenska',
   swahili: 'Swahili',
   tamil: 'தமிழ்',
   telugu: 'తెలుగు',
   tajik: 'Тоҷикӣ',
-  turkmen: 'Türkmençe',
   filipino: 'Filipino',
   ukrainian: 'Українська',
   urdu: 'اردو',
-  yoruba: 'Yorùbá',
-  javanese: 'Basa Jawa',
-  scottish_gaelic: 'Gàidhlig',
-  ewe: 'Eʋegbe',
-  bambara: 'Bambara',
   haitian_creole: 'Kreyòl Ayisyen',
-  serbian: 'Српски',
-  afrikaans_xhosa: 'isiXhosa',
-  south_african_zulu: 'isiZulu',
-  uzbek: 'Oʻzbekcha',
-  kazakh: 'Қазақша',
   malagasy: 'Malagasy',
-  mongolian: 'Монгол',
-  tetum: 'Tetum',
-  bashkir: 'Башҡортса',
-  bislama: 'Bislama',
-  breton: 'Brezhoneg',
-  faroese: 'Føroyskt',
-  montenegrin: 'Crnogorski',
-  marshallese: 'Kajin M̧ajeļ',
-  mauritian_creole: 'Kreol Morisien',
-  papiamento: 'Papiamento',
-  tagalog: 'Tagalog',
-  venda: 'Tshivenḓa',
-  wolof: 'Wolof',
-  aceh: 'Bahsa Acèh',
-  cantonese: '粵語',
-  niuean: 'Ko e Vagahau Niuē',
   tongan: 'Lea Faka-Tonga',
 };
 
@@ -144,7 +110,6 @@ const languageFlags = {
   vietnamese: 'vn',
   afrikaans: 'za',
   amharic: 'et',
-  aymara: 'bo',
   azerbaijani: 'az',
   bengali: 'bd',
   bosnian: 'ba',
@@ -166,10 +131,8 @@ const languageFlags = {
   dutch: 'nl',
   italian: 'it',
   indonesian: 'id',
-  igbo: 'ng',
   icelandic: 'is',
   hebrew: 'il',
-  georgian: 'ge',
   khmer: 'kh',
   kannada: 'in',
   kurdish: 'tr',
@@ -194,53 +157,49 @@ const languageFlags = {
   quechua: 'pe',
   romanian: 'ro',
   kinyarwanda: 'rw',
-  sanskrit: 'in',
-  sindhi: 'pk',
-  singapore: 'lk',
   slovak: 'sk',
   slovene: 'si',
   samoan: 'ws',
-  shona: 'zw',
-  somali: 'so',
   albanian: 'al',
   swedish: 'se',
   swahili: 'tz',
   tamil: 'in',
   telugu: 'in',
   tajik: 'tj',
-  turkmen: 'tm',
   filipino: 'ph',
-  tagalog: 'ph',
   ukrainian: 'ua',
   urdu: 'pk',
-  yoruba: 'ng',
-  javanese: 'id',
-  scottish_gaelic: 'gb-sct',
-  ewe: 'gh',
-  bambara: 'ml',
   haitian_creole: 'ht',
-  serbian: 'rs',
-  afrikaans_xhosa: 'za',
-  south_african_zulu: 'za',
-  uzbek: 'uz',
-  kazakh: 'kz',
   malagasy: 'mg',
-  mongolian: 'mn',
-  tetum: 'tl',
-  bashkir: 'ru',
-  bislama: 'vu',
-  breton: 'fr',
-  faroese: 'fo',
-  montenegrin: 'me',
-  marshallese: 'mh',
-  mauritian_creole: 'mu',
-  papiamento: 'cw',
-  venda: 'za',
-  wolof: 'sn',
-  aceh: 'id',
-  cantonese: 'hk',
-  niuean: 'nu',
   tongan: 'to',
+};
+
+const isSupportedLanguage = (language) =>
+  Boolean(language && Object.prototype.hasOwnProperty.call(languageLabels, language));
+
+const savePreferredLanguage = (language) => {
+  if (!isSupportedLanguage(language) || typeof window === 'undefined') {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
+  } catch {
+    // Ignore storage failures so translation still works in private/restricted contexts.
+  }
+};
+
+export const getSavedTranslateLanguage = () => {
+  if (typeof window === 'undefined') {
+    return DEFAULT_LANGUAGE;
+  }
+
+  try {
+    const savedLanguage = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
+    return isSupportedLanguage(savedLanguage) ? savedLanguage : DEFAULT_LANGUAGE;
+  } catch {
+    return DEFAULT_LANGUAGE;
+  }
 };
 
 export const getAvailableLanguages = () =>
@@ -260,19 +219,22 @@ const removeDefaultTranslateSelector = () => {
 };
 
 const configureTranslate = (language = preferredLanguage) => {
-  preferredLanguage = language;
+  preferredLanguage = isSupportedLanguage(language) ? language : DEFAULT_LANGUAGE;
+  savePreferredLanguage(preferredLanguage);
   removeDefaultTranslateSelector();
-  window.translate.language.setLocal(preferredLanguage);
+  window.translate.language.setLocal(DEFAULT_LANGUAGE);
   window.translate.selectLanguageTag.show = false;
   window.translate.service.use('client.edge');
   window.translate.listener.start();
   window.translate.execute();
+  window.translate.changeLanguage(preferredLanguage);
   removeDefaultTranslateSelector();
 };
 
 export const loadTranslateClient = (language = DEFAULT_LANGUAGE) =>
   new Promise((resolve, reject) => {
-    preferredLanguage = language;
+    preferredLanguage = isSupportedLanguage(language) ? language : DEFAULT_LANGUAGE;
+    savePreferredLanguage(preferredLanguage);
 
     if (window.translate) {
       configureTranslate(preferredLanguage);
@@ -305,16 +267,17 @@ export const loadTranslateClient = (language = DEFAULT_LANGUAGE) =>
   });
 
 export const changeTranslateLanguage = (language) => {
-  preferredLanguage = language;
+  preferredLanguage = isSupportedLanguage(language) ? language : DEFAULT_LANGUAGE;
+  savePreferredLanguage(preferredLanguage);
 
   if (window.translate) {
-    window.translate.changeLanguage(language);
+    window.translate.changeLanguage(preferredLanguage);
     return;
   }
 
-  loadTranslateClient(language)
+  loadTranslateClient(preferredLanguage)
     .then(() => {
-      window.translate.changeLanguage(language);
+      window.translate.changeLanguage(preferredLanguage);
     })
     .catch(() => {});
 };
