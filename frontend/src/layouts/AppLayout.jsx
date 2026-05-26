@@ -13,8 +13,8 @@ import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   changeTranslateLanguage,
-  DEFAULT_LANGUAGE,
   getAvailableLanguages,
+  getSavedTranslateLanguage,
   loadTranslateClient,
   refreshTranslatedContent,
 } from '../api/languageApi';
@@ -33,7 +33,7 @@ function AppLayout({ role, menuItems }) {
   const currency = useContext(CurrencyContext);
   const [collapsedSubmenuTo, setCollapsedSubmenuTo] = useState(null);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState(DEFAULT_LANGUAGE);
+  const [selectedLanguage, setSelectedLanguage] = useState(() => getSavedTranslateLanguage());
   const [isLanguagePickerOpen, setIsLanguagePickerOpen] = useState(false);
   const [isCurrencyPickerOpen, setIsCurrencyPickerOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
@@ -120,8 +120,8 @@ function AppLayout({ role, menuItems }) {
   };
 
   useEffect(() => {
-    loadTranslateClient(DEFAULT_LANGUAGE).catch(() => {});
-  }, []);
+    loadTranslateClient(selectedLanguage).catch(() => {});
+  }, [selectedLanguage]);
 
   useEffect(() => {
     refreshTranslatedContent();
