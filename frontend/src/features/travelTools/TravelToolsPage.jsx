@@ -326,8 +326,8 @@ function PackingListTools() {
       <form className="travel-tools-create-panel" onSubmit={handleCreateList}>
         <div className="travel-tools-panel-heading">
           <div>
-            <span>Create packing list</span>
-            <h3>Choose to create a packing list manually or select an existing template</h3>
+            <span>Start a packing list</span>
+            <h3>Choose manual or template, add a title, then create.</h3>
           </div>
           <button className="secondary-action" type="submit" disabled={isSaving}>
             <Plus size={17} aria-hidden="true" />
@@ -715,20 +715,26 @@ function PackingListTools() {
                     <span>Trip linked: {linkedTripName}</span>
                   </div>
                 </div>
-                <div className="travel-tools-actions">
-                  <button type="button" onClick={handleOpenSaveTemplateModal} disabled={isSaving}>
-                    <Sparkles size={16} aria-hidden="true" />
-                    Save as Template
-                  </button>
-                  <button type="button" onClick={() => setConfirmAction({ type: 'duplicate-list', list: selectedList })} disabled={isSaving}>
-                    <Copy size={16} aria-hidden="true" />
-                    Duplicate
-                  </button>
-                  <button type="button" onClick={() => setConfirmAction({ type: 'delete-list', list: selectedList })} disabled={isSaving}>
-                    <Trash2 size={16} aria-hidden="true" />
-                    Delete
-                  </button>
-                </div>
+                <details className="travel-tools-actions-menu">
+                  <summary>
+                    <MoreVertical size={17} aria-hidden="true" />
+                    More
+                  </summary>
+                  <div>
+                    <button type="button" onClick={handleOpenSaveTemplateModal} disabled={isSaving}>
+                      <Sparkles size={16} aria-hidden="true" />
+                      Save as Template
+                    </button>
+                    <button type="button" onClick={() => setConfirmAction({ type: 'duplicate-list', list: selectedList })} disabled={isSaving}>
+                      <Copy size={16} aria-hidden="true" />
+                      Duplicate
+                    </button>
+                    <button type="button" onClick={() => setConfirmAction({ type: 'delete-list', list: selectedList })} disabled={isSaving}>
+                      <Trash2 size={16} aria-hidden="true" />
+                      Delete
+                    </button>
+                  </div>
+                </details>
               </div>
 
               <div className="packing-progress" aria-label="Packing progress">
@@ -1935,28 +1941,34 @@ function TravelDocumentTools() {
                     <span>Trip linked: {selectedDocumentTripName}</span>
                   </div>
                 </div>
-                <div className="travel-tools-actions">
-                  <button type="button" onClick={handleOpenSaveDocumentTemplate} disabled={isSaving}>
-                    <Sparkles size={16} aria-hidden="true" />
-                    Save as template
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmAction({ type: 'duplicate-document', document: selectedDocument })}
-                    disabled={isSaving}
-                  >
-                    <Copy size={16} aria-hidden="true" />
-                    Duplicate
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmAction({ type: 'delete-document', document: selectedDocument })}
-                    disabled={isSaving}
-                  >
-                    <Trash2 size={16} aria-hidden="true" />
-                    Delete
-                  </button>
-                </div>
+                <details className="travel-tools-actions-menu">
+                  <summary>
+                    <MoreVertical size={17} aria-hidden="true" />
+                    More
+                  </summary>
+                  <div>
+                    <button type="button" onClick={handleOpenSaveDocumentTemplate} disabled={isSaving}>
+                      <Sparkles size={16} aria-hidden="true" />
+                      Save as template
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmAction({ type: 'duplicate-document', document: selectedDocument })}
+                      disabled={isSaving}
+                    >
+                      <Copy size={16} aria-hidden="true" />
+                      Duplicate
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmAction({ type: 'delete-document', document: selectedDocument })}
+                      disabled={isSaving}
+                    >
+                      <Trash2 size={16} aria-hidden="true" />
+                      Delete
+                    </button>
+                  </div>
+                </details>
               </div>
 
               {(successMessage || formError) && (
