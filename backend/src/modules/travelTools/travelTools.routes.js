@@ -4,14 +4,25 @@ const validate = require('../../middleware/validate.middleware');
 const travelToolsController = require('./travelTools.controller');
 const {
   addItemRules,
+  addTravelDocumentItemRules,
+  createDocumentTemplateRules,
   createPackingListRules,
   createTemplateRules,
+  createTravelDocumentRules,
+  deleteTravelDocumentItemRules,
+  deleteTravelDocumentFileRules,
+  documentIdRule,
+  documentTemplateIdRule,
   duplicatePackingListRules,
+  duplicateTravelDocumentRules,
   objectIdRule,
   templateIdRule,
   updateItemRules,
+  updateDocumentTemplateRules,
   updatePackingListRules,
+  updateTravelDocumentRules,
   updateTemplateRules,
+  uploadTravelDocumentFilesRules,
 } = require('./travelTools.validation');
 
 const router = express.Router();
@@ -220,8 +231,298 @@ router.use(protect);
  *       200:
  *         description: Packing item deleted
  */
-router.get('/documents', travelToolsController.getTravelDocuments);
-router.get('/document-templates', travelToolsController.getDocumentTemplates);
+/**
+ * @swagger
+ * tags:
+ *   name: Travel Documents
+ *   description: User travel document records and uploaded files
+ *
+ * /travel-tools/documents:
+ *   get:
+ *     summary: Get the authenticated user's travel documents
+ *     tags: [Travel Documents]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Travel documents returned
+ *       401:
+ *         description: Missing or invalid token
+ *   post:
+ *     summary: Create a travel document workspace
+ *     tags: [Travel Documents]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name]
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Passport scan
+ *               type:
+ *                 type: string
+ *                 example: Passport
+ *               tripId:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Travel document created
+ *       400:
+ *         description: Validation error
+ *
+ * /travel-tools/documents/{documentId}/files:
+ *   post:
+ *     summary: Upload image or document files to a travel document
+ *     tags: [Travel Documents]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: documentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [files]
+ *             properties:
+ *               files:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   required: [name, mimeType, size, dataUrl]
+ *                   properties:
+ *                     name:
+ *                       type: string
+ *                       example: passport.pdf
+ *                     mimeType:
+ *                       type: string
+ *                       example: application/pdf
+ *                     size:
+ *                       type: integer
+ *                       example: 240000
+ *                     dataUrl:
+ *                       type: string
+ *                       example: data:application/pdf;base64,JVBERi0x
+ *                     previewType:
+ *                       type: string
+ *                       example: pdf
+ *     responses:
+ *       201:
+ *         description: Files uploaded
+ *       404:
+ *         description: Travel document not found
+ *
+ * /travel-tools/documents/{documentId}/files/{fileId}:
+ *   delete:
+ *     summary: Remove one uploaded travel document file
+ *     tags: [Travel Documents]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: documentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: path
+ *         name: fileId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: File deleted
+ *
+ * /travel-tools/documents/{documentId}/duplicate:
+ *   post:
+ *     summary: Duplicate a travel document and its uploaded files
+ *     tags: [Travel Documents]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: documentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Passport scan copy
+ *     responses:
+ *       201:
+ *         description: Travel document duplicated
+ *       404:
+ *         description: Travel document not found
+ *
+ * /travel-tools/document-templates:
+ *   get:
+ *     summary: Get saved travel document templates
+ *     tags: [Travel Documents]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Travel document templates returned
+ *   post:
+ *     summary: Save a travel document as a reusable template
+ *     tags: [Travel Documents]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name]
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Passport document set
+ *               documentType:
+ *                 type: string
+ *                 example: Passport
+ *               documentId:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *                 example: Reusable passport template for future trips
+ *     responses:
+ *       201:
+ *         description: Travel document template created
+ *       400:
+ *         description: Validation error
+ *
+ * /travel-tools/document-templates/{templateId}:
+ *   patch:
+ *     summary: Update a saved travel document template
+ *     tags: [Travel Documents]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: templateId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [name]
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 example: Europe Vacation
+ *               description:
+ *                 type: string
+ *                 example: Saved custom template for Europe travel documents
+ *               items:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     name:
+ *                       type: string
+ *                       example: Passport
+ *                     documentType:
+ *                       type: string
+ *                       example: Passport
+ *                     uploadLabel:
+ *                       type: string
+ *                       example: Upload scan
+ *     responses:
+ *       200:
+ *         description: Travel document template updated
+ *       404:
+ *         description: Travel document template not found
+ *   delete:
+ *     summary: Delete a saved travel document template
+ *     tags: [Travel Documents]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: templateId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       204:
+ *         description: Travel document template deleted
+ *       404:
+ *         description: Travel document template not found
+ *
+ * /travel-tools/documents/{documentId}:
+ *   patch:
+ *     summary: Update travel document metadata
+ *     tags: [Travel Documents]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: documentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Travel document updated
+ *   delete:
+ *     summary: Delete a travel document and its files
+ *     tags: [Travel Documents]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: documentId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       204:
+ *         description: Travel document deleted
+ */
+router
+  .route('/documents')
+  .get(travelToolsController.getTravelDocuments)
+  .post(createTravelDocumentRules, validate, travelToolsController.createTravelDocument);
+router.post('/documents/:documentId/files', uploadTravelDocumentFilesRules, validate, travelToolsController.addTravelDocumentFiles);
+router.post('/documents/:documentId/items', addTravelDocumentItemRules, validate, travelToolsController.addTravelDocumentItem);
+router.delete('/documents/:documentId/items/:itemId', deleteTravelDocumentItemRules, validate, travelToolsController.deleteTravelDocumentItem);
+router.delete('/documents/:documentId/files/:fileId', deleteTravelDocumentFileRules, validate, travelToolsController.deleteTravelDocumentFile);
+router.post('/documents/:documentId/duplicate', duplicateTravelDocumentRules, validate, travelToolsController.duplicateTravelDocument);
+router
+  .route('/documents/:documentId')
+  .patch(updateTravelDocumentRules, validate, travelToolsController.updateTravelDocument)
+  .delete(documentIdRule, validate, travelToolsController.deleteTravelDocument);
+router
+  .route('/document-templates')
+  .get(travelToolsController.getDocumentTemplates)
+  .post(createDocumentTemplateRules, validate, travelToolsController.createDocumentTemplate);
+router
+  .route('/document-templates/:templateId')
+  .patch(updateDocumentTemplateRules, validate, travelToolsController.updateDocumentTemplate)
+  .delete(documentTemplateIdRule, validate, travelToolsController.deleteDocumentTemplate);
 
 router.get('/templates', travelToolsController.getTemplates);
 router.post('/templates', createTemplateRules, validate, travelToolsController.createTemplate);
