@@ -13,6 +13,7 @@ const travelGuideRoutes = require('../modules/travelGuide/travelGuide.routes');
 const currencyRoutes = require('../modules/currency/currency.routes');
 const mapRoutes = require('../modules/map/map.routes');
 const itineraryRoutes = require('../modules/itinerary/itinerary.routes');
+const transportationRoutes = require('../modules/transportation/transportation.routes');
 
 const router = express.Router();
 
@@ -34,6 +35,7 @@ router.get('/', (req, res) => {
       '/currency',
       '/map',
       '/itinerary',
+      '/transportation',
     ],
   });
 });
@@ -52,5 +54,6 @@ router.use('/feedback', feedbackRoutes);
 router.use('/currency', currencyRoutes);
 router.use('/map', mapRoutes);
 router.use('/itinerary', itineraryRoutes);
+router.use('/transportation', transportationRoutes);
 
 module.exports = router;

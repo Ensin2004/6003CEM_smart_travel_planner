@@ -1,14 +1,19 @@
 import {
+  ArrowLeftRight,
   Building2,
   CalendarDays,
   CloudSun,
+  X,
   Compass,
+  DollarSign,
   Droplets,
   LoaderCircle,
   MapPinned,
+  Plane,
   Search,
   Sparkles,
   Star,
+  TrainFront,
   Utensils,
   Wind,
 } from 'lucide-react';
@@ -16,7 +21,7 @@ import { Country, State } from 'country-state-city';
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { convertCurrency } from '../../api/currencyApi';
-import { getAiRecommendations, searchAttractions, searchHotels, searchRestaurants, searchWeather } from '../../api/exploreApi';
+import { getAiRecommendations, searchAttractions, searchFlight, searchHotels, searchRestaurants, searchWeather } from '../../api/exploreApi';
 import PlaceCard from '../../components/place/PlaceCard';
 import CurrencyContext from '../../context/currencyContext';
 import { foodCategoryOptions, roomTypeOptions } from './explore.constants';
@@ -28,6 +33,11 @@ const viewOptions = [
   { id: 'food', label: 'Restaurants / Food', icon: Utensils },
   { id: 'hotels', label: 'Hotels / Rooms', icon: Building2 },
   { id: 'transport', label: 'Transportation', icon: Compass },
+];
+
+const transportationTabs = [
+  { id: 'flights', label: 'Flights', icon: Plane },
+  { id: 'trains', label: 'Trains', icon: TrainFront },
 ];
 
 const getErrorMessage = (error) =>
@@ -100,6 +110,16 @@ function ExplorePage() {
   });
   const [hotelSearchCriteria, setHotelSearchCriteria] = useState(null);
   const [restaurantSearchCriteria, setRestaurantSearchCriteria] = useState(null);
+  const [activeTransportTab, setActiveTransportTab] = useState('flights');
+  const [flightSearch, setFlightSearch] = useState({
+    airlineName: '',
+    fromCountryCode: '',
+    fromCountryName: '',
+    toCountryCode: '',
+    toCountryName: '',
+    departureDate: '',
+  });
+  const [flightResults, setFlightResults] = useState(null);
   const [nextHotelStart, setNextHotelStart] = useState(0);
   const [nextRestaurantStart, setNextRestaurantStart] = useState(0);
   const [hasMoreHotels, setHasMoreHotels] = useState(false);
@@ -125,6 +145,7 @@ function ExplorePage() {
   const isAttractionsView = activeOption.id === 'attractions';
   const isFoodView = activeOption.id === 'food';
   const isHotelsView = activeOption.id === 'hotels';
+  const isTransportationView = activeOption.id === 'transport';
   const isFilteredSearchView = isHotelsView || isFoodView;
   const isSearchView = isAttractionsView || isFilteredSearchView;
   const activeItems = isHotelsView ? hotels : isFoodView ? restaurants : attractions;
@@ -578,6 +599,116 @@ function ExplorePage() {
   const hasMoreFilteredItems = isHotelsView ? hasMoreHotels : hasMoreRestaurants;
   const handleLoadMoreFilteredItems = isHotelsView ? handleLoadMoreHotels : handleLoadMoreRestaurants;
 
+  const handleFlightSearchChange = (field, value) => {
+    setFlightSearch((currentSearch) => ({
+      ...currentSearch,
+      [field]: value,
+    }));
+  };
+
+  const handleFlightCountryChange = (fieldPrefix, countryCode) => {
+    const selectedCountry = countryOptions.find((country) => country.isoCode === countryCode);
+
+    setFlightSearch((currentSearch) => ({
+      ...currentSearch,
+      [`${fieldPrefix}CountryCode`]: countryCode,
+      [`${fieldPrefix}CountryName`]: selectedCountry?.name || '',
+    }));
+  };
+
+  const clearFlightCountry = (fieldPrefix) => {
+    setFlightSearch((currentSearch) => ({
+      ...currentSearch,
+      [`${fieldPrefix}CountryCode`]: '',
+      [`${fieldPrefix}CountryName`]: '',
+    }));
+  };
+
+  const clearFlightSearchField = (field) => {
+    setFlightSearch((currentSearch) => ({
+      ...currentSearch,
+      [field]: '',
+    }));
+  };
+
+  const handleFlightSearch = async (event) => {
+    event.preventDefault();
+
+    if (!flightSearch.airlineName.trim() && !flightSearch.fromCountryCode && !flightSearch.toCountryCode) {
+      setError('Enter an airline name or select at least one country.');
+      return;
+    }
+
+    setIsSearching(true);
+    setError('');
+    setStatus('');
+
+    try {
+      const response = await searchFlight(flightSearch);
+      const nextFlights = response.data.data.flights;
+      setFlightResults(nextFlights);
+      setStatus(
+        nextFlights.available
+          ? `${nextFlights.items.length} flight result${nextFlights.items.length === 1 ? '' : 's'} loaded.`
+          : nextFlights.message
+      );
+    } catch (requestError) {
+      setError(getErrorMessage(requestError));
+      setFlightResults(null);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const getCountryName = (countryCode) =>
+    countryOptions.find((country) => country.isoCode === countryCode)?.name || countryCode || '';
+
+  const getAirportLocationLabel = (airport = {}) => {
+    const countryName = getCountryName(airport.countryCode);
+    const airportName = airport.name && !airport.name.includes('unavailable') ? airport.name : '';
+    return airport.city || countryName || airportName || 'Location unavailable';
+  };
+
+  const getAirportDetailLabel = (airport = {}) => {
+    const airportCode = airport.iata || airport.icao || '';
+    const airportName = airport.name && !airport.name.includes('unavailable') ? airport.name : '';
+    const detail = airportName && airportCode ? `${airportName} (${airportCode})` : airportName || airportCode;
+    return detail || 'Airport details unavailable';
+  };
+
+  const getFlightCodeLabel = (flight = {}) => {
+    const flightCode = flight.flightIata || (flight.airline?.iata && flight.flightNumber ? `${flight.airline.iata}${flight.flightNumber}` : '');
+    return flightCode || (flight.type === 'live' ? 'Live flight' : 'Schedule');
+  };
+
+  const formatFlightTime = (value) => {
+    if (!value) return '--:--';
+    const time = value.match(/\b\d{2}:\d{2}\b/)?.[0];
+    return time || value;
+  };
+
+  const formatFlightDuration = (minutes) => {
+    const totalMinutes = Number(minutes);
+
+    if (!Number.isFinite(totalMinutes) || totalMinutes <= 0) {
+      return 'Duration unavailable';
+    }
+
+    const hours = Math.floor(totalMinutes / 60);
+    const remainingMinutes = totalMinutes % 60;
+
+    if (!hours) {
+      return `${remainingMinutes} min`;
+    }
+
+    return remainingMinutes ? `${hours} hr ${remainingMinutes} min` : `${hours} hr`;
+  };
+
+  const getFlightSearchTitle = () =>
+    [flightSearch.fromCountryName, flightSearch.toCountryName].filter(Boolean).join(' to ') ||
+    flightSearch.airlineName ||
+    'Flight matches';
+
   const getConvertedPriceText = (item) => {
     const conversion = priceConversions[getPriceConversionKey(item, selectedCurrency)];
 
@@ -687,7 +818,7 @@ function ExplorePage() {
             Explore
           </span>
           <h2>{activeOption.label}</h2>
-          <p>Find popular stops, ratings, reviews, and addresses from live destination data before adding places into the rest of your trip plan.</p>
+          <p> Browse real-time availability and transit durations from live transport data to ensure a seamless connection for the rest of your trip.</p>
         </div>
         {isSearchView && (
           <div className="explore-hero-panel" aria-label={`${activeOption.label} search summary`}>
@@ -703,7 +834,216 @@ function ExplorePage() {
         )}
       </div>
 
-      {isSearchView ? (
+      {isTransportationView ? (
+        <div className="explore-workspace">
+          <div className="explore-transport-toolbar">
+            <div className="travel-guide-tabs explore-transport-tabs" role="tablist" aria-label="Transportation type">
+              {transportationTabs.map((tab) => {
+                const TabIcon = tab.icon;
+
+                return (
+                  <button
+                    className={activeTransportTab === tab.id ? 'active' : ''}
+                    key={tab.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTransportTab === tab.id}
+                    onClick={() => setActiveTransportTab(tab.id)}
+                  >
+                    <TabIcon size={15} aria-hidden="true" />
+                    {tab.label}
+                  </button>
+                );
+              })}
+            </div>
+            {activeTransportTab === 'flights' && (
+              <form className="explore-flight-search-panel" onSubmit={handleFlightSearch}>
+                <label className="explore-flight-route-box">
+                  <span>
+                    From
+                    <button
+                      type="button"
+                      aria-label="Clear from country"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        clearFlightCountry('from');
+                      }}
+                      disabled={!flightSearch.fromCountryCode}
+                    >
+                      <X size={13} aria-hidden="true" />
+                    </button>
+                  </span>
+                  <select value={flightSearch.fromCountryCode} onChange={(event) => handleFlightCountryChange('from', event.target.value)}>
+                    <option value="">Any origin</option>
+                    {countryOptions.map((country) => (
+                      <option key={country.isoCode} value={country.isoCode}>
+                        {country.name}
+                      </option>
+                    ))}
+                  </select>
+                  <small>Optional</small>
+                </label>
+                <div className="explore-flight-swap" aria-hidden="true">
+                  <ArrowLeftRight size={19} />
+                </div>
+                <label className="explore-flight-route-box">
+                  <span>
+                    To
+                    <button
+                      type="button"
+                      aria-label="Clear to country"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        clearFlightCountry('to');
+                      }}
+                      disabled={!flightSearch.toCountryCode}
+                    >
+                      <X size={13} aria-hidden="true" />
+                    </button>
+                  </span>
+                  <select value={flightSearch.toCountryCode} onChange={(event) => handleFlightCountryChange('to', event.target.value)}>
+                    <option value="">Any destination</option>
+                    {countryOptions.map((country) => (
+                      <option key={country.isoCode} value={country.isoCode}>
+                        {country.name}
+                      </option>
+                    ))}
+                  </select>
+                  <small>Optional</small>
+                </label>
+                <label className="explore-flight-route-box">
+                  <span>
+                    Departure
+                    <button
+                      type="button"
+                      aria-label="Clear departure date"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        clearFlightSearchField('departureDate');
+                      }}
+                      disabled={!flightSearch.departureDate}
+                    >
+                      <X size={13} aria-hidden="true" />
+                    </button>
+                  </span>
+                  <input
+                    type="date"
+                    value={flightSearch.departureDate}
+                    min={getDateKey()}
+                    onChange={(event) => handleFlightSearchChange('departureDate', event.target.value)}
+                  />
+                  <small>{flightSearch.departureDate ? 'Selected date' : 'Optional'}</small>
+                </label>
+                <label className="explore-flight-route-box">
+                  <span>
+                    Airline
+                    <button
+                      type="button"
+                      aria-label="Clear airline"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        clearFlightSearchField('airlineName');
+                      }}
+                      disabled={!flightSearch.airlineName}
+                    >
+                      <X size={13} aria-hidden="true" />
+                    </button>
+                  </span>
+                  <input
+                    type="text"
+                    value={flightSearch.airlineName}
+                    onChange={(event) => handleFlightSearchChange('airlineName', event.target.value)}
+                    placeholder="Any airline"
+                  />
+                  <small>Optional</small>
+                </label>
+                <button className="explore-flight-search-button" type="submit" disabled={isSearching}>
+                  {isSearching ? <LoaderCircle className="explore-spin" size={20} aria-hidden="true" /> : <Search size={20} aria-hidden="true" />}
+                  {isSearching ? 'Searching' : 'Search'}
+                </button>
+              </form>
+            )}
+          </div>
+
+          {activeTransportTab === 'flights' ? (
+            <>
+              {error && <p className="form-error explore-status">{error}</p>}
+              {status && <p className="form-success explore-status">{status}</p>}
+
+              {flightResults?.available ? (
+                <section className="explore-flight-results-layout">
+                  <section className="explore-flight-results-board">
+                    <div className="explore-flight-board-title">
+                      <div>
+                        <span>1. Departures</span>
+                        <h3>{getFlightSearchTitle()}</h3>
+                      </div>
+                      <strong>{flightResults.items.length} flight{flightResults.items.length === 1 ? '' : 's'} found</strong>
+                    </div>
+                    <div className="explore-flight-list">
+                      {flightResults.items.map((flight, index) => {
+                        const departureLabel = getAirportLocationLabel(flight.departure.airport);
+                        const arrivalLabel = getAirportLocationLabel(flight.arrival.airport);
+
+                        return (
+                          <article className="explore-flight-card" key={`${flight.id}-${index}`}>
+                            <div className="explore-flight-airline">
+                              <Plane size={30} aria-hidden="true" />
+                              <div>
+                                <strong>{flight.airline.name}</strong>
+                                <span>{getFlightCodeLabel(flight)}</span>
+                              </div>
+                            </div>
+                            <div className="explore-flight-time">
+                              <strong>{formatFlightTime(flight.departure.scheduledTime || flight.departure.actualTime)}</strong>
+                              <span>{departureLabel}</span>
+                              <small>{getAirportDetailLabel(flight.departure.airport)}</small>
+                            </div>
+                            <div className="explore-flight-path">
+                              <span>{formatFlightDuration(flight.durationMinutes)}</span>
+                              <div />
+                            </div>
+                            <div className="explore-flight-time">
+                              <strong>{formatFlightTime(flight.arrival.scheduledTime || flight.arrival.actualTime)}</strong>
+                              <span>{arrivalLabel}</span>
+                              <small>{getAirportDetailLabel(flight.arrival.airport)}</small>
+                            </div>
+                            <div className="explore-flight-action">
+                              <div
+                                className="explore-flight-price-badge"
+                                tabIndex="0"
+                                aria-label="AI estimated ticket price"
+                              >
+                                <DollarSign size={14} aria-hidden="true" />
+                                <strong>{flight.priceEstimate?.display || 'AI estimate unavailable'}</strong>
+                              </div>
+                              <button type="button">View</button>
+                            </div>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  </section>
+                </section>
+              ) : (
+                <section className="explore-results-shell">
+                  <div className="explore-empty explore-placeholder">
+                    <Plane size={34} aria-hidden="true" />
+                    <h3>{flightResults?.message || 'Search by route'}</h3>
+                    <p>Enter an airline name, choose one or both countries, and optionally set a departure date.</p>
+                  </div>
+                </section>
+              )}
+            </>
+          ) : (
+            <div className="explore-empty explore-placeholder">
+              <TrainFront size={34} aria-hidden="true" />
+              <h3>Trains coming soon</h3>
+              <p>Train schedules will be added to this transportation workspace later.</p>
+            </div>
+          )}
+        </div>
+      ) : isSearchView ? (
         <div className="explore-workspace">
           <form className={isFilteredSearchView ? 'explore-search explore-search-hotels' : 'explore-search'} onSubmit={handleSearch}>
             <div className="explore-search-copy">

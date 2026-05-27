@@ -36,6 +36,25 @@ export const searchRestaurants = ({ destination, country, state, foodCategory, s
     },
   });
 
+export const searchFlight = ({
+  airlineName,
+  fromCountryCode,
+  fromCountryName,
+  toCountryCode,
+  toCountryName,
+  departureDate,
+}) =>
+  axiosClient.get('/transportation/flights', {
+    params: {
+      airlineName,
+      fromCountryCode,
+      fromCountryName,
+      toCountryCode,
+      toCountryName,
+      departureDate,
+    },
+  });
+
 export const getAiRecommendations = ({ view, destination, date, weather, items }) =>
   axiosClient.post('/explore/ai-recommendations', {
     view,
