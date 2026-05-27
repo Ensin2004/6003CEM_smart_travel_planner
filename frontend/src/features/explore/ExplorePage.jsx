@@ -1,30 +1,23 @@
 import {
-  ArrowLeftRight,
   Building2,
-  CalendarDays,
-  CloudSun,
-  X,
   Compass,
-  DollarSign,
-  Droplets,
-  LoaderCircle,
   MapPinned,
-  Plane,
-  Search,
   Sparkles,
-  Star,
-  TrainFront,
   Utensils,
-  Wind,
 } from 'lucide-react';
 import { Country, State } from 'country-state-city';
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { convertCurrency } from '../../api/currencyApi';
 import { getAiRecommendations, searchAttractions, searchFlight, searchHotels, searchRestaurants, searchWeather } from '../../api/exploreApi';
-import PlaceCard from '../../components/place/PlaceCard';
 import CurrencyContext from '../../context/currencyContext';
 import { foodCategoryOptions, roomTypeOptions } from './explore.constants';
+import { formatMoney, getDateKey, getErrorMessage, getPriceConversionKey } from './explore.helpers';
+import AttractionsSubmenu from './submenus/Attractions';
+import DiscoverySubmenu from './submenus/AIDiscovery';
+import RestaurantSubmenu from './submenus/Restaurant';
+import HotelsSubmenu from './submenus/Hotels';
+import TransportationSubmenu from './submenus/Transportation';
 import './ExplorePage.css';
 
 const viewOptions = [
@@ -34,42 +27,6 @@ const viewOptions = [
   { id: 'hotels', label: 'Hotels / Rooms', icon: Building2 },
   { id: 'transport', label: 'Transportation', icon: Compass },
 ];
-
-const transportationTabs = [
-  { id: 'flights', label: 'Flights', icon: Plane },
-  { id: 'trains', label: 'Trains', icon: TrainFront },
-];
-
-const getErrorMessage = (error) =>
-  error.response?.data?.message || error.response?.data?.error || error.message || 'Unable to search right now.';
-
-const getDateKey = (date = new Date()) => date.toISOString().slice(0, 10);
-
-const getMaxWeatherDate = () => {
-  const date = new Date();
-  date.setDate(date.getDate() + 214);
-  return getDateKey(date);
-};
-
-const formatWeatherDate = (date) =>
-  new Intl.DateTimeFormat('en', {
-    weekday: 'short',
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  }).format(new Date(`${date}T00:00:00`));
-
-const formatTemperature = (value) => (Number.isFinite(Number(value)) ? `${Math.round(Number(value))} C` : '--');
-
-const formatMoney = (amount, currencyCode) =>
-  new Intl.NumberFormat(undefined, {
-    style: 'currency',
-    currency: currencyCode,
-    maximumFractionDigits: 2,
-  }).format(amount);
-
-const getPriceConversionKey = (item, targetCurrency) =>
-  `${item.id}:${item.priceDetail?.display || item.price || 'price'}:${targetCurrency}`;
 
 function ExplorePage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -141,7 +98,6 @@ function ExplorePage() {
     () => viewOptions.find((option) => option.id === activeView) || viewOptions[0],
     [activeView]
   );
-  const ActiveIcon = activeOption.icon;
   const isAttractionsView = activeOption.id === 'attractions';
   const isFoodView = activeOption.id === 'food';
   const isHotelsView = activeOption.id === 'hotels';
@@ -809,6 +765,92 @@ function ExplorePage() {
     });
   };
 
+  const updateActiveFilterField = isFoodView ? handleRestaurantFilterChange : handleHotelFilterChange;
+  const searchSubmenuProps = {
+    activeAi,
+    activeFilters,
+    activeItems,
+    activeOption,
+    activeWeather,
+    countryOptions,
+    destination,
+    destinationLabel,
+    error,
+    getCarouselIndex,
+    getConvertedPriceText,
+    getOriginalPriceText,
+    handleCountryChange,
+    handleGenerateAiRecommendations,
+    handleLoadMoreFilteredItems,
+    handleSearch,
+    handleTravelDateChange,
+    hasMoreFilteredItems,
+    hasResults,
+    isAiLoading,
+    isFilteredSearchView,
+    isFoodView,
+    isHotelsView,
+    isLoadingMore,
+    isSearching,
+    isWeatherLoading,
+    moveCarousel,
+    pricedCount,
+    ratedCount,
+    resultCount,
+    searchConfig,
+    selectedFoodCategoryLabel,
+    selectedRoomLabel,
+    stateOptions,
+    status,
+    topRatedCount,
+    travelDate,
+    updateDestinationQuery,
+    updateFilterField: updateActiveFilterField,
+    weatherLocationLabel,
+  };
+
+  const renderSubmenu = () => {
+    if (isTransportationView) {
+      return (
+        <TransportationSubmenu
+          activeTransportTab={activeTransportTab}
+          clearFlightCountry={clearFlightCountry}
+          clearFlightSearchField={clearFlightSearchField}
+          countryOptions={countryOptions}
+          error={error}
+          flightResults={flightResults}
+          flightSearch={flightSearch}
+          formatFlightDuration={formatFlightDuration}
+          formatFlightTime={formatFlightTime}
+          getAirportDetailLabel={getAirportDetailLabel}
+          getAirportLocationLabel={getAirportLocationLabel}
+          getFlightCodeLabel={getFlightCodeLabel}
+          getFlightSearchTitle={getFlightSearchTitle}
+          handleFlightCountryChange={handleFlightCountryChange}
+          handleFlightSearch={handleFlightSearch}
+          handleFlightSearchChange={handleFlightSearchChange}
+          isSearching={isSearching}
+          setActiveTransportTab={setActiveTransportTab}
+          status={status}
+        />
+      );
+    }
+
+    if (isAttractionsView) {
+      return <AttractionsSubmenu {...searchSubmenuProps} />;
+    }
+
+    if (isFoodView) {
+      return <RestaurantSubmenu {...searchSubmenuProps} />;
+    }
+
+    if (isHotelsView) {
+      return <HotelsSubmenu {...searchSubmenuProps} />;
+    }
+
+    return <DiscoverySubmenu activeOption={activeOption} />;
+  };
+
   return (
     <section className="explore-page">
       <div className="explore-hero">
@@ -834,479 +876,9 @@ function ExplorePage() {
         )}
       </div>
 
-      {isTransportationView ? (
-        <div className="explore-workspace">
-          <div className="explore-transport-toolbar">
-            <div className="travel-guide-tabs explore-transport-tabs" role="tablist" aria-label="Transportation type">
-              {transportationTabs.map((tab) => {
-                const TabIcon = tab.icon;
-
-                return (
-                  <button
-                    className={activeTransportTab === tab.id ? 'active' : ''}
-                    key={tab.id}
-                    type="button"
-                    role="tab"
-                    aria-selected={activeTransportTab === tab.id}
-                    onClick={() => setActiveTransportTab(tab.id)}
-                  >
-                    <TabIcon size={15} aria-hidden="true" />
-                    {tab.label}
-                  </button>
-                );
-              })}
-            </div>
-            {activeTransportTab === 'flights' && (
-              <form className="explore-flight-search-panel" onSubmit={handleFlightSearch}>
-                <label className="explore-flight-route-box">
-                  <span>
-                    From
-                    <button
-                      type="button"
-                      aria-label="Clear from country"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        clearFlightCountry('from');
-                      }}
-                      disabled={!flightSearch.fromCountryCode}
-                    >
-                      <X size={13} aria-hidden="true" />
-                    </button>
-                  </span>
-                  <select value={flightSearch.fromCountryCode} onChange={(event) => handleFlightCountryChange('from', event.target.value)}>
-                    <option value="">Any origin</option>
-                    {countryOptions.map((country) => (
-                      <option key={country.isoCode} value={country.isoCode}>
-                        {country.name}
-                      </option>
-                    ))}
-                  </select>
-                  <small>Optional</small>
-                </label>
-                <div className="explore-flight-swap" aria-hidden="true">
-                  <ArrowLeftRight size={19} />
-                </div>
-                <label className="explore-flight-route-box">
-                  <span>
-                    To
-                    <button
-                      type="button"
-                      aria-label="Clear to country"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        clearFlightCountry('to');
-                      }}
-                      disabled={!flightSearch.toCountryCode}
-                    >
-                      <X size={13} aria-hidden="true" />
-                    </button>
-                  </span>
-                  <select value={flightSearch.toCountryCode} onChange={(event) => handleFlightCountryChange('to', event.target.value)}>
-                    <option value="">Any destination</option>
-                    {countryOptions.map((country) => (
-                      <option key={country.isoCode} value={country.isoCode}>
-                        {country.name}
-                      </option>
-                    ))}
-                  </select>
-                  <small>Optional</small>
-                </label>
-                <label className="explore-flight-route-box">
-                  <span>
-                    Departure
-                    <button
-                      type="button"
-                      aria-label="Clear departure date"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        clearFlightSearchField('departureDate');
-                      }}
-                      disabled={!flightSearch.departureDate}
-                    >
-                      <X size={13} aria-hidden="true" />
-                    </button>
-                  </span>
-                  <input
-                    type="date"
-                    value={flightSearch.departureDate}
-                    min={getDateKey()}
-                    onChange={(event) => handleFlightSearchChange('departureDate', event.target.value)}
-                  />
-                  <small>{flightSearch.departureDate ? 'Selected date' : 'Optional'}</small>
-                </label>
-                <label className="explore-flight-route-box">
-                  <span>
-                    Airline
-                    <button
-                      type="button"
-                      aria-label="Clear airline"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        clearFlightSearchField('airlineName');
-                      }}
-                      disabled={!flightSearch.airlineName}
-                    >
-                      <X size={13} aria-hidden="true" />
-                    </button>
-                  </span>
-                  <input
-                    type="text"
-                    value={flightSearch.airlineName}
-                    onChange={(event) => handleFlightSearchChange('airlineName', event.target.value)}
-                    placeholder="Any airline"
-                  />
-                  <small>Optional</small>
-                </label>
-                <button className="explore-flight-search-button" type="submit" disabled={isSearching}>
-                  {isSearching ? <LoaderCircle className="explore-spin" size={20} aria-hidden="true" /> : <Search size={20} aria-hidden="true" />}
-                  {isSearching ? 'Searching' : 'Search'}
-                </button>
-              </form>
-            )}
-          </div>
-
-          {activeTransportTab === 'flights' ? (
-            <>
-              {error && <p className="form-error explore-status">{error}</p>}
-              {status && <p className="form-success explore-status">{status}</p>}
-
-              {flightResults?.available ? (
-                <section className="explore-flight-results-layout">
-                  <section className="explore-flight-results-board">
-                    <div className="explore-flight-board-title">
-                      <div>
-                        <span>1. Departures</span>
-                        <h3>{getFlightSearchTitle()}</h3>
-                      </div>
-                      <strong>{flightResults.items.length} flight{flightResults.items.length === 1 ? '' : 's'} found</strong>
-                    </div>
-                    <div className="explore-flight-list">
-                      {flightResults.items.map((flight, index) => {
-                        const departureLabel = getAirportLocationLabel(flight.departure.airport);
-                        const arrivalLabel = getAirportLocationLabel(flight.arrival.airport);
-
-                        return (
-                          <article className="explore-flight-card" key={`${flight.id}-${index}`}>
-                            <div className="explore-flight-airline">
-                              <Plane size={30} aria-hidden="true" />
-                              <div>
-                                <strong>{flight.airline.name}</strong>
-                                <span>{getFlightCodeLabel(flight)}</span>
-                              </div>
-                            </div>
-                            <div className="explore-flight-time">
-                              <strong>{formatFlightTime(flight.departure.scheduledTime || flight.departure.actualTime)}</strong>
-                              <span>{departureLabel}</span>
-                              <small>{getAirportDetailLabel(flight.departure.airport)}</small>
-                            </div>
-                            <div className="explore-flight-path">
-                              <span>{formatFlightDuration(flight.durationMinutes)}</span>
-                              <div />
-                            </div>
-                            <div className="explore-flight-time">
-                              <strong>{formatFlightTime(flight.arrival.scheduledTime || flight.arrival.actualTime)}</strong>
-                              <span>{arrivalLabel}</span>
-                              <small>{getAirportDetailLabel(flight.arrival.airport)}</small>
-                            </div>
-                            <div className="explore-flight-action">
-                              <div
-                                className="explore-flight-price-badge"
-                                tabIndex="0"
-                                aria-label="AI estimated ticket price"
-                              >
-                                <DollarSign size={14} aria-hidden="true" />
-                                <strong>{flight.priceEstimate?.display || 'AI estimate unavailable'}</strong>
-                              </div>
-                              <button type="button">View</button>
-                            </div>
-                          </article>
-                        );
-                      })}
-                    </div>
-                  </section>
-                </section>
-              ) : (
-                <section className="explore-results-shell">
-                  <div className="explore-empty explore-placeholder">
-                    <Plane size={34} aria-hidden="true" />
-                    <h3>{flightResults?.message || 'Search by route'}</h3>
-                    <p>Enter an airline name, choose one or both countries, and optionally set a departure date.</p>
-                  </div>
-                </section>
-              )}
-            </>
-          ) : (
-            <div className="explore-empty explore-placeholder">
-              <TrainFront size={34} aria-hidden="true" />
-              <h3>Trains coming soon</h3>
-              <p>Train schedules will be added to this transportation workspace later.</p>
-            </div>
-          )}
-        </div>
-      ) : isSearchView ? (
-        <div className="explore-workspace">
-          <form className={isFilteredSearchView ? 'explore-search explore-search-hotels' : 'explore-search'} onSubmit={handleSearch}>
-            <div className="explore-search-copy">
-              <span>{searchConfig.finderLabel}</span>
-              <strong>{searchConfig.searchTitle}</strong>
-            </div>
-            <label>
-              <span className="sr-only">Destination</span>
-              <Search size={18} aria-hidden="true" />
-              <input
-                type="search"
-                value={destination}
-                onChange={(event) => updateDestinationQuery(event.target.value)}
-                placeholder={isHotelsView ? 'Hotel, country or location' : isFoodView ? 'Restaurant, country or location' : 'Tokyo, Paris, Kuala Lumpur'}
-              />
-            </label>
-            <label>
-              <span className="sr-only">Travel date</span>
-              <CalendarDays size={18} aria-hidden="true" />
-              <input
-                type="date"
-                value={travelDate}
-                min={getDateKey()}
-                max={getMaxWeatherDate()}
-                onChange={(event) => handleTravelDateChange(event.target.value)}
-              />
-            </label>
-            {isFilteredSearchView && (
-              <div className="explore-filter-row" aria-label={isHotelsView ? 'Hotel filters' : 'Restaurant filters'}>
-                <label className="explore-filter-field">
-                  <span className="sr-only">Country</span>
-                  <select
-                    value={activeFilters.countryCode}
-                    onChange={(event) => handleCountryChange(event.target.value, isFoodView ? 'restaurant' : 'hotel')}
-                  >
-                    <option value="">Country</option>
-                    {countryOptions.map((country) => (
-                      <option key={country.isoCode} value={country.isoCode}>
-                        {country.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="explore-filter-field">
-                  <span className="sr-only">Location or state</span>
-                  <select
-                    value={activeFilters.state}
-                    onChange={(event) =>
-                      isFoodView
-                        ? handleRestaurantFilterChange('state', event.target.value)
-                        : handleHotelFilterChange('state', event.target.value)
-                    }
-                    disabled={!activeFilters.countryCode}
-                  >
-                    <option value="">State</option>
-                      {stateOptions.map((state) => (
-                        <option key={state.isoCode} value={state.name}>
-                          {state.name}
-                        </option>
-                      ))}
-                  </select>
-                </label>
-                <label className="explore-filter-field">
-                  <span className="sr-only">{isFoodView ? 'Food category' : 'Room type'}</span>
-                  <select
-                    value={isFoodView ? restaurantFilters.foodCategory : hotelFilters.roomType}
-                    onChange={(event) =>
-                      isFoodView
-                        ? handleRestaurantFilterChange('foodCategory', event.target.value)
-                        : handleHotelFilterChange('roomType', event.target.value)
-                    }
-                  >
-                    {(isFoodView ? foodCategoryOptions : roomTypeOptions).map((option) => (
-                      <option key={option.value || (isFoodView ? 'any-food' : 'any-room')} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-              </div>
-            )}
-            <button className="primary-action" type="submit" disabled={isSearching}>
-              {isSearching ? <LoaderCircle className="explore-spin" size={17} aria-hidden="true" /> : <Search size={17} aria-hidden="true" />}
-              {isSearching ? 'Searching...' : 'Search'}
-            </button>
-          </form>
-
-          {error && <p className="form-error explore-status">{error}</p>}
-          {status && <p className="form-success explore-status">{status}</p>}
-
-          <section className="explore-briefing" aria-label={`${activeOption.label} travel briefing`}>
-            <div className="explore-stats-row" aria-label={`${activeOption.label} result summary`}>
-              <article>
-                <Search size={17} aria-hidden="true" />
-                <div>
-                  <strong>{resultCount || '--'}</strong>
-                  <span>{isHotelsView ? 'Hotels loaded' : isFoodView ? 'Restaurants loaded' : 'Places loaded'}</span>
-                </div>
-              </article>
-              <article>
-                <Star size={17} aria-hidden="true" />
-                <div>
-                  <strong>{ratedCount || '--'}</strong>
-                  <span>Rated results</span>
-                </div>
-              </article>
-              <article>
-                {isHotelsView ? (
-                  <Building2 size={17} aria-hidden="true" />
-                ) : isFoodView ? (
-                  <Utensils size={17} aria-hidden="true" />
-                ) : (
-                  <Sparkles size={17} aria-hidden="true" />
-                )}
-                <div>
-                  <strong>{isFilteredSearchView ? pricedCount || '--' : topRatedCount || '--'}</strong>
-                  <span>{isFilteredSearchView ? 'With prices' : 'Highly rated'}</span>
-                </div>
-              </article>
-            </div>
-
-            <div className="explore-guidance-grid">
-            <article className="explore-briefing-card explore-weather-summary">
-              <div className="explore-briefing-title">
-                <CloudSun size={17} aria-hidden="true" />
-                <div>
-                  <span>Destination weather</span>
-                  <strong>{isWeatherLoading ? 'Checking forecast' : activeWeather?.available ? weatherLocationLabel : 'Ready after search'}</strong>
-                </div>
-              </div>
-              {isWeatherLoading ? (
-                <p className="explore-briefing-text">
-                  <LoaderCircle className="explore-spin" size={15} aria-hidden="true" />
-                  Checking {formatWeatherDate(travelDate || getDateKey())}
-                </p>
-              ) : activeWeather?.available ? (
-                <>
-                  <div className="explore-weather-line">
-                    <strong>{formatTemperature(activeWeather.temperature?.mean)}</strong>
-                    <span>{activeWeather.condition}</span>
-                  </div>
-                  <div className="explore-briefing-meta">
-                    <span><Droplets size={14} aria-hidden="true" />{activeWeather.precipitation?.probability ?? '--'}% rain</span>
-                    <span><Wind size={14} aria-hidden="true" />{activeWeather.windSpeed?.max ?? '--'} {activeWeather.windSpeed?.unit || 'km/h'}</span>
-                  </div>
-                  <p className="explore-briefing-text">{activeWeather.travelTip}</p>
-                </>
-              ) : (
-                <p className="explore-briefing-text">{activeWeather?.message || 'Weather appears after a destination search.'}</p>
-              )}
-            </article>
-
-            <article className="explore-briefing-card explore-briefing-ai">
-              <div className="explore-briefing-title">
-                <Sparkles size={17} aria-hidden="true" />
-                <div>
-                  <span>AI guide</span>
-                  <strong>{activeAi?.available ? 'Recommended next moves' : 'Travel guidance'}</strong>
-                </div>
-                <button
-                  className="explore-ai-action"
-                  type="button"
-                  onClick={() => handleGenerateAiRecommendations({ manual: true })}
-                  disabled={!hasResults || isAiLoading}
-                >
-                  {isAiLoading ? <LoaderCircle className="explore-spin" size={15} aria-hidden="true" /> : <Sparkles size={15} aria-hidden="true" />}
-                  {isAiLoading ? 'Preparing' : activeAi?.available ? 'Refresh' : activeAi ? 'Retry' : 'Prepare'}
-                </button>
-              </div>
-              {isAiLoading ? (
-                <p className="explore-briefing-text">Reviewing ratings, prices, hours, and weather.</p>
-              ) : activeAi?.available ? (
-                <>
-                  <p className="explore-briefing-main">{activeAi.summary}</p>
-                  {activeAi.picks?.length > 0 && (
-                    <details className="explore-ai-details">
-                      <summary>{activeAi.picks.length} recommended pick{activeAi.picks.length === 1 ? '' : 's'}</summary>
-                      <div className="explore-ai-picks">
-                        {activeAi.picks.map((pick) => (
-                          <article key={`${pick.itemName}-${pick.score}`}>
-                            <div>
-                              <strong>{pick.itemName}</strong>
-                              <span>{pick.score}/100</span>
-                            </div>
-                            <p>{pick.reason}</p>
-                            <small>{pick.bestFor}{pick.caution ? ` - ${pick.caution}` : ''}</small>
-                          </article>
-                        ))}
-                      </div>
-                    </details>
-                  )}
-                </>
-              ) : (
-                <p className="explore-briefing-text">
-                  {activeAi?.message || 'Loads after results are ready.'}
-                </p>
-              )}
-            </article>
-            </div>
-          </section>
-
-          <section className="explore-results-shell">
-            <div className="explore-results-heading">
-              <div>
-                <span>{searchConfig.resultLabel}</span>
-                <h3>{hasResults ? `${isHotelsView ? 'Rooms' : isFoodView ? 'Food' : 'Places'} for ${destinationLabel}` : 'Ready when you are'}</h3>
-              </div>
-              <small>{hasResults ? `${resultCount} ${searchConfig.matchesLabel}` : searchConfig.readyText}</small>
-            </div>
-
-            <div className="explore-results">
-              {activeItems.length === 0 ? (
-                <div className="explore-empty">
-                  {isHotelsView ? (
-                    <Building2 size={34} aria-hidden="true" />
-                  ) : isFoodView ? (
-                    <Utensils size={34} aria-hidden="true" />
-                  ) : (
-                    <MapPinned size={34} aria-hidden="true" />
-                  )}
-                  <h3>{searchConfig.emptyTitle}</h3>
-                  <p>{searchConfig.emptyText}</p>
-                </div>
-            ) : (
-              activeItems.map((item, index) => (
-                <PlaceCard
-                  carouselIndex={getCarouselIndex(item.id || item.name, item.imageUrls?.length || (item.imageUrl ? 1 : 0))}
-                  categoryLabel={
-                    isHotelsView && hotelFilters.roomType
-                      ? selectedRoomLabel
-                      : isFoodView && restaurantFilters.foodCategory
-                        ? selectedFoodCategoryLabel
-                        : item.category
-                  }
-                  convertedPriceText={getConvertedPriceText(item)}
-                  index={index}
-                  item={item}
-                  key={`${item.id}-${index}`}
-                  onMoveCarousel={moveCarousel}
-                  originalPriceText={getOriginalPriceText(item)}
-                  type={isHotelsView ? 'hotels' : isFoodView ? 'food' : 'attractions'}
-                />
-              ))
-              )}
-            </div>
-            {isFilteredSearchView && hasMoreFilteredItems && (
-              <button className="explore-view-more" type="button" onClick={handleLoadMoreFilteredItems} disabled={isLoadingMore}>
-                {isLoadingMore ? <LoaderCircle className="explore-spin" size={17} aria-hidden="true" /> : <Search size={17} aria-hidden="true" />}
-                {isLoadingMore ? 'Loading...' : 'View more'}
-              </button>
-            )}
-          </section>
-        </div>
-      ) : (
-        <div className="explore-empty explore-placeholder">
-          <ActiveIcon size={34} aria-hidden="true" />
-          <h3>{activeOption.label} is ready for integration</h3>
-          <p>Use the Attractions tab to test the SerpApi Google Maps connection first.</p>
-        </div>
-      )}
+      {renderSubmenu()}
     </section>
   );
 }
 
 export default ExplorePage;
-
