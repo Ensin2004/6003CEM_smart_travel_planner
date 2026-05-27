@@ -10,22 +10,18 @@ import {
 } from 'lucide-react';
 import {
   defaultPackingCategory,
-  defaultPriorityLevel,
-  formatPriorityLevel,
 } from './travelTools.constants';
 
 export const emptyItemForm = {
   name: '',
   category: defaultPackingCategory,
-  priority: defaultPriorityLevel,
-  quantity: 1,
+  quantity: '1',
 };
 
 export const emptyFilters = {
   search: '',
   category: '',
   packed: '',
-  priority: '',
 };
 
 export const getErrorMessage = (error) =>
@@ -48,10 +44,7 @@ export const getCategoryIcon = (category) => categoryIcons[category] || Luggage;
 
 export const normalizePackingListForUi = (packingList) => ({
   ...packingList,
-  items: (packingList.items || []).map((item) => ({
-    ...item,
-    priority: formatPriorityLevel(item.priority),
-  })),
+  items: packingList.items || [],
 });
 
 export const mapTemplateForEdit = (template) => ({
@@ -61,7 +54,6 @@ export const mapTemplateForEdit = (template) => ({
     id: item._id || item.id || `${item.name}-${item.category}`,
     name: item.name || '',
     category: item.category || defaultPackingCategory,
-    priority: formatPriorityLevel(item.priority),
     quantity: item.quantity || 1,
     isPacked: Boolean(item.isPacked),
   })),

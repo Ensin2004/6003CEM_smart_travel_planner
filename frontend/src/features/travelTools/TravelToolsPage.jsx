@@ -40,10 +40,7 @@ import {
 } from '../../api/travelToolsApi';
 import {
   formatPackingCategory,
-  formatPriorityLevel,
-  getPriorityClassName,
   packingCategories,
-  priorityLevels,
 } from './travelTools.constants';
 import { useTravelToolsPage } from './hooks/useTravelToolsPage';
 import { getCategoryIcon, getErrorMessage } from './travelTools.utils';
@@ -101,6 +98,11 @@ const renderTip = (text) => (
     <span className="travel-tools-create-tip" role="tooltip">{text}</span>
   </span>
 );
+
+const getVisibleTemplateItems = (items = []) => {
+  const visibleItems = items.slice(0, 5);
+  return items.length > visibleItems.length ? [...visibleItems, { name: '...' }] : visibleItems;
+};
 
 const getFileExtension = (fileName = '') => {
   const dotIndex = fileName.lastIndexOf('.');
@@ -216,7 +218,6 @@ function PackingListTools() {
     handleStartListTitleEdit,
     handleStartTemplateDescriptionEdit,
     handleStartTemplateTitleEdit,
-    handleTemplateDropdownChange,
     handleTemplatePageChange,
     handleTemplateSaveFormChange,
     handleTemplateSelect,
@@ -264,9 +265,22 @@ function PackingListTools() {
     templateTitleDraft,
     templates,
     trips,
-    unpackedImportantCount,
+    unpackedItemCount,
     visibleTemplates,
   } = useTravelToolsPage();
+
+  const linkedTrip = selectedList?.tripId
+    ? trips.find((trip) => String(trip._id) === String(selectedList.tripId))
+    : null;
+  const linkedTripName = selectedList?.tripId
+    ? (linkedTrip ? getTripOptionLabel(linkedTrip) : selectedList.destination || 'Linked trip unavailable')
+    : 'Not linked';
+  const isTripLinkedToOtherPackingList = (tripId, excludedListId = '') =>
+    packingLists.some(
+      (list) =>
+        String(list.tripId || '') === String(tripId) &&
+        (!excludedListId || String(list._id) !== String(excludedListId))
+    );
 
   return (
     <TravelToolsPageFrame labelledBy="packing-title" className="travel-tools-enhanced-page">
@@ -312,8 +326,8 @@ function PackingListTools() {
       <form className="travel-tools-create-panel" onSubmit={handleCreateList}>
         <div className="travel-tools-panel-heading">
           <div>
-            <span>Create packing list</span>
-            <h3>Choose to create a packing list manually or select an existing template</h3>
+            <span>Start a packing list</span>
+            <h3>Choose manual or template, add a title, then create.</h3>
           </div>
           <button className="secondary-action" type="submit" disabled={isSaving}>
             <Plus size={17} aria-hidden="true" />
@@ -344,6 +358,55 @@ function PackingListTools() {
             Use template
           </button>
         </div>
+
+        {createMode === 'template' && (
+          <div className="travel-tools-template-carousel document-template-carousel" aria-label="Packing templates">
+            <button
+              className="travel-tools-template-arrow"
+              type="button"
+              onClick={() => handleTemplatePageChange('previous')}
+              aria-label="Previous templates"
+              disabled={templates.length <= 3}
+            >
+              <ChevronLeft size={18} aria-hidden="true" />
+            </button>
+            <div className="document-template-picker" aria-label="Packing list templates">
+              {visibleTemplates.map((template) => {
+                const isSelectedTemplate = createForm.templateKey === template.key;
+                return (
+                  <article className={`document-template-card ${isSelectedTemplate ? 'active' : ''}`} key={template.key}>
+                    <button
+                      className="document-template-select"
+                      type="button"
+                      onClick={() => {
+                        setCreateFormError('');
+                        handleTemplateSelect(template);
+                      }}
+                    >
+                      <span>{template.source === 'custom' ? 'Saved custom template' : 'Standard template'}</span>
+                      <strong>{template.title}</strong>
+                      <small>{template.description || 'Reusable packing list template.'}</small>
+                      <div>
+                        {getVisibleTemplateItems(template.items || []).map((item, index) => (
+                          <em key={`${template.key}-${item.name}-${index}`}>{item.name}</em>
+                        ))}
+                      </div>
+                    </button>
+                  </article>
+                );
+              })}
+            </div>
+            <button
+              className="travel-tools-template-arrow"
+              type="button"
+              onClick={() => handleTemplatePageChange('next')}
+              aria-label="Next templates"
+              disabled={templates.length <= 3}
+            >
+              <ChevronRight size={18} aria-hidden="true" />
+            </button>
+          </div>
+        )}
 
         <div className="travel-tools-form-grid travel-tools-form-grid-compact">
           <div className="travel-tools-create-field">
@@ -377,83 +440,21 @@ function PackingListTools() {
                   setCreateForm((current) => ({ ...current, tripId: event.target.value }));
                 }}
               >
-                <option value="">No linked trip</option>
-                {trips.map((trip) => (
-                  <option key={trip._id} value={trip._id}>
-                    {getTripOptionLabel(trip)}
-                  </option>
-                ))}
+                <option value="">None</option>
+                {trips.map((trip) => {
+                  const isUnavailable = isTripLinkedToOtherPackingList(trip._id);
+                  return (
+                    <option key={trip._id} value={trip._id} disabled={isUnavailable}>
+                      {getTripOptionLabel(trip)}{isUnavailable ? ' (Already linked)' : ''}
+                    </option>
+                  );
+                })}
               </select>
             </label>
           </div>
-          {createMode === 'template' && (
-            <div className="travel-tools-create-field">
-              <label>
-                <span className="travel-tools-field-label">
-                  Template
-                  {renderTip('Create a packing list from an existing template.')}
-                </span>
-                <select
-                  name="templateKey"
-                  value={createForm.templateKey}
-                  onChange={(event) => {
-                    setCreateFormError('');
-                    handleTemplateDropdownChange(event);
-                  }}
-                >
-                  <option value="">Choose template</option>
-                  {templates.map((template) => (
-                    <option key={template.key} value={template.key}>
-                      {template.title}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-          )}
         </div>
         {createFormError && <p className="form-error travel-tools-status">{createFormError}</p>}
       </form>
-
-      {createMode === 'template' && (
-        <div className="travel-tools-template-carousel" aria-label="Packing templates">
-          <button
-            className="travel-tools-template-arrow"
-            type="button"
-            onClick={() => handleTemplatePageChange('previous')}
-            disabled={templates.length <= 5}
-            aria-label="Previous templates"
-          >
-            <ChevronLeft size={18} aria-hidden="true" />
-          </button>
-          <div className="travel-tools-templates">
-            {visibleTemplates.map((template) => (
-              <button
-                className={createForm.templateKey === template.key ? 'active' : ''}
-                type="button"
-                key={template.key}
-                onClick={() => handleTemplateSelect(template)}
-              >
-                <Sparkles size={17} aria-hidden="true" />
-                <span>{template.title}</span>
-                <small>
-                  {template.source === 'custom' ? 'Custom template' : 'System template'} · {template.description}
-                </small>
-              </button>
-            ))}
-          </div>
-          <button
-            className="travel-tools-template-arrow"
-            type="button"
-            onClick={() => handleTemplatePageChange('next')}
-            disabled={templates.length <= 5}
-            aria-label="Next templates"
-          >
-            <ChevronRight size={18} aria-hidden="true" />
-          </button>
-        </div>
-      )}
-
       <div className="travel-tools-layout">
         <aside className="travel-tools-list-panel">
           <div className="travel-tools-panel-heading">
@@ -632,10 +633,6 @@ function PackingListTools() {
                       <option key={category} value={category}>{formatPackingCategory(category)}</option>
                     ))}
                   </select>
-                  <select value={templateFilters.priority} onChange={(event) => setTemplateFilters((current) => ({ ...current, priority: event.target.value }))}>
-                    <option value="">All priority</option>
-                    {priorityLevels.map((priority) => <option key={priority} value={priority}>{priority}</option>)}
-                  </select>
                 </div>
 
                 {filteredTemplateItems.length === 0 ? (
@@ -650,7 +647,6 @@ function PackingListTools() {
                           <div>
                             <div className="travel-tools-item-title-row">
                               <strong>{item.name}</strong>
-                              <span className={getPriorityClassName(item.priority)}>{formatPriorityLevel(item.priority)}</span>
                             </div>
                             <span className="travel-tools-item-category packing-template-item-category">
                               <CategoryIcon size={14} aria-hidden="true" />
@@ -716,23 +712,29 @@ function PackingListTools() {
                     {progress.packedItems}/{progress.totalItems} items packed
                   </p>
                   <div className="travel-tools-workspace-meta" aria-label="Packing list trip details">
-                    <span>Trip linked: {selectedList.tripId ? 'Linked' : 'Not linked'}</span>
+                    <span>Trip linked: {linkedTripName}</span>
                   </div>
                 </div>
-                <div className="travel-tools-actions">
-                  <button type="button" onClick={handleOpenSaveTemplateModal} disabled={isSaving}>
-                    <Sparkles size={16} aria-hidden="true" />
-                    Save as Template
-                  </button>
-                  <button type="button" onClick={() => setConfirmAction({ type: 'duplicate-list', list: selectedList })} disabled={isSaving}>
-                    <Copy size={16} aria-hidden="true" />
-                    Duplicate
-                  </button>
-                  <button type="button" onClick={() => setConfirmAction({ type: 'delete-list', list: selectedList })} disabled={isSaving}>
-                    <Trash2 size={16} aria-hidden="true" />
-                    Delete
-                  </button>
-                </div>
+                <details className="travel-tools-actions-menu">
+                  <summary>
+                    <MoreVertical size={17} aria-hidden="true" />
+                    More
+                  </summary>
+                  <div>
+                    <button type="button" onClick={handleOpenSaveTemplateModal} disabled={isSaving}>
+                      <Sparkles size={16} aria-hidden="true" />
+                      Save as Template
+                    </button>
+                    <button type="button" onClick={() => setConfirmAction({ type: 'duplicate-list', list: selectedList })} disabled={isSaving}>
+                      <Copy size={16} aria-hidden="true" />
+                      Duplicate
+                    </button>
+                    <button type="button" onClick={() => setConfirmAction({ type: 'delete-list', list: selectedList })} disabled={isSaving}>
+                      <Trash2 size={16} aria-hidden="true" />
+                      Delete
+                    </button>
+                  </div>
+                </details>
               </div>
 
               <div className="packing-progress" aria-label="Packing progress">
@@ -743,15 +745,18 @@ function PackingListTools() {
                 <label>
                   <span className="travel-tools-field-label">
                     Link trip
-                    {renderTip('Choose a trip to link this list or select "No linked trip" to unlink it.')}
+                    {renderTip('Choose a trip to link this list or select "None" to unlink it.')}
                   </span>
                   <select value={selectedList.tripId || ''} onChange={handlePackingListTripChange} disabled={isSaving}>
-                    <option value="">No linked trip</option>
-                    {trips.map((trip) => (
-                      <option key={trip._id} value={trip._id}>
-                        {getTripOptionLabel(trip)}
-                      </option>
-                    ))}
+                    <option value="">None</option>
+                    {trips.map((trip) => {
+                      const isUnavailable = isTripLinkedToOtherPackingList(trip._id, selectedList._id);
+                      return (
+                        <option key={trip._id} value={trip._id} disabled={isUnavailable}>
+                          {getTripOptionLabel(trip)}{isUnavailable ? ' (Already linked)' : ''}
+                        </option>
+                      );
+                    })}
                   </select>
                 </label>
               </div>
@@ -781,14 +786,15 @@ function PackingListTools() {
                   />
                   days before trip
                 </label>
-                {unpackedImportantCount > 0 && (
+                {unpackedItemCount > 0 && (
                   <small>
-                    {unpackedImportantCount} High priority item{unpackedImportantCount === 1 ? '' : 's'} still unpacked.
+                    {isPackingReminderEnabled ? 'Notification will be sent while ' : ''}
+                    {unpackedItemCount} item{unpackedItemCount === 1 ? '' : 's'} remain unpacked.
                   </small>
                 )}
               </div>
 
-              <div className="travel-tools-filters">
+              <div className="travel-tools-filters packing-item-filters">
                 <span className="travel-tools-search-field">
                   <Search size={16} aria-hidden="true" />
                   <input
@@ -808,10 +814,10 @@ function PackingListTools() {
                   <option value="packed">Packed</option>
                   <option value="unpacked">Unpacked</option>
                 </select>
-                <select value={filters.priority} onChange={(event) => setFilters((current) => ({ ...current, priority: event.target.value }))}>
-                  <option value="">All priority</option>
-                  {priorityLevels.map((priority) => <option key={priority} value={priority}>{priority}</option>)}
-                </select>
+                <button className="secondary-action travel-tools-filter-action" type="button" onClick={handleOpenAddItem}>
+                  <Plus size={16} aria-hidden="true" />
+                  Add item
+                </button>
               </div>
 
               {filteredItems.length === 0 ? (
@@ -831,7 +837,6 @@ function PackingListTools() {
                       <div>
                         <div className="travel-tools-item-title-row">
                           <strong>{item.name}</strong>
-                          <span className={getPriorityClassName(item.priority)}>{formatPriorityLevel(item.priority)}</span>
                         </div>
                         <span className="travel-tools-item-category">
                           {(() => {
@@ -841,7 +846,7 @@ function PackingListTools() {
                           {formatPackingCategory(item.category)}
                         </span>
                       </div>
-                      <div className="travel-tools-item-meta" aria-label="Item quantity and priority">
+                      <div className="travel-tools-item-meta" aria-label="Item quantity">
                         <span className="travel-tools-quantity">Qty {item.quantity}</span>
                       </div>
                       <button type="button" onClick={() => handleEditItem(item)} aria-label="Edit item">
@@ -854,13 +859,6 @@ function PackingListTools() {
                   ))}
                 </div>
               )}
-
-              <div className="travel-tools-add-row">
-                <button className="primary-action" type="button" onClick={handleOpenAddItem}>
-                  <Plus size={17} aria-hidden="true" />
-                  Add item
-                </button>
-              </div>
 
               {statusScope === 'packing' && error && <p className="form-error travel-tools-status">{error}</p>}
               {statusScope === 'packing' && successMessage && <p className="form-success travel-tools-status">{successMessage}</p>}
@@ -906,12 +904,6 @@ function PackingListTools() {
                 {categoryOptions.map((category) => (
                   <option key={category} value={category}>{formatPackingCategory(category)}</option>
                 ))}
-              </select>
-            </label>
-            <label>
-              Priority
-              <select name="priority" value={itemForm.priority} onChange={handleItemFormChange}>
-                {priorityLevels.map((priority) => <option key={priority} value={priority}>{priority}</option>)}
               </select>
             </label>
             <label>
@@ -1000,6 +992,7 @@ function TravelDocumentTools() {
   const [selectedDocumentId, setSelectedDocumentId] = useState('');
   const [trips, setTrips] = useState([]);
   const [filters, setFilters] = useState({ search: '' });
+  const [documentItemFilters, setDocumentItemFilters] = useState({ search: '', type: '' });
   const [createMode, setCreateMode] = useState('manual');
   const [createForm, setCreateForm] = useState({ name: '', tripId: '', templateKey: '' });
   const [itemForm, setItemForm] = useState({ name: '', documentType: 'Passport', uploadLabel: '' });
@@ -1011,6 +1004,7 @@ function TravelDocumentTools() {
   const [isSaving, setIsSaving] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null);
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [isDocumentItemModalOpen, setIsDocumentItemModalOpen] = useState(false);
   const [expandedFile, setExpandedFile] = useState(null);
   const [templatePage, setTemplatePage] = useState(0);
   const [isEditingDocumentName, setIsEditingDocumentName] = useState(false);
@@ -1059,6 +1053,18 @@ function TravelDocumentTools() {
     () => documents.find((document) => document.id === selectedDocumentId) || documents[0],
     [documents, selectedDocumentId]
   );
+  const selectedDocumentTrip = selectedDocument?.tripId
+    ? trips.find((trip) => String(trip._id) === String(selectedDocument.tripId))
+    : null;
+  const selectedDocumentTripName = selectedDocument?.tripId
+    ? (selectedDocumentTrip ? getTripOptionLabel(selectedDocumentTrip) : 'Linked trip unavailable')
+    : 'Not linked';
+  const isTripLinkedToOtherDocument = (tripId, excludedDocumentId = '') =>
+    documents.some(
+      (document) =>
+        String(document.tripId || '') === String(tripId) &&
+        (!excludedDocumentId || String(document.id) !== String(excludedDocumentId))
+    );
 
   const fileCount = documents.reduce(
     (total, document) =>
@@ -1069,6 +1075,14 @@ function TravelDocumentTools() {
   const filteredDocuments = documents.filter((document) => {
     const matchesSearch = document.name.toLowerCase().includes(filters.search.toLowerCase().trim());
     return matchesSearch;
+  });
+  const filteredDocumentItems = (selectedDocument?.items || []).filter((item) => {
+    const normalizedSearch = documentItemFilters.search.toLowerCase().trim();
+    const matchesSearch =
+      item.name.toLowerCase().includes(normalizedSearch) ||
+      item.uploadLabel.toLowerCase().includes(normalizedSearch);
+    const matchesType = !documentItemFilters.type || item.documentType === documentItemFilters.type;
+    return matchesSearch && matchesType;
   });
   const visibleDocumentTemplates = useMemo(() => {
     if (documentTemplates.length <= 3) return documentTemplates;
@@ -1223,12 +1237,26 @@ function TravelDocumentTools() {
       });
       replaceDocument(response.data.data.document);
       setItemForm({ name: '', documentType: 'Passport', uploadLabel: '' });
+      setIsDocumentItemModalOpen(false);
       setSuccessMessage('Document list item added.');
     } catch (requestError) {
       setFormError(getErrorMessage(requestError));
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const handleOpenDocumentItemModal = () => {
+    setItemForm({ name: '', documentType: 'Passport', uploadLabel: '' });
+    setFormError('');
+    setSuccessMessage('');
+    setIsDocumentItemModalOpen(true);
+  };
+
+  const handleCloseDocumentItemModal = () => {
+    setIsDocumentItemModalOpen(false);
+    setItemForm({ name: '', documentType: 'Passport', uploadLabel: '' });
+    setFormError('');
   };
 
   const handleStartDocumentNameEdit = () => {
@@ -1278,17 +1306,30 @@ function TravelDocumentTools() {
     }
   };
 
+  const handleDocumentTripChange = async (event) => {
+    if (!selectedDocument) return;
+    const tripId = event.target.value;
+    setIsSaving(true);
+    setFormError('');
+    setSuccessMessage('');
+
+    try {
+      const response = await updateTravelDocument(selectedDocument.id, { tripId: tripId || null });
+      replaceDocument(response.data.data.document);
+      setSuccessMessage(tripId ? 'Travel document linked to trip.' : 'Travel document unlinked from trip.');
+    } catch (requestError) {
+      setFormError(getErrorMessage(requestError));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const handleTemplatePageChange = (direction) => {
     if (documentTemplates.length <= 3) return;
     setTemplatePage((current) => {
       if (direction === 'previous') return current === 0 ? documentTemplates.length - 1 : current - 1;
       return current === documentTemplates.length - 1 ? 0 : current + 1;
     });
-  };
-
-  const getVisibleTemplateItems = (items = []) => {
-    const visibleItems = items.slice(0, 5);
-    return items.length > visibleItems.length ? [...visibleItems, { name: '...' }] : visibleItems;
   };
 
   const mapTemplateForWorkspaceEdit = (template) => ({
@@ -1722,10 +1763,15 @@ function TravelDocumentTools() {
                 value={createForm.tripId}
                 onChange={(event) => setCreateForm((current) => ({ ...current, tripId: event.target.value }))}
               >
-                <option value="">No linked trip</option>
-                {trips.map((trip) => (
-                  <option key={trip._id} value={trip._id}>{getTripOptionLabel(trip)}</option>
-                ))}
+                <option value="">None</option>
+                {trips.map((trip) => {
+                  const isUnavailable = isTripLinkedToOtherDocument(trip._id);
+                  return (
+                    <option key={trip._id} value={trip._id} disabled={isUnavailable}>
+                      {getTripOptionLabel(trip)}{isUnavailable ? ' (Already linked)' : ''}
+                    </option>
+                  );
+                })}
               </select>
             </label>
           </div>
@@ -1892,31 +1938,37 @@ function TravelDocumentTools() {
                   <p>{selectedDocument.items.length} document item{selectedDocument.items.length === 1 ? '' : 's'}</p>
                   <div className="travel-tools-workspace-meta" aria-label="Travel document details">
                     <span>{selectedDocument.items.reduce((total, item) => total + item.files.length, selectedDocument.files.length)} uploaded file{selectedDocument.items.reduce((total, item) => total + item.files.length, selectedDocument.files.length) === 1 ? '' : 's'}</span>
-                    <span>{selectedDocument.tripId ? 'Trip linked' : 'Not linked'}</span>
+                    <span>Trip linked: {selectedDocumentTripName}</span>
                   </div>
                 </div>
-                <div className="travel-tools-actions">
-                  <button type="button" onClick={handleOpenSaveDocumentTemplate} disabled={isSaving}>
-                    <Sparkles size={16} aria-hidden="true" />
-                    Save as template
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmAction({ type: 'duplicate-document', document: selectedDocument })}
-                    disabled={isSaving}
-                  >
-                    <Copy size={16} aria-hidden="true" />
-                    Duplicate
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmAction({ type: 'delete-document', document: selectedDocument })}
-                    disabled={isSaving}
-                  >
-                    <Trash2 size={16} aria-hidden="true" />
-                    Delete
-                  </button>
-                </div>
+                <details className="travel-tools-actions-menu">
+                  <summary>
+                    <MoreVertical size={17} aria-hidden="true" />
+                    More
+                  </summary>
+                  <div>
+                    <button type="button" onClick={handleOpenSaveDocumentTemplate} disabled={isSaving}>
+                      <Sparkles size={16} aria-hidden="true" />
+                      Save as template
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmAction({ type: 'duplicate-document', document: selectedDocument })}
+                      disabled={isSaving}
+                    >
+                      <Copy size={16} aria-hidden="true" />
+                      Duplicate
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setConfirmAction({ type: 'delete-document', document: selectedDocument })}
+                      disabled={isSaving}
+                    >
+                      <Trash2 size={16} aria-hidden="true" />
+                      Delete
+                    </button>
+                  </div>
+                </details>
               </div>
 
               {(successMessage || formError) && (
@@ -1926,45 +1978,60 @@ function TravelDocumentTools() {
                 </div>
               )}
 
-              <form className="travel-document-item-form travel-tools-form-grid" onSubmit={handleAddDocumentItem}>
+              <div className="packing-trip-link-panel">
                 <label>
-                  <span className="travel-tools-field-label">Document file name</span>
-                  <input
-                    value={itemForm.name}
-                    onChange={(event) => setItemForm((current) => ({ ...current, name: event.target.value }))}
-                    placeholder="Passport"
-                  />
-                </label>
-                <label>
-                  <span className="travel-tools-field-label">Type</span>
-                  <select
-                    value={itemForm.documentType}
-                    onChange={(event) => setItemForm((current) => ({ ...current, documentType: event.target.value }))}
-                  >
-                    {documentItemTypes.map((type) => (
-                      <option key={type} value={type}>{type}</option>
-                    ))}
+                  <span className="travel-tools-field-label">
+                    Link trip
+                    {renderTip('Choose a trip to link this document list or select "None" to unlink it.')}
+                  </span>
+                  <select value={selectedDocument.tripId || ''} onChange={handleDocumentTripChange} disabled={isSaving}>
+                    <option value="">None</option>
+                    {trips.map((trip) => {
+                      const isUnavailable = isTripLinkedToOtherDocument(trip._id, selectedDocument.id);
+                      return (
+                        <option key={trip._id} value={trip._id} disabled={isUnavailable}>
+                          {getTripOptionLabel(trip)}{isUnavailable ? ' (Already linked)' : ''}
+                        </option>
+                      );
+                    })}
                   </select>
                 </label>
-                <label>
-                  <span className="travel-tools-field-label">Description</span>
+              </div>
+
+              <div className="travel-tools-filters travel-document-item-filters">
+                <span className="travel-tools-search-field">
+                  <Search size={16} aria-hidden="true" />
                   <input
-                    value={itemForm.uploadLabel}
-                    onChange={(event) => setItemForm((current) => ({ ...current, uploadLabel: event.target.value }))}
-                    placeholder="Upload scan"
+                    value={documentItemFilters.search}
+                    onChange={(event) => setDocumentItemFilters((current) => ({ ...current, search: event.target.value }))}
+                    placeholder="Search document items"
                   />
-                </label>
-                <button className="secondary-action" type="submit" disabled={isSaving}>
+                </span>
+                <select
+                  value={documentItemFilters.type}
+                  onChange={(event) => setDocumentItemFilters((current) => ({ ...current, type: event.target.value }))}
+                  aria-label="Filter document type"
+                >
+                  <option value="">All types</option>
+                  {documentItemTypes.map((type) => (
+                    <option key={type} value={type}>{type}</option>
+                  ))}
+                </select>
+                <button className="secondary-action travel-tools-filter-action" type="button" onClick={handleOpenDocumentItemModal} disabled={isSaving}>
                   <Plus size={16} aria-hidden="true" />
                   Add item
                 </button>
-              </form>
+              </div>
 
-              {selectedDocument.items.length === 0 ? (
-                <p className="settings-empty">No document list items yet. Add a document file name and type, then upload its file.</p>
+              {filteredDocumentItems.length === 0 ? (
+                <p className="settings-empty">
+                  {selectedDocument.items.length === 0
+                    ? 'No document list items yet. Add a document file name and type, then upload its file.'
+                    : 'No document items match the current filters.'}
+                </p>
               ) : (
                 <div className="travel-tools-item-list travel-tools-document-file-list">
-                  {selectedDocument.items.map((item) => (
+                  {filteredDocumentItems.map((item) => (
                     <article className="travel-document-list-item" key={item.id}>
                       <div>
                         <div className="travel-tools-item-title-row">
@@ -2042,6 +2109,60 @@ function TravelDocumentTools() {
               <button className="secondary-action" type="button" onClick={() => setExpandedFile(null)}>Close</button>
             </div>
           </div>
+        </div>
+      )}
+
+      {isDocumentItemModalOpen && (
+        <div className="travel-tools-modal-backdrop" role="presentation">
+          <form className="travel-tools-modal" onSubmit={handleAddDocumentItem} aria-labelledby="document-item-modal-title">
+            <div className="travel-tools-modal-header">
+              <h3 id="document-item-modal-title">Add document item</h3>
+              <button type="button" onClick={handleCloseDocumentItemModal} aria-label="Close document item form">
+                <X size={18} aria-hidden="true" />
+              </button>
+            </div>
+            {formError && <p className="form-error travel-tools-modal-status">{formError}</p>}
+            <label>
+              Document file name
+              <input
+                value={itemForm.name}
+                onChange={(event) => {
+                  setFormError('');
+                  setItemForm((current) => ({ ...current, name: event.target.value }));
+                }}
+                placeholder="Passport"
+                autoFocus
+              />
+            </label>
+            <label>
+              Type
+              <select
+                value={itemForm.documentType}
+                onChange={(event) => setItemForm((current) => ({ ...current, documentType: event.target.value }))}
+              >
+                {documentItemTypes.map((type) => (
+                  <option key={type} value={type}>{type}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Description
+              <input
+                value={itemForm.uploadLabel}
+                onChange={(event) => {
+                  setFormError('');
+                  setItemForm((current) => ({ ...current, uploadLabel: event.target.value }));
+                }}
+                placeholder="Upload scan"
+              />
+            </label>
+            <div className="travel-tools-modal-actions">
+              <button className="secondary-action" type="button" onClick={handleCloseDocumentItemModal}>Cancel</button>
+              <button className="primary-action" type="submit" disabled={isSaving}>
+                Add item
+              </button>
+            </div>
+          </form>
         </div>
       )}
 
