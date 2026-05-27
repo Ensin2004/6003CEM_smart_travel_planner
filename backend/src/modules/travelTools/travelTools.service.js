@@ -109,6 +109,19 @@ const assertUniquePackingListTitle = async (userId, title, excludedId) => {
   if (existingList) throw new AppError('A packing list with this name already exists.', 409);
 };
 
+const assertUniquePackingTrip = async (userId, tripId, excludedId) => {
+  if (!tripId) return;
+
+  const packingLists = await packingListRepository.findByUserId(userId);
+  const existingList = packingLists.find(
+    (list) =>
+      list.tripId?.toString() === tripId.toString() &&
+      (!excludedId || list._id.toString() !== excludedId.toString())
+  );
+
+  if (existingList) throw new AppError('This trip is already linked to another packing list.', 409);
+};
+
 const assertUniqueItemName = (packingList, itemName, excludedItemId) => {
   const normalizedItemName = normalizeName(itemName);
   const duplicateItem = packingList.items.find(
@@ -177,6 +190,7 @@ const createPackingList = async (userId, data) => {
   if (!title) throw new AppError('Packing list title is required.', 400);
 
   await assertUniquePackingListTitle(userId, title);
+  await assertUniquePackingTrip(userId, tripFields.tripId);
 
   return packingListRepository.create({
     userId,
@@ -199,6 +213,7 @@ const updatePackingList = async (listId, userId, data) => {
 
   if (data.tripId) {
     Object.assign(updateData, await buildTripFields(data.tripId, userId));
+    await assertUniquePackingTrip(userId, updateData.tripId, listId);
   } else if (data.tripId === null) {
     updateData.tripId = null;
     updateData.tripStartDate = null;
@@ -265,6 +280,7 @@ const duplicatePackingList = async (listId, userId, data) => {
   const title = data.title || `${source.title} copy`;
 
   await assertUniquePackingListTitle(userId, title);
+  await assertUniquePackingTrip(userId, tripFields.tripId);
 
   return packingListRepository.create({
     userId,
@@ -422,6 +438,19 @@ const assertUniqueDocumentName = async (userId, name, excludedId) => {
   if (existingDocument) throw new AppError('A travel document with this name already exists.', 409);
 };
 
+const assertUniqueDocumentTrip = async (userId, tripId, excludedId) => {
+  if (!tripId) return;
+
+  const documents = await tripDocumentRepository.findByUserId(userId);
+  const existingDocument = documents.find(
+    (document) =>
+      document.tripId?.toString() === tripId.toString() &&
+      (!excludedId || document._id.toString() !== excludedId.toString())
+  );
+
+  if (existingDocument) throw new AppError('This trip is already linked to another travel document list.', 409);
+};
+
 const getTravelDocumentById = async (documentId, userId) => {
   const document = await tripDocumentRepository.findByIdAndUserId(documentId, userId);
   if (!document) throw new AppError('Travel document not found', 404);
@@ -434,6 +463,7 @@ const createTravelDocument = async (userId, data) => {
 
   await assertUniqueDocumentName(userId, name);
   const tripFields = await buildTripFields(data.tripId, userId);
+  await assertUniqueDocumentTrip(userId, tripFields.tripId);
   const template = data.templateKey ? await findDocumentTemplate(data.templateKey, userId) : null;
   if (data.templateKey && !template) throw new AppError('Travel document template not found', 404);
   const items = normalizeDocumentItems(data.items?.length ? data.items : template?.items || []);
@@ -461,6 +491,7 @@ const updateTravelDocument = async (documentId, userId, data) => {
 
   if (data.tripId) {
     const tripFields = await buildTripFields(data.tripId, userId);
+    await assertUniqueDocumentTrip(userId, tripFields.tripId, documentId);
     updateData.tripId = tripFields.tripId;
   } else if (data.tripId === null) {
     updateData.tripId = null;
@@ -532,10 +563,11 @@ const duplicateTravelDocument = async (documentId, userId, data = {}) => {
   const tripFields = await buildTripFields(data.tripId, userId);
 
   await assertUniqueDocumentName(userId, title);
+  await assertUniqueDocumentTrip(userId, tripFields.tripId);
 
   return tripDocumentRepository.create({
     userId,
-    tripId: tripFields.tripId || source.tripId,
+    tripId: tripFields.tripId,
     name: title,
     type: source.type,
     templateKey: source.templateKey,

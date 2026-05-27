@@ -1,7 +1,4 @@
-import {
-  defaultPackingCategory,
-  formatPriorityLevel,
-} from './travelTools.constants';
+import { defaultPackingCategory } from './travelTools.constants';
 import { normalizeName } from './travelTools.utils';
 
 export const validateCreatePackingList = ({ createForm, createMode, hasDuplicateListTitle }) => {
@@ -14,7 +11,6 @@ export const validateCreatePackingList = ({ createForm, createMode, hasDuplicate
 export const validateItemForm = (itemForm) => {
   if (!itemForm.name.trim()) return 'Item name is required.';
   if (!itemForm.category) return 'Please choose a category.';
-  if (!itemForm.priority) return 'Please choose a priority.';
   if (!Number(itemForm.quantity) || Number(itemForm.quantity) < 1) return 'Quantity must be at least 1.';
   return '';
 };
@@ -24,7 +20,6 @@ export const normalizeTemplateItemsForSave = (items) =>
     .map((item) => ({
       name: item.name.trim(),
       category: item.category.trim() || defaultPackingCategory,
-      priority: formatPriorityLevel(item.priority),
       quantity: Number(item.quantity) || 1,
     }))
     .filter((item) => item.name);

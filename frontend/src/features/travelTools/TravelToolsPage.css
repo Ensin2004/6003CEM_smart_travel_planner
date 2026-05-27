@@ -205,7 +205,7 @@
 
 .travel-tools-layout {
   display: grid;
-  grid-template-columns: minmax(250px, 0.28fr) minmax(0, 1fr);
+  grid-template-columns: minmax(250px, 312px) minmax(0, 1fr);
   gap: 18px;
   align-items: start;
 }
@@ -225,6 +225,8 @@
 .travel-tools-list-panel {
   display: grid;
   gap: 14px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .travel-tools-panel-heading,
@@ -265,12 +267,14 @@
 .travel-tools-list-stack {
   display: grid;
   gap: 10px;
+  min-width: 0;
 }
 
 .travel-tools-list-card {
   display: grid;
   gap: 4px;
   width: 100%;
+  min-width: 0;
   min-height: 68px;
   padding: 13px;
   border: 1px solid var(--line);
@@ -294,7 +298,11 @@
 }
 
 .travel-tools-list-card span {
+  min-width: 0;
+  overflow: hidden;
   font-weight: var(--font-weight-bold);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .travel-tools-list-card small {
@@ -1023,18 +1031,38 @@
 
 .travel-tools-filters {
   display: grid;
-  grid-template-columns: minmax(180px, 1fr) repeat(3, minmax(130px, 0.5fr));
+  grid-template-columns: minmax(180px, 1fr) repeat(2, minmax(130px, 0.5fr)) auto;
   gap: 10px;
   align-items: center;
+  min-width: 0;
 }
 
 .travel-tools-template-filters {
   grid-template-columns: 1fr;
 }
 
+.travel-tools-detail .travel-tools-template-filters {
+  grid-template-columns: minmax(180px, 1fr) minmax(130px, 0.5fr);
+}
+
+.packing-item-filters {
+  grid-template-columns: minmax(240px, 1fr) minmax(160px, 0.78fr) minmax(130px, 0.38fr) auto;
+}
+
+.travel-document-item-filters {
+  grid-template-columns: minmax(240px, 1fr) minmax(150px, 0.38fr) auto;
+}
+
+.travel-tools-filter-action {
+  min-height: 42px;
+  gap: 8px;
+  white-space: nowrap;
+}
+
 .travel-tools-search-field {
   position: relative;
   display: block;
+  min-width: 0;
 }
 
 .travel-tools-search-field svg {
