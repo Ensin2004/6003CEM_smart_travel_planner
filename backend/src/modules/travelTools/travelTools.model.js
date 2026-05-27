@@ -103,21 +103,60 @@ packingTemplateSchema.pre('validate', function normalizeItemPriorities() {
   });
 });
 
+const documentFileSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true, trim: true, maxlength: 180 },
+    mimeType: { type: String, required: true, trim: true, maxlength: 120 },
+    size: { type: Number, min: 0, max: 10 * 1024 * 1024, required: true },
+    dataUrl: { type: String, required: true },
+    previewType: {
+      type: String,
+      enum: ['image', 'pdf', 'office'],
+      default: 'office',
+    },
+    uploadedAt: { type: Date, default: Date.now },
+  },
+  { _id: true }
+);
+
+const documentItemSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true, trim: true, maxlength: 140 },
+    documentType: {
+      type: String,
+      enum: ['Passport', 'Visa', 'Insurance', 'Ticket', 'Booking', 'Transport', 'Health', 'Contact', 'Custom'],
+      default: 'Custom',
+    },
+    uploadLabel: { type: String, trim: true, maxlength: 180 },
+    files: { type: [documentFileSchema], default: [] },
+  },
+  { _id: true, timestamps: true }
+);
+
 const tripDocumentSchema = new mongoose.Schema(
   {
-    tripId: { type: mongoose.Schema.Types.ObjectId, ref: 'Trip', required: true, index: true },
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     name: { type: String, required: true, trim: true, maxlength: 160 },
-    documentType: { type: String, required: true, trim: true, maxlength: 80 },
-    fileUrl: { type: String, required: true, trim: true },
-    storagePath: { type: String, required: true, trim: true },
-    mimeType: { type: String, trim: true },
-    fileSize: { type: Number, min: 0 },
+    type: {
+      type: String,
+      enum: ['Passport', 'Visa', 'Insurance', 'Ticket', 'Booking', 'Custom'],
+      default: 'Custom',
+    },
+    tripId: { type: mongoose.Schema.Types.ObjectId, ref: 'Trip', index: true },
+    templateKey: { type: String, trim: true, maxlength: 80 },
+    items: { type: [documentItemSchema], default: [] },
+    files: {
+      type: [documentFileSchema],
+      default: [],
+    },
     expiryDate: { type: Date, index: true },
     reminderDate: { type: Date },
   },
   { timestamps: true }
 );
+
+tripDocumentSchema.index({ userId: 1, createdAt: -1 });
+tripDocumentSchema.index({ userId: 1, tripId: 1 });
 
 const documentTemplateSchema = new mongoose.Schema(
   {
@@ -125,10 +164,28 @@ const documentTemplateSchema = new mongoose.Schema(
     name: { type: String, required: true, trim: true, maxlength: 120 },
     documentType: {
       type: String,
-      enum: ['passport', 'visa', 'insurance', 'ticket', 'booking', 'custom'],
-      default: 'custom',
+      enum: ['Passport', 'Visa', 'Insurance', 'Ticket', 'Booking', 'Custom', 'passport', 'visa', 'insurance', 'ticket', 'booking', 'custom'],
+      default: 'Custom',
     },
     description: { type: String, trim: true, maxlength: 1000 },
+    fileNames: { type: [String], default: [] },
+    items: {
+      type: [
+        new mongoose.Schema(
+          {
+            name: { type: String, required: true, trim: true, maxlength: 140 },
+            documentType: {
+              type: String,
+              enum: ['Passport', 'Visa', 'Insurance', 'Ticket', 'Booking', 'Transport', 'Health', 'Contact', 'Custom'],
+              default: 'Custom',
+            },
+            uploadLabel: { type: String, trim: true, maxlength: 180 },
+          },
+          { _id: true }
+        ),
+      ],
+      default: [],
+    },
   },
   { timestamps: true }
 );
