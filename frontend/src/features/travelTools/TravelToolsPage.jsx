@@ -326,8 +326,8 @@ function PackingListTools() {
       <form className="travel-tools-create-panel" onSubmit={handleCreateList}>
         <div className="travel-tools-panel-heading">
           <div>
-            <span>Start a packing list</span>
-            <h3>Choose manual or template, add a title, then create.</h3>
+            <span>Create a packing list</span>
+            <h3>Create a list manually or start from a packing template</h3>
           </div>
           <button className="secondary-action" type="submit" disabled={isSaving}>
             <Plus size={17} aria-hidden="true" />
@@ -459,7 +459,7 @@ function PackingListTools() {
         <aside className="travel-tools-list-panel">
           <div className="travel-tools-panel-heading">
             <div>
-              <span>View lists</span>
+              <span>View Packing Lists</span>
               <h3>My Lists</h3>
             </div>
             <strong>{packingLists.length}</strong>
@@ -500,7 +500,7 @@ function PackingListTools() {
           <div className="travel-tools-side-section">
             <div className="travel-tools-panel-heading">
               <div>
-                <span>Templates</span>
+                <span>View Templates</span>
                 <h3>My Templates</h3>
               </div>
               <strong>{customTemplates.length}</strong>
