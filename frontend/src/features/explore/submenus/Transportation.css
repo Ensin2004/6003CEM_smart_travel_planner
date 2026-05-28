@@ -50,6 +50,18 @@
   box-shadow: none;
 }
 
+.explore-train-search-panel {
+  display: grid;
+  grid-template-columns: minmax(220px, 1.2fr) minmax(160px, 0.75fr) minmax(160px, 0.75fr) minmax(150px, auto);
+  gap: 8px;
+  align-items: stretch;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  padding: 2px 0 0;
+  box-shadow: none;
+}
+
 .explore-flight-route-box {
   display: grid;
   gap: 2px;
@@ -162,6 +174,13 @@
   align-items: start;
 }
 
+.explore-train-results-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
+  gap: 16px;
+  align-items: start;
+}
+
 .explore-flight-results-board,
 .explore-results-shell {
   overflow: hidden;
@@ -234,6 +253,14 @@
   border-bottom: 1px solid rgba(217, 226, 236, 0.82);
   background: #ffffff;
   padding: 22px 16px;
+}
+
+.explore-train-card {
+  grid-template-columns: minmax(150px, 1fr) minmax(110px, 0.65fr) minmax(120px, 0.7fr) minmax(130px, 0.75fr) minmax(110px, auto);
+}
+
+.explore-train-card.active {
+  box-shadow: inset 4px 0 0 var(--teal);
 }
 
 .explore-flight-airline,
@@ -415,9 +442,189 @@
   white-space: nowrap;
 }
 
+.explore-train-stop-list {
+  display: grid;
+  gap: 0;
+  background: #ffffff;
+}
+
+.explore-train-stop {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(70px, auto) minmax(70px, auto);
+  gap: 12px;
+  align-items: center;
+  border-bottom: 1px solid rgba(217, 226, 236, 0.82);
+  padding: 14px 16px;
+}
+
+.explore-train-stop div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.explore-train-stop strong,
+.explore-train-stop span,
+.explore-train-stop small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.explore-train-stop strong {
+  color: #0f172a;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.explore-train-stop span,
+.explore-train-stop small {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.explore-train-performance-note {
+  margin: 0;
+  border-top: 1px solid rgba(217, 226, 236, 0.82);
+  background: rgba(245, 158, 11, 0.1);
+  color: #92400e;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.explore-train-status-pill {
+  display: inline-flex;
+  align-items: center;
+  width: fit-content;
+  border-radius: 999px;
+  padding: 4px 9px;
+  font-size: 12px;
+  font-weight: 850;
+  line-height: 1.2;
+}
+
+.explore-train-status-pill.on-time {
+  border: 1px solid rgba(37, 99, 235, 0.24);
+  background: rgba(37, 99, 235, 0.1);
+  color: #1d4ed8;
+}
+
+.explore-train-status-pill.late {
+  border: 1px solid rgba(220, 38, 38, 0.24);
+  background: rgba(220, 38, 38, 0.1);
+  color: #b91c1c;
+}
+
+.explore-train-back-link {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-height: 38px;
+  border: 1px solid rgba(15, 118, 110, 0.2);
+  border-radius: 6px;
+  background: #ffffff;
+  color: var(--teal);
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 800;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.explore-train-service-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  gap: 16px;
+  align-items: start;
+}
+
+.explore-train-stop-detail {
+  grid-template-columns: minmax(140px, 1fr) minmax(90px, 0.55fr) minmax(90px, 0.55fr) minmax(130px, 0.75fr) minmax(130px, 0.75fr);
+}
+
+.explore-train-stop-detail div:first-child {
+  min-width: 0;
+}
+
+.explore-train-service-side {
+  display: grid;
+}
+
+.explore-train-service-summary,
+.explore-train-coach-list,
+.explore-train-main-summary {
+  display: grid;
+  gap: 10px;
+  background: #ffffff;
+  padding: 16px;
+}
+
+.explore-train-service-summary span,
+.explore-train-coach-list span,
+.explore-train-main-summary span {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  border-bottom: 1px solid rgba(217, 226, 236, 0.82);
+  padding-bottom: 10px;
+}
+
+.explore-train-service-summary span:last-child,
+.explore-train-coach-list span:last-child,
+.explore-train-main-summary span:last-child {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.explore-train-service-summary small,
+.explore-train-coach-list small,
+.explore-train-main-summary small {
+  color: #64748b;
+  font-size: 12px;
+}
+
+.explore-train-service-summary strong,
+.explore-train-coach-list strong,
+.explore-train-main-summary strong {
+  overflow: hidden;
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+}
+
+.explore-train-main-summary {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  border-bottom: 1px solid rgba(217, 226, 236, 0.82);
+}
+
+.explore-train-coach-list h3 {
+  margin: 0;
+  color: var(--navy);
+  font-size: 15px;
+}
+
+.explore-train-coach-list p {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 0;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 @media (max-width: 900px) {
   .explore-flight-search-panel,
+  .explore-train-search-panel,
   .explore-flight-results-layout,
+  .explore-train-results-layout,
+  .explore-train-service-layout,
+  .explore-train-stop-detail,
+  .explore-train-main-summary,
   .explore-flight-card {
     grid-template-columns: 1fr;
   }

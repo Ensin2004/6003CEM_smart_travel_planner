@@ -55,4 +55,75 @@ const flightLookupRules = [
   requireAnyFlightFilter,
 ];
 
-module.exports = { flightLookupRules };
+const trainStationTimetableRules = [
+  query('stationCode')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ min: 3, max: 12 })
+    .withMessage('Station code must be between 3 and 12 characters')
+    .bail()
+    .matches(/^[a-z0-9:_-]+$/i)
+    .withMessage('Station code can only contain letters, numbers, colon, underscore, or hyphen'),
+  query('stationQuery')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ min: 2, max: 120 })
+    .withMessage('Station search must be between 2 and 120 characters'),
+  query('departureDate')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isISO8601({ strict: true, strictSeparator: true })
+    .withMessage('Departure date must use YYYY-MM-DD format'),
+  query('arrivalDate')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isISO8601({ strict: true, strictSeparator: true })
+    .withMessage('Arrival date must use YYYY-MM-DD format'),
+  query().custom((_, { req }) => {
+    if (!req.query.stationCode?.trim() && !req.query.stationQuery?.trim()) {
+      throw new Error('Enter a station name or CRS code.');
+    }
+
+    return true;
+  }),
+];
+
+const trainServiceTimetableRules = [
+  query('serviceIdentifier')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ min: 3, max: 80 })
+    .withMessage('Service identifier must be between 3 and 80 characters')
+    .bail()
+    .matches(/^[a-z0-9:_-]+$/i)
+    .withMessage('Service identifier can only contain letters, numbers, colon, underscore, or hyphen'),
+  query('trainUid')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ min: 3, max: 20 })
+    .withMessage('Train UID must be between 3 and 20 characters')
+    .bail()
+    .matches(/^[a-z0-9_-]+$/i)
+    .withMessage('Train UID can only contain letters, numbers, underscore, or hyphen'),
+  query('serviceDate')
+    .trim()
+    .isISO8601({ strict: true, strictSeparator: true })
+    .withMessage('Service date must use YYYY-MM-DD format'),
+  query('actualRid')
+    .optional({ checkFalsy: true })
+    .trim()
+    .isLength({ min: 4, max: 40 })
+    .withMessage('Actual journey RID must be between 4 and 40 characters')
+    .bail()
+    .matches(/^[a-z0-9_-]+$/i)
+    .withMessage('Actual journey RID can only contain letters, numbers, underscore, or hyphen'),
+  query().custom((_, { req }) => {
+    if (!req.query.serviceIdentifier?.trim() && !req.query.trainUid?.trim()) {
+      throw new Error('Select a train from the station timetable first.');
+    }
+
+    return true;
+  }),
+];
+
+module.exports = { flightLookupRules, trainStationTimetableRules, trainServiceTimetableRules };

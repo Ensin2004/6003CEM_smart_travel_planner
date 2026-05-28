@@ -11,6 +11,7 @@ function TransportationSubmenu({
   activeTransportTab,
   clearFlightCountry,
   clearFlightSearchField,
+  clearTrainSearchField,
   countryOptions,
   error,
   flightResults,
@@ -24,10 +25,24 @@ function TransportationSubmenu({
   handleFlightCountryChange,
   handleFlightSearch,
   handleFlightSearchChange,
+  handleTrainSearchChange,
+  handleTrainSelect,
+  handleTrainStationSearch,
   isSearching,
   setActiveTransportTab,
   status,
+  trainResults,
+  trainSearch,
 }) {
+  const formatTrainTime = (value) => value || '--:--';
+  const formatTrainDate = (value) => value || 'Date unavailable';
+  const getTrainEstimateLabel = (train = {}) =>
+    [train.distanceEstimate?.display, train.priceEstimate?.display].filter(Boolean).join(' / ') || 'Estimate unavailable';
+  const getTrainRunLabel = (train = {}) =>
+    [train.trainUid || train.service || trainResults?.stationCode, train.platform ? `Platform ${train.platform}` : '']
+      .filter(Boolean)
+      .join(' - ') || 'Train service';
+
   return (
     <div className="explore-workspace">
       <div className="explore-transport-toolbar">
@@ -157,6 +172,82 @@ function TransportationSubmenu({
             </button>
           </form>
         )}
+        {activeTransportTab === 'trains' && (
+          <form className="explore-train-search-panel" onSubmit={handleTrainStationSearch}>
+            <label className="explore-flight-route-box">
+              <span>
+                Station
+                <button
+                  type="button"
+                  aria-label="Clear station search"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    clearTrainSearchField('stationQuery');
+                  }}
+                  disabled={!trainSearch.stationQuery}
+                >
+                  <X size={13} aria-hidden="true" />
+                </button>
+              </span>
+              <input
+                type="text"
+                value={trainSearch.stationQuery}
+                onChange={(event) => handleTrainSearchChange('stationQuery', event.target.value)}
+                placeholder="Euston or EUS"
+                maxLength="120"
+              />
+              <small>Station name or CRS code</small>
+            </label>
+            <label className="explore-flight-route-box">
+              <span>
+                Departure
+                <button
+                  type="button"
+                  aria-label="Clear train departure date"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    clearTrainSearchField('departureDate');
+                  }}
+                  disabled={!trainSearch.departureDate}
+                >
+                  <X size={13} aria-hidden="true" />
+                </button>
+              </span>
+              <input
+                type="date"
+                value={trainSearch.departureDate}
+                onChange={(event) => handleTrainSearchChange('departureDate', event.target.value)}
+              />
+              <small>{trainSearch.departureDate ? 'Selected date' : 'Optional'}</small>
+            </label>
+            <label className="explore-flight-route-box">
+              <span>
+                Arrival
+                <button
+                  type="button"
+                  aria-label="Clear train arrival date"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    clearTrainSearchField('arrivalDate');
+                  }}
+                  disabled={!trainSearch.arrivalDate}
+                >
+                  <X size={13} aria-hidden="true" />
+                </button>
+              </span>
+              <input
+                type="date"
+                value={trainSearch.arrivalDate}
+                onChange={(event) => handleTrainSearchChange('arrivalDate', event.target.value)}
+              />
+              <small>{trainSearch.arrivalDate ? 'Selected date' : 'Optional'}</small>
+            </label>
+            <button className="explore-flight-search-button" type="submit" disabled={isSearching}>
+              {isSearching ? <LoaderCircle className="explore-spin" size={20} aria-hidden="true" /> : <Search size={20} aria-hidden="true" />}
+              {isSearching ? 'Loading' : 'Load timetable'}
+            </button>
+          </form>
+        )}
       </div>
 
       {activeTransportTab === 'flights' ? (
@@ -226,11 +317,67 @@ function TransportationSubmenu({
           )}
         </>
       ) : (
-        <div className="explore-empty explore-placeholder">
-          <TrainFront size={34} aria-hidden="true" />
-          <h3>Trains coming soon</h3>
-          <p>Train schedules will be added to this transportation workspace later.</p>
-        </div>
+        <>
+          {error && <p className="form-error explore-status">{error}</p>}
+          {status && <p className="form-success explore-status">{status}</p>}
+
+          {trainResults?.available ? (
+            <section className="explore-flight-results-layout">
+              <section className="explore-flight-results-board">
+                <div className="explore-flight-board-title">
+                  <div>
+                    <span>1. Station timetable</span>
+                    <h3>{trainResults.stationName || trainResults.stationCode || 'Train departures'}</h3>
+                  </div>
+                  <strong>{trainResults.items.length} train{trainResults.items.length === 1 ? '' : 's'} found</strong>
+                </div>
+                <div className="explore-flight-list">
+                  {trainResults.items.map((train, index) => (
+                    <article
+                      className="explore-flight-card explore-train-card"
+                      key={`${train.id}-${index}`}
+                    >
+                      <div className="explore-flight-airline">
+                        <TrainFront size={30} aria-hidden="true" />
+                        <div>
+                          <strong>{train.operatorName || train.operator || 'Operator unavailable'}</strong>
+                          <span>{getTrainRunLabel(train)}</span>
+                        </div>
+                      </div>
+                      <div className="explore-flight-time">
+                        <strong>{formatTrainTime(train.aimedDepartureTime || train.aimedArrivalTime)}</strong>
+                        <span>{train.originName || trainResults.stationName}</span>
+                        <small>Departs {formatTrainDate(train.expectedDepartureDate || train.departureDate)}</small>
+                      </div>
+                      <div className="explore-flight-path">
+                        <span>{getTrainEstimateLabel(train)}</span>
+                        <div />
+                      </div>
+                      <div className="explore-flight-time">
+                        <strong>{formatTrainTime(train.expectedArrivalTime || train.aimedArrivalTime)}</strong>
+                        <span>{train.destinationName || 'Destination unavailable'}</span>
+                        <small>Arrives {formatTrainDate(train.expectedArrivalDate || train.arrivalDate)}</small>
+                      </div>
+                      <div className="explore-flight-action">
+                        <button type="button" onClick={() => handleTrainSelect(train)} disabled={isSearching}>
+                          View stops
+                        </button>
+                      </div>
+                    </article>
+                  ))}
+                </div>
+              </section>
+            </section>
+          ) : (
+            <section className="explore-results-shell">
+              <div className="explore-empty explore-placeholder">
+                <TrainFront size={34} aria-hidden="true" />
+                <h3>{trainResults?.message || 'Load a station timetable'}</h3>
+                <p>Enter a UK station name or CRS code such as Manchester, HBD, or EUS.</p>
+              </div>
+            </section>
+          )}
+        </>
       )}
     </div>
   );

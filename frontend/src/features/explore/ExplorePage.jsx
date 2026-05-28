@@ -7,9 +7,17 @@ import {
 } from 'lucide-react';
 import { Country, State } from 'country-state-city';
 import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { convertCurrency } from '../../api/currencyApi';
-import { getAiRecommendations, searchAttractions, searchFlight, searchHotels, searchRestaurants, searchWeather } from '../../api/exploreApi';
+import {
+  getAiRecommendations,
+  searchAttractions,
+  searchFlight,
+  searchHotels,
+  searchRestaurants,
+  searchTrainStationTimetable,
+  searchWeather,
+} from '../../api/exploreApi';
 import CurrencyContext from '../../context/currencyContext';
 import { foodCategoryOptions, roomTypeOptions } from './explore.constants';
 import { formatMoney, getDateKey, getErrorMessage, getPriceConversionKey } from './explore.helpers';
@@ -29,6 +37,8 @@ const viewOptions = [
 ];
 
 function ExplorePage() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const currency = useContext(CurrencyContext);
   const activeView = searchParams.get('view') || 'discover';
@@ -67,7 +77,8 @@ function ExplorePage() {
   });
   const [hotelSearchCriteria, setHotelSearchCriteria] = useState(null);
   const [restaurantSearchCriteria, setRestaurantSearchCriteria] = useState(null);
-  const [activeTransportTab, setActiveTransportTab] = useState('flights');
+  const restoredTrainState = location.state?.trainResults ? location.state : null;
+  const [activeTransportTab, setActiveTransportTab] = useState(restoredTrainState ? 'trains' : 'flights');
   const [flightSearch, setFlightSearch] = useState({
     airlineName: '',
     fromCountryCode: '',
@@ -77,11 +88,21 @@ function ExplorePage() {
     departureDate: '',
   });
   const [flightResults, setFlightResults] = useState(null);
+  const [trainSearch, setTrainSearch] = useState({
+    stationQuery: restoredTrainState?.trainSearch?.stationQuery || '',
+    departureDate: restoredTrainState?.trainSearch?.departureDate || '',
+    arrivalDate: restoredTrainState?.trainSearch?.arrivalDate || '',
+  });
+  const [trainResults, setTrainResults] = useState(restoredTrainState?.trainResults || null);
   const [nextHotelStart, setNextHotelStart] = useState(0);
   const [nextRestaurantStart, setNextRestaurantStart] = useState(0);
   const [hasMoreHotels, setHasMoreHotels] = useState(false);
   const [hasMoreRestaurants, setHasMoreRestaurants] = useState(false);
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useState(
+    restoredTrainState?.trainResults?.available
+      ? `${restoredTrainState.trainResults.items.length} train departure${restoredTrainState.trainResults.items.length === 1 ? '' : 's'} loaded.`
+      : ''
+  );
   const [error, setError] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -616,6 +637,75 @@ function ExplorePage() {
     }
   };
 
+  const clearTrainSearchField = (field) => {
+    setTrainSearch((currentSearch) => ({
+      ...currentSearch,
+      [field]: '',
+    }));
+  };
+
+  const handleTrainSearchChange = (field, value) => {
+    setTrainSearch((currentSearch) => ({
+      ...currentSearch,
+      [field]: field === 'stationQuery' ? value : value,
+    }));
+  };
+
+  const handleTrainStationSearch = async (event) => {
+    event.preventDefault();
+
+    if (!trainSearch.stationQuery.trim()) {
+      setError('Enter a station name or CRS code first.');
+      return;
+    }
+
+    setIsSearching(true);
+    setError('');
+    setStatus('');
+
+    try {
+      const response = await searchTrainStationTimetable({
+        stationQuery: trainSearch.stationQuery.trim(),
+        departureDate: trainSearch.departureDate,
+        arrivalDate: trainSearch.arrivalDate,
+      });
+      const nextTrains = response.data.data.trains;
+      setTrainResults(nextTrains);
+      setStatus(
+        nextTrains.available
+          ? `${nextTrains.items.length} train departure${nextTrains.items.length === 1 ? '' : 's'} loaded.`
+          : nextTrains.message
+      );
+    } catch (requestError) {
+      setError(getErrorMessage(requestError));
+      setTrainResults(null);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  const handleTrainSelect = async (train) => {
+    const params = new URLSearchParams({
+      serviceDate: train.serviceDate || trainResults?.date || '',
+      destinationName: train.destinationName || '',
+      originName: train.originName || trainResults?.stationName || '',
+      operatorName: train.operatorName || '',
+      stationName: trainResults?.stationName || '',
+      stationCode: trainResults?.stationCode || '',
+    });
+
+    if (train.serviceIdentifier) params.set('serviceIdentifier', train.serviceIdentifier);
+    if (train.trainUid) params.set('trainUid', train.trainUid);
+    if (train.actualRid) params.set('actualRid', train.actualRid);
+
+    navigate(`/transportation/trains/service-timetable?${params.toString()}`, {
+      state: {
+        trainSearch,
+        trainResults,
+      },
+    });
+  };
+
   const getCountryName = (countryCode) =>
     countryOptions.find((country) => country.isoCode === countryCode)?.name || countryCode || '';
 
@@ -829,9 +919,15 @@ function ExplorePage() {
           handleFlightCountryChange={handleFlightCountryChange}
           handleFlightSearch={handleFlightSearch}
           handleFlightSearchChange={handleFlightSearchChange}
+          handleTrainSearchChange={handleTrainSearchChange}
+          handleTrainSelect={handleTrainSelect}
+          handleTrainStationSearch={handleTrainStationSearch}
           isSearching={isSearching}
           setActiveTransportTab={setActiveTransportTab}
           status={status}
+          trainResults={trainResults}
+          trainSearch={trainSearch}
+          clearTrainSearchField={clearTrainSearchField}
         />
       );
     }
