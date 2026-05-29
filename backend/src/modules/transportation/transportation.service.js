@@ -21,12 +21,25 @@ const airlabsClient = axios.create({
   timeout: 8000,
 });
 
+const transportApiClient = axios.create({
+  baseURL: 'https://transportapi.com/v3/uk',
+  timeout: 9000,
+});
+
 const fallbackFlights = (message = 'Flight information temporarily unavailable') => ({
   available: false,
   message,
   items: [],
   schedules: [],
   liveFlights: [],
+});
+
+const fallbackTrains = (message = 'Train information temporarily unavailable') => ({
+  available: false,
+  message,
+  items: [],
+  departures: [],
+  stationMatches: [],
 });
 
 const getTodayKey = () => new Date().toISOString().slice(0, 10);
@@ -81,6 +94,22 @@ const recordAirlabsFailure = (endpoint, message, statusCode, metadata) =>
         })
         .catch((error) => logger.error(`Failed to record AirLabs API event: ${error.message}`));
 
+const recordTransportApiFailure = (endpoint, message, statusCode, metadata) =>
+  env.nodeEnv === 'test'
+    ? Promise.resolve()
+    : apiLogService
+        .recordEvent({
+          service: 'transportapi',
+          category: 'api',
+          severity: statusCode === 429 ? 'warning' : 'error',
+          endpoint,
+          status: 'fail',
+          statusCode,
+          message,
+          metadata,
+        })
+        .catch((error) => logger.error(`Failed to record TransportAPI event: ${error.message}`));
+
 const classifyAirlabsError = (error) => {
   if (error.isMissingKey) {
     return { message: 'Flight service is not configured yet.', statusCode: 502 };
@@ -129,6 +158,30 @@ const classifyGeminiError = (error) => {
   return { message: 'AI price estimates are temporarily unavailable.', statusCode: error.response?.status || 503 };
 };
 
+const classifyTransportApiError = (error) => {
+  if (error.isMissingKey) {
+    return { message: 'Train service is not configured yet.', statusCode: 502 };
+  }
+
+  if (error.response?.status === 401 || error.response?.status === 403) {
+    return { message: 'Train service configuration error', statusCode: 502 };
+  }
+
+  if (error.response?.status === 429) {
+    return { message: 'Train API rate limit reached', statusCode: 429 };
+  }
+
+  if (error.code === 'ECONNABORTED') {
+    return { message: 'Train service timeout', statusCode: 503 };
+  }
+
+  if (!error.response) {
+    return { message: 'Train service network error', statusCode: 503 };
+  }
+
+  return { message: 'Train information temporarily unavailable', statusCode: error.response.status || 503 };
+};
+
 const normalizeText = (value) => String(value || '').trim();
 const normalizeCode = (value) => normalizeText(value).toUpperCase();
 const includesText = (value, search) => normalizeText(value).toLowerCase().includes(normalizeText(search).toLowerCase());
@@ -169,6 +222,34 @@ const getAirlabs = async (endpoint, params, metadata) => {
   } catch (error) {
     const { message, statusCode } = classifyAirlabsError(error);
     recordAirlabsFailure(endpoint.replace('/', ''), message, statusCode, metadata);
+    throw error;
+  }
+};
+
+const getTransportApi = async (endpoint, params, metadata) => {
+  if (!env.transportApiAppId || !env.transportApiAppKey) {
+    const error = new Error('Missing TransportAPI credentials');
+    error.isMissingKey = true;
+    throw error;
+  }
+
+  try {
+    const response = await transportApiClient.get(endpoint, {
+      params: {
+        ...params,
+        app_id: env.transportApiAppId,
+        app_key: env.transportApiAppKey,
+      },
+    });
+
+    if (response.data?.error) {
+      throw new Error(response.data.error.message || response.data.error);
+    }
+
+    return response;
+  } catch (error) {
+    const { message, statusCode } = classifyTransportApiError(error);
+    recordTransportApiFailure(endpoint, message, statusCode, metadata);
     throw error;
   }
 };
@@ -882,4 +963,912 @@ const getFlightsBySearch = async ({
   }
 };
 
-module.exports = { getFlightsBySearch };
+const getTimeValue = (section = {}, key) => section?.[key]?.time || section?.[key] || '';
+const getDateValue = (section = {}, key) => section?.[key]?.date || '';
+
+const getNestedText = (...values) => values.map(normalizeText).find(Boolean) || '';
+
+const getStationDate = (value, fallbackDate = '') => normalizeText(value).slice(0, 10) || normalizeText(fallbackDate);
+
+const asArray = (value) => {
+  if (Array.isArray(value)) return value;
+  if (value && typeof value === 'object') return Object.values(value);
+  return [];
+};
+
+const normalizeTrainStationPlace = (place = {}) => ({
+  name: normalizeText(place.name),
+  stationCode: normalizeCode(place.station_code || place.crs_code || place.code),
+  tiplocCode: normalizeText(place.tiploc_code),
+  type: normalizeText(place.type),
+  description: normalizeText(place.description),
+  latitude: place.latitude ?? null,
+  longitude: place.longitude ?? null,
+});
+
+const isLikelyCrsCode = (value) => /^[a-z]{3}$/i.test(normalizeText(value));
+
+const resolveTrainStation = async (stationQuery) => {
+  const normalizedQuery = normalizeText(stationQuery);
+
+  if (isLikelyCrsCode(normalizedQuery)) {
+    return {
+      stationCode: normalizeCode(normalizedQuery),
+      stationName: '',
+      stationMatches: [],
+    };
+  }
+
+  const response = await getTransportApi(
+    '/places.json',
+    {
+      query: normalizedQuery,
+      type: 'train_station',
+    },
+    { stationQuery: normalizedQuery }
+  );
+  const stationMatches = (response.data?.member || [])
+    .map(normalizeTrainStationPlace)
+    .filter((place) => place.stationCode);
+  const selectedStation = stationMatches[0];
+
+  if (!selectedStation) {
+    return {
+      stationCode: '',
+      stationName: '',
+      stationMatches: [],
+    };
+  }
+
+  return {
+    stationCode: selectedStation.stationCode,
+    stationName: selectedStation.name,
+    stationMatches,
+  };
+};
+
+const extractActualJourneyRid = (train = {}) => {
+  const actualJourneyId =
+    train.actual_journey?.id ||
+    train.actualJourney?.id ||
+    train.actual_journeys?.id ||
+    train.performance?.id ||
+    train.service?.id ||
+    '';
+  const ridFromUrl = normalizeText(actualJourneyId).match(/actual_journeys\/([^/.?]+)/)?.[1];
+  return normalizeText(train.rid || train.service_rid || train.actual_rid || ridFromUrl);
+};
+
+const extractServiceTimetableMeta = (train = {}) => {
+  const serviceTimetableId = normalizeText(train.service_timetable?.id || train.serviceTimetableId);
+  const matched = serviceTimetableId.match(/\/service\/([^/]+)\/([^/]+)\/timetable\.json/i);
+
+  return {
+    serviceTimetableId,
+    serviceIdentifier: normalizeText(train.serviceIdentifier || train.service_identifier || (matched ? decodeURIComponent(matched[1]) : '')),
+    trainUid: normalizeText(train.trainUid || train.train_uid || (matched?.[1] || '').replace(/^train_uid:/i, '')),
+    serviceDate: normalizeText(train.serviceDate || train.date || matched?.[2] || ''),
+  };
+};
+
+const normalizeStationDeparture = (departure = {}, index = 0, context = {}) => {
+  const serviceMeta = extractServiceTimetableMeta(departure);
+  const actualRid = extractActualJourneyRid(departure);
+  const fallbackDate = context.date || serviceMeta.serviceDate;
+  const departureDate = getStationDate(
+    departure.expected_departure_date || departure.aimed_departure_date || departure.date,
+    fallbackDate
+  );
+  const arrivalDate = getStationDate(
+    departure.expected_arrival_date || departure.aimed_arrival_date || departure.date,
+    fallbackDate
+  );
+
+  return {
+    id: [
+      departure.service,
+      departure.train_uid,
+      departure.aimed_departure_time || departure.aimed_arrival_time,
+      departure.destination_name,
+      index,
+    ]
+      .filter(Boolean)
+      .join(':'),
+    mode: departure.mode || 'train',
+    service: normalizeText(departure.service),
+    trainUid: serviceMeta.trainUid || normalizeText(departure.train_uid),
+    serviceIdentifier: serviceMeta.serviceIdentifier || (departure.train_uid ? `train_uid:${departure.train_uid}` : ''),
+    serviceDate: serviceMeta.serviceDate,
+    actualRid,
+    platform: normalizeText(departure.platform),
+    operator: normalizeText(departure.operator),
+    operatorName: normalizeText(departure.operator_name),
+    status: normalizeText(departure.status || departure.category || 'scheduled'),
+    originName: normalizeText(departure.origin_name),
+    destinationName: normalizeText(departure.destination_name),
+    aimedDepartureTime: normalizeText(departure.aimed_departure_time),
+    aimedArrivalTime: normalizeText(departure.aimed_arrival_time),
+    departureDate,
+    arrivalDate,
+    actualDepartureTime: normalizeText(departure.actual_departure_time),
+    actualArrivalTime: normalizeText(departure.actual_arrival_time),
+    expectedDepartureTime: normalizeText(departure.expected_departure_time),
+    expectedArrivalTime: normalizeText(departure.expected_arrival_time),
+    expectedDepartureDate: getStationDate(departure.expected_departure_date, departureDate),
+    expectedArrivalDate: getStationDate(departure.expected_arrival_date, arrivalDate),
+    bestDepartureEstimateMinutes: departure.best_departure_estimate_mins ?? null,
+    bestArrivalEstimateMinutes: departure.best_arrival_estimate_mins ?? null,
+    distanceEstimate: buildUnavailableTrainDistanceEstimate(),
+    priceEstimate: buildUnavailableTrainPriceEstimate(),
+    serviceTimetableId: serviceMeta.serviceTimetableId,
+  };
+};
+
+const normalizeCoach = (coach = {}, index = 0) => ({
+  id: normalizeText(coach.id || coach.coach_id || coach.number || coach.coach_number || index + 1),
+  number: normalizeText(coach.number || coach.coach_number || coach.coach),
+  class: normalizeText(coach.class || coach.travel_class || coach.accommodation_class || coach.seating_class),
+  status: normalizeText(coach.status),
+  loading: normalizeText(coach.loading || coach.loading_status),
+});
+
+const normalizeServiceStop = (stop = {}, index = 0, context = {}) => {
+  const fallbackDate = context.date || '';
+  const departureDate = getStationDate(stop.expected_departure_date || stop.aimed_departure_date || stop.date, fallbackDate);
+  const arrivalDate = getStationDate(stop.expected_arrival_date || stop.aimed_arrival_date || stop.date, fallbackDate);
+
+  return {
+    id: [stop.station_code, stop.station_name, stop.aimed_departure_time || stop.aimed_arrival_time || stop.aimed_pass_time, index]
+      .filter(Boolean)
+      .join(':'),
+    stationName: normalizeText(stop.station_name),
+    stationCode: normalizeText(stop.station_code),
+    platform: normalizeText(stop.platform),
+    stopType: normalizeText(stop.stop_type),
+    aimedArrivalTime: normalizeText(stop.aimed_arrival_time),
+    aimedDepartureTime: normalizeText(stop.aimed_departure_time),
+    aimedPassTime: normalizeText(stop.aimed_pass_time),
+    arrivalDate,
+    departureDate,
+    expectedArrivalTime: normalizeText(stop.expected_arrival_time),
+    expectedDepartureTime: normalizeText(stop.expected_departure_time),
+    expectedArrivalDate: getStationDate(stop.expected_arrival_date, arrivalDate),
+    expectedDepartureDate: getStationDate(stop.expected_departure_date, departureDate),
+    actualArrivalTime: normalizeText(stop.actual_arrival_time),
+    actualDepartureTime: normalizeText(stop.actual_departure_time),
+    actualArrivalDate: getStationDate(stop.actual_arrival_date, arrivalDate),
+    actualDepartureDate: getStationDate(stop.actual_departure_date, departureDate),
+    status: normalizeText(stop.status),
+    cancelled: Boolean(stop.cancelled || stop.is_cancelled),
+    cancellationCode: getNestedText(stop.cancellation_code, stop.cancellation?.code, stop.cancellation_reason_code),
+    cancellationReason: getNestedText(stop.cancellation_reason, stop.cancellation?.reason),
+    coaches: asArray(stop.coaches || stop.formation || stop.train_formation).map(normalizeCoach),
+  };
+};
+
+const normalizeActualJourneyStop = (journey = {}, index = 0) => {
+  const station = journey.station || {};
+
+  return {
+    id: [station.crs || journey.station_code, station.name || journey.station_name, index].filter(Boolean).join(':'),
+    stationName: normalizeText(station.name || journey.station_name),
+    stationCode: normalizeText(station.crs || journey.station_code),
+    platform: normalizeText(journey.platform),
+    stopType: normalizeText(journey.stop_type),
+    cancelled: Boolean(journey.cancelled),
+    aimedArrivalTime: normalizeText(getTimeValue(journey.aimed, 'arrival')),
+    aimedDepartureTime: normalizeText(getTimeValue(journey.aimed, 'departure')),
+    actualArrivalTime: normalizeText(getTimeValue(journey.actual, 'arrival')),
+    actualDepartureTime: normalizeText(getTimeValue(journey.actual, 'departure')),
+    expectedArrivalTime: normalizeText(getTimeValue(journey.expected, 'arrival')),
+    expectedDepartureTime: normalizeText(getTimeValue(journey.expected, 'departure')),
+    aimedArrivalDate: normalizeText(getDateValue(journey.aimed, 'arrival')),
+    aimedDepartureDate: normalizeText(getDateValue(journey.aimed, 'departure')),
+    arrivalDate: normalizeText(getDateValue(journey.expected, 'arrival') || getDateValue(journey.aimed, 'arrival')),
+    departureDate: normalizeText(getDateValue(journey.expected, 'departure') || getDateValue(journey.aimed, 'departure')),
+    cancellationCode: getNestedText(journey.cancellation_code, journey.cancellation?.code, journey.cancelled_reason_code),
+    cancellationReason: getNestedText(journey.cancellation_reason, journey.cancellation?.reason),
+    coaches: asArray(journey.coaches || journey.formation || journey.train_formation).map(normalizeCoach),
+  };
+};
+
+const normalizeActualJourney = (data = {}) => {
+  const service = data.service || data.member?.[0]?.service || data;
+  const stops = service.stops || data.stops || data.actual || [];
+
+  return {
+    available: Array.isArray(stops) && stops.length > 0,
+    rid: normalizeText(service.rid || data.rid),
+    trainUid: normalizeText(service.train_uid || data.train_uid),
+    headcode: normalizeText(service.headcode || data.headcode),
+    retailServiceIdentifier: normalizeText(service.retail_service_identifier || data.retail_service_identifier),
+    tocCode: normalizeText(service.toc?.atoc_code || data.toc?.atoc_code),
+    operatorName: normalizeText(service.toc?.name || service.operator_name),
+    originName: normalizeText(service.origin_name),
+    destinationName: normalizeText(service.destination_name),
+    date: normalizeText(service.date || data.date),
+    cancelled: Boolean(service.cancellation?.cancelled || data.cancellation?.cancelled),
+    cancellationCode: getNestedText(service.cancellation?.code, data.cancellation?.code, service.cancellation_code),
+    cancellationReason: getNestedText(service.cancellation?.reason, data.cancellation?.reason, service.cancellation_reason),
+    runningLateCode: getNestedText(service.running_late?.code, data.running_late?.code),
+    runningLateReason: normalizeText(service.running_late?.reason),
+    coaches: asArray(service.coaches || service.formation || service.train_formation || data.coaches || data.formation).map(normalizeCoach),
+    scheduleUpdates: asArray(service.schedule_updates || data.schedule_updates).map((update) => ({
+      id: normalizeText(update.id),
+    })),
+    stops: Array.isArray(stops) ? stops.map(normalizeActualJourneyStop) : [],
+  };
+};
+
+const buildTrainDistancePrompt = ({ service, stops }) => `
+Estimate the rail route distance and one-way ticket price for this UK train service.
+Use general rail geography and public-market fare knowledge. Return estimates only, not live fares.
+Currency must be MYR.
+
+Service:
+${JSON.stringify(
+  {
+    operatorName: service.operatorName,
+    originName: service.originName,
+    destinationName: service.destinationName,
+    date: service.date,
+    trainUid: service.trainUid,
+  },
+  null,
+  2
+)}
+
+Stops:
+${JSON.stringify(
+  stops.map((stop) => ({
+    stationName: stop.stationName,
+    stationCode: stop.stationCode,
+  })),
+  null,
+  2
+)}
+
+Return JSON with:
+{
+  "distance": {
+    "kilometers": number,
+    "miles": number,
+    "segments": [
+      {
+        "fromStationName": "origin stop name",
+        "toStationName": "next stop name",
+        "kilometers": number,
+        "miles": number,
+        "priceMyr": number
+      }
+    ],
+    "confidence": "low" | "medium" | "high",
+    "note": "short reason"
+  },
+  "price": {
+    "currency": "MYR",
+    "min": number,
+    "max": number,
+    "confidence": "low" | "medium" | "high",
+    "note": "short reason"
+  }
+}
+`;
+
+function buildUnavailableTrainDistanceEstimate(note = 'AI distance estimate unavailable.') {
+  return {
+    available: false,
+    display: 'AI estimate unavailable',
+    confidence: 'low',
+    note,
+  };
+}
+
+function buildUnavailableTrainPriceEstimate(note = 'AI price estimate unavailable.') {
+  return {
+    available: false,
+    currency: 'MYR',
+    display: 'AI estimate unavailable',
+    confidence: 'low',
+    note,
+  };
+}
+
+const getStopDateTime = (stop = {}, kind = 'departure') => {
+  const date =
+    kind === 'arrival'
+      ? stop.expectedArrivalDate || stop.actualArrivalDate || stop.arrivalDate || stop.aimedArrivalDate
+      : stop.expectedDepartureDate || stop.actualDepartureDate || stop.departureDate || stop.aimedDepartureDate;
+  const time =
+    kind === 'arrival'
+      ? stop.expectedArrivalTime || stop.actualArrivalTime || stop.aimedArrivalTime || stop.aimedPassTime
+      : stop.expectedDepartureTime || stop.actualDepartureTime || stop.aimedDepartureTime || stop.aimedPassTime;
+
+  if (!date || !time || !/^\d{2}:\d{2}$/.test(time)) {
+    return null;
+  }
+
+  const parsed = new Date(`${date}T${time}:00Z`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const getMinutesBetweenStops = (fromStop = {}, toStop = {}) => {
+  const fromTime = getStopDateTime(fromStop, 'departure') || getStopDateTime(fromStop, 'arrival');
+  const toTime = getStopDateTime(toStop, 'arrival') || getStopDateTime(toStop, 'departure');
+
+  if (!fromTime || !toTime) {
+    return 0;
+  }
+
+  return Math.max(Math.round((toTime.getTime() - fromTime.getTime()) / 60000), 0);
+};
+
+const estimateFallbackTrainSegments = (stops = [], totalKilometers = 0) => {
+  const segmentCount = Math.max(stops.length - 1, 0);
+  const timedSegments = stops.slice(1).map((stop, index) => getMinutesBetweenStops(stops[index], stop));
+  const totalTimedMinutes = timedSegments.reduce((total, minutes) => total + minutes, 0);
+
+  return stops.slice(1).map((stop, index) => {
+    const timedShare = totalTimedMinutes ? timedSegments[index] / totalTimedMinutes : 0;
+    const fallbackShare = segmentCount ? 1 / segmentCount : 0;
+    const kilometers = Math.max(Math.round(totalKilometers * (timedShare || fallbackShare)), 1);
+    const priceMyr = Math.max(Math.round(8 + kilometers * 0.42), 10);
+
+    return {
+      ...buildTrainSegmentEstimate({
+        fromStop: stops[index],
+        toStop: stop,
+        kilometers,
+        priceMyr,
+      }),
+      isFallback: true,
+      priceEstimate: {
+        available: true,
+        isFallback: true,
+        currency: 'MYR',
+        amount: priceMyr,
+        display: `MYR ${priceMyr.toLocaleString('en-US')}`,
+        confidence: 'low',
+        note: 'Route-based fallback stop-to-stop rail segment price.',
+      },
+    };
+  });
+};
+
+const buildFallbackTrainEstimates = ({ stops = [], note = 'Route-based fallback estimate.' }) => {
+  const segmentCount = Math.max(stops.length - 1, 1);
+  const totalMinutes = getMinutesBetweenStops(stops[0], stops[stops.length - 1]);
+  const kilometers = Math.max(Math.round(totalMinutes ? totalMinutes * 1.15 : segmentCount * 32), segmentCount * 8);
+  const miles = Math.round(kilometers * 0.621371);
+  const min = Math.max(Math.round(18 + kilometers * 0.36), 18);
+  const max = Math.round(min * 1.65 + 12);
+  const segments = estimateFallbackTrainSegments(stops, kilometers);
+
+  return {
+    distanceEstimate: {
+      available: true,
+      isFallback: true,
+      kilometers,
+      miles,
+      segments,
+      display: `${kilometers.toLocaleString('en-US')} km`,
+      confidence: 'low',
+      note,
+    },
+    priceEstimate: {
+      available: true,
+      isFallback: true,
+      currency: 'MYR',
+      min,
+      max,
+      display: `MYR ${min.toLocaleString('en-US')} - ${max.toLocaleString('en-US')}`,
+      confidence: 'low',
+      note,
+    },
+  };
+};
+
+const buildTrainSegmentEstimate = ({ fromStop, toStop, kilometers, priceMyr }) => {
+  const normalizedKilometers = Math.max(Math.round(Number(kilometers) || 0), 1);
+  const miles = Math.round(normalizedKilometers * 0.621371);
+  const normalizedPrice = Math.max(Math.round(Number(priceMyr) || 0), 0);
+
+  return {
+    available: true,
+    isFallback: false,
+    fromStationName: normalizeText(fromStop?.stationName),
+    toStationName: normalizeText(toStop?.stationName),
+    kilometers: normalizedKilometers,
+    miles,
+    display: `${normalizedKilometers.toLocaleString('en-US')} km`,
+    priceEstimate: normalizedPrice
+      ? {
+          available: true,
+          isFallback: false,
+          currency: 'MYR',
+          amount: normalizedPrice,
+          display: `MYR ${normalizedPrice.toLocaleString('en-US')}`,
+          confidence: 'medium',
+          note: 'AI-estimated stop-to-stop rail segment price.',
+        }
+      : buildUnavailableTrainPriceEstimate('AI segment price estimate unavailable.'),
+  };
+};
+
+const estimateTrainDistance = async ({ service, stops }) => {
+  if (!stops.length) {
+    return {
+      distanceEstimate: buildUnavailableTrainDistanceEstimate('No train stops were available for AI estimation.'),
+      priceEstimate: buildUnavailableTrainPriceEstimate('No train stops were available for AI estimation.'),
+    };
+  }
+
+  if (!env.geminiApiKey) {
+    return buildFallbackTrainEstimates({
+      stops,
+      note: 'Gemini API key is not configured, so this is a route-based fallback estimate.',
+    });
+  }
+
+  try {
+    if (!consumeGeminiQuota()) {
+      const error = new Error('Daily AI distance estimate limit reached.');
+      error.isDailyLimit = true;
+      throw error;
+    }
+
+    const response = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/${env.geminiModel}:generateContent`,
+      {
+        contents: [
+          {
+            parts: [{ text: buildTrainDistancePrompt({ service, stops }) }],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.15,
+          maxOutputTokens: 1200,
+          responseMimeType: 'application/json',
+          responseJsonSchema: {
+            type: 'object',
+            properties: {
+              distance: {
+                type: 'object',
+                properties: {
+                  kilometers: { type: 'number' },
+                  miles: { type: 'number' },
+                  segments: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        fromStationName: { type: 'string' },
+                        toStationName: { type: 'string' },
+                        kilometers: { type: 'number' },
+                        miles: { type: 'number' },
+                        priceMyr: { type: 'number' },
+                      },
+                      required: ['fromStationName', 'toStationName', 'kilometers', 'miles', 'priceMyr'],
+                    },
+                  },
+                  confidence: { type: 'string' },
+                  note: { type: 'string' },
+                },
+                required: ['kilometers', 'miles', 'segments', 'confidence', 'note'],
+              },
+              price: {
+                type: 'object',
+                properties: {
+                  currency: { type: 'string' },
+                  min: { type: 'number' },
+                  max: { type: 'number' },
+                  confidence: { type: 'string' },
+                  note: { type: 'string' },
+                },
+                required: ['currency', 'min', 'max', 'confidence', 'note'],
+              },
+            },
+            required: ['distance', 'price'],
+          },
+        },
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': env.geminiApiKey,
+        },
+        timeout: 16000,
+      }
+    );
+    const parsed = parseAiJson(response);
+    const distance = parsed.distance || {};
+    const price = parsed.price || {};
+    const kilometers = Math.max(Math.round(Number(distance.kilometers) || 0), 0);
+    const miles = Math.max(Math.round(Number(distance.miles) || kilometers * 0.621371), 0);
+    const priceMin = Math.max(Math.round(Number(price.min) || 0), 0);
+    const priceMax = Math.max(Math.round(Number(price.max) || 0), priceMin);
+    const aiSegments = Array.isArray(distance.segments)
+      ? distance.segments
+          .slice(0, Math.max(stops.length - 1, 0))
+          .map((segment, index) =>
+            buildTrainSegmentEstimate({
+              fromStop: stops[index],
+              toStop: stops[index + 1],
+              kilometers: segment.kilometers,
+              priceMyr: segment.priceMyr,
+            })
+          )
+          .filter(Boolean)
+      : [];
+
+    if (!kilometers && !miles) {
+      return {
+        distanceEstimate: buildUnavailableTrainDistanceEstimate('Gemini did not return a usable distance estimate.'),
+        priceEstimate: buildUnavailableTrainPriceEstimate('Gemini did not return a usable distance estimate.'),
+      };
+    }
+
+    return {
+      distanceEstimate: {
+        available: true,
+        isFallback: false,
+        kilometers,
+        miles,
+        segments: aiSegments,
+        display: `${kilometers.toLocaleString('en-US')} km`,
+        confidence: normalizeText(distance.confidence) || 'low',
+        note: normalizeText(distance.note).slice(0, 140),
+      },
+      priceEstimate:
+        priceMin && priceMax
+          ? {
+              available: true,
+              isFallback: false,
+              currency: 'MYR',
+              min: priceMin,
+              max: priceMax,
+              display: `MYR ${priceMin.toLocaleString('en-US')} - ${priceMax.toLocaleString('en-US')}`,
+              confidence: normalizeText(price.confidence) || 'low',
+              note: normalizeText(price.note).slice(0, 140),
+            }
+          : buildUnavailableTrainPriceEstimate('Gemini did not return a usable price estimate.'),
+    };
+  } catch (error) {
+    const { message, statusCode } = classifyGeminiError(error);
+    recordAirlabsFailure('train-distance-estimate', message, statusCode, {
+      originName: service.originName,
+      destinationName: service.destinationName,
+      trainUid: service.trainUid,
+    });
+    return {
+      ...buildFallbackTrainEstimates({
+        stops,
+        note: message,
+      }),
+    };
+  }
+};
+
+const attachTrainSegmentEstimates = (stops = [], distanceEstimate = {}) => {
+  const segments = Array.isArray(distanceEstimate.segments) ? distanceEstimate.segments : [];
+
+  return stops.map((stop, index) => ({
+    ...stop,
+    segmentEstimate:
+      index === 0
+        ? {
+            available: false,
+            display: 'Start',
+            priceEstimate: {
+              available: false,
+              display: 'Start',
+            },
+          }
+        : segments[index - 1] || null,
+  }));
+};
+
+const filterTrainDeparturesByDate = (departures, { departureDate, arrivalDate }) =>
+  departures.filter((departure) => {
+    const matchesDepartureDate =
+      !departureDate || departure.departureDate === departureDate || departure.expectedDepartureDate === departureDate;
+    const matchesArrivalDate = !arrivalDate || departure.arrivalDate === arrivalDate || departure.expectedArrivalDate === arrivalDate;
+
+    return matchesDepartureDate && matchesArrivalDate;
+  });
+
+const getStationTimetableEndpoint = ({ stationCode, departureDate }) =>
+  departureDate
+    ? `/train/station/${encodeURIComponent(stationCode)}/${encodeURIComponent(departureDate)}/00:00/timetable.json`
+    : `/train/station_timetables/${encodeURIComponent(stationCode)}.json`;
+const DEFAULT_TRAIN_STATION_QUERY = 'London Euston';
+
+const getDestinationStop = (stops = [], destinationName = '') => {
+  const normalizedDestinationName = normalizeText(destinationName).toLowerCase();
+
+  return (
+    stops.find((stop) => stop.stationName?.toLowerCase() === normalizedDestinationName) ||
+    stops[stops.length - 1] ||
+    null
+  );
+};
+
+const buildTrainRouteEstimatePatch = async ({ train = {}, stops = [] }) => {
+  if (stops.length < 2) {
+    return {
+      distanceEstimate: buildUnavailableTrainDistanceEstimate('Not enough train stops were available for AI estimation.'),
+      priceEstimate: buildUnavailableTrainPriceEstimate('Not enough train stops were available for AI estimation.'),
+    };
+  }
+
+  return estimateTrainDistance({
+    service: {
+      operatorName: train.operatorName || train.operator,
+      originName: train.originName || stops[0]?.stationName,
+      destinationName: train.destinationName || stops[stops.length - 1]?.stationName,
+      date: train.serviceDate || train.date,
+      trainUid: train.trainUid,
+    },
+    stops,
+  });
+};
+
+const buildTrainDestinationArrivalFields = (destinationStop = {}, train = {}) => ({
+  aimedArrivalTime: destinationStop.aimedArrivalTime || train.aimedArrivalTime,
+  actualArrivalTime: destinationStop.actualArrivalTime || train.actualArrivalTime,
+  expectedArrivalTime: destinationStop.expectedArrivalTime || train.expectedArrivalTime,
+  arrivalDate: destinationStop.arrivalDate || train.arrivalDate,
+  actualArrivalDate: destinationStop.actualArrivalDate || train.actualArrivalDate,
+  expectedArrivalDate: destinationStop.expectedArrivalDate || train.expectedArrivalDate,
+});
+
+const getTrainDestinationArrivalPatch = async (train = {}) => {
+  const normalizedServiceIdentifier = normalizeText(train.serviceIdentifier || (train.trainUid ? `train_uid:${train.trainUid}` : ''));
+  const normalizedServiceDate = normalizeText(train.serviceDate);
+
+  if (!normalizedServiceIdentifier || !normalizedServiceDate) {
+    return {};
+  }
+
+  let arrivalPatch = {};
+
+  if (train.actualRid) {
+    try {
+      const actualResponse = await getTransportApi(
+        `/train/actual_journeys/${encodeURIComponent(train.actualRid)}.json`,
+        {
+          expected: true,
+        },
+        { actualRid: train.actualRid }
+      );
+      const actualJourney = normalizeActualJourney(actualResponse.data || {});
+      const destinationStop = getDestinationStop(actualJourney.stops, train.destinationName);
+      const routeEstimatePatch = await buildTrainRouteEstimatePatch({ train, stops: actualJourney.stops });
+
+      if (destinationStop) {
+        arrivalPatch = buildTrainDestinationArrivalFields(destinationStop, train);
+      }
+
+      if (routeEstimatePatch.distanceEstimate?.available) {
+        return {
+          ...routeEstimatePatch,
+          ...arrivalPatch,
+        };
+      }
+    } catch (error) {
+      logger.error(`Failed to enrich train actual journey: ${error.message}`);
+    }
+  }
+
+  try {
+    const serviceResponse = await getTransportApi(
+      `/train/service/${encodeURIComponent(normalizedServiceIdentifier)}/${encodeURIComponent(normalizedServiceDate)}/timetable.json`,
+      {},
+      { serviceIdentifier: normalizedServiceIdentifier, serviceDate: normalizedServiceDate }
+    );
+    const data = serviceResponse.data || {};
+    const stops = (data.stops || []).map((stop, index) => normalizeServiceStop(stop, index, { date: data.date || normalizedServiceDate }));
+    const destinationStop = getDestinationStop(stops, train.destinationName);
+
+    if (!destinationStop) {
+      return {
+        ...arrivalPatch,
+      };
+    }
+
+    return {
+      ...(await buildTrainRouteEstimatePatch({ train, stops })),
+      ...buildTrainDestinationArrivalFields(destinationStop, train),
+    };
+  } catch (error) {
+    logger.error(`Failed to enrich train destination arrival: ${error.message}`);
+    return {
+      ...arrivalPatch,
+    };
+  }
+};
+
+const enrichStationDeparturesWithDestinationArrivals = async (departures = []) => {
+  const enrichedDepartures = await Promise.all(
+    departures.map(async (departure) => ({
+      ...departure,
+      ...(await getTrainDestinationArrivalPatch(departure)),
+    }))
+  );
+
+  return enrichedDepartures;
+};
+
+const getTrainStationTimetable = async ({ stationCode, stationQuery, departureDate, arrivalDate }) => {
+  const normalizedStationQuery = normalizeText(stationQuery || stationCode || DEFAULT_TRAIN_STATION_QUERY);
+  const normalizedDepartureDate = normalizeText(departureDate);
+  const normalizedArrivalDate = normalizeText(arrivalDate);
+
+  try {
+    const resolvedStation = await resolveTrainStation(normalizedStationQuery);
+    const normalizedStationCode = resolvedStation.stationCode;
+
+    if (!normalizedStationCode) {
+      return fallbackTrains(`No train station found for ${normalizedStationQuery}.`);
+    }
+
+    const response = await getTransportApi(
+      getStationTimetableEndpoint({ stationCode: normalizedStationCode, departureDate: normalizedDepartureDate }),
+      {
+        train_status: 'passenger',
+      },
+      { stationQuery: normalizedStationQuery, stationCode: normalizedStationCode, departureDate, arrivalDate }
+    );
+    const data = response.data || {};
+    const allDepartures = (data.departures?.all || []).map((departure, index) =>
+      normalizeStationDeparture(departure, index, { date: data.date || normalizedDepartureDate })
+    );
+    const departures = filterTrainDeparturesByDate(allDepartures, {
+      departureDate: normalizedDepartureDate,
+      arrivalDate: normalizedArrivalDate,
+    });
+    const enrichedDepartures = await enrichStationDeparturesWithDestinationArrivals(departures);
+    const result = {
+      available: enrichedDepartures.length > 0,
+      message: enrichedDepartures.length > 0 ? 'Train station timetable loaded.' : 'No trains found for this station.',
+      source: 'TransportAPI TAPI Rail Information station timetable',
+      query: {
+        stationQuery: normalizedStationQuery,
+        stationCode: normalizedStationCode,
+        departureDate: normalizedDepartureDate,
+        arrivalDate: normalizedArrivalDate,
+      },
+      stationName: normalizeText(data.station_name || resolvedStation.stationName),
+      stationCode: normalizeText(data.station_code || normalizedStationCode),
+      stationMatches: resolvedStation.stationMatches,
+      date: normalizeText(data.date),
+      timeOfDay: normalizeText(data.time_of_day),
+      departures: enrichedDepartures,
+      items: enrichedDepartures,
+      lastUpdated: new Date().toISOString(),
+    };
+
+    return result;
+  } catch (error) {
+    const { message, statusCode } = classifyTransportApiError(error);
+    recordTransportApiFailure('train-station-timetable', message, statusCode, {
+      stationQuery: normalizedStationQuery,
+      departureDate,
+      arrivalDate,
+    });
+    return fallbackTrains(message);
+  }
+};
+
+const getTrainActualJourney = async ({ actualRid }) => {
+  const normalizedRid = normalizeText(actualRid);
+
+  if (!normalizedRid) {
+    return null;
+  }
+
+  const response = await getTransportApi(
+    `/train/actual_journeys/${encodeURIComponent(normalizedRid)}.json`,
+    {
+      expected: true,
+    },
+    { actualRid: normalizedRid }
+  );
+
+  return normalizeActualJourney(response.data || {});
+};
+
+const getTrainServiceTimetable = async ({ serviceIdentifier, trainUid, serviceDate, actualRid }) => {
+  const normalizedServiceIdentifier = normalizeText(serviceIdentifier || (trainUid ? `train_uid:${trainUid}` : ''));
+  const normalizedServiceDate = normalizeText(serviceDate);
+
+  if (!normalizedServiceIdentifier || !normalizedServiceDate) {
+    return {
+      available: false,
+      message: 'Select a train from the station timetable first.',
+      stops: [],
+    };
+  }
+
+  try {
+    const [serviceResponse, performance] = await Promise.all([
+      getTransportApi(
+        `/train/service/${encodeURIComponent(normalizedServiceIdentifier)}/${encodeURIComponent(normalizedServiceDate)}/timetable.json`,
+        {},
+        { serviceIdentifier: normalizedServiceIdentifier, serviceDate: normalizedServiceDate }
+      ),
+      getTrainActualJourney({ actualRid }).catch((error) => {
+        logger.error(`Failed to load train actual journey: ${error.message}`);
+        return null;
+      }),
+    ]);
+    const data = serviceResponse.data || {};
+    const stops = (data.stops || []).map((stop, index) => normalizeServiceStop(stop, index, { date: data.date || normalizedServiceDate }));
+    const performanceStops = performance?.stops || [];
+    const visibleStops = performanceStops.length ? performanceStops : stops;
+    const serviceSummary = {
+      trainUid: normalizeText(data.train_uid || performance?.trainUid || normalizedServiceIdentifier.replace(/^train_uid:/i, '')),
+      operatorName: normalizeText(data.operator_name || performance?.operatorName),
+      originName: normalizeText(data.origin_name || performance?.originName),
+      destinationName: normalizeText(data.destination_name || performance?.destinationName),
+      date: normalizeText(data.date || performance?.date || normalizedServiceDate),
+    };
+    const { distanceEstimate, priceEstimate } = await estimateTrainDistance({
+      service: serviceSummary,
+      stops: visibleStops,
+    });
+    const stopsWithSegmentEstimates = attachTrainSegmentEstimates(stops.length ? stops : visibleStops, distanceEstimate);
+    const performanceWithSegmentEstimates = performance
+      ? {
+          ...performance,
+          stops: attachTrainSegmentEstimates(performanceStops, distanceEstimate),
+        }
+      : performance;
+    const result = {
+      available: visibleStops.length > 0,
+      message: visibleStops.length > 0 ? 'Train service timetable loaded.' : 'No calling points found for this train.',
+      source: 'TransportAPI TAPI Rail Information service timetable',
+      performanceSource: performance ? 'TransportAPI TAPI Rail Performance actual_journeys' : '',
+      query: {
+        serviceIdentifier: normalizedServiceIdentifier,
+        serviceDate: normalizedServiceDate,
+        actualRid: normalizeText(actualRid),
+      },
+      ...serviceSummary,
+      tocCode: normalizeText(performance?.tocCode),
+      headcode: normalizeText(performance?.headcode),
+      retailServiceIdentifier: normalizeText(performance?.retailServiceIdentifier),
+      cancellationCode: getNestedText(data.cancellation?.code, data.cancellation_code, performance?.cancellationCode),
+      cancellationReason: getNestedText(data.cancellation?.reason, data.cancellation_reason, performance?.cancellationReason),
+      cancelled: Boolean(data.cancellation?.cancelled || performance?.cancelled),
+      runningLateCode: normalizeText(performance?.runningLateCode),
+      runningLateReason: normalizeText(performance?.runningLateReason),
+      coaches: [
+        ...asArray(data.coaches || data.formation || data.train_formation).map(normalizeCoach),
+        ...(performance?.coaches || []),
+      ],
+      distanceEstimate,
+      priceEstimate,
+      stops: stopsWithSegmentEstimates,
+      performance: performanceWithSegmentEstimates,
+      lastUpdated: new Date().toISOString(),
+    };
+
+    return result;
+  } catch (error) {
+    const { message, statusCode } = classifyTransportApiError(error);
+    recordTransportApiFailure('train-service-timetable', message, statusCode, {
+      serviceIdentifier: normalizedServiceIdentifier,
+      serviceDate: normalizedServiceDate,
+      actualRid,
+    });
+    return {
+      available: false,
+      message,
+      stops: [],
+      performance: null,
+    };
+  }
+};
+
+module.exports = { getFlightsBySearch, getTrainStationTimetable, getTrainServiceTimetable };

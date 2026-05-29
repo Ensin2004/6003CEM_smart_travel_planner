@@ -15,4 +15,26 @@ const getFlight = catchAsync(async (req, res) => {
   sendSuccess(res, 200, { flights });
 });
 
-module.exports = { getFlight };
+const getTrainStationTimetable = catchAsync(async (req, res) => {
+  const trains = await transportationService.getTrainStationTimetable({
+    stationCode: req.query.stationCode,
+    stationQuery: req.query.stationQuery,
+    departureDate: req.query.departureDate,
+    arrivalDate: req.query.arrivalDate,
+  });
+
+  sendSuccess(res, 200, { trains });
+});
+
+const getTrainServiceTimetable = catchAsync(async (req, res) => {
+  const timetable = await transportationService.getTrainServiceTimetable({
+    serviceIdentifier: req.query.serviceIdentifier,
+    trainUid: req.query.trainUid,
+    serviceDate: req.query.serviceDate,
+    actualRid: req.query.actualRid,
+  });
+
+  sendSuccess(res, 200, { timetable });
+});
+
+module.exports = { getFlight, getTrainStationTimetable, getTrainServiceTimetable };

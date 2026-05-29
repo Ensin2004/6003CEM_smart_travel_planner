@@ -27,6 +27,8 @@ module.exports = {
   geoapifyApiKey: process.env.GEOAPIFY_API_KEY || process.env.GEOAPIFY_KEY || '',
   serpApiKey: process.env.SERPAPI_KEY || process.env.SERPAPI_API_KEY || '',
   airlabsApiKey: process.env.AIRLABS_API_KEY || '',
+  transportApiAppId: process.env.TRANSPORTAPI_APP_ID || process.env.TAPI_APP_ID || '',
+  transportApiAppKey: process.env.TRANSPORTAPI_APP_KEY || process.env.TAPI_APP_KEY || '',
   serpApiDailyLimit: Number(process.env.SERPAPI_DAILY_LIMIT || 100),
   airlabsDailyLimit: Number(process.env.AIRLABS_DAILY_LIMIT || 100),
   openMeteoDailyLimit: Number(process.env.OPEN_METEO_DAILY_LIMIT || 500),

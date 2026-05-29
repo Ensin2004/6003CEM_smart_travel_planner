@@ -55,6 +55,27 @@ export const searchFlight = ({
     },
   });
 
+export const searchTrainStationTimetable = ({ stationCode, stationQuery, departureDate, arrivalDate, operatorName }) =>
+  axiosClient.get('/transportation/trains/station_timetable', {
+    params: {
+      stationCode,
+      stationQuery,
+      departureDate,
+      arrivalDate,
+      operatorName,
+    },
+  });
+
+export const searchTrainServiceTimetable = ({ serviceIdentifier, trainUid, serviceDate, actualRid }) =>
+  axiosClient.get('/transportation/trains/service_timetable', {
+    params: {
+      serviceIdentifier,
+      trainUid,
+      serviceDate,
+      actualRid,
+    },
+  });
+
 export const getAiRecommendations = ({ view, destination, date, weather, items }) =>
   axiosClient.post('/explore/ai-recommendations', {
     view,

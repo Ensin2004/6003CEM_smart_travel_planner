@@ -16,4 +16,22 @@ router.get(
   transportationController.getFlight
 );
 
+router.get(
+  ['/trains/station-timetable', '/trains/station_timetable'],
+  protect,
+  thirdPartyApiRateLimit,
+  transportationValidation.trainStationTimetableRules,
+  validate,
+  transportationController.getTrainStationTimetable
+);
+
+router.get(
+  ['/trains/service-timetable', '/trains/service_timetable'],
+  protect,
+  thirdPartyApiRateLimit,
+  transportationValidation.trainServiceTimetableRules,
+  validate,
+  transportationController.getTrainServiceTimetable
+);
+
 module.exports = router;
