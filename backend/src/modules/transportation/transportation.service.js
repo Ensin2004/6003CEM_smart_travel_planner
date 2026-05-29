@@ -1063,11 +1063,6 @@ const normalizeStationDeparture = (departure = {}, index = 0, context = {}) => {
     departure.expected_arrival_date || departure.aimed_arrival_date || departure.date,
     fallbackDate
   );
-  const estimateMinutes = Number(departure.best_arrival_estimate_mins || departure.best_departure_estimate_mins || departure.duration || 0);
-  const segmentDistanceKm = Math.max(Math.round((Number.isFinite(estimateMinutes) && estimateMinutes > 0 ? estimateMinutes : 45) * 1.15), 18);
-  const segmentDistanceMiles = Math.round(segmentDistanceKm * 0.621371);
-  const estimatedPriceMin = Math.max(Math.round(segmentDistanceKm * 1.05), 28);
-  const estimatedPriceMax = Math.max(Math.round(segmentDistanceKm * 1.9 + 18), estimatedPriceMin + 12);
 
   return {
     id: [
@@ -1095,31 +1090,16 @@ const normalizeStationDeparture = (departure = {}, index = 0, context = {}) => {
     aimedArrivalTime: normalizeText(departure.aimed_arrival_time),
     departureDate,
     arrivalDate,
+    actualDepartureTime: normalizeText(departure.actual_departure_time),
+    actualArrivalTime: normalizeText(departure.actual_arrival_time),
     expectedDepartureTime: normalizeText(departure.expected_departure_time),
     expectedArrivalTime: normalizeText(departure.expected_arrival_time),
     expectedDepartureDate: getStationDate(departure.expected_departure_date, departureDate),
     expectedArrivalDate: getStationDate(departure.expected_arrival_date, arrivalDate),
     bestDepartureEstimateMinutes: departure.best_departure_estimate_mins ?? null,
     bestArrivalEstimateMinutes: departure.best_arrival_estimate_mins ?? null,
-    distanceEstimate: {
-      available: true,
-      isFallback: true,
-      kilometers: segmentDistanceKm,
-      miles: segmentDistanceMiles,
-      display: `${segmentDistanceMiles.toLocaleString('en-US')} mi`,
-      confidence: 'low',
-      note: 'Estimated from timetable timing for the station result.',
-    },
-    priceEstimate: {
-      available: true,
-      isFallback: true,
-      currency: 'MYR',
-      min: estimatedPriceMin,
-      max: estimatedPriceMax,
-      display: `MYR ${estimatedPriceMin.toLocaleString('en-US')} - ${estimatedPriceMax.toLocaleString('en-US')}`,
-      confidence: 'low',
-      note: 'Estimated from distance and UK rail fare assumptions.',
-    },
+    distanceEstimate: buildUnavailableTrainDistanceEstimate(),
+    priceEstimate: buildUnavailableTrainPriceEstimate(),
     serviceTimetableId: serviceMeta.serviceTimetableId,
   };
 };
@@ -1221,8 +1201,9 @@ const normalizeActualJourney = (data = {}) => {
 };
 
 const buildTrainDistancePrompt = ({ service, stops }) => `
-Estimate the rail route distance for this UK train service.
-Use general rail geography knowledge. Return an estimate, not live measured data.
+Estimate the rail route distance and one-way ticket price for this UK train service.
+Use general rail geography and public-market fare knowledge. Return estimates only, not live fares.
+Currency must be MYR.
 
 Service:
 ${JSON.stringify(
@@ -1252,38 +1233,181 @@ Return JSON with:
   "distance": {
     "kilometers": number,
     "miles": number,
+    "segments": [
+      {
+        "fromStationName": "origin stop name",
+        "toStationName": "next stop name",
+        "kilometers": number,
+        "miles": number,
+        "priceMyr": number
+      }
+    ],
+    "confidence": "low" | "medium" | "high",
+    "note": "short reason"
+  },
+  "price": {
+    "currency": "MYR",
+    "min": number,
+    "max": number,
     "confidence": "low" | "medium" | "high",
     "note": "short reason"
   }
 }
 `;
 
-const getFallbackTrainDistanceEstimate = (stops = []) => {
+function buildUnavailableTrainDistanceEstimate(note = 'AI distance estimate unavailable.') {
+  return {
+    available: false,
+    display: 'AI estimate unavailable',
+    confidence: 'low',
+    note,
+  };
+}
+
+function buildUnavailableTrainPriceEstimate(note = 'AI price estimate unavailable.') {
+  return {
+    available: false,
+    currency: 'MYR',
+    display: 'AI estimate unavailable',
+    confidence: 'low',
+    note,
+  };
+}
+
+const getStopDateTime = (stop = {}, kind = 'departure') => {
+  const date =
+    kind === 'arrival'
+      ? stop.expectedArrivalDate || stop.actualArrivalDate || stop.arrivalDate || stop.aimedArrivalDate
+      : stop.expectedDepartureDate || stop.actualDepartureDate || stop.departureDate || stop.aimedDepartureDate;
+  const time =
+    kind === 'arrival'
+      ? stop.expectedArrivalTime || stop.actualArrivalTime || stop.aimedArrivalTime || stop.aimedPassTime
+      : stop.expectedDepartureTime || stop.actualDepartureTime || stop.aimedDepartureTime || stop.aimedPassTime;
+
+  if (!date || !time || !/^\d{2}:\d{2}$/.test(time)) {
+    return null;
+  }
+
+  const parsed = new Date(`${date}T${time}:00Z`);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const getMinutesBetweenStops = (fromStop = {}, toStop = {}) => {
+  const fromTime = getStopDateTime(fromStop, 'departure') || getStopDateTime(fromStop, 'arrival');
+  const toTime = getStopDateTime(toStop, 'arrival') || getStopDateTime(toStop, 'departure');
+
+  if (!fromTime || !toTime) {
+    return 0;
+  }
+
+  return Math.max(Math.round((toTime.getTime() - fromTime.getTime()) / 60000), 0);
+};
+
+const estimateFallbackTrainSegments = (stops = [], totalKilometers = 0) => {
+  const segmentCount = Math.max(stops.length - 1, 0);
+  const timedSegments = stops.slice(1).map((stop, index) => getMinutesBetweenStops(stops[index], stop));
+  const totalTimedMinutes = timedSegments.reduce((total, minutes) => total + minutes, 0);
+
+  return stops.slice(1).map((stop, index) => {
+    const timedShare = totalTimedMinutes ? timedSegments[index] / totalTimedMinutes : 0;
+    const fallbackShare = segmentCount ? 1 / segmentCount : 0;
+    const kilometers = Math.max(Math.round(totalKilometers * (timedShare || fallbackShare)), 1);
+    const priceMyr = Math.max(Math.round(8 + kilometers * 0.42), 10);
+
+    return {
+      ...buildTrainSegmentEstimate({
+        fromStop: stops[index],
+        toStop: stop,
+        kilometers,
+        priceMyr,
+      }),
+      isFallback: true,
+      priceEstimate: {
+        available: true,
+        isFallback: true,
+        currency: 'MYR',
+        amount: priceMyr,
+        display: `MYR ${priceMyr.toLocaleString('en-US')}`,
+        confidence: 'low',
+        note: 'Route-based fallback stop-to-stop rail segment price.',
+      },
+    };
+  });
+};
+
+const buildFallbackTrainEstimates = ({ stops = [], note = 'Route-based fallback estimate.' }) => {
   const segmentCount = Math.max(stops.length - 1, 1);
-  const kilometers = Math.round(segmentCount * 18);
+  const totalMinutes = getMinutesBetweenStops(stops[0], stops[stops.length - 1]);
+  const kilometers = Math.max(Math.round(totalMinutes ? totalMinutes * 1.15 : segmentCount * 32), segmentCount * 8);
   const miles = Math.round(kilometers * 0.621371);
+  const min = Math.max(Math.round(18 + kilometers * 0.36), 18);
+  const max = Math.round(min * 1.65 + 12);
+  const segments = estimateFallbackTrainSegments(stops, kilometers);
+
+  return {
+    distanceEstimate: {
+      available: true,
+      isFallback: true,
+      kilometers,
+      miles,
+      segments,
+      display: `${kilometers.toLocaleString('en-US')} km`,
+      confidence: 'low',
+      note,
+    },
+    priceEstimate: {
+      available: true,
+      isFallback: true,
+      currency: 'MYR',
+      min,
+      max,
+      display: `MYR ${min.toLocaleString('en-US')} - ${max.toLocaleString('en-US')}`,
+      confidence: 'low',
+      note,
+    },
+  };
+};
+
+const buildTrainSegmentEstimate = ({ fromStop, toStop, kilometers, priceMyr }) => {
+  const normalizedKilometers = Math.max(Math.round(Number(kilometers) || 0), 1);
+  const miles = Math.round(normalizedKilometers * 0.621371);
+  const normalizedPrice = Math.max(Math.round(Number(priceMyr) || 0), 0);
 
   return {
     available: true,
-    isFallback: true,
-    kilometers,
+    isFallback: false,
+    fromStationName: normalizeText(fromStop?.stationName),
+    toStationName: normalizeText(toStop?.stationName),
+    kilometers: normalizedKilometers,
     miles,
-    display: `${miles.toLocaleString('en-US')} mi`,
-    confidence: 'low',
-    note: 'Estimated from the number of calling-point segments.',
+    display: `${normalizedKilometers.toLocaleString('en-US')} km`,
+    priceEstimate: normalizedPrice
+      ? {
+          available: true,
+          isFallback: false,
+          currency: 'MYR',
+          amount: normalizedPrice,
+          display: `MYR ${normalizedPrice.toLocaleString('en-US')}`,
+          confidence: 'medium',
+          note: 'AI-estimated stop-to-stop rail segment price.',
+        }
+      : buildUnavailableTrainPriceEstimate('AI segment price estimate unavailable.'),
   };
 };
 
 const estimateTrainDistance = async ({ service, stops }) => {
   if (!stops.length) {
     return {
-      available: false,
-      display: 'Distance unavailable',
+      distanceEstimate: buildUnavailableTrainDistanceEstimate('No train stops were available for AI estimation.'),
+      priceEstimate: buildUnavailableTrainPriceEstimate('No train stops were available for AI estimation.'),
     };
   }
 
   if (!env.geminiApiKey) {
-    return getFallbackTrainDistanceEstimate(stops);
+    return buildFallbackTrainEstimates({
+      stops,
+      note: 'Gemini API key is not configured, so this is a route-based fallback estimate.',
+    });
   }
 
   try {
@@ -1303,7 +1427,7 @@ const estimateTrainDistance = async ({ service, stops }) => {
         ],
         generationConfig: {
           temperature: 0.15,
-          maxOutputTokens: 240,
+          maxOutputTokens: 1200,
           responseMimeType: 'application/json',
           responseJsonSchema: {
             type: 'object',
@@ -1313,13 +1437,38 @@ const estimateTrainDistance = async ({ service, stops }) => {
                 properties: {
                   kilometers: { type: 'number' },
                   miles: { type: 'number' },
+                  segments: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        fromStationName: { type: 'string' },
+                        toStationName: { type: 'string' },
+                        kilometers: { type: 'number' },
+                        miles: { type: 'number' },
+                        priceMyr: { type: 'number' },
+                      },
+                      required: ['fromStationName', 'toStationName', 'kilometers', 'miles', 'priceMyr'],
+                    },
+                  },
                   confidence: { type: 'string' },
                   note: { type: 'string' },
                 },
-                required: ['kilometers', 'miles', 'confidence', 'note'],
+                required: ['kilometers', 'miles', 'segments', 'confidence', 'note'],
+              },
+              price: {
+                type: 'object',
+                properties: {
+                  currency: { type: 'string' },
+                  min: { type: 'number' },
+                  max: { type: 'number' },
+                  confidence: { type: 'string' },
+                  note: { type: 'string' },
+                },
+                required: ['currency', 'min', 'max', 'confidence', 'note'],
               },
             },
-            required: ['distance'],
+            required: ['distance', 'price'],
           },
         },
       },
@@ -1333,20 +1482,56 @@ const estimateTrainDistance = async ({ service, stops }) => {
     );
     const parsed = parseAiJson(response);
     const distance = parsed.distance || {};
+    const price = parsed.price || {};
     const kilometers = Math.max(Math.round(Number(distance.kilometers) || 0), 0);
     const miles = Math.max(Math.round(Number(distance.miles) || kilometers * 0.621371), 0);
+    const priceMin = Math.max(Math.round(Number(price.min) || 0), 0);
+    const priceMax = Math.max(Math.round(Number(price.max) || 0), priceMin);
+    const aiSegments = Array.isArray(distance.segments)
+      ? distance.segments
+          .slice(0, Math.max(stops.length - 1, 0))
+          .map((segment, index) =>
+            buildTrainSegmentEstimate({
+              fromStop: stops[index],
+              toStop: stops[index + 1],
+              kilometers: segment.kilometers,
+              priceMyr: segment.priceMyr,
+            })
+          )
+          .filter(Boolean)
+      : [];
 
     if (!kilometers && !miles) {
-      return getFallbackTrainDistanceEstimate(stops);
+      return {
+        distanceEstimate: buildUnavailableTrainDistanceEstimate('Gemini did not return a usable distance estimate.'),
+        priceEstimate: buildUnavailableTrainPriceEstimate('Gemini did not return a usable distance estimate.'),
+      };
     }
 
     return {
-      available: true,
-      kilometers,
-      miles,
-      display: `${miles.toLocaleString('en-US')} mi`,
-      confidence: normalizeText(distance.confidence) || 'low',
-      note: normalizeText(distance.note).slice(0, 140),
+      distanceEstimate: {
+        available: true,
+        isFallback: false,
+        kilometers,
+        miles,
+        segments: aiSegments,
+        display: `${kilometers.toLocaleString('en-US')} km`,
+        confidence: normalizeText(distance.confidence) || 'low',
+        note: normalizeText(distance.note).slice(0, 140),
+      },
+      priceEstimate:
+        priceMin && priceMax
+          ? {
+              available: true,
+              isFallback: false,
+              currency: 'MYR',
+              min: priceMin,
+              max: priceMax,
+              display: `MYR ${priceMin.toLocaleString('en-US')} - ${priceMax.toLocaleString('en-US')}`,
+              confidence: normalizeText(price.confidence) || 'low',
+              note: normalizeText(price.note).slice(0, 140),
+            }
+          : buildUnavailableTrainPriceEstimate('Gemini did not return a usable price estimate.'),
     };
   } catch (error) {
     const { message, statusCode } = classifyGeminiError(error);
@@ -1355,8 +1540,32 @@ const estimateTrainDistance = async ({ service, stops }) => {
       destinationName: service.destinationName,
       trainUid: service.trainUid,
     });
-    return getFallbackTrainDistanceEstimate(stops);
+    return {
+      ...buildFallbackTrainEstimates({
+        stops,
+        note: message,
+      }),
+    };
   }
+};
+
+const attachTrainSegmentEstimates = (stops = [], distanceEstimate = {}) => {
+  const segments = Array.isArray(distanceEstimate.segments) ? distanceEstimate.segments : [];
+
+  return stops.map((stop, index) => ({
+    ...stop,
+    segmentEstimate:
+      index === 0
+        ? {
+            available: false,
+            display: 'Start',
+            priceEstimate: {
+              available: false,
+              display: 'Start',
+            },
+          }
+        : segments[index - 1] || null,
+  }));
 };
 
 const filterTrainDeparturesByDate = (departures, { departureDate, arrivalDate }) =>
@@ -1372,9 +1581,126 @@ const getStationTimetableEndpoint = ({ stationCode, departureDate }) =>
   departureDate
     ? `/train/station/${encodeURIComponent(stationCode)}/${encodeURIComponent(departureDate)}/00:00/timetable.json`
     : `/train/station_timetables/${encodeURIComponent(stationCode)}.json`;
+const DEFAULT_TRAIN_STATION_QUERY = 'London Euston';
+
+const getDestinationStop = (stops = [], destinationName = '') => {
+  const normalizedDestinationName = normalizeText(destinationName).toLowerCase();
+
+  return (
+    stops.find((stop) => stop.stationName?.toLowerCase() === normalizedDestinationName) ||
+    stops[stops.length - 1] ||
+    null
+  );
+};
+
+const buildTrainRouteEstimatePatch = async ({ train = {}, stops = [] }) => {
+  if (stops.length < 2) {
+    return {
+      distanceEstimate: buildUnavailableTrainDistanceEstimate('Not enough train stops were available for AI estimation.'),
+      priceEstimate: buildUnavailableTrainPriceEstimate('Not enough train stops were available for AI estimation.'),
+    };
+  }
+
+  return estimateTrainDistance({
+    service: {
+      operatorName: train.operatorName || train.operator,
+      originName: train.originName || stops[0]?.stationName,
+      destinationName: train.destinationName || stops[stops.length - 1]?.stationName,
+      date: train.serviceDate || train.date,
+      trainUid: train.trainUid,
+    },
+    stops,
+  });
+};
+
+const buildTrainDestinationArrivalFields = (destinationStop = {}, train = {}) => ({
+  aimedArrivalTime: destinationStop.aimedArrivalTime || train.aimedArrivalTime,
+  actualArrivalTime: destinationStop.actualArrivalTime || train.actualArrivalTime,
+  expectedArrivalTime: destinationStop.expectedArrivalTime || train.expectedArrivalTime,
+  arrivalDate: destinationStop.arrivalDate || train.arrivalDate,
+  actualArrivalDate: destinationStop.actualArrivalDate || train.actualArrivalDate,
+  expectedArrivalDate: destinationStop.expectedArrivalDate || train.expectedArrivalDate,
+});
+
+const getTrainDestinationArrivalPatch = async (train = {}) => {
+  const normalizedServiceIdentifier = normalizeText(train.serviceIdentifier || (train.trainUid ? `train_uid:${train.trainUid}` : ''));
+  const normalizedServiceDate = normalizeText(train.serviceDate);
+
+  if (!normalizedServiceIdentifier || !normalizedServiceDate) {
+    return {};
+  }
+
+  let arrivalPatch = {};
+
+  if (train.actualRid) {
+    try {
+      const actualResponse = await getTransportApi(
+        `/train/actual_journeys/${encodeURIComponent(train.actualRid)}.json`,
+        {
+          expected: true,
+        },
+        { actualRid: train.actualRid }
+      );
+      const actualJourney = normalizeActualJourney(actualResponse.data || {});
+      const destinationStop = getDestinationStop(actualJourney.stops, train.destinationName);
+      const routeEstimatePatch = await buildTrainRouteEstimatePatch({ train, stops: actualJourney.stops });
+
+      if (destinationStop) {
+        arrivalPatch = buildTrainDestinationArrivalFields(destinationStop, train);
+      }
+
+      if (routeEstimatePatch.distanceEstimate?.available) {
+        return {
+          ...routeEstimatePatch,
+          ...arrivalPatch,
+        };
+      }
+    } catch (error) {
+      logger.error(`Failed to enrich train actual journey: ${error.message}`);
+    }
+  }
+
+  try {
+    const serviceResponse = await getTransportApi(
+      `/train/service/${encodeURIComponent(normalizedServiceIdentifier)}/${encodeURIComponent(normalizedServiceDate)}/timetable.json`,
+      {},
+      { serviceIdentifier: normalizedServiceIdentifier, serviceDate: normalizedServiceDate }
+    );
+    const data = serviceResponse.data || {};
+    const stops = (data.stops || []).map((stop, index) => normalizeServiceStop(stop, index, { date: data.date || normalizedServiceDate }));
+    const destinationStop = getDestinationStop(stops, train.destinationName);
+
+    if (!destinationStop) {
+      return {
+        ...arrivalPatch,
+      };
+    }
+
+    return {
+      ...(await buildTrainRouteEstimatePatch({ train, stops })),
+      ...buildTrainDestinationArrivalFields(destinationStop, train),
+    };
+  } catch (error) {
+    logger.error(`Failed to enrich train destination arrival: ${error.message}`);
+    return {
+      ...arrivalPatch,
+    };
+  }
+};
+
+const enrichStationDeparturesWithDestinationArrivals = async (departures = []) => {
+  const enrichedDepartures = await Promise.all(
+    departures.map(async (departure) => ({
+      ...departure,
+      ...(await getTrainDestinationArrivalPatch(departure)),
+    }))
+  );
+
+  return enrichedDepartures;
+};
 
 const getTrainStationTimetable = async ({ stationCode, stationQuery, departureDate, arrivalDate }) => {
-  const normalizedStationQuery = normalizeText(stationQuery || stationCode);
+  const normalizedStationQuery = normalizeText(stationQuery || stationCode || DEFAULT_TRAIN_STATION_QUERY);
   const normalizedDepartureDate = normalizeText(departureDate);
   const normalizedArrivalDate = normalizeText(arrivalDate);
 
@@ -1384,13 +1710,6 @@ const getTrainStationTimetable = async ({ stationCode, stationQuery, departureDa
 
     if (!normalizedStationCode) {
       return fallbackTrains(`No train station found for ${normalizedStationQuery}.`);
-    }
-
-    const cacheKey = ['train-station-timetable', normalizedStationCode, normalizedDepartureDate, normalizedArrivalDate].join(':');
-    const cached = await transportationRepository.findValidCache(cacheKey).catch(() => null);
-
-    if (cached?.data) {
-      return { ...cached.data, cached: true };
     }
 
     const response = await getTransportApi(
@@ -1408,9 +1727,10 @@ const getTrainStationTimetable = async ({ stationCode, stationQuery, departureDa
       departureDate: normalizedDepartureDate,
       arrivalDate: normalizedArrivalDate,
     });
+    const enrichedDepartures = await enrichStationDeparturesWithDestinationArrivals(departures);
     const result = {
-      available: departures.length > 0,
-      message: departures.length > 0 ? 'Train station timetable loaded.' : 'No trains found for this station.',
+      available: enrichedDepartures.length > 0,
+      message: enrichedDepartures.length > 0 ? 'Train station timetable loaded.' : 'No trains found for this station.',
       source: 'TransportAPI TAPI Rail Information station timetable',
       query: {
         stationQuery: normalizedStationQuery,
@@ -1423,14 +1743,10 @@ const getTrainStationTimetable = async ({ stationCode, stationQuery, departureDa
       stationMatches: resolvedStation.stationMatches,
       date: normalizeText(data.date),
       timeOfDay: normalizeText(data.time_of_day),
-      departures,
-      items: departures,
+      departures: enrichedDepartures,
+      items: enrichedDepartures,
       lastUpdated: new Date().toISOString(),
     };
-
-    transportationRepository.upsertCache(cacheKey, result, new Date(Date.now() + CACHE_TTL_MS)).catch((error) => {
-      logger.error(`Failed to cache train station timetable: ${error.message}`);
-    });
 
     return result;
   } catch (error) {
@@ -1474,13 +1790,6 @@ const getTrainServiceTimetable = async ({ serviceIdentifier, trainUid, serviceDa
     };
   }
 
-  const cacheKey = ['train-service-timetable', normalizedServiceIdentifier, normalizedServiceDate, normalizeText(actualRid)].join(':');
-  const cached = await transportationRepository.findValidCache(cacheKey).catch(() => null);
-
-  if (cached?.data) {
-    return { ...cached.data, cached: true };
-  }
-
   try {
     const [serviceResponse, performance] = await Promise.all([
       getTransportApi(
@@ -1504,10 +1813,17 @@ const getTrainServiceTimetable = async ({ serviceIdentifier, trainUid, serviceDa
       destinationName: normalizeText(data.destination_name || performance?.destinationName),
       date: normalizeText(data.date || performance?.date || normalizedServiceDate),
     };
-    const distanceEstimate = await estimateTrainDistance({
+    const { distanceEstimate, priceEstimate } = await estimateTrainDistance({
       service: serviceSummary,
       stops: visibleStops,
     });
+    const stopsWithSegmentEstimates = attachTrainSegmentEstimates(stops.length ? stops : visibleStops, distanceEstimate);
+    const performanceWithSegmentEstimates = performance
+      ? {
+          ...performance,
+          stops: attachTrainSegmentEstimates(performanceStops, distanceEstimate),
+        }
+      : performance;
     const result = {
       available: visibleStops.length > 0,
       message: visibleStops.length > 0 ? 'Train service timetable loaded.' : 'No calling points found for this train.',
@@ -1532,14 +1848,11 @@ const getTrainServiceTimetable = async ({ serviceIdentifier, trainUid, serviceDa
         ...(performance?.coaches || []),
       ],
       distanceEstimate,
-      stops: stops.length ? stops : visibleStops,
-      performance,
+      priceEstimate,
+      stops: stopsWithSegmentEstimates,
+      performance: performanceWithSegmentEstimates,
       lastUpdated: new Date().toISOString(),
     };
-
-    transportationRepository.upsertCache(cacheKey, result, new Date(Date.now() + CACHE_TTL_MS)).catch((error) => {
-      logger.error(`Failed to cache train service timetable: ${error.message}`);
-    });
 
     return result;
   } catch (error) {

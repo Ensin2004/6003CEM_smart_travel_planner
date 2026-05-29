@@ -55,13 +55,14 @@ export const searchFlight = ({
     },
   });
 
-export const searchTrainStationTimetable = ({ stationCode, stationQuery, departureDate, arrivalDate }) =>
+export const searchTrainStationTimetable = ({ stationCode, stationQuery, departureDate, arrivalDate, operatorName }) =>
   axiosClient.get('/transportation/trains/station_timetable', {
     params: {
       stationCode,
       stationQuery,
       departureDate,
       arrivalDate,
+      operatorName,
     },
   });
 

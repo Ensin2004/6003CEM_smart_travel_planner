@@ -90,6 +90,7 @@ function ExplorePage() {
   const [flightResults, setFlightResults] = useState(null);
   const [trainSearch, setTrainSearch] = useState({
     stationQuery: restoredTrainState?.trainSearch?.stationQuery || '',
+    operatorName: restoredTrainState?.trainSearch?.operatorName || '',
     departureDate: restoredTrainState?.trainSearch?.departureDate || '',
     arrivalDate: restoredTrainState?.trainSearch?.arrivalDate || '',
   });
@@ -103,7 +104,9 @@ function ExplorePage() {
       ? `${restoredTrainState.trainResults.items.length} train departure${restoredTrainState.trainResults.items.length === 1 ? '' : 's'} loaded.`
       : ''
   );
+  const [statusScope, setStatusScope] = useState(restoredTrainState?.trainResults?.available ? 'transport:trains' : '');
   const [error, setError] = useState('');
+  const [errorScope, setErrorScope] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [weatherLoadingView, setWeatherLoadingView] = useState('');
@@ -139,6 +142,7 @@ function ExplorePage() {
     rated: 0,
     topRated: 0,
   };
+  const transportScope = `transport:${activeTransportTab}`;
   const countryOptions = useMemo(() => Country.getAllCountries(), []);
   const stateOptions = useMemo(
     () => (activeFilters.countryCode ? State.getStatesOfCountry(activeFilters.countryCode) : []),
@@ -312,12 +316,15 @@ function ExplorePage() {
     event.preventDefault();
 
     if (!destination.trim()) {
+      setErrorScope('attractions');
       setError('Enter a destination first.');
       return;
     }
 
     setIsSearching(true);
+    setErrorScope('attractions');
     setError('');
+    setStatusScope('attractions');
     setStatus('');
 
     try {
@@ -333,6 +340,7 @@ function ExplorePage() {
       );
       await fetchDestinationWeather('attractions', getWeatherRequest({ destination: destination.trim() }, nextItems));
     } catch (requestError) {
+      setErrorScope('attractions');
       setError(getErrorMessage(requestError));
       setAttractions([]);
     } finally {
@@ -468,6 +476,7 @@ function ExplorePage() {
     viewId,
   }) => {
     if (!hasCriteria(criteria)) {
+      setErrorScope(viewId);
       setError(emptyMessage);
       return;
     }
@@ -477,7 +486,9 @@ function ExplorePage() {
     } else {
       setIsSearching(true);
     }
+    setErrorScope(viewId);
     setError('');
+    setStatusScope(viewId);
     setStatus('');
 
     try {
@@ -507,6 +518,7 @@ function ExplorePage() {
         await fetchDestinationWeather(viewId, getWeatherRequest(criteria, nextItems));
       }
     } catch (requestError) {
+      setErrorScope(viewId);
       setError(getErrorMessage(requestError));
       if (!append) {
         setItems([]);
@@ -612,12 +624,15 @@ function ExplorePage() {
     event.preventDefault();
 
     if (!flightSearch.airlineName.trim() && !flightSearch.fromCountryCode && !flightSearch.toCountryCode) {
+      setErrorScope('transport:flights');
       setError('Enter an airline name or select at least one country.');
       return;
     }
 
     setIsSearching(true);
+    setErrorScope('transport:flights');
     setError('');
+    setStatusScope('transport:flights');
     setStatus('');
 
     try {
@@ -630,6 +645,7 @@ function ExplorePage() {
           : nextFlights.message
       );
     } catch (requestError) {
+      setErrorScope('transport:flights');
       setError(getErrorMessage(requestError));
       setFlightResults(null);
     } finally {
@@ -647,20 +663,17 @@ function ExplorePage() {
   const handleTrainSearchChange = (field, value) => {
     setTrainSearch((currentSearch) => ({
       ...currentSearch,
-      [field]: field === 'stationQuery' ? value : value,
+      [field]: value,
     }));
   };
 
   const handleTrainStationSearch = async (event) => {
     event.preventDefault();
 
-    if (!trainSearch.stationQuery.trim()) {
-      setError('Enter a station name or CRS code first.');
-      return;
-    }
-
     setIsSearching(true);
+    setErrorScope('transport:trains');
     setError('');
+    setStatusScope('transport:trains');
     setStatus('');
 
     try {
@@ -668,15 +681,32 @@ function ExplorePage() {
         stationQuery: trainSearch.stationQuery.trim(),
         departureDate: trainSearch.departureDate,
         arrivalDate: trainSearch.arrivalDate,
+        operatorName: trainSearch.operatorName,
       });
       const nextTrains = response.data.data.trains;
-      setTrainResults(nextTrains);
+      const operatorQuery = trainSearch.operatorName.trim().toLowerCase();
+      const nextItems = operatorQuery
+        ? (nextTrains.items || []).filter((train) =>
+            [train.operatorName, train.operator].filter(Boolean).some((name) => name.toLowerCase().includes(operatorQuery))
+          )
+        : nextTrains.items || [];
+      const filteredTrains = operatorQuery
+        ? {
+            ...nextTrains,
+            available: nextItems.length > 0,
+            message: nextItems.length > 0 ? nextTrains.message : `No trains found for operator ${trainSearch.operatorName.trim()}.`,
+            departures: nextItems,
+            items: nextItems,
+          }
+        : nextTrains;
+      setTrainResults(filteredTrains);
       setStatus(
-        nextTrains.available
-          ? `${nextTrains.items.length} train departure${nextTrains.items.length === 1 ? '' : 's'} loaded.`
-          : nextTrains.message
+        filteredTrains.available
+          ? `${filteredTrains.items.length} train departure${filteredTrains.items.length === 1 ? '' : 's'} loaded.`
+          : filteredTrains.message
       );
     } catch (requestError) {
+      setErrorScope('transport:trains');
       setError(getErrorMessage(requestError));
       setTrainResults(null);
     } finally {
@@ -865,7 +895,7 @@ function ExplorePage() {
     countryOptions,
     destination,
     destinationLabel,
-    error,
+    error: errorScope === activeOption.id ? error : '',
     getCarouselIndex,
     getConvertedPriceText,
     getOriginalPriceText,
@@ -891,7 +921,7 @@ function ExplorePage() {
     selectedFoodCategoryLabel,
     selectedRoomLabel,
     stateOptions,
-    status,
+    status: statusScope === activeOption.id ? status : '',
     topRatedCount,
     travelDate,
     updateDestinationQuery,
@@ -907,7 +937,7 @@ function ExplorePage() {
           clearFlightCountry={clearFlightCountry}
           clearFlightSearchField={clearFlightSearchField}
           countryOptions={countryOptions}
-          error={error}
+          error={errorScope === transportScope ? error : ''}
           flightResults={flightResults}
           flightSearch={flightSearch}
           formatFlightDuration={formatFlightDuration}
@@ -924,7 +954,7 @@ function ExplorePage() {
           handleTrainStationSearch={handleTrainStationSearch}
           isSearching={isSearching}
           setActiveTransportTab={setActiveTransportTab}
-          status={status}
+          status={statusScope === transportScope ? status : ''}
           trainResults={trainResults}
           trainSearch={trainSearch}
           clearTrainSearchField={clearTrainSearchField}

@@ -79,13 +79,6 @@ const trainStationTimetableRules = [
     .trim()
     .isISO8601({ strict: true, strictSeparator: true })
     .withMessage('Arrival date must use YYYY-MM-DD format'),
-  query().custom((_, { req }) => {
-    if (!req.query.stationCode?.trim() && !req.query.stationQuery?.trim()) {
-      throw new Error('Enter a station name or CRS code.');
-    }
-
-    return true;
-  }),
 ];
 
 const trainServiceTimetableRules = [

@@ -34,10 +34,16 @@ function TransportationSubmenu({
   trainResults,
   trainSearch,
 }) {
-  const formatTrainTime = (value) => value || '--:--';
   const formatTrainDate = (value) => value || 'Date unavailable';
-  const getTrainEstimateLabel = (train = {}) =>
-    [train.distanceEstimate?.display, train.priceEstimate?.display].filter(Boolean).join(' / ') || 'Estimate unavailable';
+  const getTrainDistanceLabel = (train = {}) => {
+    const kilometers = Number(train.distanceEstimate?.kilometers);
+
+    if (Number.isFinite(kilometers) && kilometers > 0) {
+      return `${Math.round(kilometers).toLocaleString('en-US')} km`;
+    }
+
+    return train.distanceEstimate?.display || 'Distance unavailable';
+  };
   const getTrainRunLabel = (train = {}) =>
     [train.trainUid || train.service || trainResults?.stationCode, train.platform ? `Platform ${train.platform}` : '']
       .filter(Boolean)
@@ -66,8 +72,8 @@ function TransportationSubmenu({
           })}
         </div>
         {activeTransportTab === 'flights' && (
-          <form className="explore-flight-search-panel" onSubmit={handleFlightSearch}>
-            <label className="explore-flight-route-box">
+          <form className="explore-transport-search-panel explore-transport-search-panel--flight" onSubmit={handleFlightSearch}>
+            <label className="explore-transport-filter-box">
               <span>
                 From
                 <button
@@ -92,10 +98,10 @@ function TransportationSubmenu({
               </select>
               <small>Optional</small>
             </label>
-            <div className="explore-flight-swap" aria-hidden="true">
+            <div className="explore-transport-swap" aria-hidden="true">
               <ArrowLeftRight size={19} />
             </div>
-            <label className="explore-flight-route-box">
+            <label className="explore-transport-filter-box">
               <span>
                 To
                 <button
@@ -120,7 +126,7 @@ function TransportationSubmenu({
               </select>
               <small>Optional</small>
             </label>
-            <label className="explore-flight-route-box">
+            <label className="explore-transport-filter-box">
               <span>
                 Departure
                 <button
@@ -143,7 +149,7 @@ function TransportationSubmenu({
               />
               <small>{flightSearch.departureDate ? 'Selected date' : 'Optional'}</small>
             </label>
-            <label className="explore-flight-route-box">
+            <label className="explore-transport-filter-box">
               <span>
                 Airline
                 <button
@@ -166,15 +172,39 @@ function TransportationSubmenu({
               />
               <small>Optional</small>
             </label>
-            <button className="explore-flight-search-button" type="submit" disabled={isSearching}>
+            <button className="explore-transport-search-button" type="submit" disabled={isSearching}>
               {isSearching ? <LoaderCircle className="explore-spin" size={20} aria-hidden="true" /> : <Search size={20} aria-hidden="true" />}
               {isSearching ? 'Searching' : 'Search'}
             </button>
           </form>
         )}
         {activeTransportTab === 'trains' && (
-          <form className="explore-train-search-panel" onSubmit={handleTrainStationSearch}>
-            <label className="explore-flight-route-box">
+          <form className="explore-transport-search-panel explore-transport-search-panel--train" onSubmit={handleTrainStationSearch}>
+            <label className="explore-transport-filter-box">
+              <span>
+                Operator
+                <button
+                  type="button"
+                  aria-label="Clear operator search"
+                  onClick={(event) => {
+                    event.preventDefault();
+                    clearTrainSearchField('operatorName');
+                  }}
+                  disabled={!trainSearch.operatorName}
+                >
+                  <X size={13} aria-hidden="true" />
+                </button>
+              </span>
+              <input
+                type="text"
+                value={trainSearch.operatorName}
+                onChange={(event) => handleTrainSearchChange('operatorName', event.target.value)}
+                placeholder="Any operator"
+                maxLength="120"
+              />
+              <small>Optional</small>
+            </label>
+            <label className="explore-transport-filter-box">
               <span>
                 Station
                 <button
@@ -196,9 +226,9 @@ function TransportationSubmenu({
                 placeholder="Euston or EUS"
                 maxLength="120"
               />
-              <small>Station name or CRS code</small>
+              <small>{trainSearch.stationQuery ? 'Station name or CRS code' : 'Optional, defaults to London Euston'}</small>
             </label>
-            <label className="explore-flight-route-box">
+            <label className="explore-transport-filter-box">
               <span>
                 Departure
                 <button
@@ -220,7 +250,7 @@ function TransportationSubmenu({
               />
               <small>{trainSearch.departureDate ? 'Selected date' : 'Optional'}</small>
             </label>
-            <label className="explore-flight-route-box">
+            <label className="explore-transport-filter-box">
               <span>
                 Arrival
                 <button
@@ -242,9 +272,9 @@ function TransportationSubmenu({
               />
               <small>{trainSearch.arrivalDate ? 'Selected date' : 'Optional'}</small>
             </label>
-            <button className="explore-flight-search-button" type="submit" disabled={isSearching}>
+            <button className="explore-transport-search-button" type="submit" disabled={isSearching}>
               {isSearching ? <LoaderCircle className="explore-spin" size={20} aria-hidden="true" /> : <Search size={20} aria-hidden="true" />}
-              {isSearching ? 'Loading' : 'Load timetable'}
+              {isSearching ? 'Loading' : 'Search'}
             </button>
           </form>
         )}
@@ -256,45 +286,45 @@ function TransportationSubmenu({
           {status && <p className="form-success explore-status">{status}</p>}
 
           {flightResults?.available ? (
-            <section className="explore-flight-results-layout">
-              <section className="explore-flight-results-board">
-                <div className="explore-flight-board-title">
+            <section className="explore-results-layout explore-results-layout--flight">
+              <section className="explore-results-board">
+                <div className="explore-results-board-title">
                   <div>
                     <span>1. Departures</span>
                     <h3>{getFlightSearchTitle()}</h3>
                   </div>
                   <strong>{flightResults.items.length} flight{flightResults.items.length === 1 ? '' : 's'} found</strong>
                 </div>
-                <div className="explore-flight-list">
+                <div className="explore-transport-result-list">
                   {flightResults.items.map((flight, index) => {
                     const departureLabel = getAirportLocationLabel(flight.departure.airport);
                     const arrivalLabel = getAirportLocationLabel(flight.arrival.airport);
 
                     return (
-                      <article className="explore-flight-card" key={`${flight.id}-${index}`}>
-                        <div className="explore-flight-airline">
+                      <article className="explore-transport-result-card explore-transport-result-card--flight" key={`${flight.id}-${index}`}>
+                        <div className="explore-transport-carrier">
                           <Plane size={30} aria-hidden="true" />
                           <div>
                             <strong>{flight.airline.name}</strong>
                             <span>{getFlightCodeLabel(flight)}</span>
                           </div>
                         </div>
-                        <div className="explore-flight-time">
+                        <div className="explore-transport-time">
                           <strong>{formatFlightTime(flight.departure.scheduledTime || flight.departure.actualTime)}</strong>
                           <span>{departureLabel}</span>
                           <small>{getAirportDetailLabel(flight.departure.airport)}</small>
                         </div>
-                        <div className="explore-flight-path">
+                        <div className="explore-transport-path explore-transport-path--flight">
                           <span>{formatFlightDuration(flight.durationMinutes)}</span>
                           <div />
                         </div>
-                        <div className="explore-flight-time">
+                        <div className="explore-transport-time">
                           <strong>{formatFlightTime(flight.arrival.scheduledTime || flight.arrival.actualTime)}</strong>
                           <span>{arrivalLabel}</span>
                           <small>{getAirportDetailLabel(flight.arrival.airport)}</small>
                         </div>
-                        <div className="explore-flight-action">
-                          <div className="explore-flight-price-badge" tabIndex="0" aria-label="AI estimated ticket price">
+                        <div className="explore-transport-action">
+                          <div className="explore-transport-price-badge" tabIndex="0" aria-label="AI estimated ticket price">
                             <DollarSign size={14} aria-hidden="true" />
                             <strong>{flight.priceEstimate?.display || 'AI estimate unavailable'}</strong>
                           </div>
@@ -322,43 +352,45 @@ function TransportationSubmenu({
           {status && <p className="form-success explore-status">{status}</p>}
 
           {trainResults?.available ? (
-            <section className="explore-flight-results-layout">
-              <section className="explore-flight-results-board">
-                <div className="explore-flight-board-title">
+            <section className="explore-results-layout explore-results-layout--train">
+              <section className="explore-results-board">
+                <div className="explore-results-board-title">
                   <div>
                     <span>1. Station timetable</span>
                     <h3>{trainResults.stationName || trainResults.stationCode || 'Train departures'}</h3>
                   </div>
                   <strong>{trainResults.items.length} train{trainResults.items.length === 1 ? '' : 's'} found</strong>
                 </div>
-                <div className="explore-flight-list">
+                <div className="explore-transport-result-list">
                   {trainResults.items.map((train, index) => (
                     <article
-                      className="explore-flight-card explore-train-card"
+                      className="explore-transport-result-card explore-transport-result-card--train"
                       key={`${train.id}-${index}`}
                     >
-                      <div className="explore-flight-airline">
+                      <div className="explore-transport-carrier">
                         <TrainFront size={30} aria-hidden="true" />
                         <div>
                           <strong>{train.operatorName || train.operator || 'Operator unavailable'}</strong>
                           <span>{getTrainRunLabel(train)}</span>
                         </div>
                       </div>
-                      <div className="explore-flight-time">
-                        <strong>{formatTrainTime(train.aimedDepartureTime || train.aimedArrivalTime)}</strong>
+                      <div className="explore-transport-time">
                         <span>{train.originName || trainResults.stationName}</span>
                         <small>Departs {formatTrainDate(train.expectedDepartureDate || train.departureDate)}</small>
                       </div>
-                      <div className="explore-flight-path">
-                        <span>{getTrainEstimateLabel(train)}</span>
+                      <div className="explore-transport-path explore-transport-path--train">
+                        <span>{getTrainDistanceLabel(train)}</span>
                         <div />
                       </div>
-                      <div className="explore-flight-time">
-                        <strong>{formatTrainTime(train.expectedArrivalTime || train.aimedArrivalTime)}</strong>
+                      <div className="explore-transport-time">
                         <span>{train.destinationName || 'Destination unavailable'}</span>
                         <small>Arrives {formatTrainDate(train.expectedArrivalDate || train.arrivalDate)}</small>
                       </div>
-                      <div className="explore-flight-action">
+                      <div className="explore-transport-action">
+                        <div className="explore-transport-price-badge" tabIndex="0" aria-label="AI estimated train ticket price">
+                          <DollarSign size={14} aria-hidden="true" />
+                          <strong>{train.priceEstimate?.display || 'AI estimate unavailable'}</strong>
+                        </div>
                         <button type="button" onClick={() => handleTrainSelect(train)} disabled={isSearching}>
                           View stops
                         </button>
@@ -373,7 +405,7 @@ function TransportationSubmenu({
               <div className="explore-empty explore-placeholder">
                 <TrainFront size={34} aria-hidden="true" />
                 <h3>{trainResults?.message || 'Load a station timetable'}</h3>
-                <p>Enter a UK station name or CRS code such as Manchester, HBD, or EUS.</p>
+                <p>Search by operator, date, station, or leave station empty to use London Euston.</p>
               </div>
             </section>
           )}
@@ -384,3 +416,4 @@ function TransportationSubmenu({
 }
 
 export default TransportationSubmenu;
+

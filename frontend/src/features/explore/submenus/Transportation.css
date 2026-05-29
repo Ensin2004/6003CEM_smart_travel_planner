@@ -38,9 +38,8 @@
   color: var(--teal);
 }
 
-.explore-flight-search-panel {
+.explore-transport-search-panel {
   display: grid;
-  grid-template-columns: minmax(170px, 1fr) 44px minmax(170px, 1fr) minmax(170px, 0.95fr) minmax(180px, 1fr) minmax(120px, auto);
   gap: 8px;
   align-items: stretch;
   border: 0;
@@ -50,19 +49,15 @@
   box-shadow: none;
 }
 
-.explore-train-search-panel {
-  display: grid;
-  grid-template-columns: minmax(220px, 1.2fr) minmax(160px, 0.75fr) minmax(160px, 0.75fr) minmax(150px, auto);
-  gap: 8px;
-  align-items: stretch;
-  border: 0;
-  border-radius: 8px;
-  background: transparent;
-  padding: 2px 0 0;
-  box-shadow: none;
+.explore-transport-search-panel--flight {
+  grid-template-columns: minmax(145px, 1fr) 36px minmax(145px, 1fr) minmax(135px, 0.82fr) minmax(150px, 1fr) minmax(112px, auto);
 }
 
-.explore-flight-route-box {
+.explore-transport-search-panel--train {
+  grid-template-columns: minmax(150px, 0.95fr) minmax(180px, 1.1fr) minmax(135px, 0.75fr) minmax(135px, 0.75fr) minmax(112px, auto);
+}
+
+.explore-transport-filter-box {
   display: grid;
   gap: 2px;
   min-width: 0;
@@ -74,12 +69,12 @@
   transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
-.explore-flight-route-box:focus-within {
+.explore-transport-filter-box:focus-within {
   border-color: rgba(15, 118, 110, 0.48);
   box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.1);
 }
 
-.explore-flight-route-box span {
+.explore-transport-filter-box span {
   display: flex;
   gap: 8px;
   align-items: center;
@@ -89,7 +84,7 @@
   font-weight: 700;
 }
 
-.explore-flight-route-box button {
+.explore-transport-filter-box button {
   display: inline-grid;
   place-items: center;
   width: 20px;
@@ -102,19 +97,19 @@
   cursor: pointer;
 }
 
-.explore-flight-route-box button:hover:not(:disabled) {
+.explore-transport-filter-box button:hover:not(:disabled) {
   border-color: rgba(15, 118, 110, 0.28);
   background: var(--color-primary-soft);
   color: var(--color-primary-hover);
 }
 
-.explore-flight-route-box button:disabled {
+.explore-transport-filter-box button:disabled {
   cursor: not-allowed;
   opacity: 0.35;
 }
 
-.explore-flight-route-box select,
-.explore-flight-route-box input {
+.explore-transport-filter-box select,
+.explore-transport-filter-box input {
   width: 100%;
   min-width: 0;
   border: 0;
@@ -125,7 +120,7 @@
   outline: none;
 }
 
-.explore-flight-route-box small {
+.explore-transport-filter-box small {
   overflow: hidden;
   color: #64748b;
   font-size: 12px;
@@ -133,7 +128,7 @@
   white-space: nowrap;
 }
 
-.explore-flight-swap {
+.explore-transport-swap {
   display: grid;
   place-items: center;
   align-self: center;
@@ -145,12 +140,13 @@
   color: var(--teal);
 }
 
-.explore-flight-search-button {
+.explore-transport-search-button {
   display: inline-flex;
   gap: 8px;
   align-items: center;
   justify-content: center;
   min-height: 46px;
+  min-width: 112px;
   border: 0;
   border-radius: 6px;
   background: var(--teal);
@@ -162,16 +158,23 @@
   box-shadow: 0 6px 14px rgba(15, 118, 110, 0.13);
 }
 
-.explore-flight-search-button:disabled {
+.explore-transport-search-button:disabled {
   cursor: not-allowed;
   opacity: 0.72;
 }
 
-.explore-flight-results-layout {
+.explore-results-layout {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 16px;
   align-items: start;
+}
+
+.explore-results-layout--flight {
+  gap: 16px;
+}
+
+.explore-results-layout--train {
+  gap: 12px;
 }
 
 .explore-train-results-layout {
@@ -181,7 +184,7 @@
   align-items: start;
 }
 
-.explore-flight-results-board,
+.explore-results-board,
 .explore-results-shell {
   overflow: hidden;
   border: 1px solid rgba(217, 226, 236, 0.9);
@@ -196,7 +199,7 @@
   padding: 18px;
 }
 
-.explore-flight-board-title {
+.explore-results-board-title {
   display: flex;
   gap: 16px;
   align-items: center;
@@ -208,26 +211,26 @@
   padding: 16px;
 }
 
-.explore-flight-board-title div {
+.explore-results-board-title div {
   display: flex;
   gap: 8px;
   align-items: baseline;
   min-width: 0;
 }
 
-.explore-flight-board-title span,
-.explore-flight-board-title h3,
-.explore-flight-board-title strong {
+.explore-results-board-title span,
+.explore-results-board-title h3,
+.explore-results-board-title strong {
   margin: 0;
   color: var(--navy);
   line-height: 1.2;
 }
 
-.explore-flight-board-title span {
+.explore-results-board-title span {
   color: var(--teal);
 }
 
-.explore-flight-board-title h3 {
+.explore-results-board-title h3 {
   overflow: hidden;
   font-size: 17px;
   font-weight: 800;
@@ -235,74 +238,92 @@
   white-space: nowrap;
 }
 
-.explore-flight-board-title strong {
+.explore-results-board-title strong {
   flex: 0 0 auto;
   font-size: 14px;
 }
 
-.explore-flight-list {
+.explore-transport-result-list {
   display: grid;
   gap: 14px;
 }
 
-.explore-flight-card {
+.explore-transport-result-card {
   display: grid;
-  grid-template-columns: minmax(150px, 1fr) minmax(110px, 0.7fr) minmax(150px, 0.9fr) minmax(110px, 0.7fr) minmax(120px, auto);
-  gap: 16px;
   align-items: center;
   border-bottom: 1px solid rgba(217, 226, 236, 0.82);
   background: #ffffff;
+}
+
+.explore-transport-result-card--flight {
+  grid-template-columns: minmax(150px, 1fr) minmax(110px, 0.7fr) minmax(190px, 0.95fr) minmax(110px, 0.7fr) minmax(120px, auto);
+  gap: 16px;
   padding: 22px 16px;
 }
 
-.explore-train-card {
-  grid-template-columns: minmax(150px, 1fr) minmax(110px, 0.65fr) minmax(120px, 0.7fr) minmax(130px, 0.75fr) minmax(110px, auto);
+.explore-transport-result-card--train {
+  grid-template-columns: minmax(135px, 0.85fr) minmax(130px, 0.65fr) minmax(240px, 1fr) minmax(150px, 0.75fr) minmax(132px, auto);
+  column-gap: 14px;
+  row-gap: 12px;
+  padding: 20px 16px;
 }
 
-.explore-train-card.active {
+.explore-transport-result-card--train > .explore-transport-time:nth-child(2) {
+  justify-self: end;
+  width: max-content;
+  max-width: 100%;
+}
+
+.explore-transport-result-card--train > .explore-transport-time:nth-child(4) {
+  justify-self: start;
+  width: max-content;
+  max-width: 100%;
+}
+
+.explore-transport-result-card--train.active {
   box-shadow: inset 4px 0 0 var(--teal);
 }
 
-.explore-flight-airline,
-.explore-flight-time,
-.explore-flight-action {
+.explore-transport-carrier,
+.explore-transport-time,
+.explore-transport-action {
   display: grid;
   gap: 4px;
   min-width: 0;
 }
 
-.explore-flight-airline {
+.explore-transport-carrier {
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
   column-gap: 12px;
 }
 
-.explore-flight-airline > svg {
+.explore-transport-carrier > svg {
   color: var(--teal);
 }
 
-.explore-flight-airline > div {
+.explore-transport-carrier > div {
   display: grid;
   gap: 5px;
   min-width: 0;
 }
 
-.explore-flight-airline strong,
-.explore-flight-time strong,
-.explore-flight-action strong {
+.explore-transport-carrier strong,
+.explore-transport-time strong,
+.explore-transport-action strong {
   overflow: hidden;
   color: #0f172a;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.explore-flight-airline strong {
+.explore-transport-carrier strong {
   font-size: 14px;
 }
 
-.explore-flight-airline span,
-.explore-flight-time span,
-.explore-flight-time small {
+.explore-transport-carrier span,
+.explore-transport-time span,
+.explore-transport-time small {
   overflow: hidden;
   color: #64748b;
   font-size: 13px;
@@ -311,34 +332,35 @@
   white-space: nowrap;
 }
 
-.explore-flight-time strong {
+.explore-transport-time strong {
   font-size: 23px;
   font-weight: 850;
 }
 
-.explore-flight-time span {
+.explore-transport-time span {
   color: #0f172a;
   font-weight: 750;
 }
 
-.explore-flight-path {
+.explore-transport-path {
   display: grid;
   gap: 7px;
+  align-content: center;
   justify-items: center;
   min-width: 0;
   color: #64748b;
   font-size: 12px;
 }
 
-.explore-flight-path div {
+.explore-transport-path div {
   position: relative;
   width: 100%;
   height: 2px;
   background: #cbd5e1;
 }
 
-.explore-flight-path div::before,
-.explore-flight-path div::after {
+.explore-transport-path div::before,
+.explore-transport-path div::after {
   position: absolute;
   top: 50%;
   width: 6px;
@@ -349,29 +371,46 @@
   transform: translateY(-50%);
 }
 
-.explore-flight-path div::before {
+.explore-transport-path div::before {
   left: 0;
 }
 
-.explore-flight-path div::after {
+.explore-transport-path div::after {
   right: 0;
 }
 
-.explore-flight-path span {
+.explore-transport-path span {
   overflow: hidden;
   max-width: 100%;
   color: #64748b;
+  text-align: center;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.explore-flight-action {
+.explore-transport-path--train {
+  align-self: center;
+  justify-self: stretch;
+  min-width: 0;
+  justify-items: center;
+  text-align: center;
+}
+
+.explore-transport-path--flight div {
+  width: min(100%, 190px);
+}
+
+.explore-transport-path--train div {
+  width: min(100%, 260px);
+}
+
+.explore-transport-action {
   gap: 10px;
   justify-items: end;
   text-align: right;
 }
 
-.explore-flight-action button {
+.explore-transport-action button {
   min-height: 38px;
   border: 0;
   border-radius: 6px;
@@ -383,7 +422,7 @@
   cursor: pointer;
 }
 
-.explore-flight-price-badge {
+.explore-transport-price-badge {
   position: relative;
   display: inline-flex;
   gap: 5px;
@@ -397,7 +436,7 @@
   padding: 5px 9px;
 }
 
-.explore-flight-price-badge::after {
+.explore-transport-price-badge::after {
   position: absolute;
   right: 0;
   bottom: calc(100% + 8px);
@@ -422,17 +461,17 @@
   transition: opacity 0.16s ease, transform 0.16s ease;
 }
 
-.explore-flight-price-badge:hover::after,
-.explore-flight-price-badge:focus-visible::after {
+.explore-transport-price-badge:hover::after,
+.explore-transport-price-badge:focus-visible::after {
   opacity: 1;
   transform: translateY(0);
 }
 
-.explore-flight-price-badge svg {
+.explore-transport-price-badge svg {
   flex: 0 0 auto;
 }
 
-.explore-flight-price-badge strong {
+.explore-transport-price-badge strong {
   overflow: hidden;
   color: var(--sun);
   font-size: 13px;
@@ -493,26 +532,17 @@
   font-weight: 700;
 }
 
-.explore-train-status-pill {
-  display: inline-flex;
-  align-items: center;
-  width: fit-content;
-  border-radius: 999px;
-  padding: 4px 9px;
-  font-size: 12px;
+.explore-train-status-text {
+  font-size: 13px;
   font-weight: 850;
-  line-height: 1.2;
+  line-height: 1.25;
 }
 
-.explore-train-status-pill.on-time {
-  border: 1px solid rgba(37, 99, 235, 0.24);
-  background: rgba(37, 99, 235, 0.1);
+.explore-train-status-text.on-time {
   color: #1d4ed8;
 }
 
-.explore-train-status-pill.late {
-  border: 1px solid rgba(220, 38, 38, 0.24);
-  background: rgba(220, 38, 38, 0.1);
+.explore-train-status-text.late {
   color: #b91c1c;
 }
 
@@ -534,107 +564,62 @@
   cursor: pointer;
 }
 
+.explore-train-title-with-back {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.explore-train-title-with-back button {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid rgba(15, 118, 110, 0.18);
+  border-radius: 999px;
+  background: #ffffff;
+  color: var(--teal);
+  padding: 0;
+  cursor: pointer;
+}
+
+.explore-train-title-with-back button:hover {
+  border-color: rgba(15, 118, 110, 0.32);
+  background: var(--color-primary-soft);
+}
+
 .explore-train-service-layout {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(280px, 360px);
+  grid-template-columns: 1fr;
   gap: 16px;
   align-items: start;
 }
 
 .explore-train-stop-detail {
-  grid-template-columns: minmax(140px, 1fr) minmax(90px, 0.55fr) minmax(90px, 0.55fr) minmax(130px, 0.75fr) minmax(130px, 0.75fr);
+  grid-template-columns: minmax(160px, 1fr) minmax(90px, 0.55fr) minmax(90px, 0.55fr) minmax(105px, 0.58fr) minmax(110px, 0.6fr) minmax(110px, 0.6fr);
 }
 
 .explore-train-stop-detail div:first-child {
   min-width: 0;
 }
 
-.explore-train-service-side {
-  display: grid;
-}
-
-.explore-train-service-summary,
-.explore-train-coach-list,
-.explore-train-main-summary {
-  display: grid;
-  gap: 10px;
-  background: #ffffff;
-  padding: 16px;
-}
-
-.explore-train-service-summary span,
-.explore-train-coach-list span,
-.explore-train-main-summary span {
-  display: grid;
-  gap: 4px;
-  min-width: 0;
-  border-bottom: 1px solid rgba(217, 226, 236, 0.82);
-  padding-bottom: 10px;
-}
-
-.explore-train-service-summary span:last-child,
-.explore-train-coach-list span:last-child,
-.explore-train-main-summary span:last-child {
-  border-bottom: 0;
-  padding-bottom: 0;
-}
-
-.explore-train-service-summary small,
-.explore-train-coach-list small,
-.explore-train-main-summary small {
-  color: #64748b;
-  font-size: 12px;
-}
-
-.explore-train-service-summary strong,
-.explore-train-coach-list strong,
-.explore-train-main-summary strong {
-  overflow: hidden;
-  color: #0f172a;
-  font-size: 13px;
-  font-weight: 800;
-  text-overflow: ellipsis;
-}
-
-.explore-train-main-summary {
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  border-bottom: 1px solid rgba(217, 226, 236, 0.82);
-}
-
-.explore-train-coach-list h3 {
-  margin: 0;
-  color: var(--navy);
-  font-size: 15px;
-}
-
-.explore-train-coach-list p {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  margin: 0;
-  color: #64748b;
-  font-size: 13px;
-  font-weight: 700;
-}
-
 @media (max-width: 900px) {
-  .explore-flight-search-panel,
-  .explore-train-search-panel,
-  .explore-flight-results-layout,
+  .explore-transport-search-panel,
+  .explore-results-layout,
   .explore-train-results-layout,
   .explore-train-service-layout,
   .explore-train-stop-detail,
-  .explore-train-main-summary,
-  .explore-flight-card {
+  .explore-transport-result-card {
     grid-template-columns: 1fr;
   }
 
-  .explore-flight-swap {
+  .explore-transport-swap {
     justify-self: center;
   }
 
-  .explore-flight-action {
+  .explore-transport-action {
     justify-items: start;
     text-align: left;
   }
 }
+
