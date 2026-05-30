@@ -646,6 +646,111 @@ paths:
           description: Too many third-party API requests
         '503':
           description: External weather service unavailable
+  /api/v1/transportation/flights:
+    get:
+      summary: Search flights by airline name, optional route countries, and optional departure date
+      tags:
+        - Transportation
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: airlineName
+          required: false
+          schema:
+            type: string
+          example: American Airlines
+        - in: query
+          name: fromCountryCode
+          required: false
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 2
+          example: US
+        - in: query
+          name: fromCountryName
+          required: false
+          schema:
+            type: string
+          example: United States
+        - in: query
+          name: toCountryCode
+          required: false
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 2
+          example: US
+        - in: query
+          name: toCountryName
+          required: false
+          schema:
+            type: string
+          example: United States
+        - in: query
+          name: departureDate
+          required: false
+          schema:
+            type: string
+            format: date
+          example: '2026-06-01'
+      responses:
+        '200':
+          description: Normalized AirLabs flights and schedules using AirLabs airports and airlines data
+          content:
+            application/json:
+              example:
+                status: success
+                message: Success
+                data:
+                  flights:
+                    available: true
+                    source: AirLabs Flights and Schedules APIs
+                    query:
+                      airlineName: American Airlines
+                      fromCountryName: United States
+                      fromCountryCode: US
+                      toCountryName: United States
+                      toCountryCode: US
+                      departureDate: '2026-06-01'
+                    items:
+                      - type: schedule
+                        flightNumber: '2421'
+                        flightIata: AA2421
+                        flightIcao: AAL2421
+                        status: scheduled
+                        airline:
+                          name: American Airlines
+                          iata: AA
+                          icao: AAL
+                          countryCode: US
+                        departure:
+                          airport:
+                            name: Miami International Airport
+                            city: Miami
+                            countryCode: US
+                          terminal: C
+                          gate: E4
+                          scheduledTime: '2026-06-01 19:53'
+                        arrival:
+                          airport:
+                            name: San Francisco International Airport
+                            city: San Francisco
+                            countryCode: US
+                          terminal: '1'
+                          gate: B24
+                          scheduledTime: '2026-06-01 22:52'
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid token
+        '429':
+          description: Too many third-party API requests
+        '502':
+          description: External API configuration error
+        '503':
+          description: External flight service unavailable
   /api/v1/explore/ai-recommendations:
     post:
       summary: Generate AI recommendations from Explore results

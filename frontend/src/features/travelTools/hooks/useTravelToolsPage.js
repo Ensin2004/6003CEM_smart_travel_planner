@@ -17,7 +17,6 @@ import { getTrips } from '../../../api/tripApi';
 import { getMe } from '../../../api/userApi';
 import {
   defaultPackingCategory,
-  formatPriorityLevel,
   packingCategories,
 } from '../travelTools.constants';
 import {
@@ -89,8 +88,8 @@ export function useTravelToolsPage() {
 
   const remainingItems = Math.max((progress.totalItems || 0) - (progress.packedItems || 0), 0);
 
-  const unpackedImportantCount = useMemo(
-    () => selectedList?.items?.filter((item) => !item.isPacked && item.priority === 'High').length || 0,
+  const unpackedItemCount = useMemo(
+    () => selectedList?.items?.filter((item) => !item.isPacked).length || 0,
     [selectedList]
   );
 
@@ -115,23 +114,22 @@ export function useTravelToolsPage() {
   }, [packingLists, templates]);
 
   const visibleTemplates = useMemo(() => {
-    const startIndex = templatePage * 5;
-    return templates.slice(startIndex, startIndex + 5);
+    if (templates.length <= 3) return templates;
+    return Array.from({ length: 3 }, (_, index) => templates[(templatePage + index) % templates.length]);
   }, [templatePage, templates]);
 
-  const maxTemplatePage = Math.max(Math.ceil(templates.length / 5) - 1, 0);
+  const maxTemplatePage = Math.max(templates.length - 1, 0);
 
   const filteredItems = useMemo(() => {
     const items = selectedList?.items || [];
     return items.filter((item) => {
       const matchesSearch = item.name.toLowerCase().includes(filters.search.toLowerCase().trim());
       const matchesCategory = !filters.category || item.category === filters.category;
-      const matchesPriority = !filters.priority || item.priority === filters.priority;
       const matchesPacked =
         !filters.packed ||
         (filters.packed === 'packed' && item.isPacked) ||
         (filters.packed === 'unpacked' && !item.isPacked);
-      return matchesSearch && matchesCategory && matchesPriority && matchesPacked;
+      return matchesSearch && matchesCategory && matchesPacked;
     });
   }, [filters, selectedList]);
 
@@ -142,12 +140,11 @@ export function useTravelToolsPage() {
       .filter((item) => {
         const matchesSearch = item.name.toLowerCase().includes(templateFilters.search.toLowerCase().trim());
         const matchesCategory = !templateFilters.category || item.category === templateFilters.category;
-        const matchesPriority = !templateFilters.priority || item.priority === templateFilters.priority;
         const matchesPacked =
           !templateFilters.packed ||
           (templateFilters.packed === 'packed' && item.isPacked) ||
           (templateFilters.packed === 'unpacked' && !item.isPacked);
-        return matchesSearch && matchesCategory && matchesPriority && matchesPacked;
+        return matchesSearch && matchesCategory && matchesPacked;
       });
   }, [templateEditForm.items, templateFilters]);
 
@@ -291,17 +288,6 @@ export function useTravelToolsPage() {
     setTemplateFilters(emptyFilters);
   };
 
-  const handleTemplateDropdownChange = (event) => {
-    const templateKey = event.target.value;
-    const template = templates.find((candidate) => candidate.key === templateKey);
-    setCreateForm((current) => ({
-      ...current,
-      title: template?.title || current.title,
-      destination: '',
-      templateKey,
-    }));
-  };
-
   const handlePackingListTripChange = async (event) => {
     if (!selectedList) return;
     const tripId = event.target.value;
@@ -333,7 +319,10 @@ export function useTravelToolsPage() {
   const handleItemFormChange = (event) => {
     const { name, value } = event.target;
     setItemFormError('');
-    setItemForm((current) => ({ ...current, [name]: name === 'quantity' ? Number(value) : value }));
+    setItemForm((current) => ({
+      ...current,
+      [name]: name === 'quantity' ? value.replace(/^0+(?=\d)/, '') : value,
+    }));
   };
 
   const saveTemplateDraft = async (draft, successText = 'Packing template updated.') => {
@@ -386,7 +375,7 @@ export function useTravelToolsPage() {
     const item = templateEditForm.items[itemIndex];
     if (!item) return;
     setEditingTemplateItemIndex(itemIndex);
-    setItemForm({ name: item.name, category: item.category, priority: item.priority, quantity: item.quantity });
+    setItemForm({ name: item.name, category: item.category, quantity: String(item.quantity || 1) });
     setItemModalMode('template-edit');
     setItemFormError('');
     setSuccessMessage('');
@@ -442,7 +431,6 @@ export function useTravelToolsPage() {
         items: selectedList.items.map((item) => ({
           name: item.name,
           category: item.category,
-          priority: formatPriorityLevel(item.priority),
           quantity: item.quantity,
         })),
       });
@@ -471,7 +459,7 @@ export function useTravelToolsPage() {
 
   const handleEditItem = (item) => {
     setEditingItemId(item._id);
-    setItemForm({ name: item.name, category: item.category, priority: item.priority, quantity: item.quantity });
+    setItemForm({ name: item.name, category: item.category, quantity: String(item.quantity || 1) });
     setItemModalMode('edit');
     setItemFormError('');
     setSuccessMessage('');
@@ -505,7 +493,6 @@ export function useTravelToolsPage() {
         id: itemModalMode === 'template-edit' ? templateEditForm.items[editingTemplateItemIndex]?.id : `new-${Date.now()}`,
         name: itemForm.name.trim(),
         category: itemForm.category.trim() || defaultPackingCategory,
-        priority: formatPriorityLevel(itemForm.priority),
         quantity: Number(itemForm.quantity) || 1,
         isPacked: itemModalMode === 'template-edit' ? Boolean(templateEditForm.items[editingTemplateItemIndex]?.isPacked) : false,
       };
@@ -528,8 +515,14 @@ export function useTravelToolsPage() {
 
     try {
       const response = itemModalMode === 'edit'
-        ? await updatePackingItem(selectedList._id, editingItemId, itemForm)
-        : await addPackingItem(selectedList._id, itemForm);
+        ? await updatePackingItem(selectedList._id, editingItemId, {
+          ...itemForm,
+          quantity: Number(itemForm.quantity) || 1,
+        })
+        : await addPackingItem(selectedList._id, {
+          ...itemForm,
+          quantity: Number(itemForm.quantity) || 1,
+        });
       replaceList(response.data.data.packingList);
       setSuccessMessage(itemModalMode === 'edit' ? 'Packing item updated.' : 'Packing item added.');
       closeItemModal();
@@ -703,7 +696,6 @@ export function useTravelToolsPage() {
           items: (sourceTemplate.items || []).map((item) => ({
             name: item.name,
             category: item.category,
-            priority: formatPriorityLevel(item.priority),
             quantity: item.quantity,
           })),
         });
@@ -805,7 +797,6 @@ export function useTravelToolsPage() {
     handleStartListTitleEdit,
     handleStartTemplateDescriptionEdit,
     handleStartTemplateTitleEdit,
-    handleTemplateDropdownChange,
     handleTemplatePageChange,
     handleTemplateSaveFormChange,
     handleTemplateSelect,
@@ -853,7 +844,7 @@ export function useTravelToolsPage() {
     templateTitleDraft,
     templates,
     trips,
-    unpackedImportantCount,
+    unpackedItemCount,
     visibleTemplates,
   };
 }

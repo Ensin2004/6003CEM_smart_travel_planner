@@ -8,6 +8,7 @@ import UserDashboard from '../features/dashboard/UserDashboard';
 import TripsPage from '../features/trips/TripsPage';
 import TripDetailsPage from '../features/trips/TripDetailsPage';
 import ExplorePage from '../features/explore/ExplorePage';
+import TrainServiceTimetablePage from '../features/explore/TrainServiceTimetablePage';
 import MapPage from '../features/map/MapPage';
 import TravelGuideDestinationPage from '../features/travelGuide/TravelGuideDestinationPage';
 import TravelGuidePage from '../features/travelGuide/TravelGuidePage';
@@ -38,6 +39,7 @@ function AppRoutes() {
           <Route path="/trips" element={<TripsPage />} />
           <Route path="/trips/:id" element={<TripDetailsPage />} />
           <Route path="/explore" element={<ExplorePage />} />
+          <Route path="/transportation/trains/service-timetable" element={<TrainServiceTimetablePage />} />
           <Route path="/travel-guide" element={<TravelGuidePage />} />
           <Route path="/travel-guide/destination" element={<TravelGuideDestinationPage />} />
           <Route path="/map" element={<MapPage />} />
