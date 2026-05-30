@@ -8,10 +8,12 @@ import UserDashboard from '../features/dashboard/UserDashboard';
 import TripsPage from '../features/trips/TripsPage';
 import TripDetailsPage from '../features/trips/TripDetailsPage';
 import ExplorePage from '../features/explore/ExplorePage';
+import TrainServiceTimetablePage from '../features/explore/TrainServiceTimetablePage';
 import MapPage from '../features/map/MapPage';
 import TravelGuideDestinationPage from '../features/travelGuide/TravelGuideDestinationPage';
 import TravelGuidePage from '../features/travelGuide/TravelGuidePage';
 import TravelToolsPage from '../features/travelTools/TravelToolsPage';
+import LanguageHelperPage from '../features/languageHelper/LanguageHelperPage';
 import UserSettingsPage from '../features/settings/user/UserSettingsPage';
 import AdminDashboard from '../features/admin/AdminDashboard';
 import ApiLogsPage from '../features/admin/ApiLogsPage';
@@ -37,11 +39,13 @@ function AppRoutes() {
           <Route path="/trips" element={<TripsPage />} />
           <Route path="/trips/:id" element={<TripDetailsPage />} />
           <Route path="/explore" element={<ExplorePage />} />
+          <Route path="/transportation/trains/service-timetable" element={<TrainServiceTimetablePage />} />
           <Route path="/travel-guide" element={<TravelGuidePage />} />
           <Route path="/travel-guide/destination" element={<TravelGuideDestinationPage />} />
           <Route path="/map" element={<MapPage />} />
           <Route path="/packing-lists" element={<TravelToolsPage mode="packing" />} />
           <Route path="/travel-documents" element={<TravelToolsPage mode="documents" />} />
+          <Route path="/language-helper" element={<LanguageHelperPage />} />
           <Route path="/profile" element={<UserSettingsPage />} />
         </Route>
       </Route>

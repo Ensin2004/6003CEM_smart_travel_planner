@@ -2,6 +2,7 @@ import { useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
+  AlertTriangle,
   BedDouble,
   CalendarDays,
   CheckCircle2,
@@ -32,7 +33,7 @@ import {
   updateItineraryItem,
 } from '../../api/itineraryApi';
 import { getTripSummary } from '../../api/tripApi';
-import { getMapPlaceDetails, searchMapCategoryPlaces } from '../../api/mapApi';
+import { searchOpenStreetMapCategoryPlaces } from '../../api/mapApi';
 import TripMapPreview from '../../components/trips/TripMapPreview';
 import { getTripMapPoint } from '../../components/trips/tripMapUtils';
 import CurrencyContext from '../../context/currencyContext';
@@ -54,26 +55,18 @@ const itineraryGroups = [
 ];
 
 const getFallbackIdeas = (category, trip) => {
-  const destination = trip?.destination || 'this destination';
-  const country = trip?.country ? `, ${trip.country}` : '';
-  const templates = {
-    attractions: ['Historic district walk', 'Local museum visit', 'Scenic viewpoint', 'Cultural landmark'],
-    food: ['Local breakfast spot', 'Street food area', 'Dinner near hotel', 'Cafe break'],
-    hotels: ['Central stay option', 'Transit-friendly hotel', 'Quiet neighborhood stay', 'Budget-friendly stay'],
-    train: ['Nearest train station', 'Airport transfer option', 'Main transit hub', 'Local transport stop'],
-    shopping: ['Local market', 'Souvenir street', 'Design store area', 'Evening mall stop'],
-  };
+  const destination = [trip?.destination, trip?.country].filter(Boolean).join(', ') || 'this destination';
 
-  return (templates[category] || templates.attractions).map((name, index) => ({
-    id: `fallback-${category}-${index}`,
-    name,
-    displayName: `${name} near ${destination}${country}`,
-    summary: 'Planning placeholder. Replace with a confirmed place from map search later.',
+  return [{
+    id: `fallback-${category}`,
+    name: `Search ${destination}`,
+    displayName: destination,
+    summary: 'No live place results came back for this category. Try another category or search term.',
     lat: null,
     lng: null,
     type: 'idea',
     fallback: true,
-  }));
+  }];
 };
 
 const getPlaceAddress = (place) => place.address || place.displayName || 'Location details unavailable';
@@ -108,6 +101,96 @@ const getIdeaItemType = (category) => {
   return 'attraction';
 };
 
+const parseTimeToMinutes = (time) => {
+  const match = String(time || '').match(/^(\d{1,2}):(\d{2})$/);
+  if (!match) return null;
+  return Number(match[1]) * 60 + Number(match[2]);
+};
+
+const parseHourTextToMinutes = (value) => {
+  const match = String(value || '').match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?/i);
+  if (!match) return null;
+
+  let hour = Number(match[1]);
+  const minute = Number(match[2] || 0);
+  const period = match[3]?.toUpperCase();
+
+  if (period === 'PM' && hour < 12) hour += 12;
+  if (period === 'AM' && hour === 12) hour = 0;
+
+  return hour * 60 + minute;
+};
+
+const getOpeningWindow = (hoursText) => {
+  const text = String(hoursText || '');
+  const rangeMatch = text.match(/(\d{1,2}(?::\d{2})?\s*(?:AM|PM)?)\s*[-–]\s*(\d{1,2}(?::\d{2})?\s*(?:AM|PM)?)/i);
+  const closesMatch = text.match(/closes\s+(\d{1,2}(?::\d{2})?\s*(?:AM|PM)?)/i);
+
+  if (rangeMatch) {
+    return {
+      open: parseHourTextToMinutes(rangeMatch[1]),
+      close: parseHourTextToMinutes(rangeMatch[2]),
+    };
+  }
+
+  if (closesMatch && /open/i.test(text)) {
+    return {
+      open: 0,
+      close: parseHourTextToMinutes(closesMatch[1]),
+    };
+  }
+
+  return null;
+};
+
+const getOpeningWarning = ({ hoursText, startTime, endTime }) => {
+  const start = parseTimeToMinutes(startTime);
+  const end = parseTimeToMinutes(endTime);
+
+  if (start === null || end === null) return '';
+  if (end <= start) return 'End time should be later than start time.';
+  if (/closed/i.test(String(hoursText || ''))) return 'This place appears closed during the selected time.';
+
+  const openingWindow = getOpeningWindow(hoursText);
+  if (!openingWindow || openingWindow.open === null || openingWindow.close === null) {
+    return hoursText ? '' : 'Opening hours unavailable. Please confirm before adding.';
+  }
+
+  if (start < openingWindow.open || end > openingWindow.close) {
+    return 'Selected time may be outside this place opening hours.';
+  }
+
+  return '';
+};
+
+const getOpenStreetMapTileUrl = (lat, lng, zoom = 15) => {
+  const latitude = Number(lat);
+  const longitude = Number(lng);
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return '';
+
+  const tileCount = 2 ** zoom;
+  const x = Math.floor(((longitude + 180) / 360) * tileCount);
+  const y = Math.floor(
+    ((1 - Math.log(Math.tan((latitude * Math.PI) / 180) + 1 / Math.cos((latitude * Math.PI) / 180)) / Math.PI) / 2) * tileCount
+  );
+
+  return `https://tile.openstreetmap.org/${zoom}/${x}/${y}.png`;
+};
+
+const getItemPoint = (item) => ({
+  lat: item.location?.coordinates?.coordinates?.[1],
+  lng: item.location?.coordinates?.coordinates?.[0],
+});
+
+const getRecommendationLocation = (trip) => {
+  const primaryDestination = trip?.destinationSegments?.[0];
+  return [
+    primaryDestination?.city || trip?.destination,
+    primaryDestination?.country || trip?.country,
+  ].filter(Boolean).join(', ');
+};
+
 function TripDetailsPage() {
   const { id } = useParams();
   const currency = useContext(CurrencyContext);
@@ -126,6 +209,10 @@ function TripDetailsPage() {
   const [ideaSearch, setIdeaSearch] = useState('');
   const [addMode, setAddMode] = useState(null);
   const [message, setMessage] = useState('');
+  const [panelWidth, setPanelWidth] = useState(370);
+  const [isAddingIdea, setIsAddingIdea] = useState(false);
+  const [actionMessage, setActionMessage] = useState('');
+  const [selectedIdeaSchedule, setSelectedIdeaSchedule] = useState({ startTime: '09:00', endTime: '10:00' });
 
   useEffect(() => {
     let isMounted = true;
@@ -171,6 +258,12 @@ function TripDetailsPage() {
   const plannedBudgetPercent = totalBudget ? Math.min(100, Math.round((plannedBudget / totalBudget) * 100)) : 0;
   const activeDaySpendPercent = activeDayBudget ? Math.min(100, Math.round((activeDaySpend / activeDayBudget) * 100)) : 0;
   const AddModeIcon = addMode?.icon || Plus;
+  const recommendationLocation = getRecommendationLocation(trip);
+  const selectedIdeaHours = selectedIdea?.openState || selectedIdea?.hours || '';
+  const selectedIdeaWarning = selectedIdea
+    ? getOpeningWarning({ hoursText: selectedIdeaHours, ...selectedIdeaSchedule })
+    : '';
+  const hasInvalidSelectedIdeaTime = selectedIdeaWarning.startsWith('End time');
   const weatherTemperature = weather?.temperature?.max || weather?.temperature?.mean
     ? `${Math.round(weather.temperature.max || weather.temperature.mean)}${weather.temperature.unit || 'C'}`
     : '';
@@ -207,17 +300,6 @@ function TripDetailsPage() {
     if (savedDay) updateDayLocal(savedDay.dayNumber, savedDay);
   };
 
-  const updateItemNotesLocal = (item, description) => {
-    setItems((currentItems) =>
-      currentItems.map((currentItem) => (currentItem._id === item._id ? { ...currentItem, description } : currentItem))
-    );
-  };
-
-  const saveItemNotes = async (itemId) => {
-    const item = items.find((currentItem) => currentItem._id === itemId);
-    await updateItineraryItem(itemId, { description: item?.description || '' });
-  };
-
   const updateItemPriceLocal = (item, amount) => {
     setItems((currentItems) =>
       currentItems.map((currentItem) =>
@@ -238,6 +320,20 @@ function TripDetailsPage() {
     });
   };
 
+  const updateItemTimeLocal = (item, field, value) => {
+    setItems((currentItems) =>
+      currentItems.map((currentItem) => (currentItem._id === item._id ? { ...currentItem, [field]: value } : currentItem))
+    );
+  };
+
+  const saveItemTime = async (itemId) => {
+    const item = items.find((currentItem) => currentItem._id === itemId);
+    await updateItineraryItem(itemId, {
+      startTime: item?.startTime || '',
+      endTime: item?.endTime || '',
+    });
+  };
+
   const removeItem = async (itemId) => {
     await deleteItineraryItem(itemId);
     setItems((currentItems) => currentItems.filter((item) => item._id !== itemId));
@@ -250,21 +346,23 @@ function TripDetailsPage() {
     setSelectedIdea(null);
 
     try {
-      const firstPoint = getTripMapPoint(destinationPlaces[0] || {});
-      const results = await searchMapCategoryPlaces(category, firstPoint, {
-        destination: searchTerm?.trim() || trip.destination,
+      const center = getTripMapPoint(destinationPlaces[0] || {});
+      const results = await searchOpenStreetMapCategoryPlaces(category, center, {
         limit: 12,
       });
-      const nextIdeas = results.map((idea) => formatIdeaPlace(idea, category));
+      const nextIdeas = results.map((idea) => formatIdeaPlace({
+        ...idea,
+        summary: idea.displayName || `${category} near ${searchTerm?.trim() || recommendationLocation || trip.destination}`,
+      }, category));
       const fallbackIdeas = getFallbackIdeas(category, trip);
       const resolvedIdeas = nextIdeas.length ? nextIdeas : fallbackIdeas;
       setIdeas(resolvedIdeas);
-      setSelectedIdea(resolvedIdeas[0] || null);
+      setSelectedIdea(null);
       setIdeaStatus('success');
     } catch {
       const fallbackIdeas = getFallbackIdeas(category, trip);
       setIdeas(fallbackIdeas);
-      setSelectedIdea(fallbackIdeas[0] || null);
+      setSelectedIdea(null);
       setIdeaStatus('fallback');
     }
   };
@@ -285,48 +383,86 @@ function TripDetailsPage() {
     loadIdeas(addMode?.categoryId || ideaCategory, ideaSearch);
   };
 
+  const switchAddCategory = (category) => {
+    const matchingGroup = itineraryGroups.find((group) => group.categoryId === category.id);
+    setAddMode(matchingGroup || {
+      id: category.id,
+      title: category.label,
+      addLabel: category.label,
+      categoryId: category.id,
+      types: [getIdeaItemType(category.id)],
+      icon: category.icon,
+    });
+    loadIdeas(category.id, ideaSearch);
+  };
+
   const selectIdea = async (idea) => {
     setSelectedIdea(idea);
-
-    if (idea.fallback || !Number.isFinite(Number(idea.lat)) || !Number.isFinite(Number(idea.lng))) {
-      return;
-    }
-
-    setIdeaDetailStatus('loading');
-    try {
-      const response = await getMapPlaceDetails(idea);
-      if (response.available && response.item) {
-        setSelectedIdea((currentIdea) => (
-          currentIdea?.id === idea.id
-            ? { ...currentIdea, ...formatIdeaPlace(response.item, currentIdea.categoryId || ideaCategory), id: currentIdea.id }
-            : currentIdea
-        ));
-      }
-      setIdeaDetailStatus('success');
-    } catch {
-      setIdeaDetailStatus('error');
-    }
+    setIdeaDetailStatus('success');
   };
 
   const addIdeaToDay = async (idea) => {
+    if (!idea || isAddingIdea) return;
+
+    setIsAddingIdea(true);
+    setActionMessage('');
     const hasCoordinates = Number.isFinite(Number(idea.lng)) && Number.isFinite(Number(idea.lat));
-    const response = await createItineraryItem(id, {
-      type: addMode?.types?.[0] || getIdeaItemType(idea.categoryId || ideaCategory),
-      title: idea.name,
-      description: idea.summary || idea.address || idea.displayName || '',
-      scheduledDate: activeDay?.date || trip.startDate,
-      location: hasCoordinates ? {
-        address: idea.address || idea.displayName,
-        coordinates: {
-          type: 'Point',
-          coordinates: [Number(idea.lng), Number(idea.lat)],
-        },
-      } : undefined,
-      source: 'openstreetmap',
-      externalId: idea.id,
-      priceEstimate: { amount: 0, currency: tripCurrency },
-    });
-    setItems((currentItems) => [...currentItems, response.data.data.item]);
+
+    try {
+      const response = await createItineraryItem(id, {
+        type: addMode?.types?.[0] || getIdeaItemType(idea.categoryId || ideaCategory),
+        title: idea.name,
+        description: [
+          idea.summary || idea.address || idea.displayName || '',
+          idea.openState ? `Hours: ${idea.openState}` : '',
+        ].filter(Boolean).join('\n'),
+        scheduledDate: activeDay?.date || trip.startDate,
+        startTime: selectedIdeaSchedule.startTime,
+        endTime: selectedIdeaSchedule.endTime,
+        location: hasCoordinates ? {
+          address: idea.address || idea.displayName,
+          coordinates: {
+            type: 'Point',
+            coordinates: [Number(idea.lng), Number(idea.lat)],
+          },
+        } : undefined,
+        source: 'openstreetmap',
+        externalId: idea.id,
+        priceEstimate: { amount: 0, currency: tripCurrency },
+      });
+      const savedItem = response.data?.data?.item;
+
+      if (savedItem) {
+        setItems((currentItems) => [...currentItems, savedItem]);
+        setActiveTab('itinerary');
+        setAddMode(null);
+        setSelectedIdea(null);
+        setActionMessage(`Added ${savedItem.title} to Day ${activeDay?.dayNumber || 1}.`);
+      }
+    } catch (error) {
+      setActionMessage(error.response?.data?.message || 'Unable to add this place to the itinerary.');
+    } finally {
+      setIsAddingIdea(false);
+    }
+  };
+
+  const startPanelResize = (event) => {
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = panelWidth;
+
+    const handlePointerMove = (moveEvent) => {
+      const nextWidth = startWidth + moveEvent.clientX - startX;
+      setPanelWidth(Math.min(Math.max(nextWidth, 320), 560));
+    };
+
+    const handlePointerUp = () => {
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerUp);
+    };
+
+    window.addEventListener('pointermove', handlePointerMove);
+    window.addEventListener('pointerup', handlePointerUp);
   };
 
   if (status === 'loading') {
@@ -355,7 +491,7 @@ function TripDetailsPage() {
         </div>
       </header>
 
-      <div className="trip-details-shell">
+      <div className="trip-details-shell" style={{ '--trip-left-panel-width': `${panelWidth}px` }}>
         <aside className="trip-details-panel">
           {addMode ? (
             <div className="trip-add-search-panel">
@@ -373,7 +509,7 @@ function TripDetailsPage() {
                 <input
                   value={ideaSearch}
                   onChange={(event) => setIdeaSearch(event.target.value)}
-                  placeholder={`Search ${addMode.addLabel.toLowerCase()} near ${trip.destination || 'this trip'}`}
+                  placeholder={`Search real places near ${recommendationLocation || trip.destination || 'this trip'}`}
                 />
                 <button type="submit" aria-label="Search places">
                   <Search size={16} aria-hidden="true" />
@@ -384,6 +520,21 @@ function TripDetailsPage() {
                 <button className="active" type="button" onClick={() => loadIdeas(addMode.categoryId, '')}>
                   Recommend
                 </button>
+                {ideaCategories.map((category) => {
+                  const CategoryIcon = category.icon;
+
+                  return (
+                    <button
+                      className={addMode.categoryId === category.id ? 'active' : ''}
+                      type="button"
+                      key={category.id}
+                      onClick={() => switchAddCategory(category)}
+                    >
+                      <CategoryIcon size={14} aria-hidden="true" />
+                      {category.label}
+                    </button>
+                  );
+                })}
                 {destinationPlaces.slice(0, 4).map((place) => (
                   <button
                     type="button"
@@ -411,7 +562,9 @@ function TripDetailsPage() {
                     >
                       <div className="trip-idea-card-main">
                         <span className="trip-idea-thumb">
-                          {idea.imageUrl ? <img src={idea.imageUrl} alt="" /> : <AddModeIcon size={20} aria-hidden="true" />}
+                          {idea.imageUrl || getOpenStreetMapTileUrl(idea.lat, idea.lng)
+                            ? <img src={idea.imageUrl || getOpenStreetMapTileUrl(idea.lat, idea.lng)} alt="" loading="lazy" />
+                            : <AddModeIcon size={20} aria-hidden="true" />}
                         </span>
                         <div>
                           <span className="trip-idea-type">{addMode.addLabel}</span>
@@ -456,6 +609,8 @@ function TripDetailsPage() {
                 ))}
               </div>
 
+              {actionMessage ? <p className="trip-action-message" role="status">{actionMessage}</p> : null}
+
               {activeTab === 'itinerary' ? (
               <div className="trip-itinerary-workspace">
               <section className="trip-budget-overview" aria-label="Budget overview">
@@ -489,9 +644,10 @@ function TripDetailsPage() {
                         onBlur={() => saveDay(activeDay)}
                       />
                     </div>
-                    <label>
+                    <label title="Daily budget for this itinerary day. Item estimates below count against this amount.">
                       <WalletCards size={15} aria-hidden="true" />
                       <input
+                        aria-label="Daily budget"
                         type="number"
                         min="0"
                         value={activeDay.budget?.amount || 0}
@@ -534,36 +690,74 @@ function TripDetailsPage() {
                         Add {group.addLabel}
                       </button>
 
-                      {group.items.map((item) => (
+                      {group.items.map((item) => {
+                        const itemPoint = getItemPoint(item);
+                        const itemPreviewUrl = getOpenStreetMapTileUrl(itemPoint.lat, itemPoint.lng, 15);
+                        const itemTimeWarning = getOpeningWarning({
+                          hoursText: item.description,
+                          startTime: item.startTime,
+                          endTime: item.endTime,
+                        });
+
+                        return (
                         <article className="trip-itinerary-item" key={item._id}>
-                          <div className="trip-item-title-row">
-                            <span>
-                              <MapPin size={16} aria-hidden="true" />
-                              <strong>{item.title}</strong>
+                          <div className="trip-item-card-main">
+                            <span className="trip-itinerary-thumb">
+                              {itemPreviewUrl ? <img src={itemPreviewUrl} alt="" loading="lazy" /> : <MapPin size={20} aria-hidden="true" />}
                             </span>
-                            <button type="button" onClick={() => removeItem(item._id)} aria-label={`Remove ${item.title}`}>
-                              <Trash2 size={15} aria-hidden="true" />
-                            </button>
+                            <div className="trip-item-card-copy">
+                              <div className="trip-item-title-row">
+                                <strong>{item.title}</strong>
+                                <button type="button" onClick={() => removeItem(item._id)} aria-label={`Remove ${item.title}`}>
+                                  <Trash2 size={15} aria-hidden="true" />
+                                </button>
+                              </div>
+                              <p><MapPin size={13} aria-hidden="true" />{item.location?.address || item.description || 'Location details unavailable'}</p>
+                              <div className="trip-item-mini-meta">
+                                {item.startTime || item.endTime ? <span><Clock3 size={12} aria-hidden="true" />{[item.startTime, item.endTime].filter(Boolean).join(' - ')}</span> : null}
+                                <span><DollarSign size={12} aria-hidden="true" />{currency?.formatAmount ? currency.formatAmount(item.priceEstimate?.amount || 0, tripCurrency) : `${item.priceEstimate?.amount || 0} ${tripCurrency}`}</span>
+                              </div>
+                            </div>
                           </div>
-                          <textarea
-                            value={item.description || ''}
-                            onChange={(event) => updateItemNotesLocal(item, event.target.value)}
-                            onBlur={() => saveItemNotes(item._id)}
-                            placeholder="Place notes, booking reference, opening hours, or reminders."
-                          />
-                          <label className="trip-item-cost">
-                            <span><DollarSign size={13} aria-hidden="true" /> Estimated cost</span>
-                            <input
-                              type="number"
-                              min="0"
-                              value={item.priceEstimate?.amount || 0}
-                              onChange={(event) => updateItemPriceLocal(item, event.target.value)}
-                              onBlur={() => saveItemPrice(item._id)}
-                            />
-                            <small>{tripCurrency}</small>
-                          </label>
+                          <div className="trip-item-controls">
+                            <label>
+                              <span>From</span>
+                              <input
+                                type="time"
+                                value={item.startTime || ''}
+                                onChange={(event) => updateItemTimeLocal(item, 'startTime', event.target.value)}
+                                onBlur={() => saveItemTime(item._id)}
+                              />
+                            </label>
+                            <label>
+                              <span>To</span>
+                              <input
+                                type="time"
+                                value={item.endTime || ''}
+                                onChange={(event) => updateItemTimeLocal(item, 'endTime', event.target.value)}
+                                onBlur={() => saveItemTime(item._id)}
+                              />
+                            </label>
+                            <label>
+                              <span>Cost</span>
+                              <input
+                                type="number"
+                                min="0"
+                                value={item.priceEstimate?.amount || 0}
+                                onChange={(event) => updateItemPriceLocal(item, event.target.value)}
+                                onBlur={() => saveItemPrice(item._id)}
+                              />
+                            </label>
+                          </div>
+                          {itemTimeWarning ? (
+                            <p className="trip-opening-warning">
+                              <AlertTriangle size={14} aria-hidden="true" />
+                              {itemTimeWarning}
+                            </p>
+                          ) : null}
                         </article>
-                      ))}
+                        );
+                      })}
                     </section>
                   );
                 })}
@@ -575,7 +769,7 @@ function TripDetailsPage() {
                 <input
                   value={ideaSearch}
                   onChange={(event) => setIdeaSearch(event.target.value)}
-                  placeholder={`Search ${trip.destination || 'this destination'}`}
+                  placeholder={`Search real places near ${recommendationLocation || trip.destination || 'this destination'}`}
                 />
                 <button type="submit" aria-label="Search places">
                   <Search size={16} aria-hidden="true" />
@@ -615,7 +809,9 @@ function TripDetailsPage() {
                     >
                       <div className="trip-idea-card-main">
                         <span className="trip-idea-thumb">
-                          {idea.imageUrl ? <img src={idea.imageUrl} alt="" /> : <Lightbulb size={20} aria-hidden="true" />}
+                          {idea.imageUrl || getOpenStreetMapTileUrl(idea.lat, idea.lng)
+                            ? <img src={idea.imageUrl || getOpenStreetMapTileUrl(idea.lat, idea.lng)} alt="" loading="lazy" />
+                            : <Lightbulb size={20} aria-hidden="true" />}
                         </span>
                         <div>
                           <span className="trip-idea-type">{ideaCategory}</span>
@@ -644,6 +840,14 @@ function TripDetailsPage() {
             </>
           )}
         </aside>
+        <div
+          className="trip-panel-resizer"
+          role="separator"
+          aria-label="Resize trip planner panel"
+          aria-orientation="vertical"
+          tabIndex="0"
+          onPointerDown={startPanelResize}
+        />
 
         <main className="trip-details-map-area">
           <div className="trip-details-map-toolbar">
@@ -667,8 +871,8 @@ function TripDetailsPage() {
               <button className="trip-place-detail-close" type="button" onClick={() => setSelectedIdea(null)} aria-label="Close place details">
                 <X size={18} aria-hidden="true" />
               </button>
-              {selectedIdea.imageUrl ? (
-                <img className="trip-place-detail-image" src={selectedIdea.imageUrl} alt="" loading="lazy" />
+              {selectedIdea.imageUrl || getOpenStreetMapTileUrl(selectedIdea.lat, selectedIdea.lng) ? (
+                <img className="trip-place-detail-image" src={selectedIdea.imageUrl || getOpenStreetMapTileUrl(selectedIdea.lat, selectedIdea.lng)} alt="" loading="lazy" />
               ) : (
                 <div className="trip-place-detail-image trip-place-detail-empty">
                   <Image size={26} aria-hidden="true" />
@@ -702,10 +906,35 @@ function TripDetailsPage() {
                 </dl>
               </div>
               <div className="trip-place-actions">
-                <button type="button" onClick={() => addIdeaToDay(selectedIdea)}>
-                  <Plus size={16} aria-hidden="true" />
-                  Add to Day {activeDay?.dayNumber || 1}
+                <div className="trip-place-time-grid">
+                  <label>
+                    <span>From</span>
+                    <input
+                      type="time"
+                      value={selectedIdeaSchedule.startTime}
+                      onChange={(event) => setSelectedIdeaSchedule((current) => ({ ...current, startTime: event.target.value }))}
+                    />
+                  </label>
+                  <label>
+                    <span>To</span>
+                    <input
+                      type="time"
+                      value={selectedIdeaSchedule.endTime}
+                      onChange={(event) => setSelectedIdeaSchedule((current) => ({ ...current, endTime: event.target.value }))}
+                    />
+                  </label>
+                </div>
+                {selectedIdeaWarning ? (
+                  <p className="trip-opening-warning">
+                    <AlertTriangle size={14} aria-hidden="true" />
+                    {selectedIdeaWarning}
+                  </p>
+                ) : null}
+                <button type="button" onClick={() => addIdeaToDay(selectedIdea)} disabled={isAddingIdea || selectedIdea.fallback || hasInvalidSelectedIdeaTime}>
+                  {isAddingIdea ? <LoaderCircle className="trip-details-spin" size={16} aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />}
+                  {isAddingIdea ? 'Adding...' : 'Add to itinerary'}
                 </button>
+                {selectedIdea.fallback ? <small>Choose a real place result before adding.</small> : null}
               </div>
             </aside>
           ) : null}

@@ -18,18 +18,19 @@ This README is written for team members who are new to the project. Read it befo
 2. [Project Folder Overview](#project-folder-overview)
 3. [First-Time Setup](#first-time-setup)
 4. [Running the Project](#running-the-project)
-5. [Backend Folder Guide](#backend-folder-guide)
-6. [Backend Request Flow](#backend-request-flow)
-7. [How to Add a Backend Feature](#how-to-add-a-backend-feature)
-8. [Frontend Folder Guide](#frontend-folder-guide)
-9. [Frontend Page and Routing Guide](#frontend-page-and-routing-guide)
-10. [How to Add a Frontend Feature](#how-to-add-a-frontend-feature)
-11. [Environment Variables](#environment-variables)
-12. [Testing](#testing)
-13. [Git Workflow for Team Members](#git-workflow-for-team-members)
-14. [What Not to Commit](#what-not-to-commit)
-15. [Useful Local URLs](#useful-local-urls)
-16. [Common Problems](#common-problems)
+5. [LibreTranslate Docker Setup](#libretranslate-docker-setup)
+6. [Backend Folder Guide](#backend-folder-guide)
+7. [Backend Request Flow](#backend-request-flow)
+8. [How to Add a Backend Feature](#how-to-add-a-backend-feature)
+9. [Frontend Folder Guide](#frontend-folder-guide)
+10. [Frontend Page and Routing Guide](#frontend-page-and-routing-guide)
+11. [How to Add a Frontend Feature](#how-to-add-a-frontend-feature)
+12. [Environment Variables](#environment-variables)
+13. [Testing](#testing)
+14. [Git Workflow for Team Members](#git-workflow-for-team-members)
+15. [What Not to Commit](#what-not-to-commit)
+16. [Useful Local URLs](#useful-local-urls)
+17. [Common Problems](#common-problems)
 
 ## Tech Stack
 
@@ -42,7 +43,7 @@ This README is written for team members who are new to the project. Read it befo
 | Authentication | JWT + argon2id |
 | Authorization | RBAC, meaning role-based access control |
 | Security | Helmet, rate limiting, validation, CORS whitelist, dotenv |
-| Third-Party API | OpenWeatherMap, with optional Places API |
+| Third-Party API | OpenWeatherMap, optional Places API, self-hosted LibreTranslate |
 | API Docs | Swagger/OpenAPI |
 | Manual API Testing | Postman |
 | Automated Testing | Jest + Supertest |
@@ -109,35 +110,58 @@ Create frontend `.env` file:
 Copy-Item .env.example .env
 ```
 
-## Setting up concurently:
+Install Docker Desktop:
 
-Navigate to the root folder and create a root package.json:
+```text
+https://docs.docker.com/desktop/setup/install/windows-install/
+```
+
+Docker is required for the local self-hosted LibreTranslate service used by the Language Helper. Team members who do not install Docker can still run most pages, but live translation language options and custom translation will not work locally.
+
+After installing Docker Desktop, open Docker Desktop once and confirm Docker works:
+
+```bash
+docker --version
+docker compose version
+```
+
+## Root Scripts Setup
+
+Return to the root folder and install root dependencies:
 
 ```bash
 cd ..
-npm init -y
+npm install
 ```
 
-Install concurrently:
-
-```bash
-npm install -D concurrently
-```
-
-Add the following into root folder package.json scripts:
+The root `package.json` already includes scripts for backend, frontend, and LibreTranslate:
 
 ```text
 "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
-    "backend": "npm run dev --prefix backend",
-    "frontend": "npm run dev --prefix frontend"
-  },
+  "dev": "concurrently \"npm run dev --prefix backend\" \"npm run dev --prefix frontend\"",
+  "dev:full": "npm run translate:start && npm run translate:wait && npm run dev",
+  "backend": "npm run dev --prefix backend",
+  "frontend": "npm run dev --prefix frontend",
+  "translate:start": "docker compose up -d libretranslate",
+  "translate:restart": "docker compose up -d --force-recreate libretranslate",
+  "translate:wait": "node scripts/wait-for-libretranslate.js",
+  "translate:stop": "docker compose down",
+  "translate:status": "docker compose ps libretranslate",
+  "translate:logs": "docker compose logs -f libretranslate"
+}
 ```
 
 ## Running the Project
 
-Open a terminal in your root folder and run:
+Open Docker Desktop, then open a terminal in the root folder and run:
+
+```bash
+npm run dev:full
+```
+
+This is the recommended local development command. It starts LibreTranslate Docker, waits until translation is ready, then starts the backend and frontend.
+
+If LibreTranslate is already running and only backend/frontend need to restart, run:
 
 ```bash
 npm run dev
@@ -151,7 +175,145 @@ Backend:  http://localhost:5000
 API v1:   http://localhost:5000/api/v1
 Swagger:  http://localhost:5000/api-docs
 Health:   http://localhost:5000/health
+LibreTranslate Docker: http://127.0.0.1:5001
 ```
+
+## LibreTranslate Docker Setup
+
+The Language Helper uses LibreTranslate through the Node.js backend:
+
+```text
+React Frontend
+  -> Node.js Backend API
+  -> LibreTranslate Docker container
+```
+
+This keeps the translation server private and lets the backend handle authentication, rate limiting, caching, and translation history.
+
+The official hosted LibreTranslate cloud API can require a paid API key. The open-source LibreTranslate software is free to self-host. For local development, run it with Docker and leave `LIBRETRANSLATE_API_KEY` blank.
+
+### Install Docker Desktop
+
+All team members should install Docker Desktop if they need to test the Language Helper translation feature locally.
+
+Install Docker Desktop from the official Docker website:
+
+```text
+https://docs.docker.com/desktop/setup/install/windows-install/
+```
+
+After installation:
+
+```bash
+docker --version
+docker compose version
+```
+
+### Start LibreTranslate
+
+From the project root:
+
+```bash
+npm run translate:start
+```
+
+The container exposes LibreTranslate on:
+
+```text
+http://127.0.0.1:5001
+```
+
+Port `5001` is used because the backend already uses port `5000`.
+
+The Docker service loads a focused travel language set by default:
+
+```text
+en,ja,zh,ko,ms,id,th,vi,fr,de,es,it,pt,ru,ar,hi
+```
+
+To customize this later, set `LIBRETRANSLATE_LOAD_ONLY` before running Docker Compose.
+
+Check that LibreTranslate is running:
+
+```bash
+npm run translate:status
+```
+
+Optional API check:
+
+```bash
+curl http://127.0.0.1:5001/languages
+```
+
+### Stop LibreTranslate
+
+```bash
+npm run translate:stop
+```
+
+### Start Everything for Local Development
+
+After Docker Desktop is installed and running, this starts LibreTranslate first, then starts the backend and frontend:
+
+```bash
+npm run dev:full
+```
+
+This command waits until LibreTranslate answers `/languages`, so the Language Helper does not load before the translation service is ready.
+
+Use this as the normal command when starting the full system:
+
+```bash
+npm run dev:full
+```
+
+If LibreTranslate is already running, use the normal app command:
+
+```bash
+npm run dev
+```
+
+View LibreTranslate logs:
+
+```bash
+npm run translate:logs
+```
+
+Recreate LibreTranslate after changing Docker settings:
+
+```bash
+npm run translate:restart
+```
+
+### Backend Environment
+
+In `backend/.env`, use:
+
+```text
+LIBRETRANSLATE_BASE_URL=http://127.0.0.1:5001
+LIBRETRANSLATE_API_KEY=
+LIBRETRANSLATE_DAILY_LIMIT=100
+```
+
+Self-hosted local LibreTranslate does not need an API key unless API key mode is explicitly enabled on the container.
+
+### Future Hosting
+
+For production, keep the same app flow:
+
+```text
+Frontend
+  -> Backend API
+  -> Private LibreTranslate container
+```
+
+If the backend and LibreTranslate run in the same Docker network later, use the service name instead of localhost:
+
+```text
+LIBRETRANSLATE_BASE_URL=http://libretranslate:5000
+```
+
+If LibreTranslate runs on a private VPS, use that private server URL instead.
 
 ## Backend Folder Guide
 
@@ -904,6 +1066,9 @@ REFRESH_JWT_SECRET=your-refresh-token-secret
 REFRESH_JWT_EXPIRES_IN=7d
 OPENWEATHER_API_KEY=your-openweathermap-api-key
 PLACES_API_KEY=optional-places-api-key
+LIBRETRANSLATE_BASE_URL=http://127.0.0.1:5001
+LIBRETRANSLATE_API_KEY=
+LIBRETRANSLATE_DAILY_LIMIT=100
 ```
 
 Frontend environment file:

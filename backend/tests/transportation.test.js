@@ -334,3 +334,104 @@ describe('Transportation flight service', () => {
     expect(result.message).toBe('Flight service is not configured yet.');
   });
 });
+
+describe('Transportation train service', () => {
+  afterEach(() => {
+    jest.resetModules();
+    jest.clearAllMocks();
+  });
+
+  test('adds route-based fallback distance and price estimates to station timetable trains', async () => {
+    jest.resetModules();
+
+    const get = jest
+      .fn()
+      .mockResolvedValueOnce({
+        data: {
+          station_name: 'London Euston',
+          station_code: 'EUS',
+          date: '2026-06-01',
+          departures: {
+            all: [
+              {
+                service: '1A23',
+                train_uid: 'W12345',
+                operator_name: 'Avanti West Coast',
+                origin_name: 'London Euston',
+                destination_name: 'Manchester Piccadilly',
+                aimed_departure_time: '09:00',
+                aimed_arrival_time: '11:10',
+                date: '2026-06-01',
+                service_timetable: {
+                  id: '/train/service/train_uid:W12345/2026-06-01/timetable.json',
+                },
+              },
+            ],
+          },
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          train_uid: 'W12345',
+          operator_name: 'Avanti West Coast',
+          origin_name: 'London Euston',
+          destination_name: 'Manchester Piccadilly',
+          date: '2026-06-01',
+          stops: [
+            {
+              station_name: 'London Euston',
+              station_code: 'EUS',
+              aimed_departure_time: '09:00',
+              date: '2026-06-01',
+            },
+            {
+              station_name: 'Milton Keynes Central',
+              station_code: 'MKC',
+              aimed_arrival_time: '09:35',
+              aimed_departure_time: '09:37',
+              date: '2026-06-01',
+            },
+            {
+              station_name: 'Manchester Piccadilly',
+              station_code: 'MAN',
+              aimed_arrival_time: '11:10',
+              date: '2026-06-01',
+            },
+          ],
+        },
+      });
+
+    jest.doMock('axios', () => ({
+      create: jest.fn(() => ({ get })),
+    }));
+    jest.doMock('../src/config/env', () => ({
+      nodeEnv: 'test',
+      airlabsDailyLimit: 100,
+      transportApiAppId: 'test-app',
+      transportApiAppKey: 'test-key',
+      geminiApiKey: '',
+      geminiDailyLimit: 100,
+    }));
+    jest.doMock('../src/modules/apiLogs/apiLog.service', () => ({
+      recordEvent: jest.fn().mockResolvedValue({}),
+    }));
+    jest.doMock('../src/modules/transportation/transportation.repository', () => ({
+      findValidCache: jest.fn().mockResolvedValue(null),
+      upsertCache: jest.fn().mockResolvedValue({}),
+    }));
+
+    const transportationService = require('../src/modules/transportation/transportation.service');
+    const result = await transportationService.getTrainStationTimetable({
+      stationQuery: 'EUS',
+      departureDate: '2026-06-01',
+    });
+
+    expect(result.available).toBe(true);
+    expect(result.items[0].distanceEstimate.available).toBe(true);
+    expect(result.items[0].distanceEstimate.isFallback).toBe(true);
+    expect(result.items[0].distanceEstimate.display).toMatch(/km$/);
+    expect(result.items[0].priceEstimate.available).toBe(true);
+    expect(result.items[0].priceEstimate.isFallback).toBe(true);
+    expect(result.items[0].priceEstimate.display).toMatch(/^MYR [\d,]+ - [\d,]+$/);
+  });
+});

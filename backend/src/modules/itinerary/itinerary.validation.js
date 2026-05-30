@@ -32,6 +32,8 @@ const updateItemRules = [
   body('title').optional().trim().isLength({ min: 1, max: 160 }),
   body('description').optional().trim().isLength({ max: 2000 }),
   body('scheduledDate').optional().isISO8601(),
+  body('startTime').optional().trim().isLength({ max: 20 }),
+  body('endTime').optional().trim().isLength({ max: 20 }),
   body('priceEstimate.amount').optional().isFloat({ min: 0 }),
   body('priceEstimate.currency').optional().trim().isLength({ min: 3, max: 3 }),
 ];

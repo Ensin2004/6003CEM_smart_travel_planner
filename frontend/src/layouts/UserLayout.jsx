@@ -56,7 +56,7 @@ const userMenu = [
   },
   { to: '/map', label: 'Map', icon: Map },
   { to: '/dashboard#favourite', label: 'Favourite', icon: Heart, header: true },
-  { to: '/dashboard#language-helper', label: 'Language Helper', icon: Languages},
+  { to: '/language-helper', label: 'Language Helper', icon: Languages },
   { to: '/profile', label: 'Settings', icon: Settings, bottom: true, children: settingsChildren },
   { to: '/login', label: 'Logout', icon: LogOut, bottom: true, action: 'logout' },
 ];
