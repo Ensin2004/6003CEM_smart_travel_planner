@@ -31,4 +31,7 @@ module.exports = {
   geminiApiKey: process.env.GEMINI_API_KEY || '',
   geminiModel: process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite',
   geminiDailyLimit: Number(process.env.GEMINI_DAILY_LIMIT || 100),
+  libreTranslateBaseUrl: process.env.LIBRETRANSLATE_BASE_URL || 'http://127.0.0.1:5001',
+  libreTranslateApiKey: process.env.LIBRETRANSLATE_API_KEY || '',
+  libreTranslateDailyLimit: Number(process.env.LIBRETRANSLATE_DAILY_LIMIT || 100),
 };

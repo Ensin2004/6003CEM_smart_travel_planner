@@ -12,6 +12,7 @@ import MapPage from '../features/map/MapPage';
 import TravelGuideDestinationPage from '../features/travelGuide/TravelGuideDestinationPage';
 import TravelGuidePage from '../features/travelGuide/TravelGuidePage';
 import TravelToolsPage from '../features/travelTools/TravelToolsPage';
+import LanguageHelperPage from '../features/languageHelper/LanguageHelperPage';
 import UserSettingsPage from '../features/settings/user/UserSettingsPage';
 import AdminDashboard from '../features/admin/AdminDashboard';
 import ApiLogsPage from '../features/admin/ApiLogsPage';
@@ -42,6 +43,7 @@ function AppRoutes() {
           <Route path="/map" element={<MapPage />} />
           <Route path="/packing-lists" element={<TravelToolsPage mode="packing" />} />
           <Route path="/travel-documents" element={<TravelToolsPage mode="documents" />} />
+          <Route path="/language-helper" element={<LanguageHelperPage />} />
           <Route path="/profile" element={<UserSettingsPage />} />
         </Route>
       </Route>

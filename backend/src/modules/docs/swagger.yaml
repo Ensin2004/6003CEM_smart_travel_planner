@@ -3,6 +3,164 @@ info:
   title: Smart Travel Planner API
   version: 1.0.0
 paths:
+  /api/v1/language/languages:
+    get:
+      summary: List supported manual speech and translation languages
+      tags:
+        - Language
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Supported language options
+          content:
+            application/json:
+              example:
+                status: success
+                message: Success
+                data:
+                  available: true
+                  source: libretranslate
+                  languages:
+                    - id: 6655f6f2b1f1f1f1f1f1f101
+                      code: en
+                      name: English
+                      provider: libretranslate
+        '401':
+          description: Missing or invalid token
+  /api/v1/language/history:
+    get:
+      summary: List the authenticated user's translation history
+      tags:
+        - Language
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+          example: 1
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+          example: 10
+        - in: query
+          name: search
+          required: false
+          schema:
+            type: string
+            maxLength: 120
+          example: hotel
+      responses:
+        '200':
+          description: User translation history
+          content:
+            application/json:
+              example:
+                status: success
+                message: Success
+                data:
+                  history:
+                    items:
+                      - id: 6655f6f2b1f1f1f1f1f1f201
+                        sourceLanguage:
+                          id: 6655f6f2b1f1f1f1f1f1f101
+                          code: en
+                          name: English
+                        targetLanguage:
+                          id: 6655f6f2b1f1f1f1f1f1f102
+                          code: ja
+                          name: Japanese
+                        sourceText: Where is my hotel?
+                        translatedText: 私のホテルはどこですか？
+                        provider: libretranslate
+                        cached: false
+                        createdAt: '2026-05-28T10:00:00.000Z'
+                    pagination:
+                      page: 1
+                      limit: 10
+                      total: 1
+                      totalPages: 1
+        '401':
+          description: Missing or invalid token
+  /api/v1/language/history/{id}:
+    delete:
+      summary: Delete one owned translation history item
+      tags:
+        - Language
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          example: 6655f6f2b1f1f1f1f1f1f201
+      responses:
+        '204':
+          description: Translation history deleted
+        '401':
+          description: Missing or invalid token
+        '404':
+          description: Translation history not found
+  /api/v1/language/translate:
+    post:
+      summary: Translate travel helper text with LibreTranslate
+      tags:
+        - Language
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [text, sourceLanguage, targetLanguage]
+              properties:
+                text:
+                  type: string
+                  maxLength: 1000
+                sourceLanguage:
+                  type: string
+                  example: en
+                targetLanguage:
+                  type: string
+                  example: ja
+            example:
+              text: Where is the nearest train station?
+              sourceLanguage: en
+              targetLanguage: ja
+      responses:
+        '200':
+          description: Translation result or graceful service fallback
+          content:
+            application/json:
+              example:
+                status: success
+                message: Success
+                data:
+                  translation:
+                    available: true
+                    sourceLanguage: en
+                    targetLanguage: ja
+                    originalText: Where is the nearest train station?
+                    translatedText: 最寄りの駅はどこですか？
+                    cached: false
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid token
+        '429':
+          description: Too many translation requests
   /api/v1/travel-guide/countries:
     get:
       summary: List overseas countries for the travel guide directory

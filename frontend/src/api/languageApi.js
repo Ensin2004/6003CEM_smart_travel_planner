@@ -1,4 +1,6 @@
-﻿const TRANSLATE_SCRIPT_ID = 'translate-js-client';
+import axiosClient from './axiosClient';
+
+const TRANSLATE_SCRIPT_ID = 'translate-js-client';
 const TRANSLATE_SCRIPT_SRC = 'https://cdn.staticfile.net/translate.js/3.18.66/translate.js';
 const LANGUAGE_STORAGE_KEY = 'smartTravelPlanner.language';
 
@@ -300,3 +302,19 @@ export const refreshTranslatedContent = () => {
 
   window.setTimeout(refresh, 0);
 };
+
+export const getLanguageHelperLanguages = () => axiosClient.get('/language/languages');
+
+export const translateLanguageHelperText = ({ sourceLanguage, targetLanguage, text }) =>
+  axiosClient.post('/language/translate', {
+    sourceLanguage,
+    targetLanguage,
+    text,
+  });
+
+export const getLanguageHelperHistory = ({ page = 1, limit = 10, search = '' } = {}) =>
+  axiosClient.get('/language/history', {
+    params: { page, limit, search },
+  });
+
+export const deleteLanguageHelperHistory = (id) => axiosClient.delete(`/language/history/${id}`);
