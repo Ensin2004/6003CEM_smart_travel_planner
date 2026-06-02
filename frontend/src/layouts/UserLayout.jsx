@@ -17,7 +17,6 @@ import {
   MapPinned,
   Plane,
   Settings,
-  Sparkles,
   Utensils,
 } from 'lucide-react';
 import { sections as settingsSections } from '../features/settings/shared/settings.constants';
@@ -41,7 +40,6 @@ const userMenu = [
     label: 'Explore',
     icon: Compass,
     children: [
-      { to: '/explore?view=discover', label: 'AI Discovery', icon: Sparkles },
       { to: '/explore?view=attractions', label: 'Attractions', icon: MapPinned },
       { to: '/explore?view=food', label: 'Restaurants / Food', icon: Utensils },
       { to: '/explore?view=hotels', label: 'Hotels / Rooms', icon: Building2 },

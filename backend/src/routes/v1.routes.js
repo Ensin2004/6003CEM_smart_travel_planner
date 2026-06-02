@@ -5,6 +5,7 @@
 const express = require('express');
 
 const authRoutes = require('../modules/auth/auth.routes');
+const aiAssistantRoutes = require('../modules/aiAssistant/aiAssistant.routes');
 const userRoutes = require('../modules/users/user.routes');
 const tripRoutes = require('../modules/trips/trip.routes');
 const exploreRoutes = require('../modules/explore/explore.routes');
@@ -31,6 +32,7 @@ router.get('/', (req, res) => {
     message: 'Smart Travel Planner API v1',
     endpoints: [
       '/auth',
+      '/ai',
       '/users',
       '/trips',
       '/packing-lists',
@@ -54,6 +56,7 @@ router.get('/', (req, res) => {
 
 // Route section connects URL patterns with validation, authentication, and controller actions.
 router.use('/auth', authRoutes);
+router.use('/ai', aiAssistantRoutes);
 router.use('/users', userRoutes);
 
 // Route section connects URL patterns with validation, authentication, and controller actions.

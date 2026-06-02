@@ -56,8 +56,10 @@ function PlaceSearchWorkspace({
   ratedCount,
   resultCount,
   searchConfig,
+  selectedFoodCategory,
   selectedFoodCategoryLabel,
   selectedRoomLabel,
+  selectedRoomType,
   stateOptions,
   status,
   topRatedCount,
@@ -71,6 +73,11 @@ function PlaceSearchWorkspace({
   const cardType = isHotelsView ? 'hotels' : isFoodView ? 'food' : 'attractions';
   const visitedType = isHotelsView ? 'hotel' : isFoodView ? 'restaurant' : 'attraction';
   const visitedSource = `explore-${cardType}`;
+  const searchClassName = isHotelsView
+    ? 'explore-search explore-search-hotels'
+    : isFoodView
+      ? 'explore-search explore-search-restaurants'
+      : 'explore-search explore-search-attractions';
 
   useEffect(() => {
     let isActive = true;
@@ -99,79 +106,96 @@ function PlaceSearchWorkspace({
 
   return (
     <div className="explore-workspace">
-      <form className={isFilteredSearchView ? 'explore-search explore-search-hotels' : 'explore-search'} onSubmit={handleSearch}>
+      <form className={searchClassName} onSubmit={handleSearch}>
         <div className="explore-search-copy">
           <span>{searchConfig.finderLabel}</span>
           <strong>{searchConfig.searchTitle}</strong>
         </div>
-        <label>
-          <span className="sr-only">Destination</span>
-          <Search size={18} aria-hidden="true" />
-          <input
-            type="search"
-            value={destination}
-            onChange={(event) => updateDestinationQuery(event.target.value)}
-            placeholder={isHotelsView ? 'Hotel, country or location' : isFoodView ? 'Restaurant, country or location' : 'Tokyo, Paris, Kuala Lumpur'}
-          />
-        </label>
-        <label>
-          <span className="sr-only">Travel date</span>
-          <CalendarDays size={18} aria-hidden="true" />
-          <input
-            type="date"
-            value={travelDate}
-            min={getDateKey()}
-            max={getMaxWeatherDate()}
-            onChange={(event) => handleTravelDateChange(event.target.value)}
-          />
-        </label>
-        {isFilteredSearchView && (
-          <div className="explore-filter-row" aria-label={isHotelsView ? 'Hotel filters' : 'Restaurant filters'}>
-            <label className="explore-filter-field">
-              <span className="sr-only">Country</span>
-              <select
-                value={activeFilters.countryCode}
-                onChange={(event) => handleCountryChange(event.target.value, isFoodView ? 'restaurant' : 'hotel')}
-              >
-                <option value="">Country</option>
-                {countryOptions.map((country) => (
-                  <option key={country.isoCode} value={country.isoCode}>
-                    {country.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="explore-filter-field">
-              <span className="sr-only">Location or state</span>
-              <select
-                value={activeFilters.state}
-                onChange={(event) => updateFilterField('state', event.target.value)}
-                disabled={!activeFilters.countryCode}
-              >
-                <option value="">State</option>
-                {stateOptions.map((state) => (
-                  <option key={state.isoCode} value={state.name}>
-                    {state.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="explore-filter-field">
-              <span className="sr-only">{isFoodView ? 'Food category' : 'Room type'}</span>
-              <select
-                value={isFoodView ? activeFilters.foodCategory : activeFilters.roomType}
-                onChange={(event) => updateFilterField(isFoodView ? 'foodCategory' : 'roomType', event.target.value)}
-              >
-                {(isFoodView ? foodCategoryOptions : roomTypeOptions).map((option) => (
-                  <option key={option.value || (isFoodView ? 'any-food' : 'any-room')} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
+        <div className="explore-search-field explore-search-destination">
+          <span className="explore-field-label">Search</span>
+          <label>
+            <span className="sr-only">Destination</span>
+            <Search size={18} aria-hidden="true" />
+            <input
+              type="search"
+              value={destination}
+              onChange={(event) => updateDestinationQuery(event.target.value)}
+              placeholder={isHotelsView ? 'Hotel, country or location' : isFoodView ? 'Restaurant, country or location' : 'Tokyo, Paris, Kuala Lumpur'}
+            />
+          </label>
+        </div>
+        {!isHotelsView && (
+          <div className="explore-search-field explore-search-date">
+            <span className="explore-field-label">Travel date</span>
+            <label>
+              <span className="sr-only">Travel date</span>
+              <CalendarDays size={18} aria-hidden="true" />
+              <input
+                type="date"
+                value={travelDate}
+                min={getDateKey()}
+                max={getMaxWeatherDate()}
+                onChange={(event) => handleTravelDateChange(event.target.value)}
+              />
             </label>
           </div>
         )}
-        <button className="primary-action" type="submit" disabled={isSearching}>
+        {isFilteredSearchView && (
+          <div className="explore-filter-row explore-search-filters" aria-label={isHotelsView ? 'Hotel filters' : 'Restaurant filters'}>
+            <div className="explore-filter-control">
+              <span className="explore-field-label">Country</span>
+              <label className="explore-filter-field">
+                <span className="sr-only">Country</span>
+                <select
+                  value={activeFilters.countryCode}
+                  onChange={(event) => handleCountryChange(event.target.value, isFoodView ? 'restaurant' : 'hotel')}
+                >
+                  <option value="">Country</option>
+                  {countryOptions.map((country) => (
+                    <option key={country.isoCode} value={country.isoCode}>
+                      {country.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="explore-filter-control">
+              <span className="explore-field-label">State</span>
+              <label className="explore-filter-field">
+                <span className="sr-only">Location or state</span>
+                <select
+                  value={activeFilters.state}
+                  onChange={(event) => updateFilterField('state', event.target.value)}
+                  disabled={!activeFilters.countryCode}
+                >
+                  <option value="">State</option>
+                  {stateOptions.map((state) => (
+                    <option key={state.isoCode} value={state.name}>
+                      {state.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+            <div className="explore-filter-control">
+              <span className="explore-field-label">{isFoodView ? 'Food category' : 'Room type'}</span>
+              <label className="explore-filter-field">
+                <span className="sr-only">{isFoodView ? 'Food category' : 'Room type'}</span>
+                <select
+                  value={isFoodView ? activeFilters.foodCategory : activeFilters.roomType}
+                  onChange={(event) => updateFilterField(isFoodView ? 'foodCategory' : 'roomType', event.target.value)}
+                >
+                  {(isFoodView ? foodCategoryOptions : roomTypeOptions).map((option) => (
+                    <option key={option.value || (isFoodView ? 'any-food' : 'any-room')} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </div>
+        )}
+        <button className="primary-action explore-search-action" type="submit" disabled={isSearching}>
           {isSearching ? <LoaderCircle className="explore-spin" size={17} aria-hidden="true" /> : <Search size={17} aria-hidden="true" />}
           {isSearching ? 'Searching...' : 'Search'}
         </button>
@@ -315,9 +339,9 @@ function PlaceSearchWorkspace({
             activeItems.map((item, index) => (
               <PlaceCard
                 categoryLabel={
-                  isHotelsView && activeFilters.roomType
+                  isHotelsView && selectedRoomType
                     ? selectedRoomLabel
-                    : isFoodView && activeFilters.foodCategory
+                    : isFoodView && selectedFoodCategory
                       ? selectedFoodCategoryLabel
                       : item.category
                 }

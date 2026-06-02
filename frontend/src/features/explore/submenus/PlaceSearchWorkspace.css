@@ -4,9 +4,11 @@
  */
 .explore-search {
   display: grid;
-  grid-template-columns: minmax(150px, 210px) minmax(0, 1fr) minmax(170px, 190px) auto;
   gap: 14px;
   align-items: center;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   overflow: visible;
   border: 1px solid rgba(15, 118, 110, 0.14);
   border-radius: 8px;
@@ -14,14 +16,61 @@
   padding: 14px;
   box-shadow: 0 8px 18px rgba(16, 42, 67, 0.035);
 }
+.explore-search-attractions {
+  grid-template-columns: minmax(150px, 210px) minmax(0, 1fr) minmax(170px, 190px) minmax(150px, 220px);
+  grid-template-areas: "copy destination date action";
+}
 .explore-search-hotels {
-  grid-template-columns: minmax(120px, 150px) minmax(180px, 0.8fr) minmax(160px, 180px) minmax(420px, 1.35fr) auto;
-  column-gap: 10px;
+  grid-template-columns: minmax(110px, 145px) minmax(240px, 1fr) minmax(0, 1.15fr) minmax(120px, 150px);
+  grid-template-areas: "copy destination filters action";
+  column-gap: 12px;
+  padding-left: 10px;
+}
+.explore-search-restaurants {
+  grid-template-columns: minmax(110px, 145px) minmax(220px, 0.85fr) minmax(160px, 180px) minmax(0, 1.15fr) minmax(104px, 128px);
+  grid-template-areas: "copy destination date filters action";
+  column-gap: 12px;
+  padding-left: 10px;
 }
 .explore-search-copy {
+  grid-area: copy;
   display: grid;
   gap: 4px;
   min-width: 0;
+}
+
+.explore-search-destination {
+  grid-area: destination;
+}
+
+.explore-search-date {
+  grid-area: date;
+}
+
+.explore-search-filters {
+  grid-area: filters;
+}
+
+.explore-search-action {
+  grid-area: action;
+  align-self: end;
+}
+
+.explore-search-field,
+.explore-filter-control {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.explore-field-label {
+  overflow: hidden;
+  color: var(--teal);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .explore-search-copy span,
@@ -46,7 +95,8 @@
   display: flex;
   gap: 9px;
   align-items: center;
-  min-height: 48px;
+  min-width: 0;
+  min-height: 46px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #ffffff;
@@ -85,21 +135,40 @@
 }
 .explore-filter-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(104px, 1fr));
   gap: 10px;
   min-width: 0;
 }
 
+.explore-filter-field {
+  min-width: 0;
+  padding-inline: 10px;
+}
+
 .explore-filter-field select {
   max-height: 42vh;
+  overflow: hidden;
+  padding-right: 6px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .explore-search .primary-action {
   gap: 8px;
-  min-height: 48px;
+  min-width: 0;
+  min-height: 46px;
   padding-inline: 20px;
   font-weight: 650;
   box-shadow: 0 6px 14px rgba(15, 118, 110, 0.13);
+}
+
+.explore-search-hotels .primary-action {
+  padding-inline: 14px;
+}
+
+.explore-search-restaurants .primary-action {
+  padding-inline: 10px;
 }
 
 .explore-briefing,
@@ -468,11 +537,40 @@
   opacity: 0.72;
 }
 
+@media (max-width: 1320px) {
+  .explore-search-restaurants {
+    grid-template-columns: minmax(110px, 145px) minmax(220px, 1fr) minmax(160px, 180px) minmax(104px, 128px);
+    grid-template-areas:
+      "copy destination date action"
+      ". filters filters filters";
+  }
+}
+
+@media (max-width: 1120px) {
+  .explore-search-hotels {
+    grid-template-columns: minmax(110px, 145px) minmax(220px, 1fr) minmax(120px, 150px);
+    grid-template-areas:
+      "copy destination action"
+      ". filters filters";
+  }
+}
+
 @media (max-width: 900px) {
   .explore-search,
   .explore-search-hotels,
+  .explore-search-restaurants,
+  .explore-search-attractions,
   .explore-guidance-grid {
     grid-template-columns: 1fr;
+    grid-template-areas: none;
+  }
+
+  .explore-search-copy,
+  .explore-search-destination,
+  .explore-search-date,
+  .explore-search-filters,
+  .explore-search-action {
+    grid-area: auto;
   }
 
   .explore-results-heading {

@@ -6,6 +6,7 @@ const express = require('express');
 const exploreController = require('./explore.controller');
 const {
   aiRecommendationRules,
+  attractionDetailRules,
   attractionRules,
   hotelDetailRules,
   hotelRules,
@@ -30,6 +31,16 @@ router.get(
 );
 //  route wires  to validation, access checks, and controller logic.
 router.get('/attractions', protect, thirdPartyApiRateLimit, attractionRules, validate, exploreController.getAttractions);
+
+// Route section connects URL patterns with validation, authentication, and controller actions.
+router.get(
+  '/attractions/detail',
+  protect,
+  thirdPartyApiRateLimit,
+  attractionDetailRules,
+  validate,
+  exploreController.getAttractionDetail
+);
 
 // Route section connects URL patterns with validation, authentication, and controller actions.
 router.get(

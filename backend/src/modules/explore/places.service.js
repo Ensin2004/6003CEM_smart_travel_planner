@@ -2,6 +2,7 @@
  * Explore module.
  * Business rules, repository access, and external integrations live in this layer.
  */
+const axios = require('axios');
 const env = require('../../config/env');
 const {
   getGoogleMapsFailureMessage,
@@ -10,6 +11,7 @@ const {
   normalizePlaceItem,
   recordGoogleMapsFailure,
   searchGoogleMaps,
+  searchGoogleMapsReviews,
 } = require('./googleMaps.service');
 
 const attractionsCache = new Map();
@@ -51,4 +53,133 @@ const getAttractionsByDestination = async (destination, start = 0) => {
     return fallbackAttractions(destination, message);
   }
 };
-module.exports = { getAttractionsByDestination };
+const getWikipediaPageSummary = async (title) => {
+  const normalizedTitle = encodeURIComponent(title.trim().replace(/\s+/g, '_'));
+  const response = await axios.get(`https://en.wikipedia.org/api/rest_v1/page/summary/${normalizedTitle}`, {
+    timeout: 7000,
+    headers: {
+      accept: 'application/json',
+      'User-Agent': 'SmartTravelPlanner/1.0',
+    },
+  });
+
+  return {
+    available: Boolean(response.data?.extract),
+    title: response.data?.title || title,
+    extract: response.data?.extract || '',
+    url: response.data?.content_urls?.desktop?.page || '',
+  };
+};
+const searchWikipediaTitle = async (query) => {
+  const response = await axios.get('https://en.wikipedia.org/w/api.php', {
+    timeout: 7000,
+    params: {
+      action: 'query',
+      list: 'search',
+      srsearch: query,
+      srlimit: 1,
+      format: 'json',
+      origin: '*',
+    },
+    headers: {
+      accept: 'application/json',
+      'User-Agent': 'SmartTravelPlanner/1.0',
+    },
+  });
+
+  return response.data?.query?.search?.[0]?.title || '';
+};
+const getAddressSearchHint = (address = '') =>
+  address
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .slice(-3)
+    .join(' ');
+const getWikipediaSummary = async (name, address = '') => {
+  if (!name) {
+    return { available: false, extract: '', url: '', title: '' };
+  }
+  try {
+    return await getWikipediaPageSummary(name);
+  } catch {
+    try {
+      const searchHint = getAddressSearchHint(address);
+      const title = await searchWikipediaTitle([name, searchHint].filter(Boolean).join(' '));
+
+      if (title) {
+        return await getWikipediaPageSummary(title);
+      }
+    } catch {
+      // Fall through to the friendly unavailable message.
+    }
+  }
+
+  return {
+    available: false,
+    title: name,
+    extract:
+      'Wikipedia does not have a matching article for this attraction yet. Try the Google listing for official details, tickets, hours, and visitor information.',
+    url: '',
+  };
+};
+const getAttractionDetail = async ({ name, address, dataId, placeId }) => {
+  const fallbackName = name || 'Selected attraction';
+  const baseAttraction = {
+    available: Boolean(name),
+    item: {
+      id: String(placeId || dataId || fallbackName),
+      placeId: placeId || '',
+      dataId: dataId || '',
+      name: fallbackName,
+      category: 'Attraction',
+      address: address || '',
+    },
+    description: await getWikipediaSummary(fallbackName, address),
+    reviews: {
+      available: false,
+      message: dataId || placeId ? 'Google reviews are temporarily unavailable.' : 'Google review identifier is unavailable.',
+      items: [],
+    },
+  };
+  if (!env.serpApiKey || env.nodeEnv === 'test') {
+    return {
+      ...baseAttraction,
+      message: 'SerpApi key is not configured',
+    };
+  }
+  try {
+    const query = [fallbackName, address].filter(Boolean).join(' ');
+    const details = await searchGoogleMaps({
+      cache: new Map(),
+      cacheKey: `attraction-detail:${query}:${dataId || ''}:${placeId || ''}`.toLowerCase(),
+      query,
+      metadata: { category: 'Attraction' },
+      mapItem: normalizeAttraction,
+    });
+    const item = details.items?.[0] || baseAttraction.item;
+    const reviews = await searchGoogleMapsReviews({
+      dataId: dataId || item.dataId,
+      placeId: placeId || item.placeId,
+    });
+
+    return {
+      available: true,
+      item: {
+        ...baseAttraction.item,
+        ...item,
+      },
+      description: baseAttraction.description,
+      reviews,
+      lastUpdated: new Date().toISOString(),
+    };
+  } catch (error) {
+    const { message, statusCode } = getGoogleMapsFailureMessage(error);
+    recordGoogleMapsFailure('attraction-detail', message, statusCode, { name, address, dataId, placeId });
+    return {
+      ...baseAttraction,
+      message,
+    };
+  }
+};
+module.exports = { getAttractionDetail, getAttractionsByDestination };
