@@ -4,10 +4,13 @@
  */
 import {
   Bell,
+  Bot,
   ChevronDown,
   Heart,
+  LoaderCircle,
   LogOut,
   Menu,
+  Send,
   Settings,
   User,
   WalletCards,
@@ -22,6 +25,7 @@ import {
   loadTranslateClient,
   refreshTranslatedContent,
 } from '../api/languageApi';
+import { sendAiChatPrompt } from '../api/aiAssistantApi';
 import logo from '../assets/logo.png';
 import AppSidebarNav from '../components/AppSidebarNav';
 import SubmenuPanel from '../components/SubmenuPanel';
@@ -41,6 +45,11 @@ function AppLayout({ role, menuItems }) {
   const [isLanguagePickerOpen, setIsLanguagePickerOpen] = useState(false);
   const [isCurrencyPickerOpen, setIsCurrencyPickerOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isAiChatOpen, setIsAiChatOpen] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiMessages, setAiMessages] = useState([]);
+  const [aiError, setAiError] = useState('');
+  const [isAiSubmitting, setIsAiSubmitting] = useState(false);
   const languagePickerRef = useRef(null);
   const currencyPickerRef = useRef(null);
   const profileMenuRef = useRef(null);
@@ -181,6 +190,57 @@ function AppLayout({ role, menuItems }) {
     }
 
     setCollapsedSubmenuTo((current) => (current === activeSubmenu.to ? null : activeSubmenu.to));
+  };
+  const openNewAiChat = () => {
+    setAiPrompt('');
+    setAiMessages([]);
+    setAiError('');
+    setIsAiChatOpen(true);
+  };
+  const handleAiFloatingClick = () => {
+    if (isAiChatOpen) {
+      setIsAiChatOpen(false);
+      return;
+    }
+
+    openNewAiChat();
+  };
+  const handleAiChatSubmit = async (event) => {
+    event.preventDefault();
+    const prompt = aiPrompt.trim();
+
+    if (!prompt || isAiSubmitting) {
+      return;
+    }
+
+    setAiPrompt('');
+    setAiError('');
+    setIsAiSubmitting(true);
+    const userMessage = { role: 'user', text: prompt };
+    setAiMessages((currentMessages) => [...currentMessages, userMessage]);
+
+    try {
+      const response = await sendAiChatPrompt({
+        prompt,
+        page: currentUrl || location.pathname,
+      });
+      const reply = response.data.data.reply;
+      const assistantMessage = {
+        role: 'assistant',
+        text: reply.answer,
+        available: reply.available,
+      };
+
+      setAiMessages((currentMessages) => [...currentMessages, assistantMessage]);
+    } catch (requestError) {
+      const message = requestError.response?.data?.message || 'Unable to reach Gemini chat right now.';
+      const assistantMessage = { role: 'assistant', text: message, available: false };
+
+      setAiError(message);
+      setAiMessages((currentMessages) => [...currentMessages, assistantMessage]);
+    } finally {
+      setIsAiSubmitting(false);
+    }
   };
   return (
     <div
@@ -489,6 +549,75 @@ function AppLayout({ role, menuItems }) {
           <Outlet />
         </main>
       </div>
+
+      {!isAdmin && (
+        <>
+          <button
+            className="app-ai-floating"
+            type="button"
+            aria-label="Ask AI"
+            aria-expanded={isAiChatOpen}
+            onClick={handleAiFloatingClick}
+          >
+            <Bot size={20} aria-hidden="true" />
+            <span>Ask AI</span>
+          </button>
+
+          {isAiChatOpen && (
+            <section className="app-ai-chat" aria-label="Gemini chat prompt">
+              <div className="app-ai-chat-header">
+                <div>
+                  <span>Gemini chat</span>
+                  <strong>Ask AI</strong>
+                </div>
+                <button type="button" onClick={() => setIsAiChatOpen(false)} aria-label="Close AI chat">
+                  <X size={18} aria-hidden="true" />
+                </button>
+              </div>
+
+              <div className="app-ai-chat-body" aria-live="polite">
+                {aiMessages.length === 0 ? (
+                  <p className="app-ai-chat-empty">Ask for help with itineraries, packing, documents, places, transport, or anything else in your trip.</p>
+                ) : (
+                  aiMessages.map((message, index) => (
+                    <article
+                      className={`app-ai-message ${message.role === 'user' ? 'is-user' : 'is-assistant'} ${message.available === false ? 'is-muted' : ''}`}
+                      key={`${message.role}-${index}`}
+                    >
+                      <span>{message.role === 'user' ? 'You' : 'Gemini'}</span>
+                      <p>{message.text}</p>
+                    </article>
+                  ))
+                )}
+                {isAiSubmitting && (
+                  <article className="app-ai-message is-assistant">
+                    <span>Gemini</span>
+                    <p><LoaderCircle className="app-ai-spin" size={15} aria-hidden="true" /> Thinking...</p>
+                  </article>
+                )}
+                {aiError && <p className="app-ai-error">{aiError}</p>}
+              </div>
+
+              <form className="app-ai-chat-form" onSubmit={handleAiChatSubmit}>
+                <label>
+                  <span className="sr-only">AI prompt</span>
+                  <textarea
+                    value={aiPrompt}
+                    rows="3"
+                    maxLength={2000}
+                    placeholder="Ask Gemini about your trip..."
+                    onChange={(event) => setAiPrompt(event.target.value)}
+                  />
+                </label>
+                <button type="submit" disabled={!aiPrompt.trim() || isAiSubmitting}>
+                  {isAiSubmitting ? <LoaderCircle className="app-ai-spin" size={17} aria-hidden="true" /> : <Send size={17} aria-hidden="true" />}
+                  Send
+                </button>
+              </form>
+            </section>
+          )}
+        </>
+      )}
     </div>
   );
 }

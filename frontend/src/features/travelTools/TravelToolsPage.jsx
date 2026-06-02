@@ -4,7 +4,6 @@
  */
 import {
   Bell,
-  Bot,
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
@@ -867,11 +866,6 @@ function PackingListTools() {
           )}
         </div>
       </div>
-
-      <button className="travel-tools-ai-floating" type="button" disabled>
-        <Bot size={20} aria-hidden="true" />
-        <span>Ask AI</span>
-      </button>
 
       {itemModalMode && (
         <div className="travel-tools-modal-backdrop" role="presentation">
@@ -2222,10 +2216,6 @@ function TravelDocumentTools() {
         </div>
       )}
 
-      <button className="travel-tools-ai-floating" type="button" disabled>
-        <Bot size={20} aria-hidden="true" />
-        <span>Ask AI</span>
-      </button>
     </TravelToolsPageFrame>
   );
 }

@@ -3,14 +3,14 @@
  * Reusable labels, keys, and defaults stay centralized for feature code.
  */
 export const roomTypeOptions = [
-  { value: '', label: 'Any room' },
+  { value: '', label: 'Any' },
   { value: 'single room', label: 'Single' },
   { value: 'double room', label: 'Double' },
   { value: 'family room', label: 'Family' },
   { value: 'suite', label: 'Suite' },
 ];
 export const foodCategoryOptions = [
-  { value: '', label: 'Any food' },
+  { value: '', label: 'Any' },
   { value: 'chinese cuisine', label: 'Chinese cuisine' },
   { value: 'japanese cuisine', label: 'Japanese cuisine' },
   { value: 'korean cuisine', label: 'Korean cuisine' },

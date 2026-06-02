@@ -9,6 +9,7 @@ import { addFavorite } from '../../../api/favoriteApi';
 import { getHotelDetails } from '../../../api/exploreApi';
 import { getErrorMessage } from '../explore.helpers';
 import './SharedDetailPage.css';
+
 const getPrimaryImage = (hotel = {}) => hotel.imageUrl || hotel.imageUrls?.[0] || '';
 const getHotelFavoriteKey = (hotel = {}) =>
   String(hotel.dataId || hotel.placeId || hotel.id || hotel.name || '')
@@ -32,11 +33,14 @@ function HotelDetailPage() {
   );
   const [reviewSearch, setReviewSearch] = useState('');
   const [minRating, setMinRating] = useState('all');
+
   useEffect(() => {
     let isActive = true;
+
     const loadHotel = async () => {
       setIsLoading(true);
       setError('');
+
       try {
         const searchParams = new URLSearchParams(location.search);
         const response = await getHotelDetails({
@@ -65,6 +69,7 @@ function HotelDetailPage() {
       isActive = false;
     };
   }, [location.search, stateHotel]);
+
   const filteredReviews = useMemo(() => {
     const query = reviewSearch.trim().toLowerCase();
     const ratingFloor = minRating === 'all' ? 0 : Number(minRating);
@@ -78,8 +83,10 @@ function HotelDetailPage() {
       return matchesRating && matchesText;
     });
   }, [minRating, reviewSearch, reviews]);
+
   const handleFavorite = async () => {
     if (!hotel || isFavorite) return;
+
     try {
       await addFavorite({
         type: 'hotel',
@@ -109,6 +116,7 @@ function HotelDetailPage() {
         favoriteHotelKeys,
       }
     : null;
+
   return (
     <section className="shared-detail-page">
       <button

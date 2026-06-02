@@ -82,7 +82,9 @@ function PlaceCard({
   const openStatus = getOpenStatus(item.openState);
   const isHotelCard = type === 'hotels';
   const isFoodCard = type === 'food' || type === 'restaurants';
-  const isFavoriteEnabled = isHotelCard || isFoodCard;
+  const isAttractionCard = type === 'attractions';
+  const isDetailEnabled = isHotelCard || isFoodCard || isAttractionCard;
+  const isFavoriteEnabled = isHotelCard || isFoodCard || isAttractionCard;
   const visitedType = isHotelCard ? 'hotel' : isFoodCard ? 'restaurant' : type === 'food' ? 'food' : 'attraction';
   const visitedPayload = getVisitedPlacePayload({
     item,
@@ -104,7 +106,7 @@ function PlaceCard({
     setIsFavorite(isInitiallyFavorite);
   }, [isInitiallyFavorite]);
   const handleOpenDetails = () => {
-    if (!isFavoriteEnabled) return;
+    if (!isDetailEnabled) return;
 
     const params = new URLSearchParams({
       name: item.name || '',
@@ -112,8 +114,12 @@ function PlaceCard({
       dataId: item.dataId || '',
       placeId: item.placeId || '',
     });
-    const detailPath = isHotelCard ? '/explore/hotels/detail' : '/explore/restaurants/detail';
-    const stateKey = isHotelCard ? 'hotel' : 'restaurant';
+    const detailPath = isHotelCard
+      ? '/explore/hotels/detail'
+      : isFoodCard
+        ? '/explore/restaurants/detail'
+        : '/explore/attractions/detail';
+    const stateKey = isHotelCard ? 'hotel' : isFoodCard ? 'restaurant' : 'attraction';
 
     navigate(`${detailPath}?${params.toString()}`, {
       state: {
@@ -130,7 +136,7 @@ function PlaceCard({
 
     setIsSavingFavorite(true);
     try {
-      const favoriteType = isHotelCard ? 'hotel' : 'restaurant';
+      const favoriteType = isHotelCard ? 'hotel' : isFoodCard ? 'restaurant' : 'attraction';
       await addFavorite({
         type: favoriteType,
         title: item.name,
@@ -140,7 +146,7 @@ function PlaceCard({
         priceLevel: originalPriceText || item.priceDetail?.display || item.price,
         rating: item.rating,
         externalId: item.dataId || item.placeId || item.id || item.name,
-        source: isHotelCard ? 'explore-hotels' : 'explore-food',
+        source: isHotelCard ? 'explore-hotels' : isFoodCard ? 'explore-food' : 'explore-attractions',
       });
       setIsFavorite(true);
       onFavoriteChange?.(item);
@@ -152,12 +158,12 @@ function PlaceCard({
   };
   return (
     <article
-      className={`explore-attraction ${isFavoriteEnabled ? 'is-clickable' : ''}`}
+      className={`explore-attraction ${isDetailEnabled ? 'is-clickable' : ''}`}
       onClick={handleOpenDetails}
-      role={isFavoriteEnabled ? 'button' : undefined}
-      tabIndex={isFavoriteEnabled ? 0 : undefined}
+      role={isDetailEnabled ? 'button' : undefined}
+      tabIndex={isDetailEnabled ? 0 : undefined}
       onKeyDown={(event) => {
-        if (isFavoriteEnabled && (event.key === 'Enter' || event.key === ' ')) {
+        if (isDetailEnabled && (event.key === 'Enter' || event.key === ' ')) {
           event.preventDefault();
           handleOpenDetails();
         }
@@ -191,17 +197,6 @@ function PlaceCard({
           <div className="explore-card-category-row">
             <span className="explore-category">{categoryLabel || item.category || item.type || 'Place'}</span>
             <div className="explore-card-actions">
-              {isFavoriteEnabled && (
-                <button
-                  className={`explore-favorite-button ${isFavorite ? 'active' : ''}`}
-                  type="button"
-                  aria-label={isFavorite ? 'Hotel saved to favorites' : 'Add hotel to favorites'}
-                  disabled={isSavingFavorite}
-                  onClick={handleFavoriteClick}
-                >
-                  <Heart size={17} fill={isFavorite ? 'currentColor' : 'none'} />
-                </button>
-              )}
               <VisitedPlaceControl
                 compact
                 payload={visitedPayload}
@@ -210,7 +205,22 @@ function PlaceCard({
               />
             </div>
           </div>
-          <h3>{item.name}</h3>
+          <div className="explore-card-name-row">
+            <h3>{item.name}</h3>
+            <div className="explore-card-actions">
+              {isFavoriteEnabled && (
+                <button
+                  className={`explore-favorite-button ${isFavorite ? 'active' : ''}`}
+                  type="button"
+                  aria-label={isFavorite ? 'Place saved to favorites' : 'Add place to favorites'}
+                  disabled={isSavingFavorite}
+                  onClick={handleFavoriteClick}
+                >
+                  <Heart size={17} fill={isFavorite ? 'currentColor' : 'none'} />
+                </button>
+              )}
+            </div>
+          </div>
         </div>
 
         <div className="explore-card-rating">

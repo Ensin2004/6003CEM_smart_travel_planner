@@ -154,7 +154,6 @@
   margin: 0;
 }
 
-.travel-tools-ai-top,
 .travel-tools-actions button,
 .travel-tools-item-list article > button,
 .travel-tools-templates button {
@@ -166,19 +165,6 @@
   font-weight: var(--font-weight-semibold);
 }
 
-.travel-tools-ai-top {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  min-height: 42px;
-  padding: 0 14px;
-  color: #0f766e;
-  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
-}
-
-.travel-tools-ai-top:disabled,
-.travel-tools-ai-floating:disabled,
 .travel-tools-actions .primary-action:disabled,
 .travel-tools-modal-actions .primary-action:disabled,
 .travel-tools-add-row .primary-action:disabled {
@@ -1744,25 +1730,6 @@
   color: var(--muted);
 }
 
-.travel-tools-ai-floating {
-  position: fixed;
-  right: 28px;
-  bottom: 28px;
-  z-index: 4;
-  display: inline-flex;
-  align-items: center;
-  gap: 9px;
-  min-height: 48px;
-  padding: 0 18px;
-  border: 1px solid rgba(15, 118, 110, 0.25);
-  border-radius: 999px;
-  background: var(--color-primary);
-  color: #ffffff;
-  font: inherit;
-  font-weight: var(--font-weight-bold);
-  box-shadow: 0 8px 18px rgba(15, 118, 110, 0.16);
-}
-
 .travel-tools-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -2081,15 +2048,6 @@
   border-color: rgba(217, 226, 236, 0.9);
 }
 
-.travel-tools-enhanced-page .travel-tools-ai-top,
-.travel-tools-enhanced-page .travel-tools-ai-floating {
-  background: #2563eb;
-  border-color: rgba(37, 99, 235, 0.24);
-  color: #ffffff;
-  font-weight: 600;
-  box-shadow: 0 7px 16px rgba(37, 99, 235, 0.12);
-}
-
 .travel-tools-enhanced-page .travel-tools-panel-heading span,
 .travel-tools-enhanced-page .travel-tools-workspace-label,
 .travel-tools-enhanced-page .travel-tools-hero .eyebrow {
@@ -2168,10 +2126,6 @@
     justify-items: stretch;
   }
 
-  .travel-tools-ai-top {
-    width: 100%;
-  }
-
   .travel-tools-form-grid,
   .travel-tools-filters,
   .travel-tools-list-stack,
@@ -2225,9 +2179,4 @@
     margin-left: 0;
   }
 
-  .travel-tools-ai-floating {
-    right: 16px;
-    bottom: 16px;
-    max-width: calc(100vw - 32px);
-  }
 }

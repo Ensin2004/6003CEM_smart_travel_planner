@@ -2,56 +2,48 @@
  * Explore module.
  * Page state, event handlers, and render sections define the screen experience.
  */
-import { ArrowLeft, ExternalLink, Heart, LoaderCircle, MapPin, Phone, Search, Star, Utensils } from 'lucide-react';
+import { ArrowLeft, ExternalLink, Heart, LoaderCircle, MapPin, MapPinned, Phone, Search, Star } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { getAttractionDetails } from '../../../api/exploreApi';
 import { addFavorite } from '../../../api/favoriteApi';
-import { getRestaurantDetails } from '../../../api/exploreApi';
 import { getErrorMessage } from '../explore.helpers';
 import './SharedDetailPage.css';
-const getPrimaryImage = (restaurant = {}) => restaurant.imageUrl || restaurant.imageUrls?.[0] || '';
-const getRestaurantFavoriteKey = (restaurant = {}) =>
-  String(restaurant.dataId || restaurant.placeId || restaurant.id || restaurant.name || '')
-    .trim()
-    .toLowerCase();
-// RestaurantDetailPage renders the main screen and handles nearby interactions.
-function RestaurantDetailPage() {
+
+const getPrimaryImage = (attraction = {}) => attraction.imageUrl || attraction.imageUrls?.[0] || '';
+
+// AttractionDetailPage renders the main screen and handles nearby interactions.
+function AttractionDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const stateRestaurant = location.state?.restaurant || null;
-  const initialFavoriteKey = getRestaurantFavoriteKey(stateRestaurant);
-  const [restaurant, setRestaurant] = useState(stateRestaurant);
+  const stateAttraction = location.state?.attraction || null;
+  const [attraction, setAttraction] = useState(stateAttraction);
   const [description, setDescription] = useState(null);
   const [reviews, setReviews] = useState([]);
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [favoriteRestaurantKeys, setFavoriteRestaurantKeys] = useState(location.state?.returnState?.favoriteRestaurantKeys || []);
-  const [isFavorite, setIsFavorite] = useState(
-    Boolean(initialFavoriteKey && location.state?.returnState?.favoriteRestaurantKeys?.includes(initialFavoriteKey))
-  );
+  const [isLoading, setIsLoading] = useState(!stateAttraction);
+  const [isFavorite, setIsFavorite] = useState(false);
   const [reviewSearch, setReviewSearch] = useState('');
   const [minRating, setMinRating] = useState('all');
 
   useEffect(() => {
     let isActive = true;
-
-    const loadRestaurant = async () => {
-      setIsLoading(true);
+    const loadAttraction = async () => {
+      setIsLoading(!stateAttraction);
       setError('');
-
       try {
         const searchParams = new URLSearchParams(location.search);
-        const response = await getRestaurantDetails({
-          name: stateRestaurant?.name || searchParams.get('name') || '',
-          address: stateRestaurant?.address || searchParams.get('address') || '',
-          dataId: stateRestaurant?.dataId || searchParams.get('dataId') || '',
-          placeId: stateRestaurant?.placeId || searchParams.get('placeId') || '',
+        const response = await getAttractionDetails({
+          name: stateAttraction?.name || searchParams.get('name') || '',
+          address: stateAttraction?.address || searchParams.get('address') || '',
+          dataId: stateAttraction?.dataId || searchParams.get('dataId') || '',
+          placeId: stateAttraction?.placeId || searchParams.get('placeId') || '',
         });
-        const detail = response.data.data.restaurant;
+        const detail = response.data.data.attraction;
 
         if (!isActive) return;
-        setRestaurant({ ...(stateRestaurant || {}), ...(detail.item || {}) });
+        setAttraction({ ...(stateAttraction || {}), ...(detail.item || {}) });
         setDescription(detail.description);
         setReviews(detail.reviews?.items || []);
         setStatus(detail.message || detail.reviews?.message || '');
@@ -62,12 +54,11 @@ function RestaurantDetailPage() {
       }
     };
 
-    loadRestaurant();
-    // Cleanup prevents state updates after component unmount.
+    loadAttraction();
     return () => {
       isActive = false;
     };
-  }, [location.search, stateRestaurant]);
+  }, [location.search, stateAttraction]);
 
   const filteredReviews = useMemo(() => {
     const query = reviewSearch.trim().toLowerCase();
@@ -84,84 +75,81 @@ function RestaurantDetailPage() {
   }, [minRating, reviewSearch, reviews]);
 
   const handleFavorite = async () => {
-    if (!restaurant || isFavorite) return;
-
+    if (!attraction || isFavorite) return;
     try {
       await addFavorite({
-        type: 'restaurant',
-        title: restaurant.name,
-        description: restaurant.address,
-        address: restaurant.address,
-        coordinates: restaurant.coordinates,
-        priceLevel: location.state?.originalPriceText || restaurant.priceDetail?.display || restaurant.price,
-        rating: restaurant.rating,
-        externalId: restaurant.dataId || restaurant.placeId || restaurant.id || restaurant.name,
-        source: 'explore-food',
+        type: 'attraction',
+        title: attraction.name,
+        description: attraction.address,
+        address: attraction.address,
+        coordinates: attraction.coordinates,
+        priceLevel: location.state?.originalPriceText || attraction.priceDetail?.display || attraction.price,
+        rating: attraction.rating,
+        externalId: attraction.dataId || attraction.placeId || attraction.id || attraction.name,
+        source: 'explore-attractions',
       });
       setIsFavorite(true);
-      const favoriteKeys = [getRestaurantFavoriteKey(stateRestaurant), getRestaurantFavoriteKey(restaurant)].filter(Boolean);
-      setFavoriteRestaurantKeys((currentKeys) => [...new Set([...currentKeys, ...favoriteKeys])]);
     } catch (requestError) {
       setError(getErrorMessage(requestError));
     }
   };
 
-  const primaryImage = getPrimaryImage(restaurant);
-  const returnSearch = location.state?.returnState?.returnSearch || 'view=food';
-  const returnPath = `/explore?${returnSearch || 'view=food'}`;
-  const returnState = location.state?.returnState
-    ? {
-        ...location.state.returnState,
-        favoriteRestaurantKeys,
-      }
-    : null;
+  const primaryImage = getPrimaryImage(attraction);
+  const returnSearch = location.state?.returnState?.returnSearch || 'view=attractions';
+  const returnPath = `/explore?${returnSearch || 'view=attractions'}`;
 
   return (
     <section className="shared-detail-page">
-      <button className="shared-detail-back" type="button" onClick={() => navigate(returnPath, { state: returnState })}>
+      <button className="shared-detail-back" type="button" onClick={() => navigate(returnPath, { state: location.state?.returnState || null })}>
         <ArrowLeft size={17} />
-        Back to restaurants
+        Back to attractions
       </button>
 
-      {isLoading && (
+      {isLoading && !attraction && (
         <div className="explore-empty shared-detail-loading">
           <LoaderCircle className="explore-spin" size={34} aria-hidden="true" />
-          <p>Loading restaurant details and reviews.</p>
+          <p>Loading attraction details and reviews.</p>
         </div>
       )}
 
       {error && <p className="form-error explore-status">{error}</p>}
+      {isLoading && attraction && (
+        <p className="explore-status">
+          <LoaderCircle className="explore-spin" size={15} aria-hidden="true" />
+          Loading extra attraction details and reviews.
+        </p>
+      )}
 
-      {restaurant && !isLoading && (
+      {attraction && (
         <>
           <section className="shared-detail-hero">
             {primaryImage ? (
               <img src={primaryImage} alt="" />
             ) : (
               <div className="shared-detail-image-placeholder">
-                <Utensils size={42} aria-hidden="true" />
+                <MapPinned size={42} aria-hidden="true" />
               </div>
             )}
             <div className="shared-detail-hero-copy">
-              <span className="explore-category">Restaurant</span>
-              <h2>{restaurant.name}</h2>
+              <span className="explore-category">Attraction</span>
+              <h2>{attraction.name}</h2>
               <div className="shared-detail-meta">
                 <span>
                   <Star size={16} fill="currentColor" />
-                  {restaurant.rating ? `${Number(restaurant.rating).toFixed(1)} stars` : 'No rating'}
+                  {attraction.rating ? `${Number(attraction.rating).toFixed(1)} stars` : 'No rating'}
                 </span>
-                <span>{restaurant.reviewCount ? `${Number(restaurant.reviewCount).toLocaleString()} reviews` : 'No review count'}</span>
+                <span>{attraction.reviewCount ? `${Number(attraction.reviewCount).toLocaleString()} reviews` : 'No review count'}</span>
               </div>
-              {restaurant.address && (
+              {attraction.address && (
                 <p>
                   <MapPin size={16} aria-hidden="true" />
-                  {restaurant.address}
+                  {attraction.address}
                 </p>
               )}
-              {restaurant.phone && (
+              {attraction.phone && (
                 <p>
                   <Phone size={16} aria-hidden="true" />
-                  {restaurant.phone}
+                  {attraction.phone}
                 </p>
               )}
               <div className="shared-detail-actions">
@@ -169,8 +157,8 @@ function RestaurantDetailPage() {
                   <Heart size={17} fill={isFavorite ? 'currentColor' : 'none'} />
                   {isFavorite ? 'Saved' : 'Add to favourites'}
                 </button>
-                {restaurant.url && (
-                  <a href={restaurant.url} target="_blank" rel="noreferrer">
+                {attraction.url && (
+                  <a href={attraction.url} target="_blank" rel="noreferrer">
                     <ExternalLink size={17} />
                     Google listing
                   </a>
@@ -182,7 +170,7 @@ function RestaurantDetailPage() {
           <section className="shared-detail-grid">
             <article className="shared-detail-panel">
               <h3>Description</h3>
-              <p>{description?.extract || 'A Wikipedia description is not available for this restaurant yet.'}</p>
+              <p>{description?.extract || 'A Wikipedia description is not available for this attraction yet.'}</p>
               {description?.url && (
                 <a href={description.url} target="_blank" rel="noreferrer">
                   Read on Wikipedia
@@ -191,11 +179,11 @@ function RestaurantDetailPage() {
             </article>
 
             <article className="shared-detail-panel">
-              <h3>Restaurant Details</h3>
+              <h3>Attraction Details</h3>
               <dl>
                 <div>
                   <dt>Price range</dt>
-                  <dd>{location.state?.originalPriceText || restaurant.priceDetail?.display || restaurant.price || 'Price unavailable'}</dd>
+                  <dd>{location.state?.originalPriceText || attraction.priceDetail?.display || attraction.price || 'Price unavailable'}</dd>
                 </div>
                 {location.state?.convertedPriceText && (
                   <div>
@@ -205,7 +193,7 @@ function RestaurantDetailPage() {
                 )}
                 <div>
                   <dt>Opening hours</dt>
-                  <dd>{restaurant.openState || restaurant.hoursSummary || 'Hours unavailable'}</dd>
+                  <dd>{attraction.openState || attraction.hoursSummary || 'Hours unavailable'}</dd>
                 </div>
               </dl>
             </article>
@@ -261,5 +249,4 @@ function RestaurantDetailPage() {
   );
 }
 
-// Default export registers the primary  value.
-export default RestaurantDetailPage;
+export default AttractionDetailPage;

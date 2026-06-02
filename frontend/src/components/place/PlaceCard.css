@@ -80,6 +80,14 @@
   gap: 12px;
 }
 
+.explore-card-name-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+  min-width: 0;
+}
+
 .explore-card-actions {
   display: flex;
   flex: 0 0 auto;
@@ -111,6 +119,7 @@
 }
 
 .explore-attraction h3 {
+  min-width: 0;
   margin: 0;
   color: var(--navy);
   font-size: 18px;

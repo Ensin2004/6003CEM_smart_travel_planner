@@ -55,6 +55,14 @@ const weatherRules = [
 
 const attractionRules = [destinationRule];
 
+const attractionDetailRules = [
+  optionalFilterRule('name'),
+  query('address').optional({ checkFalsy: true }).trim().isLength({ max: 220 }),
+  query('dataId').optional({ checkFalsy: true }).trim().isLength({ max: 500 }),
+  query('placeId').optional({ checkFalsy: true }).trim().isLength({ max: 500 }),
+  requireAnySearchValue(['name', 'dataId', 'placeId'], 'Attraction name or Google identifier is required.'),
+];
+
 const hotelRules = [
   optionalDestinationRule,
   optionalFilterRule('country'),
@@ -110,6 +118,7 @@ const aiRecommendationRules = [
 ];
 module.exports = {
   aiRecommendationRules,
+  attractionDetailRules,
   attractionRules,
   hotelDetailRules,
   hotelRules,

@@ -15,6 +15,15 @@ export const searchWeather = ({ destination, date, latitude, longitude, location
   });
 export const searchAttractions = (destination) =>
   axiosClient.get('/explore/attractions', { params: { destination } });
+export const getAttractionDetails = ({ name, address, dataId, placeId }) =>
+  axiosClient.get('/explore/attractions/detail', {
+    params: {
+      name,
+      address,
+      dataId,
+      placeId,
+    },
+  });
 export const searchHotels = ({ destination, country, state, roomType, start }) =>
   axiosClient.get('/explore/hotels', {
     params: {
