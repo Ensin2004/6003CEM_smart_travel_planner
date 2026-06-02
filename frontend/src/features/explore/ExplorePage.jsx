@@ -36,6 +36,11 @@ const viewOptions = [
   { id: 'transport', label: 'Transportation', icon: Compass },
 ];
 
+const getHotelFavoriteKey = (hotel = {}) =>
+  String(hotel.dataId || hotel.placeId || hotel.id || hotel.name || '')
+    .trim()
+    .toLowerCase();
+
 function ExplorePage() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -45,17 +50,18 @@ function ExplorePage() {
   const destination = searchParams.get('q') || '';
   const [travelDate, setTravelDate] = useState(getDateKey());
   const [attractions, setAttractions] = useState([]);
-  const [hotels, setHotels] = useState([]);
+  const restoredHotelState = location.state?.hotelResults ? location.state : null;
+  const [hotels, setHotels] = useState(restoredHotelState?.hotelResults || []);
   const [restaurants, setRestaurants] = useState([]);
   const [weatherByView, setWeatherByView] = useState({
     attractions: null,
     food: null,
-    hotels: null,
+    hotels: restoredHotelState?.hotelWeather || null,
   });
   const [aiByView, setAiByView] = useState({
     attractions: null,
     food: null,
-    hotels: null,
+    hotels: restoredHotelState?.hotelAi || null,
   });
   const [aiRequestKeys, setAiRequestKeys] = useState({
     attractions: '',
@@ -64,10 +70,10 @@ function ExplorePage() {
   });
   const [priceConversions, setPriceConversions] = useState({});
   const [hotelFilters, setHotelFilters] = useState({
-    country: '',
-    countryCode: '',
-    state: '',
-    roomType: '',
+    country: restoredHotelState?.hotelFilters?.country || '',
+    countryCode: restoredHotelState?.hotelFilters?.countryCode || '',
+    state: restoredHotelState?.hotelFilters?.state || '',
+    roomType: restoredHotelState?.hotelFilters?.roomType || '',
   });
   const [restaurantFilters, setRestaurantFilters] = useState({
     country: '',
@@ -75,7 +81,8 @@ function ExplorePage() {
     state: '',
     foodCategory: '',
   });
-  const [hotelSearchCriteria, setHotelSearchCriteria] = useState(null);
+  const [hotelSearchCriteria, setHotelSearchCriteria] = useState(restoredHotelState?.hotelSearchCriteria || null);
+  const [favoriteHotelKeys, setFavoriteHotelKeys] = useState(restoredHotelState?.favoriteHotelKeys || []);
   const [restaurantSearchCriteria, setRestaurantSearchCriteria] = useState(null);
   const restoredTrainState = location.state?.trainResults ? location.state : null;
   const [activeTransportTab, setActiveTransportTab] = useState(restoredTrainState ? 'trains' : 'flights');
@@ -95,23 +102,26 @@ function ExplorePage() {
     arrivalDate: restoredTrainState?.trainSearch?.arrivalDate || '',
   });
   const [trainResults, setTrainResults] = useState(restoredTrainState?.trainResults || null);
-  const [nextHotelStart, setNextHotelStart] = useState(0);
+  const [nextHotelStart, setNextHotelStart] = useState(restoredHotelState?.nextHotelStart || 0);
   const [nextRestaurantStart, setNextRestaurantStart] = useState(0);
-  const [hasMoreHotels, setHasMoreHotels] = useState(false);
+  const [hasMoreHotels, setHasMoreHotels] = useState(restoredHotelState?.hasMoreHotels || false);
   const [hasMoreRestaurants, setHasMoreRestaurants] = useState(false);
   const [status, setStatus] = useState(
-    restoredTrainState?.trainResults?.available
-      ? `${restoredTrainState.trainResults.items.length} train departure${restoredTrainState.trainResults.items.length === 1 ? '' : 's'} loaded.`
-      : ''
+    restoredHotelState?.hotelResults?.length
+      ? `${restoredHotelState.hotelResults.length} hotel match${restoredHotelState.hotelResults.length === 1 ? '' : 'es'} restored.`
+      : restoredTrainState?.trainResults?.available
+        ? `${restoredTrainState.trainResults.items.length} train departure${restoredTrainState.trainResults.items.length === 1 ? '' : 's'} loaded.`
+        : ''
   );
-  const [statusScope, setStatusScope] = useState(restoredTrainState?.trainResults?.available ? 'transport:trains' : '');
+  const [statusScope, setStatusScope] = useState(
+    restoredHotelState?.hotelResults?.length ? 'hotels' : restoredTrainState?.trainResults?.available ? 'transport:trains' : ''
+  );
   const [error, setError] = useState('');
   const [errorScope, setErrorScope] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [weatherLoadingView, setWeatherLoadingView] = useState('');
   const [aiLoadingView, setAiLoadingView] = useState('');
-  const [carouselIndexes, setCarouselIndexes] = useState({});
   const [lastSearchSummary, setLastSearchSummary] = useState({
     attractions: { loaded: 0, priced: 0, rated: 0, topRated: 0 },
     food: { loaded: 0, priced: 0, rated: 0, topRated: 0 },
@@ -871,21 +881,25 @@ function ExplorePage() {
     isWeatherLoading,
   ]);
 
-  const getCarouselIndex = (itemId, imageCount) => Math.min(carouselIndexes[itemId] || 0, Math.max(imageCount - 1, 0));
+  const updateActiveFilterField = isFoodView ? handleRestaurantFilterChange : handleHotelFilterChange;
+  const handleHotelFavoriteChange = (hotel) => {
+    const favoriteKey = getHotelFavoriteKey(hotel);
+    if (!favoriteKey) return;
 
-  const moveCarousel = (itemId, imageCount, direction) => {
-    setCarouselIndexes((currentIndexes) => {
-      const currentIndex = currentIndexes[itemId] || 0;
-      const nextIndex = (currentIndex + direction + imageCount) % imageCount;
-
-      return {
-        ...currentIndexes,
-        [itemId]: nextIndex,
-      };
-    });
+    setFavoriteHotelKeys((currentKeys) => (currentKeys.includes(favoriteKey) ? currentKeys : [...currentKeys, favoriteKey]));
   };
 
-  const updateActiveFilterField = isFoodView ? handleRestaurantFilterChange : handleHotelFilterChange;
+  const hotelDetailReturnState = {
+    hotelResults: hotels,
+    hotelFilters,
+    hotelSearchCriteria,
+    favoriteHotelKeys,
+    hotelWeather: weatherByView.hotels,
+    hotelAi: aiByView.hotels,
+    hasMoreHotels,
+    nextHotelStart,
+    returnSearch: searchParams.toString(),
+  };
   const searchSubmenuProps = {
     activeAi,
     activeFilters,
@@ -896,7 +910,6 @@ function ExplorePage() {
     destination,
     destinationLabel,
     error: errorScope === activeOption.id ? error : '',
-    getCarouselIndex,
     getConvertedPriceText,
     getOriginalPriceText,
     handleCountryChange,
@@ -906,6 +919,9 @@ function ExplorePage() {
     handleTravelDateChange,
     hasMoreFilteredItems,
     hasResults,
+    isHotelFavorite: (hotel) => favoriteHotelKeys.includes(getHotelFavoriteKey(hotel)),
+    hotelDetailReturnState,
+    onHotelFavoriteChange: handleHotelFavoriteChange,
     isAiLoading,
     isFilteredSearchView,
     isFoodView,
@@ -913,7 +929,6 @@ function ExplorePage() {
     isLoadingMore,
     isSearching,
     isWeatherLoading,
-    moveCarousel,
     pricedCount,
     ratedCount,
     resultCount,

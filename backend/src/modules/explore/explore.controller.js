@@ -27,6 +27,16 @@ const getHotels = catchAsync(async (req, res) => {
   sendSuccess(res, 200, { hotels });
 });
 
+const getHotelDetail = catchAsync(async (req, res) => {
+  const hotel = await exploreService.getHotelDetail({
+    name: req.query.name,
+    address: req.query.address,
+    dataId: req.query.dataId,
+    placeId: req.query.placeId,
+  });
+  sendSuccess(res, 200, { hotel });
+});
+
 const getRestaurants = catchAsync(async (req, res) => {
   const restaurants = await exploreService.getRestaurantsByDestination({
     destination: req.query.destination,
@@ -49,4 +59,4 @@ const getAiRecommendations = catchAsync(async (req, res) => {
   sendSuccess(res, 200, { recommendations });
 });
 
-module.exports = { getWeather, getAttractions, getHotels, getRestaurants, getAiRecommendations };
+module.exports = { getWeather, getAttractions, getHotels, getHotelDetail, getRestaurants, getAiRecommendations };

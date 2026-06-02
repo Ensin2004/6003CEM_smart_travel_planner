@@ -46,6 +46,10 @@ const hotelSearchRule = requireAnySearchValue(
   ['destination', 'country', 'state', 'roomType'],
   'Enter a hotel name, country, location, or room type first.'
 );
+const hotelDetailRule = requireAnySearchValue(
+  ['name', 'dataId', 'placeId'],
+  'Hotel name or Google identifier is required.'
+);
 const restaurantSearchRule = requireAnySearchValue(
   ['destination', 'country', 'state', 'foodCategory'],
   'Enter a restaurant name, country, location, or food category first.'
@@ -77,6 +81,18 @@ router.get(
   exploreController.getWeather
 );
 router.get('/attractions', protect, thirdPartyApiRateLimit, destinationRule, validate, exploreController.getAttractions);
+router.get(
+  '/hotels/detail',
+  protect,
+  thirdPartyApiRateLimit,
+  optionalFilterRule('name'),
+  query('address').optional({ checkFalsy: true }).trim().isLength({ max: 220 }),
+  query('dataId').optional({ checkFalsy: true }).trim().isLength({ max: 500 }),
+  query('placeId').optional({ checkFalsy: true }).trim().isLength({ max: 500 }),
+  hotelDetailRule,
+  validate,
+  exploreController.getHotelDetail
+);
 router.get(
   '/hotels',
   protect,

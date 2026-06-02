@@ -1,8 +1,7 @@
 import {
   Building2,
-  ChevronLeft,
-  ChevronRight,
   Clock,
+  Heart,
   Image,
   MapPin,
   MapPinned,
@@ -10,7 +9,9 @@ import {
   Star,
   Utensils,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { addFavorite } from '../../api/favoriteApi';
 import './PlaceCard.css';
 
 const getOpenStatus = (openState = '') => {
@@ -55,9 +56,11 @@ function PlaceCard({
   categoryLabel,
   originalPriceText,
   convertedPriceText = '',
-  carouselIndex = 0,
-  onMoveCarousel,
+  isInitiallyFavorite = false,
+  onFavoriteChange,
+  returnState,
 }) {
+  const navigate = useNavigate();
   const galleryImages = useMemo(() => {
     if (item.imageUrls?.length) return item.imageUrls;
     if (item.imageUrl) return [item.imageUrl];
@@ -68,8 +71,11 @@ function PlaceCard({
     () => galleryImages.filter((imageUrl) => imageUrl && !failedImages.has(imageUrl)),
     [failedImages, galleryImages]
   );
-  const safeCarouselIndex = Math.min(carouselIndex, Math.max(visibleImages.length - 1, 0));
+  const primaryImage = visibleImages[0];
   const openStatus = getOpenStatus(item.openState);
+  const isHotelCard = type === 'hotels';
+  const [isFavorite, setIsFavorite] = useState(isInitiallyFavorite);
+  const [isSavingFavorite, setIsSavingFavorite] = useState(false);
   const priceIcon =
     type === 'hotels' ? (
       <Building2 size={16} aria-hidden="true" />
@@ -79,48 +85,84 @@ function PlaceCard({
       <MapPinned size={16} aria-hidden="true" />
     );
 
+  useEffect(() => {
+    setIsFavorite(isInitiallyFavorite);
+  }, [isInitiallyFavorite]);
+
+  const handleOpenDetails = () => {
+    if (!isHotelCard) return;
+
+    const params = new URLSearchParams({
+      name: item.name || '',
+      address: item.address || '',
+      dataId: item.dataId || '',
+      placeId: item.placeId || '',
+    });
+
+    navigate(`/explore/hotels/detail?${params.toString()}`, {
+      state: {
+        hotel: item,
+        originalPriceText,
+        convertedPriceText,
+        returnState,
+      },
+    });
+  };
+
+  const handleFavoriteClick = async (event) => {
+    event.stopPropagation();
+    if (isSavingFavorite) return;
+
+    setIsSavingFavorite(true);
+    try {
+      await addFavorite({
+        type: 'hotel',
+        title: item.name,
+        description: item.address,
+        address: item.address,
+        coordinates: item.coordinates,
+        priceLevel: originalPriceText || item.priceDetail?.display || item.price,
+        rating: item.rating,
+        externalId: item.dataId || item.placeId || item.id || item.name,
+        source: 'explore-hotels',
+      });
+      setIsFavorite(true);
+      onFavoriteChange?.(item);
+    } catch {
+      setIsFavorite(false);
+    } finally {
+      setIsSavingFavorite(false);
+    }
+  };
+
   return (
-    <article className="explore-attraction">
+    <article
+      className={`explore-attraction ${isHotelCard ? 'is-clickable' : ''}`}
+      onClick={handleOpenDetails}
+      role={isHotelCard ? 'button' : undefined}
+      tabIndex={isHotelCard ? 0 : undefined}
+      onKeyDown={(event) => {
+        if (isHotelCard && (event.key === 'Enter' || event.key === ' ')) {
+          event.preventDefault();
+          handleOpenDetails();
+        }
+      }}
+    >
       <div className="explore-attraction-media">
-        {visibleImages.length ? (
-          <div className="explore-card-carousel" aria-label={`${item.name} images`}>
-            <div className="explore-card-track" style={{ transform: `translateX(-${safeCarouselIndex * 100}%)` }}>
-              {visibleImages.map((imageUrl, imageIndex) => (
-                <img
-                  src={imageUrl}
-                  alt=""
-                  loading="lazy"
-                  key={`${item.id || item.name}-image-${imageIndex}`}
-                  onError={() => {
-                    setFailedImages((currentImages) => {
-                      const nextImages = new Set(currentImages);
-                      nextImages.add(imageUrl);
-                      return nextImages;
-                    });
-                  }}
-                />
-              ))}
-            </div>
-            {visibleImages.length > 1 && (
-              <div className="explore-carousel-controls">
-                <button
-                  type="button"
-                  aria-label="Previous image"
-                  onClick={() => onMoveCarousel?.(item.id || item.name, visibleImages.length, -1)}
-                >
-                  <ChevronLeft size={16} />
-                </button>
-                <span>{safeCarouselIndex + 1}/{visibleImages.length}</span>
-                <button
-                  type="button"
-                  aria-label="Next image"
-                  onClick={() => onMoveCarousel?.(item.id || item.name, visibleImages.length, 1)}
-                >
-                  <ChevronRight size={16} />
-                </button>
-              </div>
-            )}
-          </div>
+        {primaryImage ? (
+          <img
+            className="explore-card-image"
+            src={primaryImage}
+            alt=""
+            loading="lazy"
+            onError={() => {
+              setFailedImages((currentImages) => {
+                const nextImages = new Set(currentImages);
+                nextImages.add(primaryImage);
+                return nextImages;
+              });
+            }}
+          />
         ) : (
           <div className="explore-attraction-image">
             <Image size={28} aria-hidden="true" />
@@ -130,7 +172,20 @@ function PlaceCard({
       </div>
       <div className="explore-attraction-body">
         <div className="explore-attraction-title">
-          <span className="explore-category">{categoryLabel || item.category || item.type || 'Place'}</span>
+          <div className="explore-card-category-row">
+            <span className="explore-category">{categoryLabel || item.category || item.type || 'Place'}</span>
+            {isHotelCard && (
+              <button
+                className={`explore-favorite-button ${isFavorite ? 'active' : ''}`}
+                type="button"
+                aria-label={isFavorite ? 'Hotel saved to favorites' : 'Add hotel to favorites'}
+                disabled={isSavingFavorite}
+                onClick={handleFavoriteClick}
+              >
+                <Heart size={17} fill={isFavorite ? 'currentColor' : 'none'} />
+              </button>
+            )}
+          </div>
           <h3>{item.name}</h3>
         </div>
 
@@ -161,7 +216,9 @@ function PlaceCard({
           {item.phone && (
             <div className="explore-card-contact">
               <Phone size={15} aria-hidden="true" />
-              <a href={`tel:${item.phone}`}>{item.phone}</a>
+              <a href={`tel:${item.phone}`} onClick={(event) => event.stopPropagation()}>
+                {item.phone}
+              </a>
             </div>
           )}
         </div>

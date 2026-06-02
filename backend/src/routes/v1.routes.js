@@ -8,6 +8,7 @@ const adminRoutes = require('../modules/admin/admin.routes');
 const apiLogRoutes = require('../modules/apiLogs/apiLog.routes');
 const settingsRoutes = require('../modules/settings/settings.routes');
 const feedbackRoutes = require('../modules/feedback/feedback.routes');
+const favoriteRoutes = require('../modules/favorites/favorite.routes');
 const travelToolsRoutes = require('../modules/travelTools/travelTools.routes');
 const travelGuideRoutes = require('../modules/travelGuide/travelGuide.routes');
 const currencyRoutes = require('../modules/currency/currency.routes');
@@ -33,6 +34,7 @@ router.get('/', (req, res) => {
       '/api-logs',
       '/settings',
       '/feedback',
+      '/favorites',
       '/currency',
       '/language',
       '/map',
@@ -53,6 +55,7 @@ router.use('/admin', adminRoutes);
 router.use('/api-logs', apiLogRoutes);
 router.use('/settings', settingsRoutes);
 router.use('/feedback', feedbackRoutes);
+router.use('/favorites', favoriteRoutes);
 router.use('/currency', currencyRoutes);
 router.use('/language', languageRoutes);
 router.use('/map', mapRoutes);
