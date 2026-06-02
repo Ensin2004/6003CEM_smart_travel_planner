@@ -1,4 +1,4 @@
-import { Building2, Heart, LoaderCircle, MapPin, Star, Trash2 } from 'lucide-react';
+import { Building2, Heart, LoaderCircle, MapPin, Star, Trash2, Utensils } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getFavorites, removeFavorite } from '../../api/favoriteApi';
@@ -38,7 +38,7 @@ function FavoritesPage() {
     setFavorites((currentFavorites) => currentFavorites.filter((favorite) => favorite._id !== favoriteId));
   };
 
-  const hotelFavorites = favorites.filter((favorite) => favorite.type === 'hotel');
+  const placeFavorites = favorites.filter((favorite) => favorite.type === 'hotel' || favorite.type === 'restaurant');
 
   return (
     <section className="favorites-page">
@@ -60,26 +60,29 @@ function FavoritesPage() {
 
       {error && <p className="form-error">{error}</p>}
 
-      {!isLoading && !hotelFavorites.length && (
+      {!isLoading && !placeFavorites.length && (
         <div className="favorites-empty">
           <Building2 size={34} aria-hidden="true" />
-          <h3>No hotel favourites yet</h3>
-          <p>Save hotels from Explore to see them here.</p>
-          <Link to="/explore?view=hotels">Explore hotels</Link>
+          <h3>No favourites yet</h3>
+          <p>Save hotels or restaurants from Explore to see them here.</p>
+          <Link to="/explore?view=hotels">Explore places</Link>
         </div>
       )}
 
-      {!isLoading && hotelFavorites.length > 0 && (
+      {!isLoading && placeFavorites.length > 0 && (
         <div className="favorites-grid">
-          {hotelFavorites.map((favorite) => (
+          {placeFavorites.map((favorite) => {
+            const Icon = favorite.type === 'restaurant' ? Utensils : Building2;
+
+            return (
             <article className="favorite-card" key={favorite._id}>
               <div className="favorite-card-icon">
-                <Building2 size={22} aria-hidden="true" />
+                <Icon size={22} aria-hidden="true" />
               </div>
               <div className="favorite-card-body">
                 <div className="favorite-card-title">
                   <div>
-                    <span>Hotel</span>
+                    <span>{favorite.type === 'restaurant' ? 'Restaurant' : 'Hotel'}</span>
                     <h3>{favorite.title}</h3>
                   </div>
                   <button type="button" aria-label="Remove favourite" onClick={() => handleRemove(favorite._id)}>
@@ -105,7 +108,8 @@ function FavoritesPage() {
                 </div>
               </div>
             </article>
-          ))}
+            );
+          })}
         </div>
       )}
     </section>

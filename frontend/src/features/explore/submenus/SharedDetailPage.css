@@ -1,9 +1,9 @@
-.hotel-detail-page {
+.shared-detail-page {
   display: grid;
   gap: 22px;
 }
 
-.hotel-detail-back {
+.shared-detail-back {
   display: inline-flex;
   align-items: center;
   justify-self: start;
@@ -17,11 +17,11 @@
   cursor: pointer;
 }
 
-.hotel-detail-loading {
+.shared-detail-loading {
   min-height: 260px;
 }
 
-.hotel-detail-hero {
+.shared-detail-hero {
   display: grid;
   grid-template-columns: minmax(280px, 0.9fr) minmax(320px, 1.1fr);
   overflow: hidden;
@@ -30,29 +30,29 @@
   background: #ffffff;
 }
 
-.hotel-detail-hero img,
-.hotel-detail-image-placeholder {
+.shared-detail-hero img,
+.shared-detail-image-placeholder {
   width: 100%;
   height: 100%;
   min-height: 360px;
   object-fit: cover;
 }
 
-.hotel-detail-image-placeholder {
+.shared-detail-image-placeholder {
   display: grid;
   place-items: center;
   color: var(--teal);
   background: var(--gradient-bright-surface-soft);
 }
 
-.hotel-detail-hero-copy {
+.shared-detail-hero-copy {
   display: grid;
   align-content: center;
   gap: 15px;
   padding: 34px;
 }
 
-.hotel-detail-hero-copy h2 {
+.shared-detail-hero-copy h2 {
   margin: 0;
   color: var(--navy);
   font-size: 34px;
@@ -60,9 +60,9 @@
   letter-spacing: 0;
 }
 
-.hotel-detail-hero-copy p,
-.hotel-detail-meta,
-.hotel-detail-actions {
+.shared-detail-hero-copy p,
+.shared-detail-meta,
+.shared-detail-actions {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -70,25 +70,25 @@
   margin: 0;
 }
 
-.hotel-detail-meta span,
-.hotel-detail-actions button,
-.hotel-detail-actions a {
+.shared-detail-meta span,
+.shared-detail-actions button,
+.shared-detail-actions a {
   display: inline-flex;
   align-items: center;
   gap: 7px;
 }
 
-.hotel-detail-meta span {
+.shared-detail-meta span {
   color: var(--color-text-muted);
   font-weight: 700;
 }
 
-.hotel-detail-meta svg {
+.shared-detail-meta svg {
   color: #f59e0b;
 }
 
-.hotel-detail-actions button,
-.hotel-detail-actions a {
+.shared-detail-actions button,
+.shared-detail-actions a {
   border: 1px solid rgba(15, 118, 110, 0.2);
   border-radius: 999px;
   background: #ffffff;
@@ -99,70 +99,70 @@
   cursor: pointer;
 }
 
-.hotel-detail-actions button.active {
+.shared-detail-actions button.active {
   border-color: rgba(220, 38, 38, 0.28);
   background: #fff5f5;
   color: #dc2626;
 }
 
-.hotel-detail-grid {
+.shared-detail-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.3fr) minmax(260px, 0.7fr);
   gap: 16px;
 }
 
-.hotel-detail-panel,
-.hotel-detail-reviews {
+.shared-detail-panel,
+.shared-detail-reviews {
   border: 1px solid rgba(217, 226, 236, 0.9);
   border-radius: 8px;
   background: #ffffff;
   padding: 22px;
 }
 
-.hotel-detail-panel h3,
-.hotel-detail-reviews h3 {
+.shared-detail-panel h3,
+.shared-detail-reviews h3 {
   margin: 0 0 12px;
   color: var(--navy);
 }
 
-.hotel-detail-panel p {
+.shared-detail-panel p {
   margin: 0;
   color: var(--color-text-muted);
   line-height: 1.7;
 }
 
-.hotel-detail-panel a {
+.shared-detail-panel a {
   display: inline-flex;
   margin-top: 12px;
   color: var(--teal-dark);
   font-weight: 750;
 }
 
-.hotel-detail-panel dl {
+.shared-detail-panel dl {
   display: grid;
   gap: 12px;
   margin: 0;
 }
 
-.hotel-detail-panel dt {
+.shared-detail-panel dt {
   color: var(--color-text-muted);
   font-size: 12px;
   font-weight: 800;
   text-transform: uppercase;
 }
 
-.hotel-detail-panel dd {
+.shared-detail-panel dd {
   margin: 4px 0 0;
   color: var(--navy);
   font-weight: 750;
 }
 
-.hotel-detail-reviews {
+.shared-detail-reviews {
   display: grid;
   gap: 16px;
 }
 
-.hotel-detail-reviews-heading {
+.shared-detail-reviews-heading {
   display: flex;
   flex-wrap: wrap;
   align-items: end;
@@ -170,13 +170,13 @@
   gap: 16px;
 }
 
-.hotel-detail-review-filters {
+.shared-detail-review-filters {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
 }
 
-.hotel-detail-review-filters label {
+.shared-detail-review-filters label {
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -185,8 +185,8 @@
   padding: 0 12px;
 }
 
-.hotel-detail-review-filters input,
-.hotel-detail-review-filters select {
+.shared-detail-review-filters input,
+.shared-detail-review-filters select {
   min-height: 40px;
   border: 0;
   background: transparent;
@@ -195,24 +195,24 @@
   outline: 0;
 }
 
-.hotel-detail-review-filters select {
+.shared-detail-review-filters select {
   border: 1px solid rgba(217, 226, 236, 0.9);
   border-radius: 999px;
   padding: 0 12px;
 }
 
-.hotel-detail-review-list {
+.shared-detail-review-list {
   display: grid;
   gap: 12px;
 }
 
-.hotel-detail-review {
+.shared-detail-review {
   border: 1px solid rgba(226, 232, 240, 0.9);
   border-radius: 8px;
   padding: 16px;
 }
 
-.hotel-detail-review div {
+.shared-detail-review div {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -220,7 +220,7 @@
   gap: 8px;
 }
 
-.hotel-detail-review span {
+.shared-detail-review span {
   display: inline-flex;
   align-items: center;
   gap: 5px;
@@ -229,27 +229,27 @@
   font-weight: 700;
 }
 
-.hotel-detail-review span svg {
+.shared-detail-review span svg {
   color: #f59e0b;
 }
 
-.hotel-detail-review p {
+.shared-detail-review p {
   margin: 10px 0 0;
   color: var(--color-text-muted);
   line-height: 1.6;
 }
 
 @media (max-width: 840px) {
-  .hotel-detail-hero,
-  .hotel-detail-grid {
+  .shared-detail-hero,
+  .shared-detail-grid {
     grid-template-columns: 1fr;
   }
 
-  .hotel-detail-hero-copy {
+  .shared-detail-hero-copy {
     padding: 24px;
   }
 
-  .hotel-detail-hero-copy h2 {
+  .shared-detail-hero-copy h2 {
     font-size: 28px;
   }
 }

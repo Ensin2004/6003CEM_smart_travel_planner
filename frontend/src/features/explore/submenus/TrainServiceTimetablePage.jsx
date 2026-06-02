@@ -1,9 +1,9 @@
 import { ArrowLeft, LoaderCircle, TrainFront } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { searchTrainServiceTimetable } from '../../api/exploreApi';
-import { getErrorMessage } from './explore.helpers';
-import './submenus/Transportation.css';
+import { searchTrainServiceTimetable } from '../../../api/exploreApi';
+import { getErrorMessage } from '../explore.helpers';
+import './Transportation.css';
 
 const formatTime = (value) => value || '--:--';
 const formatDate = (value) => value || 'Date unavailable';

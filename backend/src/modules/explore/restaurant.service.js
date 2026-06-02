@@ -1,3 +1,4 @@
+const axios = require('axios');
 const env = require('../../config/env');
 const {
   getGoogleMapsFailureMessage,
@@ -6,6 +7,7 @@ const {
   normalizePlaceItem,
   recordGoogleMapsFailure,
   searchGoogleMaps,
+  searchGoogleMapsReviews,
 } = require('./googleMaps.service');
 
 const restaurantsCache = new Map();
@@ -84,4 +86,141 @@ const getRestaurantsByDestination = async (filters) => {
   }
 };
 
-module.exports = { getRestaurantsByDestination };
+const getWikipediaPageSummary = async (title) => {
+  const normalizedTitle = encodeURIComponent(title.trim().replace(/\s+/g, '_'));
+  const response = await axios.get(`https://en.wikipedia.org/api/rest_v1/page/summary/${normalizedTitle}`, {
+    timeout: 7000,
+    headers: {
+      accept: 'application/json',
+      'User-Agent': 'SmartTravelPlanner/1.0',
+    },
+  });
+
+  return {
+    available: Boolean(response.data?.extract),
+    title: response.data?.title || title,
+    extract: response.data?.extract || '',
+    url: response.data?.content_urls?.desktop?.page || '',
+  };
+};
+
+const searchWikipediaTitle = async (query) => {
+  const response = await axios.get('https://en.wikipedia.org/w/api.php', {
+    timeout: 7000,
+    params: {
+      action: 'query',
+      list: 'search',
+      srsearch: query,
+      srlimit: 1,
+      format: 'json',
+      origin: '*',
+    },
+    headers: {
+      accept: 'application/json',
+      'User-Agent': 'SmartTravelPlanner/1.0',
+    },
+  });
+
+  return response.data?.query?.search?.[0]?.title || '';
+};
+
+const getAddressSearchHint = (address = '') =>
+  address
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .slice(-3)
+    .join(' ');
+
+const getWikipediaSummary = async (name, address = '') => {
+  if (!name) {
+    return { available: false, extract: '', url: '', title: '' };
+  }
+
+  try {
+    return await getWikipediaPageSummary(name);
+  } catch {
+    try {
+      const searchHint = getAddressSearchHint(address);
+      const title = await searchWikipediaTitle([name, searchHint].filter(Boolean).join(' '));
+
+      if (title) {
+        return await getWikipediaPageSummary(title);
+      }
+    } catch {
+      // Fall through to the friendly unavailable message below.
+    }
+  }
+
+  return {
+    available: false,
+    title: name,
+    extract:
+      'Wikipedia does not have a matching article for this restaurant yet. Try the Google listing for official details, menus, hours, and booking information.',
+    url: '',
+  };
+};
+
+const getRestaurantDetail = async ({ name, address, dataId, placeId }) => {
+  const fallbackName = name || 'Selected restaurant';
+  const baseRestaurant = {
+    available: Boolean(name),
+    item: {
+      id: String(placeId || dataId || fallbackName),
+      placeId: placeId || '',
+      dataId: dataId || '',
+      name: fallbackName,
+      category: 'Restaurant',
+      address: address || '',
+    },
+    description: await getWikipediaSummary(fallbackName, address),
+    reviews: {
+      available: false,
+      message: dataId || placeId ? 'Google reviews are temporarily unavailable.' : 'Google review identifier is unavailable.',
+      items: [],
+    },
+  };
+
+  if (!env.serpApiKey || env.nodeEnv === 'test') {
+    return {
+      ...baseRestaurant,
+      message: 'SerpApi key is not configured',
+    };
+  }
+
+  try {
+    const query = [fallbackName, address].filter(Boolean).join(' ');
+    const details = await searchGoogleMaps({
+      cache: new Map(),
+      cacheKey: `restaurant-detail:${query}:${dataId || ''}:${placeId || ''}`.toLowerCase(),
+      query,
+      metadata: { category: 'Restaurant' },
+      mapItem: normalizeRestaurant,
+    });
+    const item = details.items?.[0] || baseRestaurant.item;
+    const reviews = await searchGoogleMapsReviews({
+      dataId: dataId || item.dataId,
+      placeId: placeId || item.placeId,
+    });
+
+    return {
+      available: true,
+      item: {
+        ...baseRestaurant.item,
+        ...item,
+      },
+      description: baseRestaurant.description,
+      reviews,
+      lastUpdated: new Date().toISOString(),
+    };
+  } catch (error) {
+    const { message, statusCode } = getGoogleMapsFailureMessage(error);
+    recordGoogleMapsFailure('restaurant-detail', message, statusCode, { name, address, dataId, placeId });
+    return {
+      ...baseRestaurant,
+      message,
+    };
+  }
+};
+
+module.exports = { getRestaurantDetail, getRestaurantsByDestination };

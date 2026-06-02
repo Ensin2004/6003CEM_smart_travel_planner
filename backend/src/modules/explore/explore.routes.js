@@ -54,6 +54,10 @@ const restaurantSearchRule = requireAnySearchValue(
   ['destination', 'country', 'state', 'foodCategory'],
   'Enter a restaurant name, country, location, or food category first.'
 );
+const restaurantDetailRule = requireAnySearchValue(
+  ['name', 'dataId', 'placeId'],
+  'Restaurant name or Google identifier is required.'
+);
 const aiRecommendationRules = [
   body('view').isIn(['attractions', 'food', 'hotels']).withMessage('Explore view is required'),
   body('destination').trim().isLength({ min: 2, max: 120 }).withMessage('Destination is required'),
@@ -105,6 +109,18 @@ router.get(
   hotelSearchRule,
   validate,
   exploreController.getHotels
+);
+router.get(
+  '/restaurants/detail',
+  protect,
+  thirdPartyApiRateLimit,
+  optionalFilterRule('name'),
+  query('address').optional({ checkFalsy: true }).trim().isLength({ max: 220 }),
+  query('dataId').optional({ checkFalsy: true }).trim().isLength({ max: 500 }),
+  query('placeId').optional({ checkFalsy: true }).trim().isLength({ max: 500 }),
+  restaurantDetailRule,
+  validate,
+  exploreController.getRestaurantDetail
 );
 router.get(
   '/restaurants',

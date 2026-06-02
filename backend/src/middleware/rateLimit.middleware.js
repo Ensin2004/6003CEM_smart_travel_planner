@@ -35,7 +35,7 @@ const authRateLimit = rateLimit({
 
 const thirdPartyApiRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 60,
+  max: 150,
   standardHeaders: true,
   legacyHeaders: false,
   handler: rateLimitHandler('Too many travel data requests. Please try again later.'),

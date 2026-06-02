@@ -1,10 +1,10 @@
 import { ArrowLeft, Building2, ExternalLink, Heart, LoaderCircle, MapPin, Phone, Search, Star } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { addFavorite } from '../../api/favoriteApi';
-import { getHotelDetails } from '../../api/exploreApi';
-import { getErrorMessage } from './explore.helpers';
-import './HotelDetailPage.css';
+import { addFavorite } from '../../../api/favoriteApi';
+import { getHotelDetails } from '../../../api/exploreApi';
+import { getErrorMessage } from '../explore.helpers';
+import './SharedDetailPage.css';
 
 const getPrimaryImage = (hotel = {}) => hotel.imageUrl || hotel.imageUrls?.[0] || '';
 const getHotelFavoriteKey = (hotel = {}) =>
@@ -114,9 +114,9 @@ function HotelDetailPage() {
     : null;
 
   return (
-    <section className="hotel-detail-page">
+    <section className="shared-detail-page">
       <button
-        className="hotel-detail-back"
+        className="shared-detail-back"
         type="button"
         onClick={() => navigate(returnPath, { state: returnState })}
       >
@@ -125,7 +125,7 @@ function HotelDetailPage() {
       </button>
 
       {isLoading && (
-        <div className="explore-empty hotel-detail-loading">
+        <div className="explore-empty shared-detail-loading">
           <LoaderCircle className="explore-spin" size={34} aria-hidden="true" />
           <p>Loading hotel details and reviews.</p>
         </div>
@@ -135,18 +135,18 @@ function HotelDetailPage() {
 
       {hotel && !isLoading && (
         <>
-          <section className="hotel-detail-hero">
+          <section className="shared-detail-hero">
             {primaryImage ? (
               <img src={primaryImage} alt="" />
             ) : (
-              <div className="hotel-detail-image-placeholder">
+              <div className="shared-detail-image-placeholder">
                 <Building2 size={42} aria-hidden="true" />
               </div>
             )}
-            <div className="hotel-detail-hero-copy">
+            <div className="shared-detail-hero-copy">
               <span className="explore-category">Hotel</span>
               <h2>{hotel.name}</h2>
-              <div className="hotel-detail-meta">
+              <div className="shared-detail-meta">
                 <span>
                   <Star size={16} fill="currentColor" />
                   {hotel.rating ? `${Number(hotel.rating).toFixed(1)} stars` : 'No rating'}
@@ -165,7 +165,7 @@ function HotelDetailPage() {
                   {hotel.phone}
                 </p>
               )}
-              <div className="hotel-detail-actions">
+              <div className="shared-detail-actions">
                 <button type="button" onClick={handleFavorite} className={isFavorite ? 'active' : ''}>
                   <Heart size={17} fill={isFavorite ? 'currentColor' : 'none'} />
                   {isFavorite ? 'Saved' : 'Add to favourites'}
@@ -180,8 +180,8 @@ function HotelDetailPage() {
             </div>
           </section>
 
-          <section className="hotel-detail-grid">
-            <article className="hotel-detail-panel">
+          <section className="shared-detail-grid">
+            <article className="shared-detail-panel">
               <h3>Description</h3>
               <p>{description?.extract || 'A Wikipedia description is not available for this hotel yet.'}</p>
               {description?.url && (
@@ -191,7 +191,7 @@ function HotelDetailPage() {
               )}
             </article>
 
-            <article className="hotel-detail-panel">
+            <article className="shared-detail-panel">
               <h3>Hotel Details</h3>
               <dl>
                 <div>
@@ -212,13 +212,13 @@ function HotelDetailPage() {
             </article>
           </section>
 
-          <section className="hotel-detail-reviews">
-            <div className="hotel-detail-reviews-heading">
+          <section className="shared-detail-reviews">
+            <div className="shared-detail-reviews-heading">
               <div>
                 <span className="explore-category">Google reviews</span>
                 <h3>{filteredReviews.length} review{filteredReviews.length === 1 ? '' : 's'}</h3>
               </div>
-              <div className="hotel-detail-review-filters">
+              <div className="shared-detail-review-filters">
                 <label>
                   <Search size={15} aria-hidden="true" />
                   <input
@@ -239,9 +239,9 @@ function HotelDetailPage() {
 
             {status && !reviews.length && <p className="explore-status">{status}</p>}
 
-            <div className="hotel-detail-review-list">
+            <div className="shared-detail-review-list">
               {filteredReviews.map((review) => (
-                <article className="hotel-detail-review" key={review.id}>
+                <article className="shared-detail-review" key={review.id}>
                   <div>
                     <strong>{review.author}</strong>
                     <span>

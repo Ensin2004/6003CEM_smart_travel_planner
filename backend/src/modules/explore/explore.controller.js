@@ -48,6 +48,16 @@ const getRestaurants = catchAsync(async (req, res) => {
   sendSuccess(res, 200, { restaurants });
 });
 
+const getRestaurantDetail = catchAsync(async (req, res) => {
+  const restaurant = await exploreService.getRestaurantDetail({
+    name: req.query.name,
+    address: req.query.address,
+    dataId: req.query.dataId,
+    placeId: req.query.placeId,
+  });
+  sendSuccess(res, 200, { restaurant });
+});
+
 const getAiRecommendations = catchAsync(async (req, res) => {
   const recommendations = await exploreService.getAiRecommendations({
     view: req.body.view,
@@ -59,4 +69,12 @@ const getAiRecommendations = catchAsync(async (req, res) => {
   sendSuccess(res, 200, { recommendations });
 });
 
-module.exports = { getWeather, getAttractions, getHotels, getHotelDetail, getRestaurants, getAiRecommendations };
+module.exports = {
+  getWeather,
+  getAttractions,
+  getHotels,
+  getHotelDetail,
+  getRestaurants,
+  getRestaurantDetail,
+  getAiRecommendations,
+};

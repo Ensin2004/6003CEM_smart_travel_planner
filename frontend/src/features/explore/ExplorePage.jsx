@@ -40,6 +40,10 @@ const getHotelFavoriteKey = (hotel = {}) =>
   String(hotel.dataId || hotel.placeId || hotel.id || hotel.name || '')
     .trim()
     .toLowerCase();
+const getRestaurantFavoriteKey = (restaurant = {}) =>
+  String(restaurant.dataId || restaurant.placeId || restaurant.id || restaurant.name || '')
+    .trim()
+    .toLowerCase();
 
 function ExplorePage() {
   const location = useLocation();
@@ -51,16 +55,17 @@ function ExplorePage() {
   const [travelDate, setTravelDate] = useState(getDateKey());
   const [attractions, setAttractions] = useState([]);
   const restoredHotelState = location.state?.hotelResults ? location.state : null;
+  const restoredRestaurantState = location.state?.restaurantResults ? location.state : null;
   const [hotels, setHotels] = useState(restoredHotelState?.hotelResults || []);
-  const [restaurants, setRestaurants] = useState([]);
+  const [restaurants, setRestaurants] = useState(restoredRestaurantState?.restaurantResults || []);
   const [weatherByView, setWeatherByView] = useState({
     attractions: null,
-    food: null,
+    food: restoredRestaurantState?.restaurantWeather || null,
     hotels: restoredHotelState?.hotelWeather || null,
   });
   const [aiByView, setAiByView] = useState({
     attractions: null,
-    food: null,
+    food: restoredRestaurantState?.restaurantAi || null,
     hotels: restoredHotelState?.hotelAi || null,
   });
   const [aiRequestKeys, setAiRequestKeys] = useState({
@@ -76,14 +81,15 @@ function ExplorePage() {
     roomType: restoredHotelState?.hotelFilters?.roomType || '',
   });
   const [restaurantFilters, setRestaurantFilters] = useState({
-    country: '',
-    countryCode: '',
-    state: '',
-    foodCategory: '',
+    country: restoredRestaurantState?.restaurantFilters?.country || '',
+    countryCode: restoredRestaurantState?.restaurantFilters?.countryCode || '',
+    state: restoredRestaurantState?.restaurantFilters?.state || '',
+    foodCategory: restoredRestaurantState?.restaurantFilters?.foodCategory || '',
   });
   const [hotelSearchCriteria, setHotelSearchCriteria] = useState(restoredHotelState?.hotelSearchCriteria || null);
   const [favoriteHotelKeys, setFavoriteHotelKeys] = useState(restoredHotelState?.favoriteHotelKeys || []);
-  const [restaurantSearchCriteria, setRestaurantSearchCriteria] = useState(null);
+  const [favoriteRestaurantKeys, setFavoriteRestaurantKeys] = useState(restoredRestaurantState?.favoriteRestaurantKeys || []);
+  const [restaurantSearchCriteria, setRestaurantSearchCriteria] = useState(restoredRestaurantState?.restaurantSearchCriteria || null);
   const restoredTrainState = location.state?.trainResults ? location.state : null;
   const [activeTransportTab, setActiveTransportTab] = useState(restoredTrainState ? 'trains' : 'flights');
   const [flightSearch, setFlightSearch] = useState({
@@ -103,18 +109,26 @@ function ExplorePage() {
   });
   const [trainResults, setTrainResults] = useState(restoredTrainState?.trainResults || null);
   const [nextHotelStart, setNextHotelStart] = useState(restoredHotelState?.nextHotelStart || 0);
-  const [nextRestaurantStart, setNextRestaurantStart] = useState(0);
+  const [nextRestaurantStart, setNextRestaurantStart] = useState(restoredRestaurantState?.nextRestaurantStart || 0);
   const [hasMoreHotels, setHasMoreHotels] = useState(restoredHotelState?.hasMoreHotels || false);
-  const [hasMoreRestaurants, setHasMoreRestaurants] = useState(false);
+  const [hasMoreRestaurants, setHasMoreRestaurants] = useState(restoredRestaurantState?.hasMoreRestaurants || false);
   const [status, setStatus] = useState(
     restoredHotelState?.hotelResults?.length
       ? `${restoredHotelState.hotelResults.length} hotel match${restoredHotelState.hotelResults.length === 1 ? '' : 'es'} restored.`
+      : restoredRestaurantState?.restaurantResults?.length
+        ? `${restoredRestaurantState.restaurantResults.length} restaurant match${restoredRestaurantState.restaurantResults.length === 1 ? '' : 'es'} restored.`
       : restoredTrainState?.trainResults?.available
         ? `${restoredTrainState.trainResults.items.length} train departure${restoredTrainState.trainResults.items.length === 1 ? '' : 's'} loaded.`
         : ''
   );
   const [statusScope, setStatusScope] = useState(
-    restoredHotelState?.hotelResults?.length ? 'hotels' : restoredTrainState?.trainResults?.available ? 'transport:trains' : ''
+    restoredHotelState?.hotelResults?.length
+      ? 'hotels'
+      : restoredRestaurantState?.restaurantResults?.length
+        ? 'food'
+        : restoredTrainState?.trainResults?.available
+          ? 'transport:trains'
+          : ''
   );
   const [error, setError] = useState('');
   const [errorScope, setErrorScope] = useState('');
@@ -888,6 +902,12 @@ function ExplorePage() {
 
     setFavoriteHotelKeys((currentKeys) => (currentKeys.includes(favoriteKey) ? currentKeys : [...currentKeys, favoriteKey]));
   };
+  const handleRestaurantFavoriteChange = (restaurant) => {
+    const favoriteKey = getRestaurantFavoriteKey(restaurant);
+    if (!favoriteKey) return;
+
+    setFavoriteRestaurantKeys((currentKeys) => (currentKeys.includes(favoriteKey) ? currentKeys : [...currentKeys, favoriteKey]));
+  };
 
   const hotelDetailReturnState = {
     hotelResults: hotels,
@@ -900,6 +920,18 @@ function ExplorePage() {
     nextHotelStart,
     returnSearch: searchParams.toString(),
   };
+  const restaurantDetailReturnState = {
+    restaurantResults: restaurants,
+    restaurantFilters,
+    restaurantSearchCriteria,
+    favoriteRestaurantKeys,
+    restaurantWeather: weatherByView.food,
+    restaurantAi: aiByView.food,
+    hasMoreRestaurants,
+    nextRestaurantStart,
+    returnSearch: searchParams.toString(),
+  };
+  const activeDetailReturnState = isHotelsView ? hotelDetailReturnState : isFoodView ? restaurantDetailReturnState : null;
   const searchSubmenuProps = {
     activeAi,
     activeFilters,
@@ -919,9 +951,15 @@ function ExplorePage() {
     handleTravelDateChange,
     hasMoreFilteredItems,
     hasResults,
-    isHotelFavorite: (hotel) => favoriteHotelKeys.includes(getHotelFavoriteKey(hotel)),
-    hotelDetailReturnState,
+    isItemFavorite: (item) =>
+      isHotelsView
+        ? favoriteHotelKeys.includes(getHotelFavoriteKey(item))
+        : isFoodView
+          ? favoriteRestaurantKeys.includes(getRestaurantFavoriteKey(item))
+          : false,
+    detailReturnState: activeDetailReturnState,
     onHotelFavoriteChange: handleHotelFavoriteChange,
+    onRestaurantFavoriteChange: handleRestaurantFavoriteChange,
     isAiLoading,
     isFilteredSearchView,
     isFoodView,

@@ -34,8 +34,8 @@ function PlaceSearchWorkspace({
   handleTravelDateChange,
   hasMoreFilteredItems,
   hasResults,
-  isHotelFavorite,
-  hotelDetailReturnState,
+  isItemFavorite,
+  detailReturnState,
   isAiLoading,
   isFilteredSearchView,
   isFoodView,
@@ -44,6 +44,7 @@ function PlaceSearchWorkspace({
   isSearching,
   isWeatherLoading,
   onHotelFavoriteChange,
+  onRestaurantFavoriteChange,
   pricedCount,
   ratedCount,
   resultCount,
@@ -284,12 +285,12 @@ function PlaceSearchWorkspace({
                 }
                 convertedPriceText={getConvertedPriceText(item)}
                 index={index}
-                isInitiallyFavorite={isHotelsView ? isHotelFavorite?.(item) : false}
+                isInitiallyFavorite={isHotelsView || isFoodView ? isItemFavorite?.(item) : false}
                 item={item}
                 key={`${item.id}-${index}`}
-                onFavoriteChange={onHotelFavoriteChange}
+                onFavoriteChange={isHotelsView ? onHotelFavoriteChange : isFoodView ? onRestaurantFavoriteChange : undefined}
                 originalPriceText={getOriginalPriceText(item)}
-                returnState={hotelDetailReturnState}
+                returnState={detailReturnState}
                 type={isHotelsView ? 'hotels' : isFoodView ? 'food' : 'attractions'}
               />
             ))
