@@ -6,7 +6,7 @@ const express = require('express');
 const travelGuideController = require('./travelGuide.controller');
 const travelGuideValidation = require('./travelGuide.validation');
 const { protect } = require('../../middleware/auth.middleware');
-const { thirdPartyApiRateLimit } = require('../../middleware/rateLimit.middleware');
+const { travelGuideRateLimit } = require('../../middleware/rateLimit.middleware');
 const validate = require('../../middleware/validate.middleware');
 
 const router = express.Router();
@@ -15,7 +15,7 @@ const router = express.Router();
 router.get(
   '/countries',
   protect,
-  thirdPartyApiRateLimit,
+  travelGuideRateLimit,
   travelGuideValidation.countryListRules,
   validate,
   travelGuideController.getCountries
@@ -25,7 +25,7 @@ router.get(
 router.get(
   '/destinations',
   protect,
-  thirdPartyApiRateLimit,
+  travelGuideRateLimit,
   travelGuideValidation.destinationListRules,
   validate,
   travelGuideController.getDestinations
@@ -35,7 +35,7 @@ router.get(
 router.get(
   '/destination',
   protect,
-  thirdPartyApiRateLimit,
+  travelGuideRateLimit,
   travelGuideValidation.destinationDetailRules,
   validate,
   travelGuideController.getDestinationDetails

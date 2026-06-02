@@ -796,6 +796,11 @@ function TripDetailsPage() {
               <div className="trip-itinerary-groups">
                 {groupedDayItems.map((group) => {
                   const GroupIcon = group.icon;
+                  const visitedItemCount = group.items.filter((item) => {
+                    const payload = getItemVisitedPayload(item);
+                    return visitedLookup[payload.placeKey];
+                  }).length;
+                  const toVisitItemCount = Math.max(0, group.items.length - visitedItemCount);
 
                   return (
                     <section className="trip-itinerary-group" key={group.id}>
@@ -803,7 +808,7 @@ function TripDetailsPage() {
                         <span><GroupIcon size={16} aria-hidden="true" /></span>
                         <div>
                           <h3>{group.title}</h3>
-                          <small>{group.items.length} item{group.items.length === 1 ? '' : 's'}</small>
+                          <small>{toVisitItemCount} place{toVisitItemCount === 1 ? '' : 's'} to visit / {visitedItemCount} visited</small>
                         </div>
                       </div>
 
@@ -833,6 +838,9 @@ function TripDetailsPage() {
                             <div className="trip-item-card-copy">
                               <div className="trip-item-title-row">
                                 <strong>{item.title}</strong>
+                                <span className={visitedRecord ? 'trip-visit-status is-visited' : 'trip-visit-status'}>
+                                  {visitedRecord ? 'Visited' : 'Place to visit'}
+                                </span>
                                 <button type="button" onClick={() => removeItem(item._id)} aria-label={`Remove ${item.title}`}>
                                   <Trash2 size={15} aria-hidden="true" />
                                 </button>

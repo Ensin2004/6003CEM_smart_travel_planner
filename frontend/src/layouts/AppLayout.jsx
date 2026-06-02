@@ -24,6 +24,7 @@ import {
 } from '../api/languageApi';
 import logo from '../assets/logo.png';
 import AppSidebarNav from '../components/AppSidebarNav';
+import CompareTray from '../components/compare/CompareTray';
 import SubmenuPanel from '../components/SubmenuPanel';
 import AuthContext from '../context/authContext';
 import CurrencyContext from '../context/currencyContext';
@@ -489,6 +490,7 @@ function AppLayout({ role, menuItems }) {
           <Outlet />
         </main>
       </div>
+      {!isAdmin && <CompareTray />}
     </div>
   );
 }

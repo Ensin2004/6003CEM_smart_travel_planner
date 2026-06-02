@@ -5,6 +5,7 @@
 import { BrowserRouter } from 'react-router-dom';
 import AppRoutes from './app/routes';
 import { AuthProvider } from './context/AuthProvider';
+import { CompareProvider } from './context/CompareProvider';
 import { CurrencyProvider } from './context/CurrencyProvider';
 import './styles/index.css';
 // App renders the main screen and handles nearby interactions.
@@ -13,7 +14,9 @@ function App() {
     <BrowserRouter>
       <AuthProvider>
         <CurrencyProvider>
-          <AppRoutes />
+          <CompareProvider>
+            <AppRoutes />
+          </CompareProvider>
         </CurrencyProvider>
       </AuthProvider>
     </BrowserRouter>

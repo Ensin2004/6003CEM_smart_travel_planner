@@ -42,6 +42,7 @@ import {
   searchOpenStreetMapCategoryPlaces,
   searchOpenStreetMapPlaces,
 } from '../../api/mapApi';
+import CompareButton from '../../components/compare/CompareButton';
 import CurrencyContext from '../../context/currencyContext';
 import './MapPage.css';
 
@@ -398,6 +399,15 @@ function PlaceDetails({
   const details = formatCategoryPlace(place || {}, categoryId);
   const openStatus = getOpenStatus(details.openState || details.hours);
   const convertedPriceText = getConvertedPriceText(details);
+  const compareItem = {
+    ...details,
+    category: category.label,
+    source: 'map',
+    price: getOriginalPriceText(details),
+    hours: details.openState || details.hours || 'Opening hours unavailable',
+    reviewCount: details.reviewCount || details.reviews,
+    imageUrl: details.imageUrl,
+  };
   return (
     <div className="map-place-details">
       {details.imageUrl ? (
@@ -503,6 +513,7 @@ function PlaceDetails({
         </div>
 
         <div className="map-route-actions">
+          <CompareButton item={compareItem} label="Compare" className="map-compare-action" />
           <button type="button" onClick={() => onAddRoutePoint(details)}>
             <Navigation size={16} aria-hidden="true" />
             Add stop

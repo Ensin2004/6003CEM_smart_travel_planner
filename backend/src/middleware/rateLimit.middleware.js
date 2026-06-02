@@ -49,6 +49,15 @@ const thirdPartyApiRateLimit = rateLimit({
   handler: rateLimitHandler('Too many travel data requests. Please try again later.'),
 });
 
+// Travel guide browsing can make several guide, country, and destination requests in quick succession.
+const travelGuideRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 500,
+  standardHeaders: true,
+  legacyHeaders: false,
+  handler: rateLimitHandler('Too many travel guide requests. Please wait a moment and try again.'),
+});
+
 // Weather and map calls have a separate ceiling because those screens can trigger repeated lookups.
 const mapWeatherRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
@@ -58,4 +67,4 @@ const mapWeatherRateLimit = rateLimit({
   handler: rateLimitHandler('Too many weather requests. Please try again later.'),
 });
 
-module.exports = { authRateLimit, mapWeatherRateLimit, thirdPartyApiRateLimit };
+module.exports = { authRateLimit, mapWeatherRateLimit, thirdPartyApiRateLimit, travelGuideRateLimit };

@@ -6,6 +6,99 @@ info:
   title: Smart Travel Planner API
   version: 1.0.0
 paths:
+  /api/v1/comparison/recommendation:
+    post:
+      summary: Choose the best place from selected comparison items
+      description: Uses /api/v1 URI-based API versioning and deterministic scoring over rating, reviews, price clarity, and working hours.
+      tags:
+        - Comparison
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                context:
+                  type: object
+                  properties:
+                    page:
+                      type: string
+                    destination:
+                      type: string
+                items:
+                  type: array
+                  minItems: 2
+                  maxItems: 4
+                  items:
+                    type: object
+                    required: [name]
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type: string
+                      category:
+                        type: string
+                      rating:
+                        type: number
+                        minimum: 0
+                        maximum: 5
+                      reviewCount:
+                        type: integer
+                        minimum: 0
+                      price:
+                        type: string
+                      hours:
+                        type: string
+                      address:
+                        type: string
+            example:
+              context:
+                page: /explore
+              items:
+                - id: museum
+                  name: City Museum
+                  category: Attraction
+                  rating: 4.7
+                  reviewCount: 2500
+                  price: RM 20
+                  hours: Open now
+                  address: Downtown
+                - id: market
+                  name: Night Market
+                  category: Food
+                  rating: 4.1
+                  reviewCount: 320
+                  price: Free entry
+                  hours: Closed
+                  address: Central
+      responses:
+        '200':
+          description: Best-pick recommendation for selected places
+          content:
+            application/json:
+              example:
+                status: success
+                message: Comparison recommendation ready
+                data:
+                  recommendation:
+                    available: true
+                    bestPick:
+                      id: museum
+                      name: City Museum
+                      score: 98
+                      reason: City Museum is the best fit because 4.7 star rating, 2,500 reviews, available hours look favorable.
+                      caution: confirm live details before booking or visiting
+                    summary: City Museum leads Night Market by 15 points based on rating, reviews, price clarity, and hours.
+                    items: []
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid token
   /api/v1/visited-places:
     get:
       summary: List visited places for the authenticated user

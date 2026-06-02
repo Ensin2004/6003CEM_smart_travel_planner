@@ -701,6 +701,22 @@
   white-space: nowrap;
 }
 
+.trip-visit-status {
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #475569;
+  padding: 4px 7px;
+  font-size: 11px;
+  font-weight: 650;
+  line-height: 1;
+}
+
+.trip-visit-status.is-visited {
+  background: #ecfdf5;
+  color: #047857;
+}
+
 .trip-item-title-row button {
   display: inline-flex;
   width: 30px;

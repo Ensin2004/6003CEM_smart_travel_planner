@@ -21,6 +21,7 @@ const itineraryRoutes = require('../modules/itinerary/itinerary.routes');
 const languageRoutes = require('../modules/language/language.routes');
 const transportationRoutes = require('../modules/transportation/transportation.routes');
 const visitedPlaceRoutes = require('../modules/visitedPlaces/visitedPlace.routes');
+const comparisonRoutes = require('../modules/comparison/comparison.routes');
 
 const router = express.Router();
 //  route wires  to validation, access checks, and controller logic.
@@ -46,6 +47,7 @@ router.get('/', (req, res) => {
       '/itinerary',
       '/transportation',
       '/visited-places',
+      '/comparison',
     ],
   });
 });
@@ -101,4 +103,7 @@ router.use('/transportation', transportationRoutes);
 
 // Route section connects URL patterns with validation, authentication, and controller actions.
 router.use('/visited-places', visitedPlaceRoutes);
+
+// Route section connects URL patterns with validation, authentication, and controller actions.
+router.use('/comparison', comparisonRoutes);
 module.exports = router;
