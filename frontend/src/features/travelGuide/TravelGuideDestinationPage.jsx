@@ -20,11 +20,14 @@ import {
   Sun,
 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { useEffect, useMemo, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
+import { convertCurrency } from '../../api/currencyApi';
 import { getTravelGuideDestinationDetails } from '../../api/travelGuideApi';
 import { getVisitedPlaces } from '../../api/visitedPlaceApi';
 import PlaceCard from '../../components/place/PlaceCard';
+import CurrencyContext from '../../context/currencyContext';
 import { buildVisitedLookup, getVisitedPlacePayload } from '../../components/visitedPlaces/visitedPlaceUtils';
+import { formatMoney, getPriceConversionKey } from '../explore/explore.helpers';
 import './TravelGuidePage.css';
 const getDateKey = () => new Date().toISOString().slice(0, 10);
 const getErrorMessage = (error) =>
@@ -63,7 +66,7 @@ const getWeatherScore = (place, scenario, category) => {
 const sortForWeather = (items, scenario, category) =>
   [...items].sort((first, second) => getWeatherScore(second, scenario, category) - getWeatherScore(first, scenario, category));
 const getCarouselImageCount = (item) => item.imageUrls?.length || (item.imageUrl ? 1 : 0);
-// GuideCarousel renders the main screen and handles nearby interactions.
+// GuideCarousel renders destination guide rows with the intro panel and shared Explore place cards.
 function GuideCarousel({
   id,
   title,
@@ -76,11 +79,15 @@ function GuideCarousel({
   onMoveCardCarousel,
   getCardCarouselIndex,
   getVisitedRecord,
+  getConvertedPriceText,
+  getOriginalPriceText,
   onVisitedChange,
 }) {
-  const visibleItems = items.slice(rowIndex, rowIndex + 3);
+  const visibleCount = 4;
+  const visibleItems = items.slice(rowIndex, rowIndex + visibleCount);
   const canMoveBack = rowIndex > 0;
-  const canMoveNext = rowIndex + 3 < items.length;
+  const canMoveNext = rowIndex + visibleCount < items.length;
+
   return (
     <section className="travel-guide-carousel-row">
       <article className="travel-guide-row-intro">
@@ -105,8 +112,10 @@ function GuideCarousel({
               index={rowIndex + index}
               item={place}
               key={`${title}-${place.id}-${place.name}`}
+              convertedPriceText={getConvertedPriceText(place)}
               onMoveCarousel={onMoveCardCarousel}
               onVisitedChange={onVisitedChange}
+              originalPriceText={getOriginalPriceText(place)}
               type={id === 'stays' ? 'hotels' : id === 'food' ? 'food' : 'attractions'}
               visitedRecord={getVisitedRecord?.(place, id === 'stays' ? 'hotel' : id === 'food' ? 'restaurant' : 'attraction')}
               visitedSource="travel-guide"
@@ -132,6 +141,7 @@ function GuideCarousel({
 }
 // TravelGuideDestinationPage renders the main screen and handles nearby interactions.
 function TravelGuideDestinationPage() {
+  const currency = useContext(CurrencyContext);
   const [searchParams] = useSearchParams();
   const destination = searchParams.get('destination') || '';
   const country = searchParams.get('country') || '';
@@ -148,7 +158,10 @@ function TravelGuideDestinationPage() {
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [rowIndexes, setRowIndexes] = useState({ things: 0, stays: 0, food: 0 });
   const [cardCarouselIndexes, setCardCarouselIndexes] = useState({});
+  const [priceConversions, setPriceConversions] = useState({});
   const [visitedPlaces, setVisitedPlaces] = useState([]);
+  const selectedCurrency = currency?.selectedCurrency || 'USD';
+  const supportedCurrencyCodes = useMemo(() => currency?.currencies?.map((option) => option.code) || [], [currency?.currencies]);
   const destinationLabel = useMemo(() => [destination, country].filter(Boolean).join(', '), [country, destination]);
   const gallery = guide?.gallery?.length ? guide.gallery : guide?.heroImageUrl ? [guide.heroImageUrl] : [];
   const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destinationLabel || destination)}`;
@@ -162,6 +175,101 @@ function TravelGuideDestinationPage() {
     [guide, weatherScenario]
   );
   const visitedLookup = useMemo(() => buildVisitedLookup(visitedPlaces), [visitedPlaces]);
+  const guideItems = useMemo(
+    () => [
+      ...(guide?.attractions?.items || []),
+      ...(guide?.restaurants?.items || []),
+      ...(guide?.hotels?.items || []),
+    ],
+    [guide]
+  );
+  const getTopTitle = (items, action) => `Top ${Math.min(items.length || 8, 8)} ${action}`;
+
+  useEffect(() => {
+    const convertibleItems = guideItems.filter((item) => {
+      const detail = item.priceDetail;
+      return (
+        detail?.currency &&
+        detail.amount !== null &&
+        !detail.isTier &&
+        detail.currency !== selectedCurrency &&
+        supportedCurrencyCodes.includes(detail.currency) &&
+        supportedCurrencyCodes.includes(selectedCurrency)
+      );
+    });
+
+    if (!convertibleItems.length) {
+      return;
+    }
+
+    let isActive = true;
+    const missingItems = convertibleItems.filter((item) => !priceConversions[getPriceConversionKey(item, selectedCurrency)]);
+
+    if (!missingItems.length) {
+      return;
+    }
+
+    Promise.all(
+      missingItems.map(async (item) => {
+        const detail = item.priceDetail;
+        const key = getPriceConversionKey(item, selectedCurrency);
+
+        try {
+          const response = await convertCurrency({
+            amount: detail.amount,
+            from: detail.currency,
+            to: selectedCurrency,
+          });
+          const conversion = response.data.data.conversion;
+          const convertedMaxAmount =
+            detail.maxAmount !== null && conversion.rate
+              ? Number((detail.maxAmount * conversion.rate).toFixed(2))
+              : null;
+
+          return {
+            key,
+            value: {
+              amount: conversion.convertedAmount,
+              maxAmount: convertedMaxAmount,
+              currency: selectedCurrency,
+            },
+          };
+        } catch {
+          return {
+            key,
+            value: null,
+          };
+        }
+      })
+    ).then((results) => {
+      if (!isActive) return;
+      setPriceConversions((currentConversions) => ({
+        ...currentConversions,
+        ...Object.fromEntries(results.map((result) => [result.key, result.value])),
+      }));
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, [guideItems, priceConversions, selectedCurrency, supportedCurrencyCodes]);
+
+  const getOriginalPriceText = (item) => item.priceDetail?.display || item.price || 'Price unavailable';
+
+  const getConvertedPriceText = (item) => {
+    const conversion = priceConversions[getPriceConversionKey(item, selectedCurrency)];
+
+    if (!conversion) {
+      return '';
+    }
+
+    const convertedAmount = formatMoney(conversion.amount, conversion.currency);
+    const convertedMaxAmount =
+      conversion.maxAmount !== null ? ` - ${formatMoney(conversion.maxAmount, conversion.currency)}` : '';
+
+    return `Approx. ${convertedAmount}${convertedMaxAmount}`;
+  };
+
   const getVisitedRecord = (place, type) => {
     const payload = getVisitedPlacePayload({
       item: place,
@@ -265,9 +373,10 @@ function TravelGuideDestinationPage() {
     if (!gallery.length) return;
     setGalleryIndex((current) => (current + direction + gallery.length) % gallery.length);
   };
+
   const moveRow = (rowId, items, direction) => {
     setRowIndexes((current) => {
-      const maxIndex = Math.max(items.length - 3, 0);
+      const maxIndex = Math.max(items.length - 4, 0);
       const nextIndex = Math.max(0, Math.min((current[rowId] || 0) + direction, maxIndex));
 
       return {
@@ -307,12 +416,12 @@ function TravelGuideDestinationPage() {
         <div className="travel-guide-place-grid">
           {items.map((place, index) => (
             <PlaceCard
-              carouselIndex={getCardCarouselIndex(place.id || place.name, getCarouselImageCount(place))}
               index={index}
               item={place}
               key={`${category}-${place.id}-${place.name}`}
-              onMoveCarousel={moveCardCarousel}
+              convertedPriceText={getConvertedPriceText(place)}
               onVisitedChange={handleVisitedChange}
+              originalPriceText={getOriginalPriceText(place)}
               type={category === 'hotels' ? 'hotels' : category === 'restaurants' ? 'food' : 'attractions'}
               visitedRecord={getVisitedRecord(place, category === 'hotels' ? 'hotel' : category === 'restaurants' ? 'restaurant' : 'attraction')}
               visitedSource="travel-guide"
@@ -489,12 +598,14 @@ function TravelGuideDestinationPage() {
               <GuideCarousel
                 id="things"
                 title="things"
-                introTitle="What to do"
+                introTitle={getTopTitle(categories.attractions, 'to do')}
                 introText="Sightseeing ideas ranked around ratings, reviews, and the selected weather mode."
                 items={categories.attractions.slice(0, 8)}
                 rowIndex={rowIndexes.things || 0}
                 getCardCarouselIndex={getCardCarouselIndex}
                 getVisitedRecord={getVisitedRecord}
+                getConvertedPriceText={getConvertedPriceText}
+                getOriginalPriceText={getOriginalPriceText}
                 onMove={moveRow}
                 onMoveCardCarousel={moveCardCarousel}
                 onMore={() => handleViewMore('attractions')}
@@ -503,12 +614,14 @@ function TravelGuideDestinationPage() {
               <GuideCarousel
                 id="stays"
                 title="stays"
-                introTitle="Where to stay"
+                introTitle={getTopTitle(categories.hotels, 'to stay')}
                 introText="Stay options to compare by rating, location signals, and price visibility."
                 items={categories.hotels.slice(0, 8)}
                 rowIndex={rowIndexes.stays || 0}
                 getCardCarouselIndex={getCardCarouselIndex}
                 getVisitedRecord={getVisitedRecord}
+                getConvertedPriceText={getConvertedPriceText}
+                getOriginalPriceText={getOriginalPriceText}
                 onMove={moveRow}
                 onMoveCardCarousel={moveCardCarousel}
                 onMore={() => handleViewMore('hotels')}
@@ -517,12 +630,14 @@ function TravelGuideDestinationPage() {
               <GuideCarousel
                 id="food"
                 title="food"
-                introTitle="What to eat"
+                introTitle={getTopTitle(categories.restaurants, 'to eat')}
                 introText="Food spots for quick shortlist building, with ratings and review counts when available."
                 items={categories.restaurants.slice(0, 8)}
                 rowIndex={rowIndexes.food || 0}
                 getCardCarouselIndex={getCardCarouselIndex}
                 getVisitedRecord={getVisitedRecord}
+                getConvertedPriceText={getConvertedPriceText}
+                getOriginalPriceText={getOriginalPriceText}
                 onMove={moveRow}
                 onMoveCardCarousel={moveCardCarousel}
                 onMore={() => handleViewMore('restaurants')}

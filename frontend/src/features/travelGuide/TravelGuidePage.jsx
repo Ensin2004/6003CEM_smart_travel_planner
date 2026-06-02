@@ -18,6 +18,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getTravelGuideCountries, getTravelGuideDestinations } from '../../api/travelGuideApi';
 import { getVisitedPlaces } from '../../api/visitedPlaceApi';
+import CompareButton from '../../components/compare/CompareButton';
 import VisitedPlaceControl from '../../components/visitedPlaces/VisitedPlaceControl';
 import { buildVisitedLookup, getVisitedPlacePayload } from '../../components/visitedPlaces/visitedPlaceUtils';
 import useAuth from '../../hooks/useAuth';
@@ -44,6 +45,14 @@ function DestinationCard({ destination, onOpen, visitedRecord, onVisitedChange }
     source: 'travel-guide',
     defaultDate: new Date().toISOString().slice(0, 10),
   });
+  const compareItem = {
+    ...destination,
+    source: 'travel-guide',
+    category: destination.type || 'Destination',
+    price: destination.price || 'Price unavailable',
+    hours: destination.openState || destination.hours || 'Working hours unavailable',
+    address: destination.address || [destination.name, destination.country].filter(Boolean).join(', '),
+  };
 
   return (
     <article
@@ -69,6 +78,7 @@ function DestinationCard({ destination, onOpen, visitedRecord, onVisitedChange }
         visitedRecord={visitedRecord}
         onVisitedChange={onVisitedChange}
       />
+      <CompareButton item={compareItem} />
     </article>
   );
 }
@@ -82,6 +92,7 @@ function TravelGuidePage() {
   const [selectedOverseasCountry, setSelectedOverseasCountry] = useState(null);
   const [activeRegion, setActiveRegion] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [destinations, setDestinations] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, hasMore: false });
   const [status, setStatus] = useState('');
@@ -106,6 +117,14 @@ function TravelGuidePage() {
     );
   }, [destinations, searchTerm]);
   const visitedLookup = useMemo(() => buildVisitedLookup(visitedPlaces), [visitedPlaces]);
+
+  useEffect(() => {
+    const timerId = window.setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm.trim());
+    }, 450);
+
+    return () => window.clearTimeout(timerId);
+  }, [searchTerm]);
 
   const getDestinationVisitedRecord = (destination) => {
     const payload = getVisitedPlacePayload({
@@ -156,7 +175,7 @@ function TravelGuidePage() {
             region: regionFilters[activeRegion],
             limit: 24,
             page: 1,
-            search: searchTerm.trim(),
+            search: debouncedSearchTerm,
           });
           const countryGuide = response.data.data.countries;
 
@@ -187,7 +206,7 @@ function TravelGuidePage() {
           countryCode: selectedOverseasCountry?.countryCode || userCountryCode,
           limit: 24,
           page: 1,
-          search: searchTerm.trim(),
+          search: debouncedSearchTerm,
         });
         const guide = response.data.data.guide;
 
@@ -216,8 +235,8 @@ function TravelGuidePage() {
     };
   }, [
     activeRegion,
+    debouncedSearchTerm,
     isCountryDirectory,
-    searchTerm,
     selectedOverseasCountry,
     userCountry,
     userCountryCode,
@@ -272,7 +291,7 @@ function TravelGuidePage() {
           region: regionFilters[activeRegion],
           limit: 24,
           page: nextPage,
-          search: searchTerm.trim(),
+          search: debouncedSearchTerm,
         });
         const countryGuide = response.data.data.countries;
 
@@ -293,7 +312,7 @@ function TravelGuidePage() {
         countryCode: selectedOverseasCountry?.countryCode || userCountryCode,
         limit: 24,
         page: nextPage,
-        search: searchTerm.trim(),
+        search: debouncedSearchTerm,
       });
       const guide = response.data.data.guide;
 

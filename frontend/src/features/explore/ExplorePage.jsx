@@ -367,7 +367,7 @@ function ExplorePage() {
           ? `Found ${nextItems.length} attraction${nextItems.length === 1 ? '' : 's'} for ${destination.trim()}.`
           : nextAttractions.message
       );
-      await fetchDestinationWeather('attractions', getWeatherRequest({ destination: destination.trim() }, nextItems));
+      fetchDestinationWeather('attractions', getWeatherRequest({ destination: destination.trim() }, nextItems));
     } catch (requestError) {
       setErrorScope('attractions');
       setError(getErrorMessage(requestError));
@@ -542,7 +542,7 @@ function ExplorePage() {
           : nextResults.message
       );
       if (!append) {
-        await fetchDestinationWeather(viewId, getWeatherRequest(criteria, nextItems));
+        fetchDestinationWeather(viewId, getWeatherRequest(criteria, nextItems));
       }
     } catch (requestError) {
       setErrorScope(viewId);

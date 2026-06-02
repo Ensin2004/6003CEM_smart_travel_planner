@@ -4,6 +4,7 @@
  */
 import {
   Building2,
+  Check,
   Clock,
   Heart,
   Image,
@@ -13,9 +14,10 @@ import {
   Star,
   Utensils,
 } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { addFavorite } from '../../api/favoriteApi';
+import CompareButton from '../compare/CompareButton';
 import VisitedPlaceControl from '../visitedPlaces/VisitedPlaceControl';
 import { getVisitedPlacePayload } from '../visitedPlaces/visitedPlaceUtils';
 import './PlaceCard.css';
@@ -85,6 +87,7 @@ function PlaceCard({
   const isAttractionCard = type === 'attractions';
   const isDetailEnabled = isHotelCard || isFoodCard || isAttractionCard;
   const isFavoriteEnabled = isHotelCard || isFoodCard || isAttractionCard;
+  const canOpenDetails = isHotelCard || isFoodCard;
   const visitedType = isHotelCard ? 'hotel' : isFoodCard ? 'restaurant' : type === 'food' ? 'food' : 'attraction';
   const visitedPayload = getVisitedPlacePayload({
     item,
@@ -92,8 +95,9 @@ function PlaceCard({
     source: visitedSource || `explore-${type}`,
     defaultDate: visitedDefaultDate,
   });
-  const [isFavorite, setIsFavorite] = useState(isInitiallyFavorite);
+  const [favoriteOverride, setFavoriteOverride] = useState(null);
   const [isSavingFavorite, setIsSavingFavorite] = useState(false);
+  const isFavorite = favoriteOverride ?? isInitiallyFavorite;
   const priceIcon =
     type === 'hotels' ? (
       <Building2 size={16} aria-hidden="true" />
@@ -102,11 +106,21 @@ function PlaceCard({
     ) : (
       <MapPinned size={16} aria-hidden="true" />
     );
-  useEffect(() => {
-    setIsFavorite(isInitiallyFavorite);
-  }, [isInitiallyFavorite]);
+  const categoryText = categoryLabel || item.category || item.type || 'Place';
+  const originalPrice = originalPriceText || item.priceDetail?.display || item.price || 'Price unavailable';
+  const convertedPrice = convertedPriceText || 'Unavailable';
+  const displayHours = item.openState || 'Opening hours unavailable';
+  const compareItem = {
+    ...item,
+    category: categoryText,
+    source: `explore-${type}`,
+    price: originalPrice,
+    hours: displayHours,
+    imageUrl: primaryImage,
+  };
   const handleOpenDetails = () => {
     if (!isDetailEnabled) return;
+    if (!canOpenDetails) return;
 
     const params = new URLSearchParams({
       name: item.name || '',
@@ -147,11 +161,12 @@ function PlaceCard({
         rating: item.rating,
         externalId: item.dataId || item.placeId || item.id || item.name,
         source: isHotelCard ? 'explore-hotels' : isFoodCard ? 'explore-food' : 'explore-attractions',
+        source: isHotelCard ? 'explore-hotels' : isFoodCard ? 'explore-food' : visitedSource || `explore-${type}`,
       });
-      setIsFavorite(true);
+      setFavoriteOverride(true);
       onFavoriteChange?.(item);
     } catch {
-      setIsFavorite(false);
+      setFavoriteOverride(false);
     } finally {
       setIsSavingFavorite(false);
     }
@@ -164,13 +179,18 @@ function PlaceCard({
       tabIndex={isDetailEnabled ? 0 : undefined}
       onKeyDown={(event) => {
         if (isDetailEnabled && (event.key === 'Enter' || event.key === ' ')) {
+      className={`explore-attraction ${canOpenDetails ? 'is-clickable' : ''}`}
+      onClick={handleOpenDetails}
+      role={canOpenDetails ? 'button' : undefined}
+      tabIndex={canOpenDetails ? 0 : undefined}
+      onKeyDown={(event) => {
+        if (canOpenDetails && (event.key === 'Enter' || event.key === ' ')) {
           event.preventDefault();
           handleOpenDetails();
         }
       }}
     >
       <div className="explore-attraction-media">
-        {visitedRecord ? <span className="visited-place-watermark">Visited</span> : null}
         {primaryImage ? (
           <img
             className="explore-card-image"
@@ -191,6 +211,22 @@ function PlaceCard({
           </div>
         )}
         <span className="explore-card-rank">#{index + 1}</span>
+        <div className="explore-media-actions">
+          <button
+            className={`explore-favorite-button ${isFavorite ? 'active' : ''}`}
+            type="button"
+            aria-label={isFavorite ? 'Saved to favorites' : 'Add to favorites'}
+            disabled={isSavingFavorite}
+            onClick={handleFavoriteClick}
+          >
+            <Heart size={18} fill={isFavorite ? 'currentColor' : 'none'} />
+          </button>
+          {visitedRecord ? (
+            <span className="explore-visited-check" aria-label="Visited">
+              <Check size={19} aria-hidden="true" />
+            </span>
+          ) : null}
+        </div>
       </div>
       <div className="explore-attraction-body">
         <div className="explore-attraction-title">
@@ -221,6 +257,8 @@ function PlaceCard({
               )}
             </div>
           </div>
+          <span className="explore-category" title={categoryText}>{priceIcon}{categoryText}</span>
+          <h3 title={item.name}>{item.name}</h3>
         </div>
 
         <div className="explore-card-rating">
@@ -231,12 +269,14 @@ function PlaceCard({
 
         <div className="explore-card-facts" aria-label={`${item.name} details`}>
           <div className="explore-card-price-row">
-            {priceIcon}
-            <div>
-              <span>Price range</span>
-              <strong>{originalPriceText || item.priceDetail?.display || item.price || 'Price unavailable'}</strong>
+            <div title={originalPrice}>
+              <strong>{originalPrice}</strong>
+              <span>(Local)</span>
             </div>
-            {convertedPriceText && <small>{convertedPriceText}</small>}
+            <div title={convertedPrice}>
+              <strong>{convertedPrice}</strong>
+              <span>(Converted)</span>
+            </div>
           </div>
 
           <div className="explore-card-status-row">
@@ -258,11 +298,20 @@ function PlaceCard({
         </div>
 
         {item.address && (
-          <p className="explore-address">
+          <p className="explore-address" title={item.address}>
             <MapPin size={15} aria-hidden="true" />
             {item.address}
           </p>
         )}
+
+        <div className="explore-card-footer-actions">
+          <VisitedPlaceControl
+            payload={visitedPayload}
+            visitedRecord={visitedRecord}
+            onVisitedChange={onVisitedChange}
+          />
+          <CompareButton className="explore-card-compare-button" item={compareItem} />
+        </div>
       </div>
     </article>
   );

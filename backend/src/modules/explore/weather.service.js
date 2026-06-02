@@ -89,7 +89,7 @@ const classifyWeatherError = (error) => {
     return { message: 'Weather API rate limit reached', statusCode: 429 };
   }
   if (error.code === 'ECONNABORTED') {
-    return { message: 'Weather service timeout', statusCode: 503 };
+    return { message: 'Weather is taking longer than usual. Search results are still available.', statusCode: 503 };
   }
   if (!error.response) {
     return { message: 'Weather service network error', statusCode: 503 };
@@ -136,7 +136,7 @@ const geocodeDestination = async (destination) => {
       language: 'en',
       format: 'json',
     },
-    timeout: 5000,
+    timeout: 2500,
   });
 
   const location = response.data?.results?.[0];
@@ -192,7 +192,7 @@ const fetchNearTermForecast = async (location, date) =>
       end_date: date,
       timezone: location.timezone || 'auto',
     },
-    timeout: 6000,
+    timeout: 3500,
   });
 const fetchSeasonalForecast = async (location, date) =>
   axios.get('https://seasonal-api.open-meteo.com/v1/seasonal', {
@@ -212,7 +212,7 @@ const fetchSeasonalForecast = async (location, date) =>
       models: 'ecmwf_seasonal_seamless_mean',
       timezone: location.timezone || 'auto',
     },
-    timeout: 8000,
+    timeout: 4000,
   });
 const fetchHistoricalForecast = async (location, date) =>
   axios.get('https://archive-api.open-meteo.com/v1/archive', {
@@ -231,7 +231,7 @@ const fetchHistoricalForecast = async (location, date) =>
       end_date: date,
       timezone: location.timezone || 'auto',
     },
-    timeout: 8000,
+    timeout: 4000,
   });
 // Normalize Forecast prepares incoming data for consistent storage.
 const normalizeForecast = ({ destination, date, location, response, forecastType }) => {

@@ -20,8 +20,11 @@ import {
   WalletCards,
 } from 'lucide-react';
 import { createTrip, getTrips } from '../../api/tripApi';
+import { getVisitedPlaces } from '../../api/visitedPlaceApi';
+import CompareButton from '../../components/compare/CompareButton';
 import { createPackingList } from '../../api/travelToolsApi';
 import TripMapPreview from '../../components/trips/TripMapPreview';
+import { buildVisitedLookup, getVisitedPlacePayload } from '../../components/visitedPlaces/visitedPlaceUtils';
 import CurrencyContext from '../../context/currencyContext';
 import './TripsPage.css';
 
@@ -83,6 +86,40 @@ const getDurationDays = (startDate, endDate) => {
   return Math.max(1, Math.ceil(diff / 86400000) + 1);
 };
 
+const normalizeVisitText = (value) => String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+const getSegmentDestinationName = (segment = {}) => (segment.city || segment.country || '').trim();
+
+const getTripDestinationPlaces = (trip = {}) => {
+  if (trip.destinationSegments?.length) {
+    return trip.destinationSegments.map((segment) => ({
+      title: segment.placeName || segment.city,
+      name: segment.placeName || segment.city,
+      address: [segment.city, segment.country].filter(Boolean).join(', '),
+    }));
+  }
+
+  return trip.destination
+    ? [{
+      title: trip.destination,
+      name: trip.destination,
+      address: [trip.destination, trip.country].filter(Boolean).join(', '),
+    }]
+    : [];
+};
+
+// Trip comparison items use trip-level details when place-level details are not available.
+const getTripCompareItem = (trip) => ({
+  id: trip._id,
+  name: trip.title || trip.destination,
+  category: trip.planningMode === 'ai' ? 'AI assisted trip' : 'Manual trip',
+  source: 'trips',
+  price: trip.budget?.totalAmount
+    ? `${trip.budget.currency || 'MYR'} ${Number(trip.budget.totalAmount).toLocaleString()}`
+    : 'Budget unavailable',
+  hours: formatDateRange(trip.startDate, trip.endDate),
+  address: [trip.destination, trip.country].filter(Boolean).join(', '),
+});
+
 // The component owns the full create-trip workflow, from draft form state to final navigation.
 function TripsPage() {
   const navigate = useNavigate();
@@ -98,6 +135,7 @@ function TripsPage() {
   const [createMode, setCreateMode] = useState('self');
   const [activeView, setActiveView] = useState('create');
   const [trips, setTrips] = useState([]);
+  const [visitedPlaces, setVisitedPlaces] = useState([]);
   const [status, setStatus] = useState('loading');
   const [message, setMessage] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
@@ -154,8 +192,46 @@ function TripsPage() {
         .some((value) => value.toLowerCase().includes(query))
     );
   }, [searchQuery, trips]);
+  const visitedLookup = useMemo(() => buildVisitedLookup(visitedPlaces), [visitedPlaces]);
+  const getTripVisitSummary = (trip) => {
+    const destinations = getTripDestinationPlaces(trip);
+    const visitedCount = destinations.filter((destination) => {
+      const payload = getVisitedPlacePayload({
+        item: destination,
+        type: 'location',
+        source: 'trips',
+        tripId: trip._id,
+      });
 
-  const previewSegments = form.destinationSegments.filter((segment) => segment.city.trim());
+      if (visitedLookup[payload.placeKey]) return true;
+
+      const destinationTitle = normalizeVisitText(destination.title || destination.name);
+      const destinationAddress = normalizeVisitText(destination.address);
+
+      return visitedPlaces.some((place) => {
+        const placeTitle = normalizeVisitText(place.title);
+        const placeAddress = normalizeVisitText(place.address);
+        return place.type === 'location' && placeTitle === destinationTitle && (!destinationAddress || placeAddress === destinationAddress);
+      });
+    }).length;
+    const toVisitCount = Math.max(0, destinations.length - visitedCount);
+
+    return {
+      total: destinations.length,
+      visited: visitedCount,
+      toVisit: toVisitCount,
+    };
+  };
+  const tripVisitTotals = useMemo(() => trips.reduce((totals, trip) => {
+    const summary = getTripVisitSummary(trip);
+    return {
+      visited: totals.visited + summary.visited,
+      toVisit: totals.toVisit + summary.toVisit,
+      total: totals.total + summary.total,
+    };
+  }, { visited: 0, toVisit: 0, total: 0 }), [trips, visitedLookup, visitedPlaces]);
+
+  const previewSegments = form.destinationSegments.filter((segment) => getSegmentDestinationName(segment));
   const totalBudget = Number(form.budgetAmount || 0);
   const primarySegment = form.destinationSegments[0];
 
@@ -179,6 +255,22 @@ function TripsPage() {
       });
 
     // Cleanup prevents the country loader from updating an unmounted screen.
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    getVisitedPlaces()
+      .then((response) => {
+        if (isMounted) setVisitedPlaces(response.data?.data?.visitedPlaces || []);
+      })
+      .catch(() => {
+        if (isMounted) setVisitedPlaces([]);
+      });
+
     return () => {
       isMounted = false;
     };
@@ -283,7 +375,7 @@ function TripsPage() {
 
   // Client-side validation catches the most common form mistakes before sending an API request.
   const validateForm = () => {
-    const segments = form.destinationSegments.filter((segment) => segment.city.trim());
+    const segments = form.destinationSegments.filter((segment) => getSegmentDestinationName(segment));
 
     if (!form.title.trim()) return 'Trip title is required.';
     if (!segments.length) return 'Add at least one destination.';
@@ -315,9 +407,9 @@ function TripsPage() {
 
     // Empty destination rows are ignored so unfinished rows do not reach backend validation.
     const segments = form.destinationSegments
-      .filter((segment) => segment.city.trim())
+      .filter((segment) => getSegmentDestinationName(segment))
       .map((segment, index) => ({
-        city: segment.city.trim(),
+        city: getSegmentDestinationName(segment),
         country: segment.country.trim(),
         countryCode: segment.countryCode,
         startDate: form.dateMode === 'flexible' ? submitDates.startDate : segment.startDate,
@@ -447,6 +539,16 @@ function TripsPage() {
               <small>Upcoming</small>
               <strong>{trips.filter((trip) => new Date(trip.endDate) >= new Date(today)).length} active</strong>
             </span>
+            <span>
+              <i><CheckCircle2 size={17} aria-hidden="true" /></i>
+              <small>Visited</small>
+              <strong>{tripVisitTotals.visited} place{tripVisitTotals.visited === 1 ? '' : 's'}</strong>
+            </span>
+            <span>
+              <i><MapPin size={17} aria-hidden="true" /></i>
+              <small>Places to visit</small>
+              <strong>{tripVisitTotals.toVisit} place{tripVisitTotals.toVisit === 1 ? '' : 's'}</strong>
+            </span>
           </div>
 
           <div className="trip-directory-header">
@@ -474,8 +576,9 @@ function TripsPage() {
             <div className="trip-directory-grid">
               {visibleTrips.map((trip) => {
                 const tripDays = getDurationDays(trip.startDate, trip.endDate);
+                const visitSummary = getTripVisitSummary(trip);
                 return (
-                  <Link className="trip-directory-card" to={`/trips/${trip._id}`} key={trip._id}>
+                  <article className="trip-directory-card" key={trip._id}>
                     <div className="trip-directory-card-art">
                       <MapPin size={20} aria-hidden="true" />
                     </div>
@@ -488,14 +591,19 @@ function TripsPage() {
                       <small><CalendarDays size={14} aria-hidden="true" />{formatDateRange(trip.startDate, trip.endDate)}</small>
                       <small><MapPin size={14} aria-hidden="true" />{[trip.destination, trip.country].filter(Boolean).join(', ')}</small>
                     </div>
+                    <div className="trip-visit-summary" aria-label="Trip visited place summary">
+                      <span><CheckCircle2 size={13} aria-hidden="true" />{visitSummary.visited} visited</span>
+                      <span><MapPin size={13} aria-hidden="true" />{visitSummary.toVisit} to visit</span>
+                    </div>
                     <div className="trip-directory-card-footer">
                       <span>{trip.dateFlexibility?.mode === 'flexible' ? 'Flexible dates' : 'Exact dates'}</span>
-                      <em>
+                      <Link to={`/trips/${trip._id}`}>
                         Open details
                         <ArrowRight size={15} aria-hidden="true" />
-                      </em>
+                      </Link>
                     </div>
-                  </Link>
+                    <CompareButton item={getTripCompareItem(trip)} />
+                  </article>
                 );
               })}
             </div>
@@ -839,11 +947,18 @@ function TripsPage() {
             ) : (
               <div className="trip-card-grid trip-card-grid-compact">
                 {visibleTrips.map((trip) => (
-                  <Link className="trip-list-card" to={`/trips/${trip._id}`} key={trip._id}>
-                    <span className="trip-card-title">{trip.title || trip.destination}</span>
-                    <span className="trip-card-meta"><CalendarDays size={14} aria-hidden="true" />{formatDateRange(trip.startDate, trip.endDate)}</span>
-                    <span className="trip-card-meta"><MapPin size={14} aria-hidden="true" />{trip.destination}</span>
-                  </Link>
+                  <article className="trip-list-card" key={trip._id}>
+                    <Link to={`/trips/${trip._id}`}>
+                      <span className="trip-card-title">{trip.title || trip.destination}</span>
+                      <span className="trip-card-meta"><CalendarDays size={14} aria-hidden="true" />{formatDateRange(trip.startDate, trip.endDate)}</span>
+                      <span className="trip-card-meta"><MapPin size={14} aria-hidden="true" />{trip.destination}</span>
+                      <span className="trip-card-meta">
+                        <CheckCircle2 size={14} aria-hidden="true" />
+                        {getTripVisitSummary(trip).visited} visited / {getTripVisitSummary(trip).toVisit} to visit
+                      </span>
+                    </Link>
+                    <CompareButton compact item={getTripCompareItem(trip)} />
+                  </article>
                 ))}
               </div>
             )}
