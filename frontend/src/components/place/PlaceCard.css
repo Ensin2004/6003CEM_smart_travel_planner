@@ -100,8 +100,6 @@
   justify-content: flex-end;
   gap: 6px;
 }
-.explore-favorite-button {
-.explore-favorite-button,
 .explore-visited-check {
   display: inline-grid;
   width: 40px;
@@ -115,12 +113,21 @@
 }
 
 .explore-favorite-button {
+  display: inline-grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: #64748b;
   cursor: pointer;
+  box-shadow: none;
 }
 
 .explore-favorite-button:hover,
 .explore-favorite-button.active {
-  border-color: rgba(220, 38, 38, 0.24);
+  background: transparent;
   color: #dc2626;
 }
 
@@ -132,6 +139,7 @@
   font-weight: 700;
   line-height: 1.35;
   letter-spacing: 0;
+}
 .explore-visited-check {
   color: #16a34a;
   font-size: 20px;
@@ -147,6 +155,14 @@
 .explore-attraction-title {
   display: grid;
   gap: 10px;
+  min-width: 0;
+}
+
+.explore-card-category-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   min-width: 0;
 }
 
@@ -372,11 +388,19 @@
   width: 100%;
 }
 
+.explore-card-footer-actions .visited-place-control {
+  order: 1;
+}
+
+.explore-card-footer-actions .compare-button {
+  order: 2;
+}
+
 .explore-card-footer-actions .visited-place-button,
 .explore-card-compare-button {
   width: 100%;
   min-height: 44px;
-  border-radius: 6px;
+  border-radius: 999px;
   justify-content: center;
   background: #ffffff;
   font-size: 13px;
@@ -392,7 +416,6 @@
     font-size: 18px;
   }
 
-  .explore-card-footer-actions,
   .explore-card-price-row {
     grid-template-columns: 1fr;
   }

@@ -56,8 +56,10 @@ function PlaceSearchWorkspace({
   ratedCount,
   resultCount,
   searchConfig,
+  selectedFoodCategory,
   selectedFoodCategoryLabel,
   selectedRoomLabel,
+  selectedRoomType,
   stateOptions,
   status,
   topRatedCount,
@@ -337,9 +339,9 @@ function PlaceSearchWorkspace({
             activeItems.map((item, index) => (
               <PlaceCard
                 categoryLabel={
-                  isHotelsView && activeFilters.roomType
+                  isHotelsView && selectedRoomType
                     ? selectedRoomLabel
-                    : isFoodView && activeFilters.foodCategory
+                    : isFoodView && selectedFoodCategory
                       ? selectedFoodCategoryLabel
                       : item.category
                 }

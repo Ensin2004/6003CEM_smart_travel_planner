@@ -4,7 +4,6 @@
  */
 import {
   Building2,
-  Check,
   Clock,
   Heart,
   Image,
@@ -16,7 +15,7 @@ import {
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { addFavorite } from '../../api/favoriteApi';
+import { addFavorite, removeFavorite } from '../../api/favoriteApi';
 import CompareButton from '../compare/CompareButton';
 import VisitedPlaceControl from '../visitedPlaces/VisitedPlaceControl';
 import { getVisitedPlacePayload } from '../visitedPlaces/visitedPlaceUtils';
@@ -87,7 +86,7 @@ function PlaceCard({
   const isAttractionCard = type === 'attractions';
   const isDetailEnabled = isHotelCard || isFoodCard || isAttractionCard;
   const isFavoriteEnabled = isHotelCard || isFoodCard || isAttractionCard;
-  const canOpenDetails = isHotelCard || isFoodCard;
+  const canOpenDetails = isDetailEnabled;
   const visitedType = isHotelCard ? 'hotel' : isFoodCard ? 'restaurant' : type === 'food' ? 'food' : 'attraction';
   const visitedPayload = getVisitedPlacePayload({
     item,
@@ -96,6 +95,7 @@ function PlaceCard({
     defaultDate: visitedDefaultDate,
   });
   const [favoriteOverride, setFavoriteOverride] = useState(null);
+  const [favoriteId, setFavoriteId] = useState('');
   const [isSavingFavorite, setIsSavingFavorite] = useState(false);
   const isFavorite = favoriteOverride ?? isInitiallyFavorite;
   const priceIcon =
@@ -151,7 +151,7 @@ function PlaceCard({
     setIsSavingFavorite(true);
     try {
       const favoriteType = isHotelCard ? 'hotel' : isFoodCard ? 'restaurant' : 'attraction';
-      await addFavorite({
+      const favoritePayload = {
         type: favoriteType,
         title: item.name,
         description: item.address,
@@ -160,25 +160,31 @@ function PlaceCard({
         priceLevel: originalPriceText || item.priceDetail?.display || item.price,
         rating: item.rating,
         externalId: item.dataId || item.placeId || item.id || item.name,
-        source: isHotelCard ? 'explore-hotels' : isFoodCard ? 'explore-food' : 'explore-attractions',
         source: isHotelCard ? 'explore-hotels' : isFoodCard ? 'explore-food' : visitedSource || `explore-${type}`,
-      });
-      setFavoriteOverride(true);
-      onFavoriteChange?.(item);
+      };
+
+      if (isFavorite) {
+        const existingFavoriteId = favoriteId || (await addFavorite(favoritePayload)).data.data.favorite?._id;
+        if (existingFavoriteId) {
+          await removeFavorite(existingFavoriteId);
+        }
+        setFavoriteId('');
+        setFavoriteOverride(false);
+        onFavoriteChange?.(item, false);
+      } else {
+        const response = await addFavorite(favoritePayload);
+        setFavoriteId(response.data.data.favorite?._id || '');
+        setFavoriteOverride(true);
+        onFavoriteChange?.(item, true);
+      }
     } catch {
-      setFavoriteOverride(false);
+      setFavoriteOverride(isFavorite);
     } finally {
       setIsSavingFavorite(false);
     }
   };
   return (
     <article
-      className={`explore-attraction ${isDetailEnabled ? 'is-clickable' : ''}`}
-      onClick={handleOpenDetails}
-      role={isDetailEnabled ? 'button' : undefined}
-      tabIndex={isDetailEnabled ? 0 : undefined}
-      onKeyDown={(event) => {
-        if (isDetailEnabled && (event.key === 'Enter' || event.key === ' ')) {
       className={`explore-attraction ${canOpenDetails ? 'is-clickable' : ''}`}
       onClick={handleOpenDetails}
       role={canOpenDetails ? 'button' : undefined}
@@ -211,35 +217,11 @@ function PlaceCard({
           </div>
         )}
         <span className="explore-card-rank">#{index + 1}</span>
-        <div className="explore-media-actions">
-          <button
-            className={`explore-favorite-button ${isFavorite ? 'active' : ''}`}
-            type="button"
-            aria-label={isFavorite ? 'Saved to favorites' : 'Add to favorites'}
-            disabled={isSavingFavorite}
-            onClick={handleFavoriteClick}
-          >
-            <Heart size={18} fill={isFavorite ? 'currentColor' : 'none'} />
-          </button>
-          {visitedRecord ? (
-            <span className="explore-visited-check" aria-label="Visited">
-              <Check size={19} aria-hidden="true" />
-            </span>
-          ) : null}
-        </div>
       </div>
       <div className="explore-attraction-body">
         <div className="explore-attraction-title">
           <div className="explore-card-category-row">
-            <span className="explore-category">{categoryLabel || item.category || item.type || 'Place'}</span>
-            <div className="explore-card-actions">
-              <VisitedPlaceControl
-                compact
-                payload={visitedPayload}
-                visitedRecord={visitedRecord}
-                onVisitedChange={onVisitedChange}
-              />
-            </div>
+            <span className="explore-category" title={categoryText}>{priceIcon}{categoryText}</span>
           </div>
           <div className="explore-card-name-row">
             <h3>{item.name}</h3>
@@ -257,8 +239,6 @@ function PlaceCard({
               )}
             </div>
           </div>
-          <span className="explore-category" title={categoryText}>{priceIcon}{categoryText}</span>
-          <h3 title={item.name}>{item.name}</h3>
         </div>
 
         <div className="explore-card-rating">

@@ -176,15 +176,18 @@ function ExplorePage() {
     () => (activeFilters.countryCode ? State.getStatesOfCountry(activeFilters.countryCode) : []),
     [activeFilters.countryCode]
   );
-  const selectedRoomLabel = roomTypeOptions.find((option) => option.value === hotelFilters.roomType)?.label || 'Any';
+  const selectedHotelRoomType = hotelSearchCriteria?.roomType ?? hotelFilters.roomType;
+  const selectedRoomLabel = roomTypeOptions.find((option) => option.value === selectedHotelRoomType)?.label || 'Any';
+  const selectedRestaurantFoodCategory = restaurantSearchCriteria?.foodCategory ?? restaurantFilters.foodCategory;
   const selectedFoodCategoryLabel =
-    foodCategoryOptions.find((option) => option.value === restaurantFilters.foodCategory)?.label || 'Any';
+    foodCategoryOptions.find((option) => option.value === selectedRestaurantFoodCategory)?.label || 'Any';
+  const submittedSearchCriteria = isHotelsView ? hotelSearchCriteria : isFoodView ? restaurantSearchCriteria : null;
   const filteredSearchLabel = [
-    destination.trim(),
-    activeFilters.state.trim(),
-    activeFilters.country.trim(),
-    isHotelsView && hotelFilters.roomType ? selectedRoomLabel : '',
-    isFoodView && restaurantFilters.foodCategory ? selectedFoodCategoryLabel : '',
+    submittedSearchCriteria?.destination ?? destination.trim(),
+    submittedSearchCriteria?.state ?? activeFilters.state.trim(),
+    submittedSearchCriteria?.country ?? activeFilters.country.trim(),
+    isHotelsView && selectedHotelRoomType ? selectedRoomLabel : '',
+    isFoodView && selectedRestaurantFoodCategory ? selectedFoodCategoryLabel : '',
   ]
     .filter(Boolean)
     .join(', ');
@@ -899,17 +902,25 @@ function ExplorePage() {
   ]);
 
   const updateActiveFilterField = isFoodView ? handleRestaurantFilterChange : handleHotelFilterChange;
-  const handleHotelFavoriteChange = (hotel) => {
+  const handleHotelFavoriteChange = (hotel, isFavorite = true) => {
     const favoriteKey = getHotelFavoriteKey(hotel);
     if (!favoriteKey) return;
 
-    setFavoriteHotelKeys((currentKeys) => (currentKeys.includes(favoriteKey) ? currentKeys : [...currentKeys, favoriteKey]));
+    setFavoriteHotelKeys((currentKeys) =>
+      isFavorite
+        ? currentKeys.includes(favoriteKey) ? currentKeys : [...currentKeys, favoriteKey]
+        : currentKeys.filter((key) => key !== favoriteKey)
+    );
   };
-  const handleRestaurantFavoriteChange = (restaurant) => {
+  const handleRestaurantFavoriteChange = (restaurant, isFavorite = true) => {
     const favoriteKey = getRestaurantFavoriteKey(restaurant);
     if (!favoriteKey) return;
 
-    setFavoriteRestaurantKeys((currentKeys) => (currentKeys.includes(favoriteKey) ? currentKeys : [...currentKeys, favoriteKey]));
+    setFavoriteRestaurantKeys((currentKeys) =>
+      isFavorite
+        ? currentKeys.includes(favoriteKey) ? currentKeys : [...currentKeys, favoriteKey]
+        : currentKeys.filter((key) => key !== favoriteKey)
+    );
   };
 
   const attractionDetailReturnState = {
@@ -988,6 +999,8 @@ function ExplorePage() {
     searchConfig,
     selectedFoodCategoryLabel,
     selectedRoomLabel,
+    selectedFoodCategory: selectedRestaurantFoodCategory,
+    selectedRoomType: selectedHotelRoomType,
     stateOptions,
     status: statusScope === activeOption.id ? status : '',
     topRatedCount,

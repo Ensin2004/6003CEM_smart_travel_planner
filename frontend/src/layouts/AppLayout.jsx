@@ -553,6 +553,8 @@ function AppLayout({ role, menuItems }) {
 
       {!isAdmin && (
         <>
+          <CompareTray />
+
           <button
             className="app-ai-floating"
             type="button"
