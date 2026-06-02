@@ -1,3 +1,7 @@
+/**
+ * Map module.
+ * Business rules, repository access, and external integrations live in this layer.
+ */
 const env = require('../../config/env');
 const weatherService = require('../explore/weather.service');
 const mapRepository = require('./map.repository');
@@ -21,14 +25,13 @@ const mapCategoryQueries = {
   attractions: 'tourist attractions',
   shopping: 'shopping malls',
 };
-
 const fallbackPlaces = (category, message = 'Map place details temporarily unavailable') => ({
   available: false,
   category,
   message,
   items: [],
 });
-
+// Normalize Map Place prepares incoming data for consistent storage.
 const normalizeMapPlace = (item = {}, index, category = 'attractions') => {
   const normalized = normalizePlaceItem(item, index, {
     name: 'Untitled place',
@@ -55,7 +58,6 @@ const normalizeMapPlace = (item = {}, index, category = 'attractions') => {
     lng: normalized.coordinates?.longitude || null,
   };
 };
-
 const getCache = async (cacheKey) => {
   const cached = inMemoryCache.get(cacheKey);
 
@@ -66,7 +68,6 @@ const getCache = async (cacheKey) => {
   if (env.nodeEnv === 'test') {
     return null;
   }
-
   try {
     const databaseCache = await mapRepository.findValidCache(cacheKey);
     return databaseCache ? { ...databaseCache.data, cached: true } : null;
@@ -74,28 +75,25 @@ const getCache = async (cacheKey) => {
     return null;
   }
 };
-
 const setCache = async (cacheKey, data) => {
   inMemoryCache.set(cacheKey, { data, createdAt: Date.now() });
 
   if (env.nodeEnv === 'test') {
     return;
   }
-
   try {
     await mapRepository.upsertCache(cacheKey, data, CACHE_TTL_MS);
   } catch {
     // In-memory cache still prevents repeated calls during this process.
   }
 };
-
+// Build Near Query transforms source data into the shape required nearby.
 const buildNearQuery = ({ category, destination, latitude, longitude }) => {
   const baseQuery = mapCategoryQueries[category] || mapCategoryQueries.attractions;
   const locationText = destination || `${Number(latitude).toFixed(5)},${Number(longitude).toFixed(5)}`;
 
   return `${baseQuery} near ${locationText}`;
 };
-
 const searchMapPlaces = async ({ category, destination, latitude, longitude, limit = 30 }) => {
   const parsedLimit = Math.min(Math.max(Number(limit) || 30, 1), 60);
   const cacheKey = [
@@ -111,11 +109,9 @@ const searchMapPlaces = async ({ category, destination, latitude, longitude, lim
   if (cached) {
     return cached;
   }
-
   if (!env.serpApiKey || env.nodeEnv === 'test') {
     return fallbackPlaces(category, 'SerpApi key is not configured');
   }
-
   try {
     const places = await searchGoogleMaps({
       cache: new Map(),
@@ -142,7 +138,6 @@ const searchMapPlaces = async ({ category, destination, latitude, longitude, lim
     return fallbackPlaces(category, message);
   }
 };
-
 const getMapPlaceDetails = async ({ category, name, address, latitude, longitude }) => {
   const fallbackName = name || 'Selected place';
   const cacheKey = ['detail', category, fallbackName, address || '', latitude || '', longitude || ''].join('|').toLowerCase();
@@ -151,7 +146,6 @@ const getMapPlaceDetails = async ({ category, name, address, latitude, longitude
   if (cached) {
     return cached;
   }
-
   if (!env.serpApiKey || env.nodeEnv === 'test') {
     return {
       available: false,
@@ -159,7 +153,6 @@ const getMapPlaceDetails = async ({ category, name, address, latitude, longitude
       item: null,
     };
   }
-
   try {
     const detailResults = await searchGoogleMaps({
       cache: new Map(),
@@ -188,12 +181,10 @@ const getMapPlaceDetails = async ({ category, name, address, latitude, longitude
     };
   }
 };
-
 const getMapWeather = ({ destination, date, latitude, longitude, locationLabel }) =>
   weatherService.getWeatherByDestination(destination, date, {
     latitude,
     longitude,
     locationLabel,
   });
-
 module.exports = { getMapPlaces: searchMapPlaces, getMapPlaceDetails, getMapWeather };

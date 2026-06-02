@@ -1,3 +1,7 @@
+/**
+ * Explore module.
+ * Page state, event handlers, and render sections define the screen experience.
+ */
 import {
   Building2,
   Compass,
@@ -35,7 +39,6 @@ const viewOptions = [
   { id: 'hotels', label: 'Hotels / Rooms', icon: Building2 },
   { id: 'transport', label: 'Transportation', icon: Compass },
 ];
-
 const getHotelFavoriteKey = (hotel = {}) =>
   String(hotel.dataId || hotel.placeId || hotel.id || hotel.name || '')
     .trim()
@@ -44,7 +47,7 @@ const getRestaurantFavoriteKey = (restaurant = {}) =>
   String(restaurant.dataId || restaurant.placeId || restaurant.id || restaurant.name || '')
     .trim()
     .toLowerCase();
-
+// ExplorePage renders the main screen and handles nearby interactions.
 function ExplorePage() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -141,7 +144,6 @@ function ExplorePage() {
     food: { loaded: 0, priced: 0, rated: 0, topRated: 0 },
     hotels: { loaded: 0, priced: 0, rated: 0, topRated: 0 },
   });
-
   const activeOption = useMemo(
     () => viewOptions.find((option) => option.id === activeView) || viewOptions[0],
     [activeView]
@@ -239,7 +241,6 @@ function ExplorePage() {
         readyText: 'Search a city to begin',
         matchesLabel: 'curated matches',
       };
-
   useEffect(() => {
     const convertibleItems = activeItems.filter((item) => {
       const detail = item.priceDetail;
@@ -305,11 +306,13 @@ function ExplorePage() {
         }));
       });
 
+    // Cleanup prevents state updates after component unmount.
     return () => {
       isActive = false;
     };
   }, [activeItems, priceConversions, selectedCurrency, supportedCurrencyCodes]);
 
+  // Update Destination Query applies allowed changes to an existing record.
   const updateDestinationQuery = (value) => {
     setSearchParams((currentParams) => {
       const nextParams = new URLSearchParams(currentParams);
@@ -324,6 +327,7 @@ function ExplorePage() {
     });
   };
 
+  // Update Search Summary applies allowed changes to an existing record.
   const updateSearchSummary = (viewId, items) => {
     setLastSearchSummary((currentSummary) => ({
       ...currentSummary,
@@ -335,7 +339,6 @@ function ExplorePage() {
       },
     }));
   };
-
   const handleAttractionsSearch = async (event) => {
     event.preventDefault();
 
@@ -371,14 +374,12 @@ function ExplorePage() {
       setIsSearching(false);
     }
   };
-
   const handleHotelFilterChange = (field, value) => {
     setHotelFilters((currentFilters) => ({
       ...currentFilters,
       [field]: value,
     }));
   };
-
   const handleRestaurantFilterChange = (field, value) => {
     setRestaurantFilters((currentFilters) => ({
       ...currentFilters,

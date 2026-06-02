@@ -1,3 +1,7 @@
+/**
+ * Transportation module.
+ * Route definitions connect endpoints with validation, authorization, and controllers.
+ */
 const express = require('express');
 const transportationController = require('./transportation.controller');
 const transportationValidation = require('./transportation.validation');
@@ -7,6 +11,7 @@ const { thirdPartyApiRateLimit } = require('../../middleware/rateLimit.middlewar
 
 const router = express.Router();
 
+// Route section connects URL patterns with validation, authentication, and controller actions.
 router.get(
   '/flights',
   protect,
@@ -16,6 +21,7 @@ router.get(
   transportationController.getFlight
 );
 
+// Route section connects URL patterns with validation, authentication, and controller actions.
 router.get(
   ['/trains/station-timetable', '/trains/station_timetable'],
   protect,
@@ -25,6 +31,7 @@ router.get(
   transportationController.getTrainStationTimetable
 );
 
+// Route section connects URL patterns with validation, authentication, and controller actions.
 router.get(
   ['/trains/service-timetable', '/trains/service_timetable'],
   protect,
@@ -33,5 +40,4 @@ router.get(
   validate,
   transportationController.getTrainServiceTimetable
 );
-
 module.exports = router;

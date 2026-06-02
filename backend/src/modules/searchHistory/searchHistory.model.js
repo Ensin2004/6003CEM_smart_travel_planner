@@ -1,5 +1,9 @@
+/**
+ * Search History module.
+ * Schema fields define stored document structure, defaults, and indexes.
+ */
 const mongoose = require('mongoose');
-
+// Filter Schema groups database fields before model registration.
 const filterSchema = new mongoose.Schema(
   {
     rating: { type: Number, min: 0, max: 5 },
@@ -8,7 +12,7 @@ const filterSchema = new mongoose.Schema(
   },
   { _id: false }
 );
-
+// Search History Schema groups database fields before model registration.
 const searchHistorySchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
@@ -32,5 +36,4 @@ const searchHistorySchema = new mongoose.Schema(
 
 searchHistorySchema.index({ userId: 1, createdAt: -1 });
 searchHistorySchema.index({ userId: 1, searchType: 1 });
-
 module.exports = mongoose.model('SearchHistory', searchHistorySchema, 'searchHistory');

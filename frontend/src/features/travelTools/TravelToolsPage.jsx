@@ -1,3 +1,7 @@
+/**
+ * Travel Tools module.
+ * Page state, event handlers, and render sections define the screen experience.
+ */
 import {
   Bell,
   Bot,
@@ -60,7 +64,7 @@ const acceptedTravelDocumentTypes = [
 ];
 const acceptedTravelDocumentExtensions = ['.png', '.jpg', '.jpeg', '.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx'];
 const acceptedTravelDocumentInput = [...acceptedTravelDocumentTypes, ...acceptedTravelDocumentExtensions].join(',');
-
+// TravelToolsPageFrame renders the main screen and handles nearby interactions.
 function TravelToolsPageFrame({ labelledBy, children, className = '' }) {
   return (
     <section className={`travel-tools-page ${className}`.trim()} aria-labelledby={labelledBy}>
@@ -68,7 +72,7 @@ function TravelToolsPageFrame({ labelledBy, children, className = '' }) {
     </section>
   );
 }
-
+// TravelToolsHero renders the main screen and handles nearby interactions.
 function TravelToolsHero({ description, eyebrow, labelledBy, liveCard, meta, metaLabel, title }) {
   return (
     <div className="travel-tools-hero">
@@ -86,36 +90,30 @@ function TravelToolsHero({ description, eyebrow, labelledBy, liveCard, meta, met
     </div>
   );
 }
-
 const getTripOptionLabel = (trip) => {
   const title = trip.title || trip.destination || 'Untitled trip';
   return trip.destination && trip.destination !== title ? `${title} - ${trip.destination}` : title;
 };
-
 const renderTip = (text) => (
   <span className="travel-tools-tip-anchor" tabIndex="0" aria-label={text}>
     <CircleHelp size={15} aria-hidden="true" />
     <span className="travel-tools-create-tip" role="tooltip">{text}</span>
   </span>
 );
-
 const getVisibleTemplateItems = (items = []) => {
   const visibleItems = items.slice(0, 5);
   return items.length > visibleItems.length ? [...visibleItems, { name: '...' }] : visibleItems;
 };
-
 const getFileExtension = (fileName = '') => {
   const dotIndex = fileName.lastIndexOf('.');
   return dotIndex >= 0 ? fileName.slice(dotIndex).toLowerCase() : '';
 };
-
 const getTravelDocumentPreviewType = (file) => {
   const extension = getFileExtension(file.name);
   if (['.png', '.jpg', '.jpeg'].includes(extension) || ['image/png', 'image/jpeg'].includes(file.type)) return 'image';
   if (extension === '.pdf' || file.type === 'application/pdf') return 'pdf';
   return 'office';
 };
-
 const getTravelDocumentMimeType = (file) => {
   if (file.type) return file.type;
   const extension = getFileExtension(file.name);
@@ -133,12 +131,10 @@ const getTravelDocumentMimeType = (file) => {
   };
   return mimeTypesByExtension[extension] || '';
 };
-
 const isAcceptedTravelDocumentFile = (file) => {
   const extension = getFileExtension(file.name);
   return acceptedTravelDocumentTypes.includes(file.type) || acceptedTravelDocumentExtensions.includes(extension);
 };
-
 const readFileAsDataUrl = (file) =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -146,7 +142,7 @@ const readFileAsDataUrl = (file) =>
     reader.onerror = () => reject(new Error('Unable to read selected file.'));
     reader.readAsDataURL(file);
   });
-
+// Normalize Travel Document For Ui prepares incoming data for consistent storage.
 const normalizeTravelDocumentForUi = (document) => ({
   ...document,
   id: document._id || document.id,
@@ -181,7 +177,7 @@ const normalizeTravelDocumentForUi = (document) => ({
     }),
   })),
 });
-
+// PackingListTools renders the main screen and handles nearby interactions.
 function PackingListTools() {
   const {
     categoryOptions,
@@ -281,7 +277,6 @@ function PackingListTools() {
         String(list.tripId || '') === String(tripId) &&
         (!excludedListId || String(list._id) !== String(excludedListId))
     );
-
   return (
     <TravelToolsPageFrame labelledBy="packing-title" className="travel-tools-enhanced-page">
       <TravelToolsHero
@@ -476,7 +471,6 @@ function PackingListTools() {
                   packedItems: list.items.filter((item) => item.isPacked).length,
                   totalItems: list.items.length,
                 };
-
                 return (
                   <button
                     className={`travel-tools-list-card ${!selectedTemplate && selectedList?._id === list._id ? 'active' : ''}`}
@@ -641,7 +635,6 @@ function PackingListTools() {
                   <div className="travel-tools-item-list packing-template-item-list">
                     {filteredTemplateItems.map((item) => {
                       const CategoryIcon = getCategoryIcon(item.category);
-
                       return (
                         <article className={item.isPacked ? 'packing-template-item-card packed' : 'packing-template-item-card'} key={item.id || item.index}>
                           <div>

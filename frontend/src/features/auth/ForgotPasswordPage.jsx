@@ -1,3 +1,7 @@
+/**
+ * Auth module.
+ * Page state, event handlers, and render sections define the screen experience.
+ */
 import { Eye, EyeOff } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -5,7 +9,7 @@ import { checkPasswordResetEmail, resetPassword } from '../../api/authApi';
 import PublicTopbar from '../../components/PublicTopbar';
 import { passwordRequirements } from './auth.validation';
 import './AuthPage.css';
-
+// ForgotPasswordPage renders the main screen and handles nearby interactions.
 function ForgotPasswordPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState('email');
@@ -21,7 +25,6 @@ function ForgotPasswordPage() {
   const [isConfirmPasswordVisible, setIsConfirmPasswordVisible] = useState(false);
   const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   const [isConfirmPasswordFocused, setIsConfirmPasswordFocused] = useState(false);
-
   const unmetPasswordRequirements = useMemo(
     () => passwordRequirements.filter((requirement) => !requirement.test(formData.password)),
     [formData.password]
@@ -30,18 +33,15 @@ function ForgotPasswordPage() {
   const doPasswordsMatch = formData.password === formData.confirmPassword;
   const shouldShowPasswordRequirements = isPasswordFocused && unmetPasswordRequirements.length > 0;
   const shouldShowPasswordMatchMessage = isConfirmPasswordFocused && isConfirmPasswordFilled;
-
   const handleChange = (event) => {
     const { name, value } = event.target;
     setFormData((current) => ({ ...current, [name]: value }));
   };
-
   const handleEmailSubmit = async (event) => {
     event.preventDefault();
     setError('');
     setSuccess('');
     setIsSubmitting(true);
-
     try {
       await checkPasswordResetEmail({ email: formData.email });
       setStep('password');
@@ -57,24 +57,20 @@ function ForgotPasswordPage() {
       setIsSubmitting(false);
     }
   };
-
   const handlePasswordSubmit = async (event) => {
     event.preventDefault();
     setError('');
     setSuccess('');
-
     if (!doPasswordsMatch) {
       setError('Passwords must match.');
       return;
     }
-
     if (unmetPasswordRequirements.length > 0) {
       setError('Please meet all password requirements.');
       return;
     }
 
     setIsSubmitting(true);
-
     try {
       await resetPassword(formData);
       setSuccess('Password reset successful. Redirecting to login...');
@@ -90,7 +86,6 @@ function ForgotPasswordPage() {
       setIsSubmitting(false);
     }
   };
-
   return (
     <main className="auth-page auth-forgot-password">
       <PublicTopbar />
@@ -231,5 +226,5 @@ function ForgotPasswordPage() {
     </main>
   );
 }
-
+// Default export registers the primary  value.
 export default ForgotPasswordPage;

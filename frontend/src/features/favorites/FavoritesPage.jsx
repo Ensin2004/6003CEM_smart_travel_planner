@@ -1,21 +1,22 @@
+/**
+ * Favorites module.
+ * Page state, event handlers, and render sections define the screen experience.
+ */
 import { Building2, Heart, LoaderCircle, MapPin, Star, Trash2, Utensils } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getFavorites, removeFavorite } from '../../api/favoriteApi';
 import './FavoritesPage.css';
-
+// FavoritesPage renders the main screen and handles nearby interactions.
 function FavoritesPage() {
   const [favorites, setFavorites] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-
   useEffect(() => {
     let isActive = true;
-
     const loadFavorites = async () => {
       setIsLoading(true);
       setError('');
-
       try {
         const response = await getFavorites();
         if (isActive) setFavorites(response.data.data.favorites || []);
@@ -27,19 +28,17 @@ function FavoritesPage() {
     };
 
     loadFavorites();
-
+    // Cleanup prevents state updates after component unmount.
     return () => {
       isActive = false;
     };
   }, []);
-
   const handleRemove = async (favoriteId) => {
     await removeFavorite(favoriteId);
     setFavorites((currentFavorites) => currentFavorites.filter((favorite) => favorite._id !== favoriteId));
   };
 
   const placeFavorites = favorites.filter((favorite) => favorite.type === 'hotel' || favorite.type === 'restaurant');
-
   return (
     <section className="favorites-page">
       <div className="favorites-hero">
@@ -73,7 +72,6 @@ function FavoritesPage() {
         <div className="favorites-grid">
           {placeFavorites.map((favorite) => {
             const Icon = favorite.type === 'restaurant' ? Utensils : Building2;
-
             return (
             <article className="favorite-card" key={favorite._id}>
               <div className="favorite-card-icon">
@@ -115,5 +113,5 @@ function FavoritesPage() {
     </section>
   );
 }
-
+// Default export registers the primary  value.
 export default FavoritesPage;

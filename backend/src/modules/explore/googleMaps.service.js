@@ -1,3 +1,7 @@
+/**
+ * Explore module.
+ * Business rules, repository access, and external integrations live in this layer.
+ */
 const axios = require('axios');
 const env = require('../../config/env');
 const logger = require('../../utils/logger');
@@ -14,13 +18,11 @@ const serpApiClient = axios.create({
   baseURL: 'https://serpapi.com',
   timeout: 8000,
 });
-
 const getText = (value) => {
   if (!value) return '';
   if (typeof value === 'string' || typeof value === 'number') return String(value);
   return value.text || value.string || value.localizedString || value.name || value.title || '';
 };
-
 const pickImage = (item = {}) => {
   const image =
     item.serpapi_thumbnail ||
@@ -35,13 +37,11 @@ const pickImage = (item = {}) => {
   if (typeof image === 'string') return image;
   return image.url || image.photoUrl || image.thumbnailUrl || image.sizes?.medium?.url || image.sizes?.small?.url || '';
 };
-
 const getImageUrl = (image) => {
   if (!image) return '';
   if (typeof image === 'string') return image;
   return image.url || image.photoUrl || image.thumbnailUrl || image.serpapi_thumbnail || image.image || '';
 };
-
 const pickImages = (item = {}) => {
   const candidates = [
     item.images,
@@ -61,7 +61,6 @@ const pickImages = (item = {}) => {
 
   return [...new Set(candidates)];
 };
-
 const getOpeningHours = (item = {}) => {
   if (Array.isArray(item.hours)) return item.hours.filter(Boolean).join(' | ');
   if (Array.isArray(item.operating_hours)) return item.operating_hours.filter(Boolean).join(' | ');
@@ -69,10 +68,8 @@ const getOpeningHours = (item = {}) => {
   if (typeof item.operating_hours === 'string') return item.operating_hours;
   return '';
 };
-
 const getPriceDetail = (price) => {
   const text = getText(price);
-
   if (!text) {
     return null;
   }
@@ -121,14 +118,13 @@ const getPriceDetail = (price) => {
     isTier: /^\$+$/.test(text.trim()),
   };
 };
-
+// Build Public Place Url transforms source data into the shape required nearby.
 const buildPublicPlaceUrl = (item = {}) => {
   if (item.website) return item.website;
 
   const query = [getText(item.title || item.name), getText(item.address)].filter(Boolean).join(' ');
   return query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : '';
 };
-
 const getCoordinates = (item = {}) =>
   item.gps_coordinates?.latitude || item.gps_coordinates?.longitude
     ? {
@@ -136,11 +132,9 @@ const getCoordinates = (item = {}) =>
         longitude: item.gps_coordinates.longitude,
       }
     : undefined;
-
 const consumeDailyQuota = () => {
   const today = new Date().toISOString().slice(0, 10);
   const dailyLimit = Math.max(Number(env.serpApiDailyLimit) || 100, 0);
-
   if (dailyUsage.date !== today) {
     dailyUsage.date = today;
     dailyUsage.count = 0;
@@ -153,7 +147,7 @@ const consumeDailyQuota = () => {
   dailyUsage.count += 1;
   return true;
 };
-
+// Normalize Place Item prepares incoming data for consistent storage.
 const normalizePlaceItem = (item = {}, index, defaults = {}) => ({
   id: String(item.place_id || item.data_id || item.data_cid || item.position || index),
   placeId: getText(item.place_id),
@@ -171,7 +165,6 @@ const normalizePlaceItem = (item = {}, index, defaults = {}) => ({
   coordinates: getCoordinates(item),
   url: buildPublicPlaceUrl(item),
 });
-
 const recordGoogleMapsFailure = (endpoint, message, statusCode, metadata) =>
   env.nodeEnv === 'test'
     ? Promise.resolve()
@@ -187,31 +180,25 @@ const recordGoogleMapsFailure = (endpoint, message, statusCode, metadata) =>
           metadata,
         })
         .catch((error) => logger.error(`Failed to record ${endpoint} API event: ${error.message}`));
-
 const getGoogleMapsFailureMessage = (error) => {
   if (error.isDailyLimit) {
     return { message: 'Daily travel data API limit reached. Please try again tomorrow.', statusCode: 429 };
   }
-
   if (error.response?.status === 401 || error.response?.status === 403) {
     return { message: 'External service configuration error', statusCode: 502 };
   }
-
   if (error.response?.status === 429) {
     return { message: 'SerpApi rate limit reached', statusCode: 429 };
   }
-
   if (error.code === 'ECONNABORTED') {
     return { message: 'External service timeout', statusCode: 503 };
   }
-
   if (!error.response) {
     return { message: error.message || 'External service network error', statusCode: 503 };
   }
 
   return { message: error.message || 'External service unavailable', statusCode: error.response.status || 503 };
 };
-
 const searchGoogleMaps = async ({ cache, cacheKey, query, start = 0, metadata = {}, mapItem }) => {
   const cached = cache.get(cacheKey);
 
@@ -224,7 +211,6 @@ const searchGoogleMaps = async ({ cache, cacheKey, query, start = 0, metadata = 
     error.isDailyLimit = true;
     throw error;
   }
-
   const response = await serpApiClient.get('/search', {
     params: {
       engine: 'google_maps',
@@ -236,7 +222,6 @@ const searchGoogleMaps = async ({ cache, cacheKey, query, start = 0, metadata = 
       api_key: env.serpApiKey,
     },
   });
-
   if (response.data?.error) {
     throw new Error(response.data.error);
   }
@@ -255,7 +240,7 @@ const searchGoogleMaps = async ({ cache, cacheKey, query, start = 0, metadata = 
   cache.set(cacheKey, { data, createdAt: Date.now() });
   return data;
 };
-
+// Normalize Review prepares incoming data for consistent storage.
 const normalizeReview = (review = {}, index = 0) => ({
   id: String(review.review_id || review.link || review.user?.link || index),
   author: getText(review.user?.name || review.user || review.author || review.name) || 'Google user',
@@ -265,7 +250,6 @@ const normalizeReview = (review = {}, index = 0) => ({
   text: getText(review.snippet || review.text || review.review),
   likes: Number(review.likes || 0) || 0,
 });
-
 const searchGoogleMapsReviews = async ({ dataId, placeId, sortBy = 'qualityScore', hl = 'en' }) => {
   if (!dataId && !placeId) {
     return { available: false, message: 'Google review identifier is unavailable', items: [] };
@@ -276,7 +260,6 @@ const searchGoogleMapsReviews = async ({ dataId, placeId, sortBy = 'qualityScore
     error.isDailyLimit = true;
     throw error;
   }
-
   const response = await serpApiClient.get('/search', {
     params: {
       engine: 'google_maps_reviews',
@@ -287,7 +270,6 @@ const searchGoogleMapsReviews = async ({ dataId, placeId, sortBy = 'qualityScore
       api_key: env.serpApiKey,
     },
   });
-
   if (response.data?.error) {
     throw new Error(response.data.error);
   }
@@ -300,7 +282,6 @@ const searchGoogleMapsReviews = async ({ dataId, placeId, sortBy = 'qualityScore
     lastUpdated: new Date().toISOString(),
   };
 };
-
 module.exports = {
   getGoogleMapsFailureMessage,
   getPriceDetail,

@@ -1,5 +1,9 @@
+/**
+ * Notifications module.
+ * Schema fields define stored document structure, defaults, and indexes.
+ */
 const mongoose = require('mongoose');
-
+// Notification Schema groups database fields before model registration.
 const notificationSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
@@ -19,5 +23,4 @@ const notificationSchema = new mongoose.Schema(
 );
 
 notificationSchema.index({ userId: 1, isRead: 1 });
-
 module.exports = mongoose.model('Notification', notificationSchema, 'notifications');

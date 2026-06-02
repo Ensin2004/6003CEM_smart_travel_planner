@@ -1,3 +1,7 @@
+/**
+ * Explore module.
+ * Exports and local helpers keep related behavior in a single module.
+ */
 import { ArrowLeftRight, DollarSign, LoaderCircle, Plane, Search, TrainFront, X } from 'lucide-react';
 import { getDateKey } from '../explore.helpers';
 import './Transportation.css';
@@ -6,7 +10,7 @@ const transportationTabs = [
   { id: 'flights', label: 'Flights', icon: Plane },
   { id: 'trains', label: 'Trains', icon: TrainFront },
 ];
-
+// TransportationSubmenu renders the main screen and handles nearby interactions.
 function TransportationSubmenu({
   activeTransportTab,
   clearFlightCountry,
@@ -34,6 +38,7 @@ function TransportationSubmenu({
   trainResults,
   trainSearch,
 }) {
+  // Format Train Date converts raw values into readable display text.
   const formatTrainDate = (value) => value || 'Date unavailable';
   const getTrainDistanceLabel = (train = {}) => {
     const kilometers = Number(train.distanceEstimate?.kilometers);
@@ -48,14 +53,12 @@ function TransportationSubmenu({
     [train.trainUid || train.service || trainResults?.stationCode, train.platform ? `Platform ${train.platform}` : '']
       .filter(Boolean)
       .join(' - ') || 'Train service';
-
   return (
     <div className="explore-workspace">
       <div className="explore-transport-toolbar">
         <div className="travel-guide-tabs explore-transport-tabs" role="tablist" aria-label="Transportation type">
           {transportationTabs.map((tab) => {
             const TabIcon = tab.icon;
-
             return (
               <button
                 className={activeTransportTab === tab.id ? 'active' : ''}
@@ -299,7 +302,6 @@ function TransportationSubmenu({
                   {flightResults.items.map((flight, index) => {
                     const departureLabel = getAirportLocationLabel(flight.departure.airport);
                     const arrivalLabel = getAirportLocationLabel(flight.arrival.airport);
-
                     return (
                       <article className="explore-transport-result-card explore-transport-result-card--flight" key={`${flight.id}-${index}`}>
                         <div className="explore-transport-carrier">
@@ -414,6 +416,6 @@ function TransportationSubmenu({
     </div>
   );
 }
-
+// Default export registers the primary  value.
 export default TransportationSubmenu;
 

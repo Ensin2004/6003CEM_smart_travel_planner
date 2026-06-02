@@ -1,3 +1,7 @@
+/**
+ * Explore module.
+ * Business rules, repository access, and external integrations live in this layer.
+ */
 const axios = require('axios');
 const env = require('../../config/env');
 const logger = require('../../utils/logger');
@@ -10,7 +14,7 @@ const dailyUsage = {
   date: '',
   count: 0,
 };
-
+// Response Schema groups database fields before model registration.
 const responseSchema = {
   type: 'object',
   properties: {
@@ -52,13 +56,10 @@ const responseSchema = {
   },
   required: ['summary', 'recommendationMode', 'stats', 'picks', 'tips', 'nextActions'],
 };
-
 const getTodayKey = () => new Date().toISOString().slice(0, 10);
-
 const consumeDailyQuota = () => {
   const today = getTodayKey();
   const dailyLimit = Math.max(Number(env.geminiDailyLimit) || 100, 0);
-
   if (dailyUsage.date !== today) {
     dailyUsage.date = today;
     dailyUsage.count = 0;
@@ -71,7 +72,6 @@ const consumeDailyQuota = () => {
   dailyUsage.count += 1;
   return true;
 };
-
 const recordAiFailure = (message, statusCode, metadata = {}) =>
   env.nodeEnv === 'test'
     ? Promise.resolve()
@@ -87,31 +87,25 @@ const recordAiFailure = (message, statusCode, metadata = {}) =>
           metadata,
         })
         .catch((error) => logger.error(`Failed to record AI recommendation event: ${error.message}`));
-
 const classifyAiError = (error) => {
   if (error.isDailyLimit) {
     return { message: 'Daily AI recommendation limit reached. Please try again tomorrow.', statusCode: 429 };
   }
-
   if (error.response?.status === 401 || error.response?.status === 403) {
     return { message: 'AI recommendations are temporarily unavailable.', statusCode: 502 };
   }
-
   if (error.response?.status === 429) {
     return { message: 'AI recommendations are busy right now. Please try again later.', statusCode: 429 };
   }
-
   if (error.code === 'ECONNABORTED') {
     return { message: 'AI recommendations took too long. Please try again.', statusCode: 503 };
   }
-
   if (!error.response) {
     return { message: 'AI recommendations could not be reached. Please try again.', statusCode: 503 };
   }
 
   return { message: 'AI recommendations are temporarily unavailable.', statusCode: error.response.status || 503 };
 };
-
 const getOpenNow = (item) => {
   const openState = String(item.openState || '').toLowerCase();
 
@@ -121,7 +115,6 @@ const getOpenNow = (item) => {
 
   return openState.includes('open');
 };
-
 const getLocalStats = (items) => {
   const ratedItems = items.filter((item) => Number(item.rating));
   const ratingSum = ratedItems.reduce((sum, item) => sum + Number(item.rating), 0);
@@ -134,7 +127,6 @@ const getLocalStats = (items) => {
     bestValueCount: items.filter((item) => Number(item.rating) >= 4.3 && (item.price || item.priceDetail?.display)).length,
   };
 };
-
 const fallbackAiRecommendations = (message, items = []) => ({
   available: false,
   message,
@@ -145,7 +137,6 @@ const fallbackAiRecommendations = (message, items = []) => ({
   tips: [],
   nextActions: [],
 });
-
 const getItemScore = (item) => {
   const ratingScore = (Number(item.rating) || 0) * 14;
   const reviewScore = Math.min(Math.log10((Number(item.reviewCount) || 0) + 1) * 7, 24);
@@ -154,7 +145,6 @@ const getItemScore = (item) => {
 
   return Math.max(0, Math.min(Math.round(ratingScore + reviewScore + priceScore + openScore), 100));
 };
-
 const getLocalReason = (item) => {
   const reasons = [];
 
@@ -176,20 +166,18 @@ const getLocalReason = (item) => {
 
   return reasons.length ? `Strong choice because it has ${reasons.join(', ')}.` : 'Useful option from the loaded results.';
 };
-
 const getLocalCaution = (item) => {
   if (!item.openState) return 'Opening hours are not available.';
   if (!item.price && !item.priceDetail?.display) return 'Price is not available.';
   if (!Number(item.rating)) return 'Rating is not available.';
   return '';
 };
-
 const getLocalBestFor = (view) => {
   if (view === 'food') return 'easy dining shortlist';
   if (view === 'hotels') return 'quick room comparison';
   return 'practical sightseeing shortlist';
 };
-
+// Build Local Recommendations transforms source data into the shape required nearby.
 const buildLocalRecommendations = ({ message, view, items = [] }) => {
   const rankedItems = [...items]
     .sort((firstItem, secondItem) => getItemScore(secondItem) - getItemScore(firstItem))
@@ -217,7 +205,6 @@ const buildLocalRecommendations = ({ message, view, items = [] }) => {
     lastUpdated: new Date().toISOString(),
   };
 };
-
 const sanitizeItem = (item = {}) => ({
   name: String(item.name || '').slice(0, 90),
   category: String(item.category || '').slice(0, 50),
@@ -228,6 +215,7 @@ const sanitizeItem = (item = {}) => ({
   address: String(item.address || '').slice(0, 90),
 });
 
+// Build Prompt transforms source data into the shape required nearby.
 const buildPrompt = ({ view, destination, date, weather, items }) => `
 You are helping a traveler choose from search results in a smart travel planner.
 Use only the supplied result data. Do not invent places, prices, phone numbers, opening hours, or ratings.
@@ -250,14 +238,12 @@ Guidance:
 
 const parseAiJson = (response) => {
   const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
-
   if (!text) {
     throw new Error('AI service returned an empty response');
   }
 
   return JSON.parse(text);
 };
-
 const normalizeAiResult = (result, items) => ({
   available: true,
   summary: String(result.summary || 'AI recommendations are ready.').slice(0, 520),
@@ -284,11 +270,9 @@ const normalizeAiResult = (result, items) => ({
 
 const getAiRecommendations = async ({ view, destination, date, weather, items = [] }) => {
   const usableItems = items.slice(0, MAX_ITEMS_FOR_PROMPT);
-
   if (!usableItems.length) {
     return fallbackAiRecommendations('Search results are needed before AI recommendations can be generated.', usableItems);
   }
-
   if (!env.geminiApiKey) {
     return fallbackAiRecommendations('AI recommendations are not configured yet.', usableItems);
   }
@@ -313,7 +297,6 @@ const getAiRecommendations = async ({ view, destination, date, weather, items = 
     recordAiFailure(message, statusCode, { view, destination });
     return fallbackAiRecommendations(message, usableItems);
   }
-
   try {
     const response = await axios.post(
       `https://generativelanguage.googleapis.com/v1beta/models/${env.geminiModel}:generateContent`,

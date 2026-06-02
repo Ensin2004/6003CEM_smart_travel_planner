@@ -1,5 +1,9 @@
+/**
+ * Settings module.
+ * Schema fields define stored document structure, defaults, and indexes.
+ */
 const mongoose = require('mongoose');
-
+// Faq Schema groups database fields before model registration.
 const faqSchema = new mongoose.Schema(
   {
     question: { type: String, required: true, trim: true, maxlength: 180 },
@@ -7,7 +11,7 @@ const faqSchema = new mongoose.Schema(
   },
   { _id: true }
 );
-
+// Settings Content Schema groups database fields before model registration.
 const settingsContentSchema = new mongoose.Schema(
   {
     key: { type: String, default: 'site-content', unique: true },
@@ -17,5 +21,4 @@ const settingsContentSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
 module.exports = mongoose.model('SettingsContent', settingsContentSchema, 'settingsContents');

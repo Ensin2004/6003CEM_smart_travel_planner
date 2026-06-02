@@ -1,3 +1,8 @@
+/**
+ * Handles currency conversion and supported-currency lookup.
+ * Exchange rates are cached briefly in memory to reduce repeated calls to the
+ * Frankfurter API while keeping travel budget conversions reasonably fresh.
+ */
 const axios = require('axios');
 const AppError = require('../../utils/AppError');
 const logger = require('../../utils/logger');
@@ -8,6 +13,7 @@ const FRANKFURTER_BASE_URL = 'https://api.frankfurter.app';
 const CACHE_TTL_MS = 60 * 60 * 1000;
 const rateCache = new Map();
 
+// Failed provider calls are logged for the admin API log view, but logging remains best-effort.
 const recordCurrencyFailure = (message, statusCode, metadata = {}) =>
   apiLogService
     .recordEvent({
@@ -40,6 +46,7 @@ const cacheRate = (from, to, data) => {
 };
 
 const getExchangeRate = async (from, to) => {
+  // Same-currency conversion never needs a provider request.
   if (from === to) {
     return {
       available: true,
@@ -53,10 +60,10 @@ const getExchangeRate = async (from, to) => {
 
   const cachedRate = getCachedRate(from, to);
 
+  // Cached values keep repeated dashboard and trip-card conversions fast for one hour.
   if (cachedRate) {
     return cachedRate;
   }
-
   try {
     const response = await axios.get(`${FRANKFURTER_BASE_URL}/latest`, {
       params: { from, to },
@@ -64,7 +71,6 @@ const getExchangeRate = async (from, to) => {
     });
 
     const rate = response.data?.rates?.[to];
-
     if (!rate) {
       throw new AppError('Currency rate is temporarily unavailable', 502);
     }
@@ -85,7 +91,6 @@ const getExchangeRate = async (from, to) => {
       recordCurrencyFailure(error.message, error.statusCode, { from, to });
       throw error;
     }
-
     if (error.response?.status === 429) {
       recordCurrencyFailure('Currency API rate limit reached', 429, { from, to });
       throw new AppError('Currency conversion is busy. Please try again later.', 429);

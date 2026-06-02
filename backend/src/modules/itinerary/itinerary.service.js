@@ -1,19 +1,22 @@
+/**
+ * Itinerary module.
+ * Business rules, repository access, and external integrations live in this layer.
+ */
 const AppError = require('../../utils/AppError');
 const tripRepository = require('../trips/trip.repository');
 const itineraryRepository = require('./itinerary.repository');
-
+// Add Days builds a new record from validated input.
 const addDays = (date, days) => {
   const nextDate = new Date(date);
   nextDate.setDate(nextDate.getDate() + days);
   return nextDate;
 };
-
 const getTripForUser = async (tripId, userId) => {
   const trip = await tripRepository.findByIdAndUserId(tripId, userId);
   if (!trip) throw new AppError('Trip not found', 404);
   return trip;
 };
-
+// Build Default Days transforms source data into the shape required nearby.
 const buildDefaultDays = (trip, savedDays = []) => {
   const savedDayMap = new Map(savedDays.map((day) => [day.dayNumber, day]));
   const totalDays = trip.durationDays || 1;
@@ -36,7 +39,6 @@ const buildDefaultDays = (trip, savedDays = []) => {
     };
   });
 };
-
 const getItinerary = async (tripId, userId) => {
   const trip = await getTripForUser(tripId, userId);
   const [savedDays, items] = await Promise.all([
@@ -50,7 +52,7 @@ const getItinerary = async (tripId, userId) => {
     items,
   };
 };
-
+// Update Day applies allowed changes to an existing record.
 const updateDay = async (tripId, dayNumber, userId, data) => {
   const trip = await getTripForUser(tripId, userId);
   const numericDayNumber = Number(dayNumber);
@@ -69,7 +71,7 @@ const updateDay = async (tripId, dayNumber, userId, data) => {
     },
   });
 };
-
+// Create Item builds a new record from validated input.
 const createItem = async (tripId, userId, data) => {
   await getTripForUser(tripId, userId);
 
@@ -85,18 +87,17 @@ const createItem = async (tripId, userId, data) => {
       : undefined,
   });
 };
-
+// Update Item applies allowed changes to an existing record.
 const updateItem = async (itemId, userId, data) => {
   const item = await itineraryRepository.updateItemByIdAndUserId(itemId, userId, data);
   if (!item) throw new AppError('Itinerary item not found', 404);
   return item;
 };
-
+// Delete Item removes a record after ownership checks.
 const deleteItem = async (itemId, userId) => {
   const item = await itineraryRepository.deleteItemByIdAndUserId(itemId, userId);
   if (!item) throw new AppError('Itinerary item not found', 404);
 };
-
 module.exports = {
   createItem,
   deleteItem,

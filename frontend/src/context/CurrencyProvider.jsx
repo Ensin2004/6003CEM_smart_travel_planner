@@ -1,3 +1,7 @@
+/**
+ * Currency Provider module.
+ * Provider state exposes shared values and actions to nested React screens.
+ */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { convertCurrency, getCurrencies } from '../api/currencyApi';
 import CurrencyContext from './currencyContext';
@@ -21,7 +25,6 @@ const DEFAULT_CURRENCIES = [
   { code: 'PHP', label: 'Philippine Peso' },
   { code: 'VND', label: 'Vietnamese Dong' },
 ];
-
 const getSavedCurrency = () => localStorage.getItem('preferredCurrency') || DEFAULT_CURRENCY;
 
 export function CurrencyProvider({ children }) {
@@ -29,7 +32,6 @@ export function CurrencyProvider({ children }) {
   const [currencies, setCurrencies] = useState(DEFAULT_CURRENCIES);
   const [rates, setRates] = useState({ USD: { rate: 1, date: null, cached: true } });
   const [errorMessage, setErrorMessage] = useState('');
-
   useEffect(() => {
     getCurrencies()
       .then((response) => {
@@ -49,10 +51,8 @@ export function CurrencyProvider({ children }) {
     setErrorMessage('');
     localStorage.setItem('preferredCurrency', currencyCode);
   }, []);
-
   useEffect(() => {
     const hasAccessToken = Boolean(localStorage.getItem('accessToken'));
-
     if (selectedCurrency === DEFAULT_CURRENCY || rates[selectedCurrency] || !hasAccessToken) {
       return;
     }
@@ -62,7 +62,6 @@ export function CurrencyProvider({ children }) {
     convertCurrency({ amount: 1, from: DEFAULT_CURRENCY, to: selectedCurrency })
       .then((response) => {
         const conversion = response.data?.data?.conversion;
-
         if (!isActive || !conversion?.rate) {
           return;
         }
@@ -83,12 +82,11 @@ export function CurrencyProvider({ children }) {
 
         setErrorMessage(error.response?.data?.message || 'Currency conversion temporarily unavailable.');
       })
-
+    // Cleanup prevents state updates after component unmount.
     return () => {
       isActive = false;
     };
   }, [rates, selectedCurrency]);
-
   const formatAmount = useCallback(
     (amount, sourceCurrency = DEFAULT_CURRENCY) => {
       const numericAmount = Number(amount);
@@ -96,7 +94,6 @@ export function CurrencyProvider({ children }) {
       if (!Number.isFinite(numericAmount)) {
         return '';
       }
-
       if (sourceCurrency !== DEFAULT_CURRENCY || selectedCurrency === sourceCurrency) {
         return new Intl.NumberFormat(undefined, {
           style: 'currency',
@@ -106,7 +103,6 @@ export function CurrencyProvider({ children }) {
       }
 
       const rate = rates[selectedCurrency]?.rate;
-
       if (!rate) {
         return new Intl.NumberFormat(undefined, {
           style: 'currency',
@@ -123,7 +119,6 @@ export function CurrencyProvider({ children }) {
     },
     [rates, selectedCurrency]
   );
-
   const value = useMemo(
     () => ({
       currencies,

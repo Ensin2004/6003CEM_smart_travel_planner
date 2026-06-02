@@ -1,3 +1,7 @@
+<!--
+  Vite document shell for the React application.
+  Metadata, root mounting markup, and entry script stay in one HTML file.
+-->
 <!doctype html>
 <html lang="en">
   <head>
@@ -6,8 +10,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>frontend</title>
   </head>
-  <body>
-    <div id="root"></div>
+  <body>    <!-- React renders all route content inside this root element. -->
+    <div id="root"></div>    <!-- Main JSX entry starts the Vite React bundle. -->
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

@@ -1,3 +1,7 @@
+/**
+ * Explore module.
+ * Business rules, repository access, and external integrations live in this layer.
+ */
 const axios = require('axios');
 const env = require('../../config/env');
 const {
@@ -11,7 +15,6 @@ const {
 } = require('./googleMaps.service');
 
 const restaurantsCache = new Map();
-
 const fallbackRestaurants = (filters, message = 'Restaurants temporarily unavailable') => ({
   available: false,
   ...filters,
@@ -19,7 +22,7 @@ const fallbackRestaurants = (filters, message = 'Restaurants temporarily unavail
   items: [],
   hasMore: false,
 });
-
+// Normalize Restaurant prepares incoming data for consistent storage.
 const normalizeRestaurant = (item = {}, index) => ({
   ...normalizePlaceItem(item, index, {
     name: 'Untitled restaurant',
@@ -28,7 +31,7 @@ const normalizeRestaurant = (item = {}, index) => ({
   price: getText(item.price || item.price_level),
   priceDetail: getPriceDetail(item.price || item.price_level),
 });
-
+// Normalize Filters prepares incoming data for consistent storage.
 const normalizeFilters = (filters = {}) => ({
   destination: (filters.destination || '').trim(),
   country: (filters.country || '').trim(),
@@ -36,10 +39,8 @@ const normalizeFilters = (filters = {}) => ({
   foodCategory: (filters.foodCategory || '').trim(),
   start: Math.max(Number(filters.start) || 0, 0),
 });
-
 const hasRestaurantSearchInput = ({ destination, country, state, foodCategory }) =>
   Boolean(destination || country || state || foodCategory);
-
 const getRestaurantQuery = ({ destination, country, state, foodCategory }) => {
   const categoryPrefix = foodCategory ? `${foodCategory} ` : '';
   const location = [state, country].filter(Boolean).join(', ');
@@ -58,18 +59,15 @@ const getRestaurantQuery = ({ destination, country, state, foodCategory }) => {
 
   return `${categoryPrefix}restaurants`;
 };
-
 const getRestaurantsByDestination = async (filters) => {
   const normalizedFilters = normalizeFilters(filters);
 
   if (!hasRestaurantSearchInput(normalizedFilters)) {
     return fallbackRestaurants(normalizedFilters, 'Enter a restaurant name, country, location, or food category first.');
   }
-
   if (!env.serpApiKey || env.nodeEnv === 'test') {
     return fallbackRestaurants(normalizedFilters, 'SerpApi key is not configured');
   }
-
   try {
     return await searchGoogleMaps({
       cache: restaurantsCache,
@@ -85,7 +83,6 @@ const getRestaurantsByDestination = async (filters) => {
     return fallbackRestaurants(normalizedFilters, message);
   }
 };
-
 const getWikipediaPageSummary = async (title) => {
   const normalizedTitle = encodeURIComponent(title.trim().replace(/\s+/g, '_'));
   const response = await axios.get(`https://en.wikipedia.org/api/rest_v1/page/summary/${normalizedTitle}`, {
@@ -103,7 +100,6 @@ const getWikipediaPageSummary = async (title) => {
     url: response.data?.content_urls?.desktop?.page || '',
   };
 };
-
 const searchWikipediaTitle = async (query) => {
   const response = await axios.get('https://en.wikipedia.org/w/api.php', {
     timeout: 7000,
@@ -123,7 +119,6 @@ const searchWikipediaTitle = async (query) => {
 
   return response.data?.query?.search?.[0]?.title || '';
 };
-
 const getAddressSearchHint = (address = '') =>
   address
     .split(',')
@@ -131,12 +126,10 @@ const getAddressSearchHint = (address = '') =>
     .filter(Boolean)
     .slice(-3)
     .join(' ');
-
 const getWikipediaSummary = async (name, address = '') => {
   if (!name) {
     return { available: false, extract: '', url: '', title: '' };
   }
-
   try {
     return await getWikipediaPageSummary(name);
   } catch {
@@ -148,7 +141,7 @@ const getWikipediaSummary = async (name, address = '') => {
         return await getWikipediaPageSummary(title);
       }
     } catch {
-      // Fall through to the friendly unavailable message below.
+      // Fall through to the friendly unavailable message.
     }
   }
 
@@ -160,7 +153,6 @@ const getWikipediaSummary = async (name, address = '') => {
     url: '',
   };
 };
-
 const getRestaurantDetail = async ({ name, address, dataId, placeId }) => {
   const fallbackName = name || 'Selected restaurant';
   const baseRestaurant = {
@@ -180,14 +172,12 @@ const getRestaurantDetail = async ({ name, address, dataId, placeId }) => {
       items: [],
     },
   };
-
   if (!env.serpApiKey || env.nodeEnv === 'test') {
     return {
       ...baseRestaurant,
       message: 'SerpApi key is not configured',
     };
   }
-
   try {
     const query = [fallbackName, address].filter(Boolean).join(' ');
     const details = await searchGoogleMaps({
@@ -222,5 +212,4 @@ const getRestaurantDetail = async ({ name, address, dataId, placeId }) => {
     };
   }
 };
-
 module.exports = { getRestaurantDetail, getRestaurantsByDestination };

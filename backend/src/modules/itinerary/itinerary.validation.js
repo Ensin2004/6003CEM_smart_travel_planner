@@ -1,3 +1,7 @@
+/**
+ * Itinerary module.
+ * Validation schemas reject unsafe or incomplete request payloads.
+ */
 const { body, param } = require('express-validator');
 
 const tripIdRule = param('tripId').isMongoId().withMessage('Invalid trip id');
@@ -37,7 +41,6 @@ const updateItemRules = [
   body('priceEstimate.amount').optional().isFloat({ min: 0 }),
   body('priceEstimate.currency').optional().trim().isLength({ min: 3, max: 3 }),
 ];
-
 module.exports = {
   createItemRules,
   dayRules,

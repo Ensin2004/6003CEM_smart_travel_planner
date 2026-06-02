@@ -1,3 +1,7 @@
+/**
+ * Explore module.
+ * Page state, event handlers, and render sections define the screen experience.
+ */
 import { ArrowLeft, ExternalLink, Heart, LoaderCircle, MapPin, Phone, Search, Star, Utensils } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -5,13 +9,12 @@ import { addFavorite } from '../../../api/favoriteApi';
 import { getRestaurantDetails } from '../../../api/exploreApi';
 import { getErrorMessage } from '../explore.helpers';
 import './SharedDetailPage.css';
-
 const getPrimaryImage = (restaurant = {}) => restaurant.imageUrl || restaurant.imageUrls?.[0] || '';
 const getRestaurantFavoriteKey = (restaurant = {}) =>
   String(restaurant.dataId || restaurant.placeId || restaurant.id || restaurant.name || '')
     .trim()
     .toLowerCase();
-
+// RestaurantDetailPage renders the main screen and handles nearby interactions.
 function RestaurantDetailPage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -29,14 +32,11 @@ function RestaurantDetailPage() {
   );
   const [reviewSearch, setReviewSearch] = useState('');
   const [minRating, setMinRating] = useState('all');
-
   useEffect(() => {
     let isActive = true;
-
     const loadRestaurant = async () => {
       setIsLoading(true);
       setError('');
-
       try {
         const searchParams = new URLSearchParams(location.search);
         const response = await getRestaurantDetails({
@@ -60,12 +60,11 @@ function RestaurantDetailPage() {
     };
 
     loadRestaurant();
-
+    // Cleanup prevents state updates after component unmount.
     return () => {
       isActive = false;
     };
   }, [location.search, stateRestaurant]);
-
   const filteredReviews = useMemo(() => {
     const query = reviewSearch.trim().toLowerCase();
     const ratingFloor = minRating === 'all' ? 0 : Number(minRating);
@@ -79,10 +78,8 @@ function RestaurantDetailPage() {
       return matchesRating && matchesText;
     });
   }, [minRating, reviewSearch, reviews]);
-
   const handleFavorite = async () => {
     if (!restaurant || isFavorite) return;
-
     try {
       await addFavorite({
         type: 'restaurant',
@@ -112,7 +109,6 @@ function RestaurantDetailPage() {
         favoriteRestaurantKeys,
       }
     : null;
-
   return (
     <section className="shared-detail-page">
       <button className="shared-detail-back" type="button" onClick={() => navigate(returnPath, { state: returnState })}>
@@ -258,4 +254,5 @@ function RestaurantDetailPage() {
   );
 }
 
+// Default export registers the primary  value.
 export default RestaurantDetailPage;

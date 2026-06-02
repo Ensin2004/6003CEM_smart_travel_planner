@@ -1,4 +1,10 @@
+/**
+ * Places module.
+ * Assertions cover expected behavior, error handling, and response shape.
+ */
+// Test group covers  behavior.
 describe('Places service fallback', () => {
+  // Scenario verifies one expected outcome or error path.
   test('returns friendly fallback when SerpApi key is not configured', async () => {
     const placesService = require('../src/modules/explore/places.service');
     const attractions = await placesService.getAttractionsByDestination('Tokyo');
@@ -8,13 +14,14 @@ describe('Places service fallback', () => {
     expect(attractions.items).toEqual([]);
   });
 });
-
+// Test group covers  behavior.
 describe('Places service normalization', () => {
+  // Cleanup resets shared state after assertions.
   afterEach(() => {
     jest.resetModules();
     jest.clearAllMocks();
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('does not expose SerpApi follow-up URLs to the frontend', async () => {
     jest.resetModules();
 

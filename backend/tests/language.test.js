@@ -1,3 +1,7 @@
+/**
+ * Language module.
+ * Assertions cover expected behavior, error handling, and response shape.
+ */
 const jwt = require('jsonwebtoken');
 const request = require('supertest');
 const env = require('../src/config/env');
@@ -12,10 +16,11 @@ jest.mock('../src/modules/language/language.service', () => ({
   getSupportedLanguages: jest.fn(),
   translateText: jest.fn(),
 }));
-
+// Create Token builds a new record from validated input.
 const createToken = () => jwt.sign({ userId: '507f1f77bcf86cd799439011' }, env.jwtSecret);
-
+// Test group covers  behavior.
 describe('Language helper API', () => {
+  // Setup prepares shared data before assertions.
   beforeEach(() => {
     jest.clearAllMocks();
     userRepository.findById.mockResolvedValue({
@@ -25,14 +30,14 @@ describe('Language helper API', () => {
       status: 'active',
     });
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('rejects language requests without JWT', async () => {
     const response = await request(app).get('/api/v1/language/languages');
 
     expect(response.statusCode).toBe(401);
     expect(response.body.message).toBe('Authentication token is required');
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('lists provider-backed language options', async () => {
     languageService.getSupportedLanguages.mockResolvedValueOnce({
       available: true,
@@ -42,7 +47,6 @@ describe('Language helper API', () => {
         { id: 'language-ja', code: 'ja', name: 'Japanese', provider: 'libretranslate' },
       ],
     });
-
     const response = await request(app)
       .get('/api/v1/language/languages')
       .set('Authorization', `Bearer ${createToken()}`);
@@ -55,7 +59,7 @@ describe('Language helper API', () => {
       ])
     );
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('returns validation errors for unsupported translation input shape', async () => {
     const response = await request(app)
       .post('/api/v1/language/translate')
@@ -65,7 +69,7 @@ describe('Language helper API', () => {
     expect(response.statusCode).toBe(400);
     expect(response.body.message).toBe('Validation failed');
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('translates text and delegates history creation to service layer', async () => {
     languageService.translateText.mockResolvedValueOnce({
       available: true,
@@ -75,7 +79,6 @@ describe('Language helper API', () => {
       translatedText: '最寄りの駅はどこですか？',
       cached: false,
     });
-
     const response = await request(app)
       .post('/api/v1/language/translate')
       .set('Authorization', `Bearer ${createToken()}`)
@@ -95,7 +98,7 @@ describe('Language helper API', () => {
       })
     );
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('returns translation history for the authenticated user', async () => {
     languageService.getHistory.mockResolvedValueOnce({
       items: [
@@ -109,7 +112,6 @@ describe('Language helper API', () => {
       ],
       pagination: { page: 1, limit: 10, total: 1, totalPages: 1 },
     });
-
     const response = await request(app)
       .get('/api/v1/language/history')
       .set('Authorization', `Bearer ${createToken()}`);
@@ -117,7 +119,7 @@ describe('Language helper API', () => {
     expect(response.statusCode).toBe(200);
     expect(response.body.data.history.items[0].translatedText).toBe('Bonjour');
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('deletes owned translation history item', async () => {
     const response = await request(app)
       .delete('/api/v1/language/history/507f1f77bcf86cd799439012')

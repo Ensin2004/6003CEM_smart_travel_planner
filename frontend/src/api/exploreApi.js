@@ -1,5 +1,8 @@
+/**
+ * Explore Api module.
+ * Frontend API functions keep HTTP contract details close to one file.
+ */
 import axiosClient from './axiosClient';
-
 export const searchWeather = ({ destination, date, latitude, longitude, locationLabel }) =>
   axiosClient.get('/explore/weather', {
     params: {
@@ -10,10 +13,8 @@ export const searchWeather = ({ destination, date, latitude, longitude, location
       locationLabel,
     },
   });
-
 export const searchAttractions = (destination) =>
   axiosClient.get('/explore/attractions', { params: { destination } });
-
 export const searchHotels = ({ destination, country, state, roomType, start }) =>
   axiosClient.get('/explore/hotels', {
     params: {
@@ -24,7 +25,6 @@ export const searchHotels = ({ destination, country, state, roomType, start }) =
       start,
     },
   });
-
 export const searchRestaurants = ({ destination, country, state, foodCategory, start }) =>
   axiosClient.get('/explore/restaurants', {
     params: {
@@ -35,7 +35,6 @@ export const searchRestaurants = ({ destination, country, state, foodCategory, s
       start,
     },
   });
-
 export const getRestaurantDetails = ({ name, address, dataId, placeId }) =>
   axiosClient.get('/explore/restaurants/detail', {
     params: {
@@ -45,7 +44,6 @@ export const getRestaurantDetails = ({ name, address, dataId, placeId }) =>
       placeId,
     },
   });
-
 export const searchFlight = ({
   airlineName,
   fromCountryCode,
@@ -64,7 +62,6 @@ export const searchFlight = ({
       departureDate,
     },
   });
-
 export const getHotelDetails = ({ name, address, dataId, placeId }) =>
   axiosClient.get('/explore/hotels/detail', {
     params: {
@@ -74,7 +71,6 @@ export const getHotelDetails = ({ name, address, dataId, placeId }) =>
       placeId,
     },
   });
-
 export const searchTrainStationTimetable = ({ stationCode, stationQuery, departureDate, arrivalDate, operatorName }) =>
   axiosClient.get('/transportation/trains/station_timetable', {
     params: {
@@ -85,7 +81,6 @@ export const searchTrainStationTimetable = ({ stationCode, stationQuery, departu
       operatorName,
     },
   });
-
 export const searchTrainServiceTimetable = ({ serviceIdentifier, trainUid, serviceDate, actualRid }) =>
   axiosClient.get('/transportation/trains/service_timetable', {
     params: {
@@ -95,7 +90,6 @@ export const searchTrainServiceTimetable = ({ serviceIdentifier, trainUid, servi
       actualRid,
     },
   });
-
 export const getAiRecommendations = ({ view, destination, date, weather, items }) =>
   axiosClient.post('/explore/ai-recommendations', {
     view,

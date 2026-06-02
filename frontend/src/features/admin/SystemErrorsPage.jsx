@@ -1,3 +1,7 @@
+/**
+ * Admin module.
+ * Page state, event handlers, and render sections define the screen experience.
+ */
 import {
   Activity,
   AlertTriangle,
@@ -37,7 +41,7 @@ const severityOptions = [
   { value: 'error', label: 'Error' },
   { value: 'critical', label: 'Critical' },
 ];
-
+// Format Date Time converts raw values into readable display text.
 const formatDateTime = (value) => {
   if (!value) return 'Unknown time';
 
@@ -46,24 +50,21 @@ const formatDateTime = (value) => {
     timeStyle: 'short',
   }).format(new Date(value));
 };
-
 const getErrorMessage = (error) =>
   error.response?.data?.message || 'Unable to load logging and monitoring data.';
-
 const getActorLabel = (log) => log.actor?.email || log.attemptedEmail || 'System';
-
 const getActorMeta = (log) => {
   if (log.actor?.role) return log.actor.role;
   if (log.attemptedEmail) return 'masked attempted email';
   return 'service event';
 };
-
+// Format Category Label converts raw values into readable display text.
 const formatCategoryLabel = (category = 'api') =>
   category
     .split('-')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
-
+// SystemErrorsPage renders the main screen and handles nearby interactions.
 function SystemErrorsPage() {
   const [filters, setFilters] = useState({
     status: '',
@@ -75,7 +76,6 @@ function SystemErrorsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
-
   const params = useMemo(
     () =>
       Object.entries(filters).reduce((activeFilters, [key, value]) => {
@@ -89,7 +89,6 @@ function SystemErrorsPage() {
     setIsLoading(true);
     setError('');
     setSuccessMessage('');
-
     try {
       const response = await getLoggingMonitoring({ ...params, limit: 50 });
       setMonitoring(response.data.data);
@@ -103,12 +102,11 @@ function SystemErrorsPage() {
       setIsLoading(false);
     }
   }, [params]);
-
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       fetchMonitoring();
     }, 0);
-
+    // Cleanup prevents state updates after component unmount.
     return () => window.clearTimeout(timeoutId);
   }, [fetchMonitoring]);
 
@@ -125,12 +123,10 @@ function SystemErrorsPage() {
   const severityMaxCount = Math.max(...severityCounts.map((item) => item.count), 1);
   const dailyMaxCount = Math.max(...dailyCounts.map((item) => item.success + item.fail + item.error), 1);
   const latestEventLabel = logs[0]?.createdAt ? formatDateTime(logs[0].createdAt) : 'No events yet';
-
   const handleFilterChange = (event) => {
     const { name, value } = event.target;
     setFilters((current) => ({ ...current, [name]: value }));
   };
-
   const clearFilters = () => {
     setFilters({
       status: '',
@@ -139,7 +135,6 @@ function SystemErrorsPage() {
       service: '',
     });
   };
-
   return (
     <section className="logging-page" aria-labelledby="logging-title">
       <div className="logging-hero">
@@ -452,4 +447,5 @@ function SystemErrorsPage() {
   );
 }
 
+// Default export registers the primary  value.
 export default SystemErrorsPage;

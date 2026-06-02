@@ -1,4 +1,8 @@
-﻿.app-shell {
+/**
+ * App Layout styles.
+ * Layout, spacing, and interaction rules support the matching React view.
+ */
+.app-shell {
   display: grid;
   grid-template-columns: 98px minmax(0, 1fr);
   grid-template-rows: auto 1fr;
@@ -8,15 +12,12 @@
   background: var(--color-background);
   transition: grid-template-columns 0.22s ease;
 }
-
 .app-shell.has-submenu {
   grid-template-columns: 98px 256px minmax(0, 1fr);
 }
-
 .app-shell.has-submenu.submenu-collapsed {
   grid-template-columns: 98px 0 minmax(0, 1fr);
 }
-
 .app-navigation {
   display: contents;
 }
@@ -25,7 +26,6 @@
 .mobile-menu-button {
   display: none;
 }
-
 .sidebar {
   display: flex;
   flex-direction: column;
@@ -50,19 +50,16 @@
   padding: 0 10px 10px;
   border-bottom: 1px solid var(--line);
 }
-
 .sidebar-profile {
   gap: 12px;
   min-height: 70px;
   padding: 8px 10px 14px;
 }
-
 .sidebar-brand span {
   display: grid;
   place-items: center;
   border-radius: 8px;
 }
-
 .sidebar-brand span {
   width: 30px;
   height: 30px;
@@ -71,12 +68,10 @@
   font-size: 12px;
   font-weight: 900;
 }
-
 .sidebar-brand .app-brand-logo {
   width: 30px;
   height: 30px;
 }
-
 .sidebar-avatar {
   display: grid;
   width: 44px;

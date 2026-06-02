@@ -1,7 +1,12 @@
+/**
+ * Transportation module.
+ * Assertions cover expected behavior, error handling, and response shape.
+ */
 const request = require('supertest');
 const app = require('../src/app');
-
+// Test group covers  behavior.
 describe('Transportation routes', () => {
+  // Scenario verifies one expected outcome or error path.
   test('requires authentication for flight lookup', async () => {
     const response = await request(app)
       .get('/api/v1/transportation/flights')
@@ -17,13 +22,14 @@ describe('Transportation routes', () => {
     expect(response.body.status).toBe('fail');
   });
 });
-
+// Test group covers  behavior.
 describe('Transportation flight service', () => {
+  // Cleanup resets shared state after assertions.
   afterEach(() => {
     jest.resetModules();
     jest.clearAllMocks();
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('normalizes AirLabs route search using AirLabs airport and airline data', async () => {
     jest.resetModules();
 
@@ -174,7 +180,7 @@ describe('Transportation flight service', () => {
     expect(result.items[0].priceEstimate.display).toMatch(/^MYR [\d,]+ - [\d,]+$/);
     expect(result).not.toHaveProperty('response');
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('searches schedules across country airport IATA codes and filters by dep_time date', async () => {
     jest.resetModules();
 
@@ -301,7 +307,7 @@ describe('Transportation flight service', () => {
     expect(result.items[0].departure.airport.name).toBe('Osaka International Airport');
     expect(result.items[1].departure.airport.name).toBe('Kagoshima Airport');
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('returns graceful fallback when AirLabs key is missing', async () => {
     jest.resetModules();
 
@@ -334,13 +340,14 @@ describe('Transportation flight service', () => {
     expect(result.message).toBe('Flight service is not configured yet.');
   });
 });
-
+// Test group covers  behavior.
 describe('Transportation train service', () => {
+  // Cleanup resets shared state after assertions.
   afterEach(() => {
     jest.resetModules();
     jest.clearAllMocks();
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('adds route-based fallback distance and price estimates to station timetable trains', async () => {
     jest.resetModules();
 

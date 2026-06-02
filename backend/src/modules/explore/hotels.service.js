@@ -1,3 +1,7 @@
+/**
+ * Explore module.
+ * Business rules, repository access, and external integrations live in this layer.
+ */
 const axios = require('axios');
 const env = require('../../config/env');
 const {
@@ -11,7 +15,6 @@ const {
 } = require('./googleMaps.service');
 
 const hotelsCache = new Map();
-
 const fallbackHotels = (filters, message = 'Hotels temporarily unavailable') => ({
   available: false,
   ...filters,
@@ -19,7 +22,7 @@ const fallbackHotels = (filters, message = 'Hotels temporarily unavailable') => 
   items: [],
   hasMore: false,
 });
-
+// Normalize Hotel prepares incoming data for consistent storage.
 const normalizeHotel = (item = {}, index) => ({
   ...normalizePlaceItem(item, index, {
     name: 'Untitled hotel',
@@ -29,7 +32,7 @@ const normalizeHotel = (item = {}, index) => ({
   priceDetail: getPriceDetail(item.price || item.rate_per_night?.lowest || item.extracted_price),
   roomType: getText(item.roomType || item.room_type),
 });
-
+// Normalize Filters prepares incoming data for consistent storage.
 const normalizeFilters = (filters = {}) => ({
   destination: (filters.destination || '').trim(),
   country: (filters.country || '').trim(),
@@ -37,10 +40,8 @@ const normalizeFilters = (filters = {}) => ({
   roomType: (filters.roomType || '').trim(),
   start: Math.max(Number(filters.start) || 0, 0),
 });
-
 const hasHotelSearchInput = ({ destination, country, state, roomType }) =>
   Boolean(destination || country || state || roomType);
-
 const getHotelQuery = ({ destination, country, state, roomType }) => {
   const roomPrefix = roomType ? `${roomType} ` : '';
   const location = [state, country].filter(Boolean).join(', ');
@@ -59,18 +60,15 @@ const getHotelQuery = ({ destination, country, state, roomType }) => {
 
   return `${roomPrefix}hotels`;
 };
-
 const getHotelsByDestination = async (filters) => {
   const normalizedFilters = normalizeFilters(filters);
 
   if (!hasHotelSearchInput(normalizedFilters)) {
     return fallbackHotels(normalizedFilters, 'Enter a hotel name, country, location, or room type first.');
   }
-
   if (!env.serpApiKey || env.nodeEnv === 'test') {
     return fallbackHotels(normalizedFilters, 'SerpApi key is not configured');
   }
-
   try {
     return await searchGoogleMaps({
       cache: hotelsCache,
@@ -86,7 +84,6 @@ const getHotelsByDestination = async (filters) => {
     return fallbackHotels(normalizedFilters, message);
   }
 };
-
 const getWikipediaPageSummary = async (title) => {
   const normalizedTitle = encodeURIComponent(title.trim().replace(/\s+/g, '_'));
   const response = await axios.get(`https://en.wikipedia.org/api/rest_v1/page/summary/${normalizedTitle}`, {
@@ -104,7 +101,6 @@ const getWikipediaPageSummary = async (title) => {
     url: response.data?.content_urls?.desktop?.page || '',
   };
 };
-
 const searchWikipediaTitle = async (query) => {
   const response = await axios.get('https://en.wikipedia.org/w/api.php', {
     timeout: 7000,
@@ -124,7 +120,6 @@ const searchWikipediaTitle = async (query) => {
 
   return response.data?.query?.search?.[0]?.title || '';
 };
-
 const getAddressSearchHint = (address = '') =>
   address
     .split(',')
@@ -132,12 +127,10 @@ const getAddressSearchHint = (address = '') =>
     .filter(Boolean)
     .slice(-3)
     .join(' ');
-
 const getWikipediaSummary = async (name, address = '') => {
   if (!name) {
     return { available: false, extract: '', url: '', title: '' };
   }
-
   try {
     return await getWikipediaPageSummary(name);
   } catch {
@@ -149,7 +142,7 @@ const getWikipediaSummary = async (name, address = '') => {
         return await getWikipediaPageSummary(title);
       }
     } catch {
-      // Fall through to the friendly unavailable message below.
+      // Fall through to the friendly unavailable message.
     }
   }
 
@@ -161,7 +154,6 @@ const getWikipediaSummary = async (name, address = '') => {
     url: '',
   };
 };
-
 const getHotelDetail = async ({ name, address, dataId, placeId }) => {
   const fallbackName = name || 'Selected hotel';
   const baseHotel = {
@@ -181,14 +173,12 @@ const getHotelDetail = async ({ name, address, dataId, placeId }) => {
       items: [],
     },
   };
-
   if (!env.serpApiKey || env.nodeEnv === 'test') {
     return {
       ...baseHotel,
       message: 'SerpApi key is not configured',
     };
   }
-
   try {
     const query = [fallbackName, address].filter(Boolean).join(' ');
     const details = await searchGoogleMaps({
@@ -223,5 +213,4 @@ const getHotelDetail = async ({ name, address, dataId, placeId }) => {
     };
   }
 };
-
 module.exports = { getHotelDetail, getHotelsByDestination };

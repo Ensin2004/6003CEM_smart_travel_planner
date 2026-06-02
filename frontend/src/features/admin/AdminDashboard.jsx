@@ -1,3 +1,7 @@
+/**
+ * Admin module.
+ * Exports and local helpers keep related behavior in a single module.
+ */
 import {
   Activity,
   AlertTriangle,
@@ -13,16 +17,15 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getAdminDashboard } from '../../api/adminDashboardApi';
 import './AdminDashboard.css';
-
 const getErrorMessage = (error) =>
   error.response?.data?.message || 'Unable to load admin dashboard.';
-
+// Format Chart Label converts raw values into readable display text.
 const formatChartLabel = (value = '') =>
   value
     .split('-')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
-
+// AdminDashboard renders the main screen and handles nearby interactions.
 function AdminDashboard() {
   const [dashboard, setDashboard] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -33,7 +36,6 @@ function AdminDashboard() {
     setIsLoading(true);
     setError('');
     setSuccessMessage('');
-
     try {
       const response = await getAdminDashboard();
       setDashboard(response.data.data.dashboard);
@@ -47,12 +49,11 @@ function AdminDashboard() {
       setIsLoading(false);
     }
   }, []);
-
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       fetchDashboard();
     }, 0);
-
+    // Cleanup prevents state updates after component unmount.
     return () => window.clearTimeout(timeoutId);
   }, [fetchDashboard]);
 
@@ -75,7 +76,6 @@ function AdminDashboard() {
   const statusMax = Math.max(...logStatusCounts.map((item) => item.count), 1);
   const severityMax = Math.max(...logSeverityCounts.map((item) => item.count), 1);
   const dailyMax = Math.max(...dailyLogCounts.map((item) => item.success + item.fail + item.error), 1);
-
   const primaryCards = useMemo(
     () => [
       {
@@ -109,7 +109,6 @@ function AdminDashboard() {
     ],
     [dashboard, health, issueRisk, userSummary.active, userSummary.disabled]
   );
-
   return (
     <section className="admin-home-page" aria-labelledby="admin-home-title">
       <div className="admin-home-hero">
@@ -302,5 +301,5 @@ function AdminDashboard() {
     </section>
   );
 }
-
+// Default export registers the primary  value.
 export default AdminDashboard;

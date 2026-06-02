@@ -1,6 +1,10 @@
+/**
+ * Settings module.
+ * Exports and local helpers keep related behavior in a single module.
+ */
 import { Camera, ChevronDown, Edit3 } from 'lucide-react';
 import { ageGroupOptions, countries, genderOptions } from '../../../auth/auth.validation';
-
+// ProfileSettings renders the main screen and handles nearby interactions.
 function ProfileSettings({
   editableFields,
   onAvatarChange,
@@ -58,7 +62,6 @@ function ProfileSettings({
       </div>
     </label>
   );
-
   return (
     <form className="settings-pane settings-form" onSubmit={onProfileSubmit}>
       <h3>Manage Profile</h3>
@@ -158,5 +161,5 @@ function ProfileSettings({
     </form>
   );
 }
-
+// Default export registers the primary  value.
 export default ProfileSettings;

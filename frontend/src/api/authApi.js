@@ -1,3 +1,7 @@
+/**
+ * API wrapper for authentication endpoints.
+ * Keeping endpoint strings here keeps page components focused on form state and user feedback.
+ */
 import axiosClient from './axiosClient';
 
 export const login = (payload) => axiosClient.post('/auth/login', payload);

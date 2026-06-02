@@ -1,5 +1,9 @@
+/**
+ * Api Logs module.
+ * Schema fields define stored document structure, defaults, and indexes.
+ */
 const mongoose = require('mongoose');
-
+// Api Log Schema groups database fields before model registration.
 const apiLogSchema = new mongoose.Schema(
   {
     service: { type: String, required: true, trim: true },
@@ -32,5 +36,4 @@ const apiLogSchema = new mongoose.Schema(
 apiLogSchema.index({ createdAt: -1 });
 apiLogSchema.index({ status: 1, createdAt: -1 });
 apiLogSchema.index({ category: 1, severity: 1 });
-
 module.exports = mongoose.model('ApiLog', apiLogSchema, 'apiLogs');

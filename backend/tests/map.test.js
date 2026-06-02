@@ -1,9 +1,15 @@
+/**
+ * Map module.
+ * Assertions cover expected behavior, error handling, and response shape.
+ */
+// Test group covers  behavior.
 describe('Map service fallback', () => {
+  // Cleanup resets shared state after assertions.
   afterEach(() => {
     jest.resetModules();
     jest.clearAllMocks();
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('returns friendly fallback when SerpApi key is not configured', async () => {
     const mapService = require('../src/modules/map/map.service');
     const places = await mapService.getMapPlaces({
@@ -17,13 +23,14 @@ describe('Map service fallback', () => {
     expect(places.items).toEqual([]);
   });
 });
-
+// Test group covers  behavior.
 describe('Map service normalization', () => {
+  // Cleanup resets shared state after assertions.
   afterEach(() => {
     jest.resetModules();
     jest.clearAllMocks();
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('normalizes images, reviews, price, hours, and coordinates for map cards', async () => {
     jest.resetModules();
 

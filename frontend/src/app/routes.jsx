@@ -1,3 +1,7 @@
+/**
+ * Routes module.
+ * Route definitions connect endpoints with validation, authorization, and controllers.
+ */
 import { Route, Routes } from 'react-router-dom';
 import LandingPage from '../features/landing/LandingPage';
 import LoginPage from '../features/auth/LoginPage';
@@ -26,7 +30,7 @@ import AdminSettingsPage from '../features/settings/admin/AdminSettingsPage';
 import UserLayout from '../layouts/UserLayout';
 import AdminLayout from '../layouts/AdminLayout';
 import ProtectedRoute from '../components/ProtectedRoute';
-
+// AppRoutes renders the main screen and handles nearby interactions.
 function AppRoutes() {
   return (
     <Routes>
@@ -69,5 +73,5 @@ function AppRoutes() {
     </Routes>
   );
 }
-
+// Default export registers the primary  value.
 export default AppRoutes;

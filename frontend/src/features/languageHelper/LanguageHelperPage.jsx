@@ -1,3 +1,7 @@
+/**
+ * Language Helper module.
+ * Page state, event handlers, and render sections define the screen experience.
+ */
 import {
   ArrowRightLeft,
   Clipboard,
@@ -27,7 +31,7 @@ import {
   getSpeechRecognition,
 } from './languageHelper.utils';
 import './LanguageHelperPage.css';
-
+// LanguageHelperPage renders the main screen and handles nearby interactions.
 function LanguageHelperPage() {
   const [languages, setLanguages] = useState([]);
   const [sourceLanguage, setSourceLanguage] = useState('');
@@ -44,7 +48,6 @@ function LanguageHelperPage() {
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const recognitionRef = useRef(null);
-
   const selectedSourceLanguage = useMemo(
     () => getLanguageByCode(languages, sourceLanguage),
     [languages, sourceLanguage]
@@ -71,7 +74,6 @@ function LanguageHelperPage() {
       })
       .finally(() => setIsLoadingHistory(false));
   }, [historyPagination.limit, historySearch]);
-
   useEffect(() => {
     let isMounted = true;
 
@@ -101,13 +103,13 @@ function LanguageHelperPage() {
         }
       });
 
+    // Cleanup prevents state updates after component unmount.
     return () => {
       isMounted = false;
       recognitionRef.current?.stop();
       window.speechSynthesis?.cancel();
     };
   }, []);
-
   useEffect(() => {
     let isMounted = true;
 
@@ -130,21 +132,19 @@ function LanguageHelperPage() {
         }
       });
 
+    // Cleanup prevents state updates after component unmount.
     return () => {
       isMounted = false;
     };
   }, []);
-
   const handleTranslate = async (event) => {
     event?.preventDefault();
     const trimmedText = sourceText.trim();
-
     if (!hasLanguages) {
       setErrorMessage('Language options are not available yet.');
       setSuccessMessage('');
       return;
     }
-
     if (!trimmedText) {
       setErrorMessage('Enter or record a phrase before translating.');
       setSuccessMessage('');
@@ -154,7 +154,6 @@ function LanguageHelperPage() {
     setIsTranslating(true);
     setErrorMessage('');
     setSuccessMessage('');
-
     try {
       const response = await translateLanguageHelperText({
         sourceLanguage,
@@ -179,7 +178,6 @@ function LanguageHelperPage() {
       setIsTranslating(false);
     }
   };
-
   const handleListen = () => {
     setErrorMessage('');
     setSuccessMessage('');
@@ -224,7 +222,6 @@ function LanguageHelperPage() {
     recognitionRef.current = recognition;
     recognition.start();
   };
-
   const handleSpeak = () => {
     if (!speechSupported) {
       setErrorMessage('Text to speech is not supported in this browser.');
@@ -243,7 +240,6 @@ function LanguageHelperPage() {
     utterance.lang = getBrowserSpeechCode(selectedTargetLanguage.code);
     window.speechSynthesis.speak(utterance);
   };
-
   const handleSwapLanguages = () => {
     setSourceLanguage(targetLanguage);
     setTargetLanguage(sourceLanguage);
@@ -252,7 +248,6 @@ function LanguageHelperPage() {
     setErrorMessage('');
     setSuccessMessage('');
   };
-
   const handleCopyTranslation = async () => {
     if (!translatedText.trim()) {
       setErrorMessage('No translated text to copy.');
@@ -267,7 +262,6 @@ function LanguageHelperPage() {
       setErrorMessage('Copy failed. Select the text manually.');
     }
   };
-
   const handleClear = () => {
     recognitionRef.current?.stop();
     window.speechSynthesis?.cancel();
@@ -276,12 +270,10 @@ function LanguageHelperPage() {
     setErrorMessage('');
     setSuccessMessage('');
   };
-
   const handleHistorySearch = (event) => {
     event.preventDefault();
     loadHistory(1, historySearch);
   };
-
   const handleUseHistory = (item) => {
     setSourceLanguage(item.sourceLanguage?.code || sourceLanguage);
     setTargetLanguage(item.targetLanguage?.code || targetLanguage);
@@ -290,7 +282,6 @@ function LanguageHelperPage() {
     setErrorMessage('');
     setSuccessMessage('History item loaded.');
   };
-
   const handleDeleteHistory = async (id) => {
     try {
       await deleteLanguageHelperHistory(id);
@@ -301,7 +292,6 @@ function LanguageHelperPage() {
       setErrorMessage(getFriendlyApiError(error, 'History item could not be deleted.'));
     }
   };
-
   return (
     <section className="language-helper-page" aria-labelledby="language-helper-title">
       <div className="language-helper-hero">

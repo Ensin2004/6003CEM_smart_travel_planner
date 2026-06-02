@@ -1,5 +1,9 @@
+/**
+ * Feedback module.
+ * Schema fields define stored document structure, defaults, and indexes.
+ */
 const mongoose = require('mongoose');
-
+// Feedback Schema groups database fields before model registration.
 const feedbackSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
@@ -13,5 +17,4 @@ const feedbackSchema = new mongoose.Schema(
 
 feedbackSchema.index({ createdAt: -1 });
 feedbackSchema.index({ rating: 1 });
-
 module.exports = mongoose.model('Feedback', feedbackSchema);

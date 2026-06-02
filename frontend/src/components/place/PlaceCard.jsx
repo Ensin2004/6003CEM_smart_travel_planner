@@ -1,3 +1,7 @@
+/**
+ * Place Card module.
+ * Exports and local helpers keep related behavior in a single module.
+ */
 import {
   Building2,
   Clock,
@@ -12,8 +16,9 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { addFavorite } from '../../api/favoriteApi';
+import VisitedPlaceControl from '../visitedPlaces/VisitedPlaceControl';
+import { getVisitedPlacePayload } from '../visitedPlaces/visitedPlaceUtils';
 import './PlaceCard.css';
-
 const getOpenStatus = (openState = '') => {
   const normalizedState = openState.toLowerCase();
 
@@ -27,15 +32,13 @@ const getOpenStatus = (openState = '') => {
 
   return { label: 'Hours unknown', tone: 'unknown' };
 };
-
+// StarRating renders the main screen and handles nearby interactions.
 function StarRating({ rating }) {
   const normalizedRating = Math.max(0, Math.min(Number(rating) || 0, 5));
-
   return (
     <div className="explore-star-rating" aria-label={`${normalizedRating || 'No'} out of 5 stars`}>
       {[1, 2, 3, 4, 5].map((star) => {
         const fillPercent = Math.max(0, Math.min(normalizedRating - (star - 1), 1)) * 100;
-
         return (
           <span className="explore-star" key={star} aria-hidden="true">
             <Star size={16} />
@@ -48,7 +51,7 @@ function StarRating({ rating }) {
     </div>
   );
 }
-
+// PlaceCard renders the main screen and handles nearby interactions.
 function PlaceCard({
   item,
   index = 0,
@@ -59,6 +62,10 @@ function PlaceCard({
   isInitiallyFavorite = false,
   onFavoriteChange,
   returnState,
+  visitedRecord,
+  onVisitedChange,
+  visitedSource,
+  visitedDefaultDate,
 }) {
   const navigate = useNavigate();
   const galleryImages = useMemo(() => {
@@ -76,6 +83,13 @@ function PlaceCard({
   const isHotelCard = type === 'hotels';
   const isFoodCard = type === 'food' || type === 'restaurants';
   const isFavoriteEnabled = isHotelCard || isFoodCard;
+  const visitedType = isHotelCard ? 'hotel' : isFoodCard ? 'restaurant' : type === 'food' ? 'food' : 'attraction';
+  const visitedPayload = getVisitedPlacePayload({
+    item,
+    type: visitedType,
+    source: visitedSource || `explore-${type}`,
+    defaultDate: visitedDefaultDate,
+  });
   const [isFavorite, setIsFavorite] = useState(isInitiallyFavorite);
   const [isSavingFavorite, setIsSavingFavorite] = useState(false);
   const priceIcon =
@@ -86,11 +100,9 @@ function PlaceCard({
     ) : (
       <MapPinned size={16} aria-hidden="true" />
     );
-
   useEffect(() => {
     setIsFavorite(isInitiallyFavorite);
   }, [isInitiallyFavorite]);
-
   const handleOpenDetails = () => {
     if (!isFavoriteEnabled) return;
 
@@ -112,7 +124,6 @@ function PlaceCard({
       },
     });
   };
-
   const handleFavoriteClick = async (event) => {
     event.stopPropagation();
     if (isSavingFavorite) return;
@@ -139,7 +150,6 @@ function PlaceCard({
       setIsSavingFavorite(false);
     }
   };
-
   return (
     <article
       className={`explore-attraction ${isFavoriteEnabled ? 'is-clickable' : ''}`}
@@ -154,6 +164,7 @@ function PlaceCard({
       }}
     >
       <div className="explore-attraction-media">
+        {visitedRecord ? <span className="visited-place-watermark">Visited</span> : null}
         {primaryImage ? (
           <img
             className="explore-card-image"
@@ -179,17 +190,25 @@ function PlaceCard({
         <div className="explore-attraction-title">
           <div className="explore-card-category-row">
             <span className="explore-category">{categoryLabel || item.category || item.type || 'Place'}</span>
-            {isFavoriteEnabled && (
-              <button
-                className={`explore-favorite-button ${isFavorite ? 'active' : ''}`}
-                type="button"
-                aria-label={isFavorite ? 'Hotel saved to favorites' : 'Add hotel to favorites'}
-                disabled={isSavingFavorite}
-                onClick={handleFavoriteClick}
-              >
-                <Heart size={17} fill={isFavorite ? 'currentColor' : 'none'} />
-              </button>
-            )}
+            <div className="explore-card-actions">
+              {isFavoriteEnabled && (
+                <button
+                  className={`explore-favorite-button ${isFavorite ? 'active' : ''}`}
+                  type="button"
+                  aria-label={isFavorite ? 'Hotel saved to favorites' : 'Add hotel to favorites'}
+                  disabled={isSavingFavorite}
+                  onClick={handleFavoriteClick}
+                >
+                  <Heart size={17} fill={isFavorite ? 'currentColor' : 'none'} />
+                </button>
+              )}
+              <VisitedPlaceControl
+                compact
+                payload={visitedPayload}
+                visitedRecord={visitedRecord}
+                onVisitedChange={onVisitedChange}
+              />
+            </div>
           </div>
           <h3>{item.name}</h3>
         </div>
@@ -238,5 +257,5 @@ function PlaceCard({
     </article>
   );
 }
-
+// Default export registers the primary  value.
 export default PlaceCard;

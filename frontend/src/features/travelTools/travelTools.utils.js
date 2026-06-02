@@ -1,3 +1,7 @@
+/**
+ * Travel Tools module.
+ * Small utilities keep repeated formatting and transformation logic reusable.
+ */
 import {
   BriefcaseBusiness,
   FileText,
@@ -11,22 +15,19 @@ import {
 import {
   defaultPackingCategory,
 } from './travelTools.constants';
-
 export const emptyItemForm = {
   name: '',
   category: defaultPackingCategory,
   quantity: '1',
 };
-
 export const emptyFilters = {
   search: '',
   category: '',
   packed: '',
 };
-
 export const getErrorMessage = (error) =>
   error.response?.data?.message || 'Unable to update packing lists right now.';
-
+// Normalize Name prepares incoming data for consistent storage.
 export const normalizeName = (value = '') => value.trim().replace(/\s+/g, ' ').toLowerCase();
 
 const categoryIcons = {
@@ -39,14 +40,13 @@ const categoryIcons = {
   'travel essentials': BriefcaseBusiness,
   other: Sparkles,
 };
-
 export const getCategoryIcon = (category) => categoryIcons[category] || Luggage;
-
+// Normalize Packing List For Ui prepares incoming data for consistent storage.
 export const normalizePackingListForUi = (packingList) => ({
   ...packingList,
   items: packingList.items || [],
 });
-
+// Map Template For Edit transforms source data into the shape required nearby.
 export const mapTemplateForEdit = (template) => ({
   title: template.title || '',
   description: template.description || '',
@@ -58,7 +58,6 @@ export const mapTemplateForEdit = (template) => ({
     isPacked: Boolean(item.isPacked),
   })),
 });
-
 export const getUniqueName = (title, exists) => {
   const baseTitle = `${title} copy`;
   let candidateTitle = baseTitle;

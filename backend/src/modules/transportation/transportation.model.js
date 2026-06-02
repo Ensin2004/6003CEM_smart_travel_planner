@@ -1,5 +1,9 @@
+/**
+ * Transportation module.
+ * Schema fields define stored document structure, defaults, and indexes.
+ */
 const mongoose = require('mongoose');
-
+// Transportation Cache Schema groups database fields before model registration.
 const transportationCacheSchema = new mongoose.Schema(
   {
     cacheKey: {
@@ -20,5 +24,4 @@ const transportationCacheSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
 module.exports = mongoose.model('TransportationCache', transportationCacheSchema);

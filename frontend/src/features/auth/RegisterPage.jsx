@@ -1,3 +1,7 @@
+/**
+ * Auth module.
+ * Page state, event handlers, and render sections define the screen experience.
+ */
 import { CalendarDays, ChevronDown, CloudSun, Eye, EyeOff, MailCheck, WalletCards } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -12,7 +16,7 @@ import {
   passwordRequirements,
 } from './auth.validation';
 import './AuthPage.css';
-
+// RegisterPage renders the main screen and handles nearby interactions.
 function RegisterPage() {
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -36,7 +40,6 @@ function RegisterPage() {
   const [verificationNotice, setVerificationNotice] = useState(null);
   const [resendStatus, setResendStatus] = useState('');
   const [isResending, setIsResending] = useState(false);
-
   const unmetPasswordRequirements = useMemo(
     () => passwordRequirements.filter((requirement) => !requirement.test(formData.password)),
     [formData.password]
@@ -50,17 +53,14 @@ function RegisterPage() {
   );
   const selectedGender = genderOptions.find(({ value }) => value === formData.gender);
   const selectedAgeGroup = ageGroupOptions.find(({ value }) => value === formData.ageGroup);
-
   const handleChange = (event) => {
     const { name, value } = event.target;
     setFormData((current) => ({ ...current, [name]: value }));
   };
-
   const handleCountrySelect = (countryCode) => {
     setFormData((current) => ({ ...current, country: countryCode }));
     setIsCountryMenuOpen(false);
   };
-
   const handleOptionSelect = (name, value) => {
     setFormData((current) => ({ ...current, [name]: value }));
 
@@ -72,7 +72,6 @@ function RegisterPage() {
       setIsAgeGroupMenuOpen(false);
     }
   };
-
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
@@ -89,24 +88,20 @@ function RegisterPage() {
       setError('Please complete all signup fields.');
       return;
     }
-
     if (!formData.gender || !formData.ageGroup) {
       setError('Please select your gender and age group.');
       return;
     }
-
     if (!doPasswordsMatch) {
       setError('Passwords must match.');
       return;
     }
-
     if (unmetPasswordRequirements.length > 0) {
       setError('Please meet all password requirements.');
       return;
     }
 
     setIsSubmitting(true);
-
     try {
       const response = await register({
         ...formData,
@@ -128,7 +123,6 @@ function RegisterPage() {
       setIsSubmitting(false);
     }
   };
-
   const handleResendVerification = async () => {
     if (!verificationNotice?.email) return;
 
@@ -152,7 +146,6 @@ function RegisterPage() {
       setIsResending(false);
     }
   };
-
   return (
     <main className="auth-page auth-register">
       <PublicTopbar />
@@ -453,4 +446,5 @@ function RegisterPage() {
   );
 }
 
+// Default export registers the primary  value.
 export default RegisterPage;

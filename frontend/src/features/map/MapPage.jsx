@@ -1,3 +1,7 @@
+/**
+ * Map module.
+ * Page state, event handlers, and render sections define the screen experience.
+ */
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import {
@@ -92,9 +96,8 @@ const categoryPanelPlace = {
   zoom: defaultZoom,
   panelMode: 'category',
 };
-
 const getPlaceAddress = (place) => place.address || place.displayName || 'Location details unavailable';
-
+// Format Category Place converts raw values into readable display text.
 const formatCategoryPlace = (place, categoryId) => ({
   ...place,
   lat: Number(place.lat ?? place.coordinates?.latitude),
@@ -112,23 +115,19 @@ const formatCategoryPlace = (place, categoryId) => ({
   url: place.url || '',
   summary: place.summary || place.category || 'Place result from map data.',
 });
-
 const getDateKey = (date = new Date()) => date.toISOString().slice(0, 10);
-
+// Format Temperature converts raw values into readable display text.
 const formatTemperature = (value) => (Number.isFinite(Number(value)) ? `${Math.round(Number(value))} C` : '--');
-
+// Format Money converts raw values into readable display text.
 const formatMoney = (amount, currencyCode) =>
   new Intl.NumberFormat(undefined, {
     style: 'currency',
     currency: currencyCode,
     maximumFractionDigits: 2,
   }).format(amount);
-
 const getPriceConversionKey = (item, targetCurrency) =>
   `${item.id}:${item.priceDetail?.display || item.price || 'price'}:${targetCurrency}`;
-
 const getOriginalPriceText = (item) => item.priceDetail?.display || item.price || 'Price unavailable';
-
 const getOpenStatus = (openState = '') => {
   const normalizedState = openState.toLowerCase();
 
@@ -142,7 +141,6 @@ const getOpenStatus = (openState = '') => {
 
   return { label: 'Hours unknown', tone: 'unknown' };
 };
-
 const getRouteModeNote = (route) => {
   if (!route) return 'Not calculated';
   if (route.mode === 'train' || route.mode === 'plane') {
@@ -150,12 +148,10 @@ const getRouteModeNote = (route) => {
   }
   return route.estimated ? 'Estimated route' : 'Mapped route';
 };
-
 const isCanceledRequest = (error) => error.name === 'AbortError' || error.name === 'CanceledError';
-
 const getPlaceRequestKey = (placeId, lat, lng) =>
   `${placeId || 'place'}:${Number(lat).toFixed(4)}:${Number(lng).toFixed(4)}`;
-
+// Format Distance converts raw values into readable display text.
 const formatDistance = (meters) => {
   if (!Number.isFinite(meters)) {
     return 'Distance unavailable';
@@ -167,7 +163,7 @@ const formatDistance = (meters) => {
 
   return `${(meters / 1000).toFixed(1)} km`;
 };
-
+// Format Duration converts raw values into readable display text.
 const formatDuration = (seconds) => {
   if (!Number.isFinite(seconds)) {
     return 'Time unavailable';
@@ -184,7 +180,6 @@ const formatDuration = (seconds) => {
 
   return remainingMinutes ? `${hours} hr ${remainingMinutes} min` : `${hours} hr`;
 };
-
 const loadUserMarkers = () => {
   try {
     const savedMarkers = JSON.parse(localStorage.getItem(userMarkersStorageKey) || '[]');
@@ -193,16 +188,14 @@ const loadUserMarkers = () => {
     return [];
   }
 };
-
+// Save User Markers applies allowed changes to an existing record.
 const saveUserMarkers = (markers) => {
   localStorage.setItem(userMarkersStorageKey, JSON.stringify(markers));
 };
-
 const isCountryResult = (place) => (
   place?.category === 'boundary' ||
   ['country', 'state', 'province', 'administrative'].includes(place?.type)
 );
-
 const inferCategoryFromSearch = (query, place) => {
   const text = `${query} ${place?.category || ''} ${place?.type || ''}`.toLowerCase();
 
@@ -215,6 +208,7 @@ const inferCategoryFromSearch = (query, place) => {
   return 'attractions';
 };
 
+// Create Map Icon builds a new record from validated input.
 const createMapIcon = (pin, categoryId) => {
   const category = categoryConfig[categoryId] || categoryConfig.attractions;
   const PinIcon = category.icon;
@@ -245,7 +239,6 @@ const createUserLocationIcon = () => (
 
 function MapFocus({ place }) {
   const map = useMap();
-
   useEffect(() => {
     if (place?.panelMode !== 'category' && place?.lat && place?.lng) {
       map.flyTo([place.lat, place.lng], place.zoom || 12, { duration: 0.75 });
@@ -265,7 +258,6 @@ function MapToolControls({
   panelOpen,
 }) {
   const map = useMap();
-
   return (
     <div className={['map-tool-stack', panelOpen ? 'is-panel-open' : 'is-panel-closed'].join(' ')} aria-label="Map controls">
       <button type="button" onClick={() => map.zoomIn()} aria-label="Zoom in" data-tooltip="Zoom in">
@@ -327,7 +319,6 @@ function MapClickHandler({ isAddingMarker, onAddMarker }) {
 
 function MapViewportTracker({ onViewportChange }) {
   const map = useMap();
-
   useEffect(() => {
     const center = map.getCenter();
     const bounds = map.getBounds();
@@ -366,12 +357,10 @@ function MapViewportTracker({ onViewportChange }) {
 
 function StarRating({ rating, size = 14 }) {
   const normalizedRating = Math.max(0, Math.min(Number(rating) || 0, 5));
-
   return (
     <div className="map-star-rating" aria-label={`${normalizedRating || 'No'} out of 5 stars`}>
       {[1, 2, 3, 4, 5].map((star) => {
         const fillPercent = Math.max(0, Math.min(normalizedRating - (star - 1), 1)) * 100;
-
         return (
           <span className="map-star" key={star} aria-hidden="true">
             <Star size={size} />
@@ -409,7 +398,6 @@ function PlaceDetails({
   const details = formatCategoryPlace(place || {}, categoryId);
   const openStatus = getOpenStatus(details.openState || details.hours);
   const convertedPriceText = getConvertedPriceText(details);
-
   return (
     <div className="map-place-details">
       {details.imageUrl ? (
@@ -553,7 +541,6 @@ function PlaceDetails({
           {routeModeOptions.map((mode) => {
             const modeRoute = routeResults[mode.id];
             const isActive = routeMode === mode.id;
-
             return (
               <button
                 className={isActive ? 'is-active' : ''}

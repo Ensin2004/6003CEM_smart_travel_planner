@@ -1,3 +1,7 @@
+/**
+ * Auth module.
+ * Page state, event handlers, and render sections define the screen experience.
+ */
 import { CheckCircle2, RefreshCw, XCircle } from 'lucide-react';
 import { useContext, useEffect, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
@@ -5,7 +9,7 @@ import { resendVerificationEmail, verifyEmail } from '../../api/authApi';
 import PublicTopbar from '../../components/PublicTopbar';
 import AuthContext from '../../context/authContext';
 import './AuthPage.css';
-
+// VerifyEmailPage renders the main screen and handles nearby interactions.
 function VerifyEmailPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -17,7 +21,6 @@ function VerifyEmailPage() {
   const [resendEmail, setResendEmail] = useState('');
   const [resendStatus, setResendStatus] = useState('');
   const [isResending, setIsResending] = useState(false);
-
   useEffect(() => {
     const verify = async () => {
       if (!token) {
@@ -25,7 +28,6 @@ function VerifyEmailPage() {
         setMessage('Verification token is missing. Please request a new verification email.');
         return;
       }
-
       try {
         const response = await verifyEmail({ token });
         const result = response.data.data;
@@ -50,7 +52,6 @@ function VerifyEmailPage() {
 
     verify();
   }, [navigate, setUser, token]);
-
   const handleResend = async (event) => {
     event.preventDefault();
     setResendStatus('');
@@ -61,7 +62,6 @@ function VerifyEmailPage() {
     }
 
     setIsResending(true);
-
     try {
       const response = await resendVerificationEmail({ email: resendEmail });
       setResendStatus(response.data.message || 'Verification email sent.');
@@ -76,7 +76,6 @@ function VerifyEmailPage() {
   };
 
   const isSuccess = status === 'success';
-
   return (
     <main className="auth-page auth-login">
       <PublicTopbar />
@@ -124,5 +123,5 @@ function VerifyEmailPage() {
     </main>
   );
 }
-
+// Default export registers the primary  value.
 export default VerifyEmailPage;

@@ -1,3 +1,7 @@
+/**
+ * Explore module.
+ * Reusable labels, keys, and defaults stay centralized for feature code.
+ */
 export const roomTypeOptions = [
   { value: '', label: 'Any room' },
   { value: 'single room', label: 'Single' },
@@ -5,7 +9,6 @@ export const roomTypeOptions = [
   { value: 'family room', label: 'Family' },
   { value: 'suite', label: 'Suite' },
 ];
-
 export const foodCategoryOptions = [
   { value: '', label: 'Any food' },
   { value: 'chinese cuisine', label: 'Chinese cuisine' },

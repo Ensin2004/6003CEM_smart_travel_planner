@@ -1,5 +1,8 @@
+/**
+ * Settings module.
+ * Reusable labels, keys, and defaults stay centralized for feature code.
+ */
 import { Bell, CircleHelp, FileText, Lock, ShieldCheck, Star, User } from 'lucide-react';
-
 export const sections = [
   { id: 'profile', label: 'Manage Profile', icon: User },
   { id: 'password', label: 'Change Password', icon: Lock },
@@ -9,7 +12,6 @@ export const sections = [
   { id: 'support', label: 'FAQ', icon: CircleHelp },
   { id: 'feedback', label: 'Rate Us & Feedback', adminLabel: 'Ratings and Feedback', icon: Star },
 ];
-
 export const notificationCopy = {
   admin: [
     ['errorLogs', 'Error logs'],
@@ -22,7 +24,6 @@ export const notificationCopy = {
     ['packingReminder', 'Packing reminder'],
   ],
 };
-
 export const allNotificationKeys = [
   'tripAlerts',
   'weatherAlerts',
@@ -31,7 +32,6 @@ export const allNotificationKeys = [
   'systemAlerts',
   'ratingFeedback',
 ];
-
 export const defaultNotificationPreferences = {
   notificationsOff: false,
   tripAlerts: true,
@@ -41,13 +41,11 @@ export const defaultNotificationPreferences = {
   systemAlerts: true,
   ratingFeedback: true,
 };
-
 export const feedbackSortOptions = [
   { value: 'all', label: 'All' },
   { value: 'latest', label: 'Newest' },
   { value: 'oldest', label: 'Oldest' },
 ];
-
 export const feedbackRatingOptions = [
   { value: 'all', label: 'All stars' },
   { value: '5', label: '5 stars' },
@@ -56,12 +54,10 @@ export const feedbackRatingOptions = [
   { value: '2', label: '2 stars' },
   { value: '1', label: '1 star' },
 ];
-
 export const dateFormatter = new Intl.DateTimeFormat('en-MY', {
   day: '2-digit',
   month: 'short',
   year: 'numeric',
 });
-
 export const maxAvatarSizeMegabytes = 1000;
 export const maxAvatarSizeBytes = maxAvatarSizeMegabytes * 1024 * 1024;

@@ -1,3 +1,7 @@
+/**
+ * Language module.
+ * Business rules, repository access, and external integrations live in this layer.
+ */
 const axios = require('axios');
 const env = require('../../config/env');
 const AppError = require('../../utils/AppError');
@@ -9,10 +13,8 @@ const CACHE_TTL_MS = 30 * 60 * 1000;
 const LANGUAGE_SYNC_TTL_MS = 12 * 60 * 60 * 1000;
 const DEFAULT_LIBRETRANSLATE_BASE_URL = 'http://127.0.0.1:5001';
 let lastLanguageSyncAt = 0;
-
 const getTranslationBaseUrl = () =>
   String(env.libreTranslateBaseUrl || DEFAULT_LIBRETRANSLATE_BASE_URL).replace(/\/$/, '');
-
 const recordLanguageEvent = (message, statusCode, metadata = {}) =>
   apiLogService
     .recordEvent({
@@ -26,14 +28,14 @@ const recordLanguageEvent = (message, statusCode, metadata = {}) =>
       metadata,
     })
     .catch((error) => logger.error(`Failed to record language API event: ${error.message}`));
-
+// Format Language converts raw values into readable display text.
 const formatLanguage = (language) => ({
   id: language._id,
   code: language.code,
   name: language.name,
   provider: language.provider,
 });
-
+// Normalize Provider Languages prepares incoming data for consistent storage.
 const normalizeProviderLanguages = (languages = []) =>
   languages
     .map((language) => ({
@@ -42,16 +44,13 @@ const normalizeProviderLanguages = (languages = []) =>
       provider: 'libretranslate',
     }))
     .filter((language) => language.code && language.name);
-
 const shouldSyncLanguages = (languages) => {
   if (!languages.length) return true;
   return Date.now() - lastLanguageSyncAt > LANGUAGE_SYNC_TTL_MS;
 };
-
 const syncLanguagesFromProvider = async () => {
   const response = await axios.get(`${getTranslationBaseUrl()}/languages`, { timeout: 8000 });
   const providerLanguages = normalizeProviderLanguages(response.data);
-
   if (!providerLanguages.length) {
     throw new AppError('Translation language response was incomplete', 502);
   }
@@ -59,7 +58,6 @@ const syncLanguagesFromProvider = async () => {
   lastLanguageSyncAt = Date.now();
   return languageRepository.upsertLanguages(providerLanguages);
 };
-
 const getSupportedLanguages = async () => {
   const cachedLanguages = await languageRepository.findLanguages();
 
@@ -70,7 +68,6 @@ const getSupportedLanguages = async () => {
       languages: cachedLanguages.map(formatLanguage),
     };
   }
-
   try {
     const languages = await syncLanguagesFromProvider();
     return {
@@ -80,7 +77,6 @@ const getSupportedLanguages = async () => {
     };
   } catch (error) {
     recordLanguageEvent('Translation language list unavailable', error.response?.status || 503, {});
-
     if (cachedLanguages.length) {
       return {
         available: true,
@@ -98,14 +94,13 @@ const getSupportedLanguages = async () => {
     };
   }
 };
-
+// Build Unavailable Translation transforms source data into the shape required nearby.
 const buildUnavailableTranslation = (message) => ({
   available: false,
   translatedText: '',
   message,
   cached: false,
 });
-
 const getLanguagesForTranslation = async (sourceLanguage, targetLanguage) => {
   const [source, target] = await Promise.all([
     languageRepository.findLanguageByCode(sourceLanguage),
@@ -122,14 +117,13 @@ const getLanguagesForTranslation = async (sourceLanguage, targetLanguage) => {
     languageRepository.findLanguageByCode(sourceLanguage),
     languageRepository.findLanguageByCode(targetLanguage),
   ]);
-
   if (!syncedSource || !syncedTarget) {
     throw new AppError('Selected language is not supported by the translation provider.', 400);
   }
 
   return { source: syncedSource, target: syncedTarget };
 };
-
+// Create History For Translation builds a new record from validated input.
 const createHistoryForTranslation = async ({ userId, source, target, sourceText, translation }) => {
   if (!translation.available) return null;
 
@@ -143,7 +137,6 @@ const createHistoryForTranslation = async ({ userId, source, target, sourceText,
     cached: translation.cached,
   });
 };
-
 const translateText = async ({ text, sourceLanguage, targetLanguage, userId }) => {
   const { source, target } = await getLanguagesForTranslation(sourceLanguage, targetLanguage);
 
@@ -179,7 +172,6 @@ const translateText = async ({ text, sourceLanguage, targetLanguage, userId }) =
   }
 
   languageRepository.incrementDailyUsage();
-
   try {
     const response = await axios.post(
       `${getTranslationBaseUrl()}/translate`,
@@ -194,7 +186,6 @@ const translateText = async ({ text, sourceLanguage, targetLanguage, userId }) =
     );
 
     const translatedText = response.data?.translatedText;
-
     if (!translatedText) {
       throw new AppError('Translation response was incomplete', 502);
     }
@@ -217,12 +208,10 @@ const translateText = async ({ text, sourceLanguage, targetLanguage, userId }) =
       recordLanguageEvent('Translation API key is invalid', 502, { sourceLanguage, targetLanguage });
       return buildUnavailableTranslation('Translation service is not configured correctly.');
     }
-
     if (error.response?.status === 429) {
       recordLanguageEvent('Translation API rate limit reached', 429, { sourceLanguage, targetLanguage });
       return buildUnavailableTranslation('Translation service is busy. Please try again later.');
     }
-
     if (error.code === 'ECONNABORTED') {
       recordLanguageEvent('Translation API timeout', 503, { sourceLanguage, targetLanguage });
       return buildUnavailableTranslation('Translation service timed out. Please try again.');
@@ -236,7 +225,7 @@ const translateText = async ({ text, sourceLanguage, targetLanguage, userId }) =
     return buildUnavailableTranslation('Translation temporarily unavailable.');
   }
 };
-
+// Format History converts raw values into readable display text.
 const formatHistory = (history) => ({
   id: history._id,
   sourceLanguage: history.sourceLanguageId
@@ -259,7 +248,6 @@ const formatHistory = (history) => ({
   cached: history.cached,
   createdAt: history.createdAt,
 });
-
 const getHistory = async (userId, query = {}) => {
   const limit = Math.min(Number(query.limit) || 10, 50);
   const page = Math.max(Number(query.page) || 1, 1);
@@ -278,12 +266,11 @@ const getHistory = async (userId, query = {}) => {
     },
   };
 };
-
+// Delete History removes a record after ownership checks.
 const deleteHistory = async (id, userId) => {
   const deletedHistory = await languageRepository.deleteHistoryByIdAndUserId(id, userId);
   if (!deletedHistory) throw new AppError('Translation history not found', 404);
 };
-
 module.exports = {
   deleteHistory,
   getHistory,

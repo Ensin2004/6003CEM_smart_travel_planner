@@ -1,5 +1,9 @@
+/**
+ * Settings module.
+ * Exports and local helpers keep related behavior in a single module.
+ */
 import SubmenuPanel from '../../../../components/SubmenuPanel';
-
+// SettingsSubnav renders the main screen and handles nearby interactions.
 function SettingsSubnav({ sections, activeSection, onSectionChange }) {
   return (
     <SubmenuPanel
@@ -11,5 +15,5 @@ function SettingsSubnav({ sections, activeSection, onSectionChange }) {
     />
   );
 }
-
+// Default export registers the primary  value.
 export default SettingsSubnav;

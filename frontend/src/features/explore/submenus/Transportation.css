@@ -1,3 +1,7 @@
+/**
+ * Explore styles.
+ * Layout, spacing, and interaction rules support the matching React view.
+ */
 .explore-transport-toolbar {
   display: grid;
   gap: 10px;
@@ -8,13 +12,11 @@
   padding: 12px;
   box-shadow: 0 8px 18px rgba(16, 42, 67, 0.035);
 }
-
 .explore-transport-tabs {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
-
 .explore-transport-tabs button {
   display: inline-flex;
   gap: 7px;
@@ -37,7 +39,6 @@
   background: var(--color-primary-soft);
   color: var(--teal);
 }
-
 .explore-transport-search-panel {
   display: grid;
   gap: 8px;
@@ -48,15 +49,12 @@
   padding: 2px 0 0;
   box-shadow: none;
 }
-
 .explore-transport-search-panel--flight {
   grid-template-columns: minmax(145px, 1fr) 36px minmax(145px, 1fr) minmax(135px, 0.82fr) minmax(150px, 1fr) minmax(112px, auto);
 }
-
 .explore-transport-search-panel--train {
   grid-template-columns: minmax(150px, 0.95fr) minmax(180px, 1.1fr) minmax(135px, 0.75fr) minmax(135px, 0.75fr) minmax(112px, auto);
 }
-
 .explore-transport-filter-box {
   display: grid;
   gap: 2px;
@@ -68,12 +66,10 @@
   padding: 6px 10px;
   transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
-
 .explore-transport-filter-box:focus-within {
   border-color: rgba(15, 118, 110, 0.48);
   box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.1);
 }
-
 .explore-transport-filter-box span {
   display: flex;
   gap: 8px;
@@ -83,7 +79,6 @@
   font-size: 12px;
   font-weight: 700;
 }
-
 .explore-transport-filter-box button {
   display: inline-grid;
   place-items: center;
@@ -96,7 +91,6 @@
   padding: 0;
   cursor: pointer;
 }
-
 .explore-transport-filter-box button:hover:not(:disabled) {
   border-color: rgba(15, 118, 110, 0.28);
   background: var(--color-primary-soft);

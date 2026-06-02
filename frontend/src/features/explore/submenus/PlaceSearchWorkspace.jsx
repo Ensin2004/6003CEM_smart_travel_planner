@@ -1,3 +1,7 @@
+/**
+ * Explore module.
+ * Exports and local helpers keep related behavior in a single module.
+ */
 import {
   Building2,
   CalendarDays,
@@ -11,10 +15,13 @@ import {
   Utensils,
   Wind,
 } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { getVisitedPlaces } from '../../../api/visitedPlaceApi';
 import PlaceCard from '../../../components/place/PlaceCard';
+import { buildVisitedLookup, getVisitedPlacePayload } from '../../../components/visitedPlaces/visitedPlaceUtils';
 import { foodCategoryOptions, roomTypeOptions } from '../explore.constants';
 import { formatTemperature, formatWeatherDate, getDateKey, getMaxWeatherDate } from '../explore.helpers';
-
+// PlaceSearchWorkspace renders the main screen and handles nearby interactions.
 function PlaceSearchWorkspace({
   activeAi,
   activeFilters,
@@ -59,6 +66,37 @@ function PlaceSearchWorkspace({
   updateFilterField,
   weatherLocationLabel,
 }) {
+  const [visitedPlaces, setVisitedPlaces] = useState([]);
+  const visitedLookup = useMemo(() => buildVisitedLookup(visitedPlaces), [visitedPlaces]);
+  const cardType = isHotelsView ? 'hotels' : isFoodView ? 'food' : 'attractions';
+  const visitedType = isHotelsView ? 'hotel' : isFoodView ? 'restaurant' : 'attraction';
+  const visitedSource = `explore-${cardType}`;
+
+  useEffect(() => {
+    let isActive = true;
+
+    getVisitedPlaces()
+      .then((response) => {
+        if (!isActive) return;
+        setVisitedPlaces(response.data?.data?.visitedPlaces || []);
+      })
+      .catch(() => {
+        if (isActive) setVisitedPlaces([]);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  const handleVisitedChange = (visitedPlace) => {
+    if (!visitedPlace?.placeKey) return;
+    setVisitedPlaces((currentPlaces) => {
+      const withoutCurrent = currentPlaces.filter((place) => place.placeKey !== visitedPlace.placeKey);
+      return [visitedPlace, ...withoutCurrent];
+    });
+  };
+
   return (
     <div className="explore-workspace">
       <form className={isFilteredSearchView ? 'explore-search explore-search-hotels' : 'explore-search'} onSubmit={handleSearch}>
@@ -289,9 +327,22 @@ function PlaceSearchWorkspace({
                 item={item}
                 key={`${item.id}-${index}`}
                 onFavoriteChange={isHotelsView ? onHotelFavoriteChange : isFoodView ? onRestaurantFavoriteChange : undefined}
+                onVisitedChange={handleVisitedChange}
                 originalPriceText={getOriginalPriceText(item)}
                 returnState={detailReturnState}
-                type={isHotelsView ? 'hotels' : isFoodView ? 'food' : 'attractions'}
+                type={cardType}
+                visitedDefaultDate={travelDate || getDateKey()}
+                visitedRecord={
+                  visitedLookup[
+                    getVisitedPlacePayload({
+                      item,
+                      type: visitedType,
+                      source: visitedSource,
+                      defaultDate: travelDate || getDateKey(),
+                    }).placeKey
+                  ]
+                }
+                visitedSource={visitedSource}
               />
             ))
           )}
@@ -306,5 +357,5 @@ function PlaceSearchWorkspace({
     </div>
   );
 }
-
+// Default export registers the primary  value.
 export default PlaceSearchWorkspace;

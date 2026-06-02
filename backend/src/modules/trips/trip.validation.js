@@ -1,7 +1,10 @@
+/**
+ * Trips module.
+ * Validation schemas reject unsafe or incomplete request payloads.
+ */
 const { body, param } = require('express-validator');
 
 const objectIdRule = param('id').isMongoId().withMessage('Invalid trip id');
-
 const optionalBudgetRule = () =>
   body('budget')
     .optional()
@@ -71,5 +74,4 @@ const updateTripRules = [
   body('dateFlexibility.preferredMonth').optional().trim().isLength({ max: 20 }),
   body('notes').optional().isArray(),
 ];
-
 module.exports = { objectIdRule, tripBodyRules, updateTripRules };

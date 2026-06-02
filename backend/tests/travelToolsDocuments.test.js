@@ -1,3 +1,7 @@
+/**
+ * Travel Tools Documents module.
+ * Assertions cover expected behavior, error handling, and response shape.
+ */
 const jwt = require('jsonwebtoken');
 const request = require('supertest');
 const env = require('../src/config/env');
@@ -23,8 +27,9 @@ const app = require('../src/app');
 
 const userId = '507f1f77bcf86cd799439011';
 const token = jwt.sign({ userId }, env.jwtSecret);
-
+// Test group covers  behavior.
 describe('Travel document routes', () => {
+  // Setup prepares shared data before assertions.
   beforeEach(() => {
     jest.clearAllMocks();
     userRepository.findById.mockResolvedValue({
@@ -34,14 +39,14 @@ describe('Travel document routes', () => {
       status: 'active',
     });
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('rejects travel document list request without JWT', async () => {
     const response = await request(app).get('/api/v1/travel-tools/documents');
 
     expect(response.statusCode).toBe(401);
     expect(response.body.message).toBe('Authentication token is required');
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('creates a travel document for the authenticated user', async () => {
     travelToolsService.createTravelDocument.mockResolvedValue({
       _id: '507f1f77bcf86cd799439012',
@@ -50,7 +55,6 @@ describe('Travel document routes', () => {
       type: 'Passport',
       files: [],
     });
-
     const response = await request(app)
       .post('/api/v1/travel-tools/documents')
       .set('Authorization', `Bearer ${token}`)
@@ -63,7 +67,7 @@ describe('Travel document routes', () => {
       type: 'Passport',
     });
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('rejects unsupported travel document upload payload', async () => {
     const response = await request(app)
       .post('/api/v1/travel-tools/documents/507f1f77bcf86cd799439012/files')
@@ -82,7 +86,7 @@ describe('Travel document routes', () => {
     expect(response.statusCode).toBe(400);
     expect(travelToolsService.addTravelDocumentFiles).not.toHaveBeenCalled();
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('duplicates a travel document for the authenticated user', async () => {
     travelToolsService.duplicateTravelDocument.mockResolvedValue({
       _id: '507f1f77bcf86cd799439013',
@@ -91,7 +95,6 @@ describe('Travel document routes', () => {
       type: 'Passport',
       files: [],
     });
-
     const response = await request(app)
       .post('/api/v1/travel-tools/documents/507f1f77bcf86cd799439012/duplicate')
       .set('Authorization', `Bearer ${token}`)
@@ -105,7 +108,7 @@ describe('Travel document routes', () => {
       { name: 'Passport scan copy' }
     );
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('saves a travel document template for the authenticated user', async () => {
     travelToolsService.createDocumentTemplate.mockResolvedValue({
       _id: '507f1f77bcf86cd799439014',
@@ -113,7 +116,6 @@ describe('Travel document routes', () => {
       name: 'Passport document set',
       documentType: 'Passport',
     });
-
     const response = await request(app)
       .post('/api/v1/travel-tools/document-templates')
       .set('Authorization', `Bearer ${token}`)
@@ -131,7 +133,7 @@ describe('Travel document routes', () => {
       documentId: '507f1f77bcf86cd799439012',
     });
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('deletes a travel document item for the authenticated user', async () => {
     travelToolsService.deleteTravelDocumentItem.mockResolvedValue({
       _id: '507f1f77bcf86cd799439012',
@@ -139,7 +141,6 @@ describe('Travel document routes', () => {
       name: 'Europe Vacation',
       items: [],
     });
-
     const response = await request(app)
       .delete('/api/v1/travel-tools/documents/507f1f77bcf86cd799439012/items/507f1f77bcf86cd799439015')
       .set('Authorization', `Bearer ${token}`);
@@ -152,7 +153,7 @@ describe('Travel document routes', () => {
       userId
     );
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('updates a saved travel document template for the authenticated user', async () => {
     travelToolsService.updateDocumentTemplate.mockResolvedValue({
       _id: '507f1f77bcf86cd799439014',
@@ -161,7 +162,6 @@ describe('Travel document routes', () => {
       documentType: 'Custom',
       items: [{ name: 'Passport', documentType: 'Passport', uploadLabel: 'Upload scan' }],
     });
-
     const response = await request(app)
       .patch('/api/v1/travel-tools/document-templates/507f1f77bcf86cd799439014')
       .set('Authorization', `Bearer ${token}`)
@@ -183,14 +183,13 @@ describe('Travel document routes', () => {
       }
     );
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('deletes a saved travel document template for the authenticated user', async () => {
     travelToolsService.deleteDocumentTemplate.mockResolvedValue({
       _id: '507f1f77bcf86cd799439014',
       userId,
       name: 'Europe Vacation',
     });
-
     const response = await request(app)
       .delete('/api/v1/travel-tools/document-templates/507f1f77bcf86cd799439014')
       .set('Authorization', `Bearer ${token}`);

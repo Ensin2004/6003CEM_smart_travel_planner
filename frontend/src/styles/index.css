@@ -1,3 +1,7 @@
+/**
+ * Index styles.
+ * Layout, spacing, and interaction rules support the matching React view.
+ */
 @import './base.css';
 @import './gradients.css';
 @import './forms.css';

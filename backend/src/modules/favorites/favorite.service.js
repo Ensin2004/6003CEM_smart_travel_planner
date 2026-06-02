@@ -1,6 +1,10 @@
+/**
+ * Favorites module.
+ * Business rules, repository access, and external integrations live in this layer.
+ */
 const AppError = require('../../utils/AppError');
 const favoriteRepository = require('./favorite.repository');
-
+// Normalize Coordinates prepares incoming data for consistent storage.
 const normalizeCoordinates = (coordinates = {}) => {
   const latitude = Number(coordinates.latitude);
   const longitude = Number(coordinates.longitude);
@@ -14,7 +18,7 @@ const normalizeCoordinates = (coordinates = {}) => {
     coordinates: [longitude, latitude],
   };
 };
-
+// Build Favorite Payload transforms source data into the shape required nearby.
 const buildFavoritePayload = (userId, data) => ({
   userId,
   type: data.type,
@@ -31,9 +35,8 @@ const buildFavoritePayload = (userId, data) => ({
   externalId: data.externalId,
   source: data.source || 'explore',
 });
-
 const listFavorites = (userId) => favoriteRepository.findByUserId(userId);
-
+// Add Favorite builds a new record from validated input.
 const addFavorite = async (userId, data) => {
   const existing = await favoriteRepository.findExisting({
     userId,
@@ -46,11 +49,10 @@ const addFavorite = async (userId, data) => {
 
   return favoriteRepository.create(buildFavoritePayload(userId, data));
 };
-
+// Remove Favorite removes a record after ownership checks.
 const removeFavorite = async (userId, favoriteId) => {
   const favorite = await favoriteRepository.deleteByIdAndUserId(favoriteId, userId);
   if (!favorite) throw new AppError('Favorite not found', 404);
   return favorite;
 };
-
 module.exports = { addFavorite, listFavorites, removeFavorite };

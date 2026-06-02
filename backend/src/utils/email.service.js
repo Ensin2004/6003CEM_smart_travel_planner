@@ -1,9 +1,11 @@
+/**
+ * Email module.
+ * Business rules, repository access, and external integrations live in this layer.
+ */
 const nodemailer = require('nodemailer');
 const env = require('../config/env');
 const logger = require('./logger');
-
 const hasSmtpConfig = () => Boolean(env.smtpHost && env.smtpUser && env.smtpPass);
-
 const escapeHtml = (value = '') =>
   String(value)
     .replace(/&/g, '&amp;')
@@ -11,7 +13,7 @@ const escapeHtml = (value = '') =>
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
-
+// Create Transporter builds a new record from validated input.
 const createTransporter = () => {
   if (!hasSmtpConfig()) {
     return nodemailer.createTransport({ jsonTransport: true });
@@ -27,7 +29,6 @@ const createTransporter = () => {
     },
   });
 };
-
 const sendVerificationEmail = async ({ to, name, verificationUrl, expiresAt }) => {
   const transporter = createTransporter();
   const expiresText = expiresAt.toLocaleString('en-MY', {
@@ -63,5 +64,4 @@ const sendVerificationEmail = async ({ to, name, verificationUrl, expiresAt }) =
 
   return info;
 };
-
 module.exports = { sendVerificationEmail };

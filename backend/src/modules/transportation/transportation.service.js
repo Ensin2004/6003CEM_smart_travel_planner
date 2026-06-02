@@ -1,3 +1,7 @@
+/**
+ * Transportation module.
+ * Business rules, repository access, and external integrations live in this layer.
+ */
 const axios = require('axios');
 const env = require('../../config/env');
 const logger = require('../../utils/logger');
@@ -25,7 +29,6 @@ const transportApiClient = axios.create({
   baseURL: 'https://transportapi.com/v3/uk',
   timeout: 9000,
 });
-
 const fallbackFlights = (message = 'Flight information temporarily unavailable') => ({
   available: false,
   message,
@@ -33,7 +36,6 @@ const fallbackFlights = (message = 'Flight information temporarily unavailable')
   schedules: [],
   liveFlights: [],
 });
-
 const fallbackTrains = (message = 'Train information temporarily unavailable') => ({
   available: false,
   message,
@@ -41,13 +43,10 @@ const fallbackTrains = (message = 'Train information temporarily unavailable') =
   departures: [],
   stationMatches: [],
 });
-
 const getTodayKey = () => new Date().toISOString().slice(0, 10);
-
 const consumeDailyQuota = () => {
   const today = getTodayKey();
   const dailyLimit = Math.max(Number(env.airlabsDailyLimit) || 100, 0);
-
   if (dailyUsage.date !== today) {
     dailyUsage.date = today;
     dailyUsage.count = 0;
@@ -60,11 +59,9 @@ const consumeDailyQuota = () => {
   dailyUsage.count += 1;
   return true;
 };
-
 const consumeGeminiQuota = () => {
   const today = getTodayKey();
   const dailyLimit = Math.max(Number(env.geminiDailyLimit) || 100, 0);
-
   if (aiDailyUsage.date !== today) {
     aiDailyUsage.date = today;
     aiDailyUsage.count = 0;
@@ -77,7 +74,6 @@ const consumeGeminiQuota = () => {
   aiDailyUsage.count += 1;
   return true;
 };
-
 const recordAirlabsFailure = (endpoint, message, statusCode, metadata) =>
   env.nodeEnv === 'test'
     ? Promise.resolve()
@@ -93,7 +89,6 @@ const recordAirlabsFailure = (endpoint, message, statusCode, metadata) =>
           metadata,
         })
         .catch((error) => logger.error(`Failed to record AirLabs API event: ${error.message}`));
-
 const recordTransportApiFailure = (endpoint, message, statusCode, metadata) =>
   env.nodeEnv === 'test'
     ? Promise.resolve()
@@ -109,68 +104,54 @@ const recordTransportApiFailure = (endpoint, message, statusCode, metadata) =>
           metadata,
         })
         .catch((error) => logger.error(`Failed to record TransportAPI event: ${error.message}`));
-
 const classifyAirlabsError = (error) => {
   if (error.isMissingKey) {
     return { message: 'Flight service is not configured yet.', statusCode: 502 };
   }
-
   if (error.isDailyLimit) {
     return { message: 'Daily flight API limit reached. Please try again tomorrow.', statusCode: 429 };
   }
-
   if (error.response?.status === 401 || error.response?.status === 403) {
     return { message: 'Flight service configuration error', statusCode: 502 };
   }
-
   if (error.response?.status === 429) {
     return { message: 'Flight API rate limit reached', statusCode: 429 };
   }
-
   if (error.code === 'ECONNABORTED') {
     return { message: 'Flight service timeout', statusCode: 503 };
   }
-
   if (!error.response) {
     return { message: 'Flight service network error', statusCode: 503 };
   }
 
   return { message: 'Flight information temporarily unavailable', statusCode: error.response.status || 503 };
 };
-
 const classifyGeminiError = (error) => {
   if (error.isDailyLimit) {
     return { message: 'Daily AI price estimate limit reached.', statusCode: 429 };
   }
-
   if (error.response?.status === 401 || error.response?.status === 403) {
     return { message: 'AI price estimates are temporarily unavailable.', statusCode: 502 };
   }
-
   if (error.response?.status === 429) {
     return { message: 'AI price estimates are busy right now.', statusCode: 429 };
   }
-
   if (error.code === 'ECONNABORTED') {
     return { message: 'AI price estimates took too long.', statusCode: 503 };
   }
 
   return { message: 'AI price estimates are temporarily unavailable.', statusCode: error.response?.status || 503 };
 };
-
 const classifyTransportApiError = (error) => {
   if (error.isMissingKey) {
     return { message: 'Train service is not configured yet.', statusCode: 502 };
   }
-
   if (error.response?.status === 401 || error.response?.status === 403) {
     return { message: 'Train service configuration error', statusCode: 502 };
   }
-
   if (error.response?.status === 429) {
     return { message: 'Train API rate limit reached', statusCode: 429 };
   }
-
   if (error.code === 'ECONNABORTED') {
     return { message: 'Train service timeout', statusCode: 503 };
   }
@@ -181,18 +162,17 @@ const classifyTransportApiError = (error) => {
 
   return { message: 'Train information temporarily unavailable', statusCode: error.response.status || 503 };
 };
-
+// Normalize Text prepares incoming data for consistent storage.
 const normalizeText = (value) => String(value || '').trim();
+// Normalize Code prepares incoming data for consistent storage.
 const normalizeCode = (value) => normalizeText(value).toUpperCase();
 const includesText = (value, search) => normalizeText(value).toLowerCase().includes(normalizeText(search).toLowerCase());
-
 const getResponseItems = (response) => {
   const data = response?.data?.response;
   if (Array.isArray(data)) return data;
   if (data && typeof data === 'object') return Object.values(data);
   return [];
 };
-
 const getAirlabs = async (endpoint, params, metadata) => {
   if (!env.airlabsApiKey) {
     const error = new Error('Missing AirLabs API key');
@@ -225,7 +205,6 @@ const getAirlabs = async (endpoint, params, metadata) => {
     throw error;
   }
 };
-
 const getTransportApi = async (endpoint, params, metadata) => {
   if (!env.transportApiAppId || !env.transportApiAppKey) {
     const error = new Error('Missing TransportAPI credentials');

@@ -1,3 +1,7 @@
+/**
+ * Favorites module.
+ * Validation schemas reject unsafe or incomplete request payloads.
+ */
 const { body, param } = require('express-validator');
 
 const favoriteTypes = ['hotel', 'flight', 'attraction', 'restaurant', 'location', 'transport'];
@@ -16,5 +20,4 @@ const addFavoriteRules = [
 ];
 
 const favoriteIdRule = [param('id').isMongoId().withMessage('Favorite id is invalid')];
-
 module.exports = { addFavoriteRules, favoriteIdRule };

@@ -1,8 +1,11 @@
+/**
+ * Transportation module.
+ * Validation schemas reject unsafe or incomplete request payloads.
+ */
 const { query } = require('express-validator');
 
 const requireAnyFlightFilter = query().custom((_, { req }) => {
   const hasSearchValue = ['airlineName', 'fromCountryCode', 'toCountryCode'].some((field) => Boolean(req.query[field]?.trim()));
-
   if (!hasSearchValue) {
     throw new Error('Enter an airline name or select at least one country.');
   }
@@ -118,5 +121,4 @@ const trainServiceTimetableRules = [
     return true;
   }),
 ];
-
 module.exports = { flightLookupRules, trainStationTimetableRules, trainServiceTimetableRules };

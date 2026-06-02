@@ -1,3 +1,7 @@
+/**
+ * Travel Tools module.
+ * Validation schemas reject unsafe or incomplete request payloads.
+ */
 const { body, param } = require('express-validator');
 const { priorityLevels } = require('./travelTools.constants');
 
@@ -21,7 +25,6 @@ const documentMimeTypes = [
   'application/vnd.ms-excel',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 ];
-
 const itemRules = (path = '') => [
   body(`${path}name`).trim().isLength({ min: 1, max: 120 }).withMessage('Item name is required'),
   body(`${path}category`).optional().trim().isLength({ min: 1, max: 80 }).withMessage('Category must be 80 characters or fewer'),
@@ -175,7 +178,6 @@ const deleteTravelDocumentItemRules = [
   documentIdRule,
   documentItemIdRule,
 ];
-
 module.exports = {
   addItemRules,
   addTravelDocumentItemRules,

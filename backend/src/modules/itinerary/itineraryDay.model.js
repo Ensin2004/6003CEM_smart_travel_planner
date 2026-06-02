@@ -1,5 +1,9 @@
+/**
+ * Itinerary module.
+ * Schema fields define stored document structure, defaults, and indexes.
+ */
 const mongoose = require('mongoose');
-
+// Day Budget Schema groups database fields before model registration.
 const dayBudgetSchema = new mongoose.Schema(
   {
     amount: { type: Number, min: 0, default: 0 },
@@ -7,7 +11,7 @@ const dayBudgetSchema = new mongoose.Schema(
   },
   { _id: false }
 );
-
+// Itinerary Day Schema groups database fields before model registration.
 const itineraryDaySchema = new mongoose.Schema(
   {
     tripId: { type: mongoose.Schema.Types.ObjectId, ref: 'Trip', required: true, index: true },
@@ -23,5 +27,4 @@ const itineraryDaySchema = new mongoose.Schema(
 
 itineraryDaySchema.index({ tripId: 1, dayNumber: 1 }, { unique: true });
 itineraryDaySchema.index({ userId: 1, date: 1 });
-
 module.exports = mongoose.model('ItineraryDay', itineraryDaySchema, 'itineraryDays');

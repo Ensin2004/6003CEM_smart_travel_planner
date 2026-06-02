@@ -1,4 +1,8 @@
-﻿.primary-action,
+/**
+ * Forms styles.
+ * Layout, spacing, and interaction rules support the matching React view.
+ */
+.primary-action,
 .secondary-action,
 .auth-submit {
   min-height: 44px;
@@ -14,23 +18,19 @@
 .secondary-action {
   padding: 0 24px;
 }
-
 .primary-action {
   background: var(--teal);
   color: #ffffff;
   box-shadow: 0 16px 34px rgba(15, 118, 110, 0.28);
 }
-
 .secondary-action {
   background: rgba(255, 255, 255, 0.9);
   color: var(--navy);
   border-color: rgba(16, 42, 67, 0.18);
 }
-
 .primary-action:hover {
   background: var(--color-primary-hover);
 }
-
 .secondary-action:hover {
   border-color: rgba(15, 118, 110, 0.28);
   background: var(--color-primary-soft);
@@ -49,17 +49,14 @@
   color: var(--teal);
   font-weight: 900;
 }
-
 .check-label {
   grid-template-columns: auto 1fr;
   gap: 8px;
 }
-
 .check-label input {
   width: 16px;
   min-height: 16px;
 }
-
 .auth-submit {
   width: 100%;
   min-height: 50px;
@@ -69,7 +66,6 @@
   border: 0;
   box-shadow: 0 16px 30px rgba(15, 118, 110, 0.24);
 }
-
 .auth-submit:hover {
   background: var(--color-primary-hover);
 }

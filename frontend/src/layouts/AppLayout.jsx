@@ -1,3 +1,7 @@
+/**
+ * App Layout module.
+ * Exports and local helpers keep related behavior in a single module.
+ */
 import {
   Bell,
   ChevronDown,
@@ -24,7 +28,7 @@ import SubmenuPanel from '../components/SubmenuPanel';
 import AuthContext from '../context/authContext';
 import CurrencyContext from '../context/currencyContext';
 import './AppLayout.css';
-
+// AppLayout renders the main screen and handles nearby interactions.
 function AppLayout({ role, menuItems }) {
   const isAdmin = role === 'admin';
   const location = useLocation();
@@ -40,7 +44,6 @@ function AppLayout({ role, menuItems }) {
   const languagePickerRef = useRef(null);
   const currencyPickerRef = useRef(null);
   const profileMenuRef = useRef(null);
-
   const availableLanguages = useMemo(() => getAvailableLanguages(), []);
   const activeLanguage =
     availableLanguages.find((language) => language.value === selectedLanguage) ?? availableLanguages[0];
@@ -62,7 +65,6 @@ function AppLayout({ role, menuItems }) {
   const displayName = user?.name || user?.email || (isAdmin ? 'Admin user' : 'Traveller');
   const displayRole = isAdmin ? 'Admin' : 'Traveller';
   const avatarUrl = user?.avatarUrl || user?.profileImage;
-
   const initials = useMemo(
     () =>
       displayName
@@ -76,7 +78,6 @@ function AppLayout({ role, menuItems }) {
   );
 
   const currentUrl = `${location.pathname}${location.search}${location.hash}`;
-
   const isItemActive = (item, isExactMatch = false) => {
     const itemUrl = item.to;
     const [itemPath] = itemUrl.split(/[?#]/);
@@ -91,7 +92,6 @@ function AppLayout({ role, menuItems }) {
 
     return item.end ? location.pathname === itemPath : location.pathname.startsWith(itemPath);
   };
-
   const isMenuItemActive = (item) =>
     isItemActive(item) || item.children?.some((child) => isItemActive(child, true));
 
@@ -106,9 +106,7 @@ function AppLayout({ role, menuItems }) {
   }));
 
   const activeSubmenuId = activeSubmenuItems?.find((child) => isItemActive(child, true))?.id;
-
   const closeMobileNav = () => setIsMobileNavOpen(false);
-
   const handleNavigate = (item, event) => {
     if (item.action === 'logout') {
       event.preventDefault();
@@ -118,15 +116,12 @@ function AppLayout({ role, menuItems }) {
 
     closeMobileNav();
   };
-
   useEffect(() => {
     loadTranslateClient(selectedLanguage).catch(() => {});
   }, [selectedLanguage]);
-
   useEffect(() => {
     refreshTranslatedContent();
   }, [selectedLanguage, isLanguagePickerOpen]);
-
   useEffect(() => {
     const handlePointerDown = (event) => {
       const clickedOutsideLanguage =
@@ -148,7 +143,6 @@ function AppLayout({ role, menuItems }) {
         setIsProfileMenuOpen(false);
       }
     };
-
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
         setIsLanguagePickerOpen(false);
@@ -162,28 +156,25 @@ function AppLayout({ role, menuItems }) {
       document.addEventListener('keydown', handleKeyDown);
     }
 
+    // Cleanup prevents state updates after component unmount.
     return () => {
       document.removeEventListener('pointerdown', handlePointerDown);
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isCurrencyPickerOpen, isLanguagePickerOpen, isProfileMenuOpen]);
-
   const handleLanguageChange = (language) => {
     setSelectedLanguage(language.value);
     setIsLanguagePickerOpen(false);
     changeTranslateLanguage(language.value);
   };
-
   const handleCurrencyChange = (currencyOption) => {
     currency?.changeCurrency(currencyOption.code);
     setIsCurrencyPickerOpen(false);
   };
-
   const handleProfileMenuNavigate = (item, event) => {
     handleNavigate(item, event);
     setIsProfileMenuOpen(false);
   };
-
   const handleSubmenuToggle = () => {
     if (!activeSubmenu) {
       return;
@@ -191,7 +182,6 @@ function AppLayout({ role, menuItems }) {
 
     setCollapsedSubmenuTo((current) => (current === activeSubmenu.to ? null : activeSubmenu.to));
   };
-
   return (
     <div
       className={[
@@ -419,7 +409,6 @@ function AppLayout({ role, menuItems }) {
 
                   {settingsDropdownItems.map((item) => {
                     const ItemIcon = item.icon;
-
                     return (
                       <Link
                         className="profile-menu-subitem"

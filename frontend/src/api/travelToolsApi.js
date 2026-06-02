@@ -1,7 +1,10 @@
+/**
+ * Travel Tools Api module.
+ * Frontend API functions keep HTTP contract details close to one file.
+ */
 import axiosClient from './axiosClient';
 
 const packingListBasePath = '/travel-tools';
-
 export const travelToolEndpoints = {
   documents: {
     create: (payload) => axiosClient.post(`${packingListBasePath}/documents`, payload),
@@ -23,27 +26,32 @@ export const travelToolEndpoints = {
     templates: () => axiosClient.get(`${packingListBasePath}/templates`),
   },
 };
-
 export const getTravelTools = (mode = 'packing') => {
   if (mode === 'documents') return travelToolEndpoints.documents.list();
   return travelToolEndpoints.packing.list();
 };
-
 export const getTravelToolTemplates = (mode = 'packing') => {
   if (mode === 'documents') return travelToolEndpoints.documents.templates();
   return travelToolEndpoints.packing.templates();
 };
-
 export const getTravelDocuments = () => getTravelTools('documents');
 export const getTravelDocumentTemplates = () => getTravelToolTemplates('documents');
+// Create Travel Document builds a new record from validated input.
 export const createTravelDocument = (payload) => travelToolEndpoints.documents.create(payload);
+// Update Travel Document applies allowed changes to an existing record.
 export const updateTravelDocument = (id, payload) => travelToolEndpoints.documents.update(id, payload);
+// Delete Travel Document removes a record after ownership checks.
 export const deleteTravelDocument = (id) => travelToolEndpoints.documents.delete(id);
 export const duplicateTravelDocument = (id, payload) => travelToolEndpoints.documents.duplicate(id, payload);
+// Create Travel Document Template builds a new record from validated input.
 export const createTravelDocumentTemplate = (payload) => travelToolEndpoints.documents.createTemplate(payload);
+// Update Travel Document Template applies allowed changes to an existing record.
 export const updateTravelDocumentTemplate = (id, payload) => travelToolEndpoints.documents.updateTemplate(id, payload);
+// Delete Travel Document Template removes a record after ownership checks.
 export const deleteTravelDocumentTemplate = (id) => travelToolEndpoints.documents.deleteTemplate(id);
+// Add Travel Document Item builds a new record from validated input.
 export const addTravelDocumentItem = (id, payload) => travelToolEndpoints.documents.addItem(id, payload);
+// Delete Travel Document Item removes a record after ownership checks.
 export const deleteTravelDocumentItem = (id, itemId) => travelToolEndpoints.documents.deleteItem(id, itemId);
 export const uploadTravelDocumentFiles = (id, files) =>
   travelToolEndpoints.documents.uploadFiles(id, { files });

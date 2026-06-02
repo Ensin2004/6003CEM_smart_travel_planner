@@ -1,3 +1,7 @@
+/**
+ * Landing module.
+ * Page state, event handlers, and render sections define the screen experience.
+ */
 import {
   CalendarDays,
   CheckCircle2,
@@ -55,7 +59,7 @@ const travellerTypes = [
   [Compass, 'Culture seekers', 'Add customs, food ideas, etiquette notes, and meaningful local experiences.'],
   [Users, 'Group organizers', 'Prepare cleaner trip records for sharing during discussion and demos.'],
 ];
-
+// LandingPage renders the main screen and handles nearby interactions.
 function LandingPage() {
   useEffect(() => {
     const revealElements = document.querySelectorAll('.reveal-on-scroll');
@@ -73,17 +77,15 @@ function LandingPage() {
     );
 
     revealElements.forEach((element) => observer.observe(element));
-
+    // Cleanup prevents state updates after component unmount.
     return () => observer.disconnect();
   }, []);
-
   useEffect(() => {
     if (!window.location.hash) {
       return;
     }
 
     const section = document.getElementById(window.location.hash.slice(1));
-
     if (!section) {
       return;
     }
@@ -92,7 +94,6 @@ function LandingPage() {
       section.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   }, []);
-
   return (
     <main className="landing-page">
       <PublicTopbar />
@@ -396,5 +397,5 @@ function LandingPage() {
     </main>
   );
 }
-
+// Default export registers the primary  value.
 export default LandingPage;

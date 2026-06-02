@@ -1,10 +1,13 @@
+/**
+ * Cors module.
+ * Exports and local helpers keep related behavior in a single module.
+ */
 const env = require('./env');
 
 const allowedOrigins = env.clientOrigin
   .split(',')
   .map((origin) => origin.trim().replace(/\/$/, ''))
   .filter(Boolean);
-
 module.exports = {
   origin(origin, callback) {
     if (!origin || allowedOrigins.includes(origin)) {

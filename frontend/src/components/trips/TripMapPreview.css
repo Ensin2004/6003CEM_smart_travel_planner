@@ -1,17 +1,19 @@
+/**
+ * Trip Map Preview styles.
+ * Layout, spacing, and interaction rules support the matching React view.
+ */
 .shared-trip-map {
   width: 100%;
   min-height: 260px;
   overflow: hidden;
   background: #cfe8f7;
 }
-
 .shared-trip-leaflet-map {
   width: 100%;
   height: 100%;
   min-height: inherit;
   font: inherit;
 }
-
 .shared-trip-map-pin {
   display: grid;
   width: 34px;
@@ -25,7 +27,6 @@
   font-size: 13px;
   font-weight: var(--font-weight-bold);
 }
-
 .shared-trip-map-pin-idea {
   background: #7c3aed;
 }

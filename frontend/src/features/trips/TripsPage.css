@@ -1,9 +1,12 @@
+/**
+ * Trips styles.
+ * Layout, spacing, and interaction rules support the matching React view.
+ */
 .trips-page {
   display: grid;
   gap: 22px;
   text-align: left;
 }
-
 .trips-header {
   display: flex;
   align-items: flex-end;
@@ -75,28 +78,24 @@
   background: var(--color-primary-soft);
   color: var(--color-primary);
 }
-
 .trips-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(360px, 0.75fr);
   gap: 18px;
   align-items: start;
 }
-
 .trip-comfort-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(330px, 420px);
   gap: 18px;
   align-items: start;
 }
-
 .trip-create-form-comfort {
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-surface);
   box-shadow: 0 14px 38px rgba(16, 42, 67, 0.07);
 }
-
 .trip-side-rail {
   display: grid;
   gap: 16px;

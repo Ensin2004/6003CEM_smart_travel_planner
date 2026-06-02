@@ -1,3 +1,8 @@
+/**
+ * Handles map search, place details, and weather requests from the map screen.
+ * Query parameters are passed through as named service inputs so provider logic
+ * stays out of controller code.
+ */
 const catchAsync = require('../../utils/catchAsync');
 const { sendSuccess } = require('../../utils/apiResponse');
 const mapService = require('./map.service');
@@ -13,7 +18,6 @@ const getMapPlaces = catchAsync(async (req, res) => {
 
   sendSuccess(res, 200, { places });
 });
-
 const getMapPlaceDetails = catchAsync(async (req, res) => {
   const details = await mapService.getMapPlaceDetails({
     category: req.query.category,
@@ -25,7 +29,6 @@ const getMapPlaceDetails = catchAsync(async (req, res) => {
 
   sendSuccess(res, 200, { details });
 });
-
 const getMapWeather = catchAsync(async (req, res) => {
   const weather = await mapService.getMapWeather({
     destination: req.query.destination,

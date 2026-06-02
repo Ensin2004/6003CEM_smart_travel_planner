@@ -1,7 +1,13 @@
+/**
+ * Defines request throttles for authentication and travel-data endpoints.
+ * Each limiter records a log entry when a limit is reached so suspicious usage
+ * and overloaded third-party calls can be reviewed from admin tooling.
+ */
 const rateLimit = require('express-rate-limit');
 const logger = require('../utils/logger');
 const apiLogService = require('../modules/apiLogs/apiLog.service');
 
+// A shared handler keeps rate-limit responses and audit records consistent across limiters.
 const rateLimitHandler = (message) => (req, res) => {
   logger.warn(`Rate limit reached for ${req.method} ${req.originalUrl}`);
   apiLogService
@@ -25,6 +31,7 @@ const rateLimitHandler = (message) => (req, res) => {
   });
 };
 
+// Authentication routes get a dedicated limit because repeated login attempts are more sensitive.
 const authRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 100,
@@ -33,6 +40,7 @@ const authRateLimit = rateLimit({
   handler: rateLimitHandler('Too many authentication requests. Please try again later.'),
 });
 
+// Search and guide endpoints use a broader limit to protect paid or quota-based travel APIs.
 const thirdPartyApiRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 150,
@@ -41,6 +49,7 @@ const thirdPartyApiRateLimit = rateLimit({
   handler: rateLimitHandler('Too many travel data requests. Please try again later.'),
 });
 
+// Weather and map calls have a separate ceiling because those screens can trigger repeated lookups.
 const mapWeatherRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 120,

@@ -1,3 +1,7 @@
+/**
+ * Public Nav Items module.
+ * Exports and local helpers keep related behavior in a single module.
+ */
 import {
   Compass,
   ListChecks,
@@ -13,5 +17,5 @@ const publicNavItems = [
   [Users, 'For travellers', 'travellers'],
   [Compass, 'Demo', 'demo'],
 ];
-
+// Default export registers the primary  value.
 export default publicNavItems;

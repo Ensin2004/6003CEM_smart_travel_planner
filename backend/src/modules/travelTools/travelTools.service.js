@@ -1,3 +1,7 @@
+/**
+ * Travel Tools module.
+ * Business rules, repository access, and external integrations live in this layer.
+ */
 const AppError = require('../../utils/AppError');
 const tripRepository = require('../trips/trip.repository');
 const {
@@ -77,13 +81,11 @@ const standardDocumentTemplates = [
     ],
   },
 ];
-
 const findTemplate = (templateKey) =>
   packingTemplates.find((template) => template.key === templateKey);
-
 const findUserTemplate = (templateId, userId) =>
   packingTemplateRepository.findByIdAndUserId(templateId, userId);
-
+// Normalize Items prepares incoming data for consistent storage.
 const normalizeItems = (items = []) =>
   items
     .filter((item) => item.name?.trim())
@@ -94,9 +96,8 @@ const normalizeItems = (items = []) =>
       quantity: item.quantity || 1,
       isPacked: Boolean(item.isPacked),
     }));
-
+// Normalize Name prepares incoming data for consistent storage.
 const normalizeName = (value = '') => value.trim().replace(/\s+/g, ' ').toLowerCase();
-
 const assertUniquePackingListTitle = async (userId, title, excludedId) => {
   const packingLists = await packingListRepository.findByUserId(userId);
   const normalizedTitle = normalizeName(title);
@@ -108,7 +109,6 @@ const assertUniquePackingListTitle = async (userId, title, excludedId) => {
 
   if (existingList) throw new AppError('A packing list with this name already exists.', 409);
 };
-
 const assertUniquePackingTrip = async (userId, tripId, excludedId) => {
   if (!tripId) return;
 
@@ -121,7 +121,6 @@ const assertUniquePackingTrip = async (userId, tripId, excludedId) => {
 
   if (existingList) throw new AppError('This trip is already linked to another packing list.', 409);
 };
-
 const assertUniqueItemName = (packingList, itemName, excludedItemId) => {
   const normalizedItemName = normalizeName(itemName);
   const duplicateItem = packingList.items.find(
@@ -132,7 +131,6 @@ const assertUniqueItemName = (packingList, itemName, excludedItemId) => {
 
   if (duplicateItem) throw new AppError('An item with this name already exists in this packing list.', 409);
 };
-
 const getTemplates = async (userId) => {
   const userTemplates = await packingTemplateRepository.findByUserId(userId);
   return [
@@ -152,15 +150,13 @@ const getTemplates = async (userId) => {
     })),
   ];
 };
-
 const getMyPackingLists = (userId) => packingListRepository.findByUserId(userId);
-
 const getPackingListById = async (listId, userId) => {
   const packingList = await packingListRepository.findByIdAndUserId(listId, userId);
   if (!packingList) throw new AppError('Packing list not found', 404);
   return packingList;
 };
-
+// Build Trip Fields transforms source data into the shape required nearby.
 const buildTripFields = async (tripId, userId) => {
   if (!tripId) return {};
 
@@ -174,7 +170,7 @@ const buildTripFields = async (tripId, userId) => {
     tripEndDate: trip.endDate,
   };
 };
-
+// Create Packing List builds a new record from validated input.
 const createPackingList = async (userId, data) => {
   const systemTemplate = data.templateKey ? findTemplate(data.templateKey) : null;
   const userTemplate =
@@ -207,7 +203,7 @@ const createPackingList = async (userId, data) => {
     },
   });
 };
-
+// Update Packing List applies allowed changes to an existing record.
 const updatePackingList = async (listId, userId, data) => {
   const updateData = { ...data };
 
@@ -228,12 +224,13 @@ const updatePackingList = async (listId, userId, data) => {
   if (!packingList) throw new AppError('Packing list not found', 404);
   return packingList;
 };
-
+// Delete Packing List removes a record after ownership checks.
 const deletePackingList = async (listId, userId) => {
   const packingList = await packingListRepository.deleteByIdAndUserId(listId, userId);
   if (!packingList) throw new AppError('Packing list not found', 404);
 };
 
+// Add Item builds a new record from validated input.
 const addItem = async (listId, userId, data) => {
   const packingList = await getPackingListById(listId, userId);
 
@@ -249,6 +246,7 @@ const addItem = async (listId, userId, data) => {
   return packingListRepository.save(packingList);
 };
 
+// Update Item applies allowed changes to an existing record.
 const updateItem = async (listId, itemId, userId, data) => {
   const packingList = await getPackingListById(listId, userId);
   const item = packingList.items.id(itemId);
@@ -391,7 +389,6 @@ const getDocumentTemplates = async (userId) => {
     })),
   ];
 };
-
 const normalizeDocumentFile = (file) => ({
   name: file.name.trim(),
   mimeType: file.mimeType,
@@ -399,7 +396,6 @@ const normalizeDocumentFile = (file) => ({
   dataUrl: file.dataUrl,
   previewType: file.previewType || (file.mimeType.startsWith('image/') ? 'image' : file.mimeType === 'application/pdf' ? 'pdf' : 'office'),
 });
-
 const normalizeDocumentItems = (items = []) =>
   items
     .filter((item) => item.name?.trim())

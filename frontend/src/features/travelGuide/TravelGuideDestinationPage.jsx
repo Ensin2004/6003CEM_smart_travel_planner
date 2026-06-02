@@ -1,3 +1,7 @@
+/**
+ * Travel Guide module.
+ * Page state, event handlers, and render sections define the screen experience.
+ */
 import {
   ArrowLeft,
   BedDouble,
@@ -18,9 +22,10 @@ import {
 import { Link, useSearchParams } from 'react-router-dom';
 import { useEffect, useMemo, useState } from 'react';
 import { getTravelGuideDestinationDetails } from '../../api/travelGuideApi';
+import { getVisitedPlaces } from '../../api/visitedPlaceApi';
 import PlaceCard from '../../components/place/PlaceCard';
+import { buildVisitedLookup, getVisitedPlacePayload } from '../../components/visitedPlaces/visitedPlaceUtils';
 import './TravelGuidePage.css';
-
 const getDateKey = () => new Date().toISOString().slice(0, 10);
 const getErrorMessage = (error) =>
   error.response?.data?.message || error.response?.data?.error || error.message || 'Unable to load this guide right now.';
@@ -39,7 +44,6 @@ const weatherOptions = [
   { id: 'cloudy', label: 'Cloudy', icon: CloudSun, tip: 'Keeps outdoor plans open while favoring places with easier backup options.' },
   { id: 'hot', label: 'Hot', icon: Flame, tip: 'Prioritizes shaded, air-conditioned, and lower-transfer plans.' },
 ];
-
 const getWeatherScore = (place, scenario, category) => {
   if (scenario === 'overall') return Number(place.rating || 0);
 
@@ -56,17 +60,27 @@ const getWeatherScore = (place, scenario, category) => {
   if (scenario === 'hot') return rating + indoorBoost + foodBoost + hotelBoost;
   return rating;
 };
-
 const sortForWeather = (items, scenario, category) =>
   [...items].sort((first, second) => getWeatherScore(second, scenario, category) - getWeatherScore(first, scenario, category));
-
 const getCarouselImageCount = (item) => item.imageUrls?.length || (item.imageUrl ? 1 : 0);
-
-function GuideCarousel({ id, title, introTitle, introText, items, rowIndex, onMove, onMore, onMoveCardCarousel, getCardCarouselIndex }) {
+// GuideCarousel renders the main screen and handles nearby interactions.
+function GuideCarousel({
+  id,
+  title,
+  introTitle,
+  introText,
+  items,
+  rowIndex,
+  onMove,
+  onMore,
+  onMoveCardCarousel,
+  getCardCarouselIndex,
+  getVisitedRecord,
+  onVisitedChange,
+}) {
   const visibleItems = items.slice(rowIndex, rowIndex + 3);
   const canMoveBack = rowIndex > 0;
   const canMoveNext = rowIndex + 3 < items.length;
-
   return (
     <section className="travel-guide-carousel-row">
       <article className="travel-guide-row-intro">
@@ -92,7 +106,10 @@ function GuideCarousel({ id, title, introTitle, introText, items, rowIndex, onMo
               item={place}
               key={`${title}-${place.id}-${place.name}`}
               onMoveCarousel={onMoveCardCarousel}
+              onVisitedChange={onVisitedChange}
               type={id === 'stays' ? 'hotels' : id === 'food' ? 'food' : 'attractions'}
+              visitedRecord={getVisitedRecord?.(place, id === 'stays' ? 'hotel' : id === 'food' ? 'restaurant' : 'attraction')}
+              visitedSource="travel-guide"
             />
           )) : (
             <div className="travel-guide-mini-empty">
@@ -113,7 +130,7 @@ function GuideCarousel({ id, title, introTitle, introText, items, rowIndex, onMo
     </section>
   );
 }
-
+// TravelGuideDestinationPage renders the main screen and handles nearby interactions.
 function TravelGuideDestinationPage() {
   const [searchParams] = useSearchParams();
   const destination = searchParams.get('destination') || '';
@@ -131,7 +148,7 @@ function TravelGuideDestinationPage() {
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [rowIndexes, setRowIndexes] = useState({ things: 0, stays: 0, food: 0 });
   const [cardCarouselIndexes, setCardCarouselIndexes] = useState({});
-
+  const [visitedPlaces, setVisitedPlaces] = useState([]);
   const destinationLabel = useMemo(() => [destination, country].filter(Boolean).join(', '), [country, destination]);
   const gallery = guide?.gallery?.length ? guide.gallery : guide?.heroImageUrl ? [guide.heroImageUrl] : [];
   const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destinationLabel || destination)}`;
@@ -144,6 +161,16 @@ function TravelGuideDestinationPage() {
     }),
     [guide, weatherScenario]
   );
+  const visitedLookup = useMemo(() => buildVisitedLookup(visitedPlaces), [visitedPlaces]);
+  const getVisitedRecord = (place, type) => {
+    const payload = getVisitedPlacePayload({
+      item: place,
+      type,
+      source: 'travel-guide',
+      defaultDate: travelDate || getDateKey(),
+    });
+    return visitedLookup[payload.placeKey];
+  };
   const weatherPickNames = useMemo(() => {
     const picks = [
       ...categories.attractions.slice(0, 2),
@@ -153,10 +180,8 @@ function TravelGuideDestinationPage() {
 
     return picks.map((place) => place.name).filter(Boolean);
   }, [categories]);
-
   useEffect(() => {
     let isActive = true;
-
     const loadGuide = async () => {
       if (!destination) {
         setError('Destination is required.');
@@ -165,7 +190,6 @@ function TravelGuideDestinationPage() {
 
       setIsLoading(true);
       setError('');
-
       try {
         const response = await getTravelGuideDestinationDetails({
           destination,
@@ -197,11 +221,36 @@ function TravelGuideDestinationPage() {
 
     loadGuide();
 
+    // Cleanup prevents state updates after component unmount.
     return () => {
       isActive = false;
     };
   }, [country, destination, latitude, longitude, starts, travelDate]);
 
+  useEffect(() => {
+    let isActive = true;
+
+    getVisitedPlaces()
+      .then((response) => {
+        if (!isActive) return;
+        setVisitedPlaces(response.data?.data?.visitedPlaces || []);
+      })
+      .catch(() => {
+        if (isActive) setVisitedPlaces([]);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  const handleVisitedChange = (visitedPlace) => {
+    if (!visitedPlace?.placeKey) return;
+    setVisitedPlaces((currentPlaces) => {
+      const withoutCurrent = currentPlaces.filter((place) => place.placeKey !== visitedPlace.placeKey);
+      return [visitedPlace, ...withoutCurrent];
+    });
+  };
   const handleViewMore = (category = activeCategory) => {
     const targetCategory = category === 'all' ? 'attractions' : category;
     const itemCount = guide?.[targetCategory]?.items?.length || 8;
@@ -212,12 +261,10 @@ function TravelGuideDestinationPage() {
       [targetCategory]: current[targetCategory] + itemCount,
     }));
   };
-
   const moveGallery = (direction) => {
     if (!gallery.length) return;
     setGalleryIndex((current) => (current + direction + gallery.length) % gallery.length);
   };
-
   const moveRow = (rowId, items, direction) => {
     setRowIndexes((current) => {
       const maxIndex = Math.max(items.length - 3, 0);
@@ -248,7 +295,6 @@ function TravelGuideDestinationPage() {
   const renderSingleCategory = (category) => {
     const option = categoryOptions.find((item) => item.id === category);
     const items = categories[category] || [];
-
     return (
       <section className="travel-guide-place-section">
         <div className="travel-guide-section-heading">
@@ -266,7 +312,10 @@ function TravelGuideDestinationPage() {
               item={place}
               key={`${category}-${place.id}-${place.name}`}
               onMoveCarousel={moveCardCarousel}
+              onVisitedChange={handleVisitedChange}
               type={category === 'hotels' ? 'hotels' : category === 'restaurants' ? 'food' : 'attractions'}
+              visitedRecord={getVisitedRecord(place, category === 'hotels' ? 'hotel' : category === 'restaurants' ? 'restaurant' : 'attraction')}
+              visitedSource="travel-guide"
             />
           ))}
         </div>
@@ -277,7 +326,6 @@ function TravelGuideDestinationPage() {
       </section>
     );
   };
-
   return (
     <section className="travel-guide-page travel-guide-detail-page">
       <Link className="travel-guide-back-link" to="/travel-guide">
@@ -446,9 +494,11 @@ function TravelGuideDestinationPage() {
                 items={categories.attractions.slice(0, 8)}
                 rowIndex={rowIndexes.things || 0}
                 getCardCarouselIndex={getCardCarouselIndex}
+                getVisitedRecord={getVisitedRecord}
                 onMove={moveRow}
                 onMoveCardCarousel={moveCardCarousel}
                 onMore={() => handleViewMore('attractions')}
+                onVisitedChange={handleVisitedChange}
               />
               <GuideCarousel
                 id="stays"
@@ -458,9 +508,11 @@ function TravelGuideDestinationPage() {
                 items={categories.hotels.slice(0, 8)}
                 rowIndex={rowIndexes.stays || 0}
                 getCardCarouselIndex={getCardCarouselIndex}
+                getVisitedRecord={getVisitedRecord}
                 onMove={moveRow}
                 onMoveCardCarousel={moveCardCarousel}
                 onMore={() => handleViewMore('hotels')}
+                onVisitedChange={handleVisitedChange}
               />
               <GuideCarousel
                 id="food"
@@ -470,9 +522,11 @@ function TravelGuideDestinationPage() {
                 items={categories.restaurants.slice(0, 8)}
                 rowIndex={rowIndexes.food || 0}
                 getCardCarouselIndex={getCardCarouselIndex}
+                getVisitedRecord={getVisitedRecord}
                 onMove={moveRow}
                 onMoveCardCarousel={moveCardCarousel}
                 onMore={() => handleViewMore('restaurants')}
+                onVisitedChange={handleVisitedChange}
               />
             </>
           ) : (

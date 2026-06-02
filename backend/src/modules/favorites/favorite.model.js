@@ -1,5 +1,9 @@
+/**
+ * Favorites module.
+ * Schema fields define stored document structure, defaults, and indexes.
+ */
 const mongoose = require('mongoose');
-
+// Favorite Location Schema groups database fields before model registration.
 const favoriteLocationSchema = new mongoose.Schema(
   {
     address: { type: String, trim: true },
@@ -22,7 +26,7 @@ const favoriteLocationSchema = new mongoose.Schema(
   },
   { _id: false }
 );
-
+// Favorite Schema groups database fields before model registration.
 const favoriteSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
@@ -44,5 +48,4 @@ const favoriteSchema = new mongoose.Schema(
 
 favoriteSchema.index({ userId: 1, type: 1 });
 favoriteSchema.index({ 'location.coordinates': '2dsphere' });
-
 module.exports = mongoose.model('Favorite', favoriteSchema, 'favorites');

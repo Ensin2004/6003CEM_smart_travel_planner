@@ -1,3 +1,7 @@
+/**
+ * Trip Map Utils module.
+ * Small utilities keep repeated formatting and transformation logic reusable.
+ */
 const defaultMapCenter = [5.4141, 100.3288];
 
 const knownCoordinates = {
@@ -13,7 +17,6 @@ const knownCoordinates = {
   thailand: [15.87, 100.9925],
   tokyo: [35.6762, 139.6503],
 };
-
 export const getTripMapPoint = (place, index = 0) => {
   const lat = Number(place?.lat ?? place?.latitude ?? place?.coordinates?.latitude);
   const lng = Number(place?.lng ?? place?.longitude ?? place?.coordinates?.longitude);

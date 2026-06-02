@@ -1,8 +1,177 @@
+# Docs configuration.
+# Exports and local helpers keep related behavior in a single module.
+# Swagger document version used by generated API documentation.
 openapi: 3.0.0
 info:
   title: Smart Travel Planner API
   version: 1.0.0
 paths:
+  /api/v1/visited-places:
+    get:
+      summary: List visited places for the authenticated user
+      tags:
+        - Visited Places
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User visited places
+        '401':
+          description: Missing or invalid token
+    post:
+      summary: Add a dated or undated visit record for a place
+      tags:
+        - Visited Places
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              type: attraction
+              title: The Heritage Museum
+              address: Jalan Bukit Residen, Kuala Lipis
+              source: trip-itinerary
+              externalId: osm-123
+              visitedDate: '2026-06-03'
+              visitCount: 1
+              notes: Morning stop
+      responses:
+        '201':
+          description: Visit entry added for the user. Visited date is optional, and repeated visits are stored on the same place record.
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid token
+  /api/v1/visited-places/calendar:
+    get:
+      summary: Get visited places grouped by calendar date
+      tags:
+        - Visited Places
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: startDate
+          required: false
+          schema:
+            type: string
+            format: date
+          example: '2026-06-01'
+        - in: query
+          name: endDate
+          required: false
+          schema:
+            type: string
+            format: date
+          example: '2026-06-30'
+      responses:
+        '200':
+          description: Calendar days with visited places
+          content:
+            application/json:
+              example:
+                status: success
+                message: Success
+                data:
+                  days:
+                    - date: '2026-06-03'
+                      places:
+                        - title: The Heritage Museum
+                          type: attraction
+                          visitedDate: '2026-06-03T00:00:00.000Z'
+                          visitCount: 1
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid token
+  /api/v1/visited-places/{id}:
+    delete:
+      summary: Remove one visited place record
+      tags:
+        - Visited Places
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          example: 6655f6f2b1f1f1f1f1f1f901
+      responses:
+        '204':
+          description: Visited place removed
+        '401':
+          description: Missing or invalid token
+        '404':
+          description: Visited place not found
+  /api/v1/trips/{id}/summary:
+    get:
+      summary: Get trip summary with weather guidance and attraction ideas
+      tags:
+        - Trips
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          example: 6655f6f2b1f1f1f1f1f1f301
+      responses:
+        '200':
+          description: Trip summary using /api/v1 URI-based API versioning
+          content:
+            application/json:
+              example:
+                status: success
+                message: Success
+                data:
+                  trip:
+                    _id: 6655f6f2b1f1f1f1f1f1f301
+                    destination: Tokyo
+                    country: Japan
+                    startDate: '2026-06-01T00:00:00.000Z'
+                    endDate: '2026-06-05T00:00:00.000Z'
+                  weather:
+                    available: true
+                    condition: Light rain
+                    temperature:
+                      max: 27.2
+                      mean: 24.1
+                      unit: C
+                    precipitation:
+                      amountMm: 4.5
+                      probability: 65
+                    travelTip: Keep outdoor plans flexible and save a few indoor options.
+                  weatherGuidance:
+                    available: true
+                    mode: rainy
+                    headline: Rain-friendly plan
+                    packingTips:
+                      - Bring an umbrella or raincoat.
+                      - Use waterproof shoes or sandals.
+                    placeTips:
+                      - Choose indoor places such as museums, malls, cafes, and hotels.
+                    recommendedCategories:
+                      - shopping
+                      - food
+                      - hotels
+                      - attractions
+                  attractions:
+                    available: true
+                    items: []
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid token
+        '404':
+          description: Trip not found
+        '503':
+          description: External weather or attraction service unavailable with graceful fallback data
   /api/v1/language/languages:
     get:
       summary: List supported manual speech and translation languages
@@ -604,7 +773,7 @@ paths:
           example: Tokyo Tower, Tokyo
       responses:
         '200':
-          description: Parsed Open-Meteo destination forecast
+          description: Parsed Open-Meteo destination weather from forecast, seasonal, or historical archive data
           content:
             application/json:
               example:

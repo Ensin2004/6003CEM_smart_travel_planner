@@ -1,13 +1,16 @@
+/**
+ * Public Topbar module.
+ * Exports and local helpers keep related behavior in a single module.
+ */
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.png';
 import publicNavItems from './publicNavItems';
 import './PublicTopbar.css';
-
+// PublicTopbar renders the main screen and handles nearby interactions.
 function PublicTopbar() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const isLandingPage = pathname === '/';
-
   const handleSectionClick = (event, sectionId) => {
     event.preventDefault();
 
@@ -19,7 +22,6 @@ function PublicTopbar() {
 
     navigate({ pathname: '/', hash: `#${sectionId}` });
   };
-
   return (
     <nav className="landing-nav public-topbar" aria-label="Main navigation">
       <Link className="brand-mark" to="/" aria-label="Smart Travel Planner home">
@@ -46,5 +48,5 @@ function PublicTopbar() {
     </nav>
   );
 }
-
+// Default export registers the primary  value.
 export default PublicTopbar;

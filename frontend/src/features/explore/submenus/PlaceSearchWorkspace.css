@@ -1,3 +1,7 @@
+/**
+ * Explore styles.
+ * Layout, spacing, and interaction rules support the matching React view.
+ */
 .explore-search {
   display: grid;
   grid-template-columns: minmax(150px, 210px) minmax(0, 1fr) minmax(170px, 190px) auto;
@@ -10,12 +14,10 @@
   padding: 14px;
   box-shadow: 0 8px 18px rgba(16, 42, 67, 0.035);
 }
-
 .explore-search-hotels {
   grid-template-columns: minmax(120px, 150px) minmax(180px, 0.8fr) minmax(160px, 180px) minmax(420px, 1.35fr) auto;
   column-gap: 10px;
 }
-
 .explore-search-copy {
   display: grid;
   gap: 4px;
@@ -29,7 +31,6 @@
   font-weight: 650;
   line-height: 1.4;
 }
-
 .explore-search-copy strong {
   overflow: hidden;
   color: var(--navy);
@@ -75,16 +76,13 @@
 .explore-search select:focus {
   outline: none;
 }
-
 .explore-search select {
   cursor: pointer;
 }
-
 .explore-search select:disabled {
   cursor: not-allowed;
   color: var(--muted);
 }
-
 .explore-filter-row {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));

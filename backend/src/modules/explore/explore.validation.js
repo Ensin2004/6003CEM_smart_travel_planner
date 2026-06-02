@@ -1,3 +1,7 @@
+/**
+ * Explore module.
+ * Validation schemas reject unsafe or incomplete request payloads.
+ */
 const { body, query } = require('express-validator');
 
 const destinationRule = query('destination').trim().isLength({ min: 2 }).withMessage('Destination is required');
@@ -31,11 +35,9 @@ const optionalTravelDateRule = query('date')
 
     return true;
   });
-
 const requireAnySearchValue = (fields, message) =>
   query().custom((_, { req }) => {
     const hasSearchValue = fields.some((field) => Boolean(req.query[field]?.trim()));
-
     if (!hasSearchValue) {
       throw new Error(message);
     }
@@ -106,7 +108,6 @@ const aiRecommendationRules = [
   body('items.*.openState').optional({ checkFalsy: true }).trim().isLength({ max: 100 }),
   body('items.*.address').optional({ checkFalsy: true }).trim().isLength({ max: 160 }),
 ];
-
 module.exports = {
   aiRecommendationRules,
   attractionRules,

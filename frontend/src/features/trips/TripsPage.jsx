@@ -1,3 +1,8 @@
+/**
+ * Trip planning screen for manual and AI-assisted trip creation.
+ * This file keeps the form state, country/state loading, trip search, and
+ * packing-list side effects together because those controls update the same draft trip.
+ */
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
@@ -26,6 +31,9 @@ const documentOptions = ['Passport', 'Visa', 'Flight ticket', 'Hotel booking', '
 const styleOptions = ['Food', 'Culture', 'Nature', 'Shopping', 'Relaxing'];
 const flexibleDayOptions = [1, 2, 3, 4, 5, 6, 7];
 
+// Date helpers keep exact-date and flexible-date planning consistent before the payload is built.
+
+// Flexible trip planning starts from upcoming months instead of exact departure dates.
 const getMonthOptions = () => Array.from({ length: 12 }, (_, index) => {
   const date = new Date();
   date.setDate(1);
@@ -38,6 +46,7 @@ const getMonthOptions = () => Array.from({ length: 12 }, (_, index) => {
   };
 });
 
+// The flexible range uses the first day of the selected month and expands by the selected day count.
 const getFlexibleDateRange = (monthValue, days) => {
   const [year, month] = String(monthValue || today.slice(0, 7)).split('-').map(Number);
   const start = new Date(year, month - 1, 1);
@@ -50,6 +59,7 @@ const getFlexibleDateRange = (monthValue, days) => {
   };
 };
 
+// New segments inherit the current trip date range so multi-city planning starts with useful defaults.
 const createEmptySegment = (order = 1, startDate = today, endDate = tomorrow) => ({
   city: '',
   country: '',
@@ -59,6 +69,7 @@ const createEmptySegment = (order = 1, startDate = today, endDate = tomorrow) =>
   order,
 });
 
+// API and display helpers keep response parsing and date labels outside the component body.
 const normalizeTripList = (response) => response.data?.data?.trips || [];
 
 const formatDateRange = (startDate, endDate) => {
@@ -72,12 +83,18 @@ const getDurationDays = (startDate, endDate) => {
   return Math.max(1, Math.ceil(diff / 86400000) + 1);
 };
 
+// The component owns the full create-trip workflow, from draft form state to final navigation.
 function TripsPage() {
   const navigate = useNavigate();
   const currency = useContext(CurrencyContext);
   const activeCurrencyCode = currency?.activeCurrency?.code || currency?.selectedCurrency || 'MYR';
+
+  // Screen state is grouped around the create form, trip list, country selectors, and save feedback.
+  // Country and state options are kept separate because selecting a country refreshes only one dropdown.
   const [countries, setCountries] = useState([]);
   const [stateOptionsByCountry, setStateOptionsByCountry] = useState({});
+
+  // View state controls whether the page shows the create form or the saved-trip directory.
   const [createMode, setCreateMode] = useState('self');
   const [activeView, setActiveView] = useState('create');
   const [trips, setTrips] = useState([]);
@@ -86,6 +103,8 @@ function TripsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [formError, setFormError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  // Form state mirrors the backend trip payload closely so submission needs minimal remapping.
   const [form, setForm] = useState({
     title: '',
     startDate: today,
@@ -102,6 +121,7 @@ function TripsPage() {
     destinationSegments: [createEmptySegment()],
   });
 
+  // Initial trip loading populates the recent trip list and search results.
   useEffect(() => {
     let isMounted = true;
 
@@ -117,11 +137,13 @@ function TripsPage() {
         setMessage(error.response?.data?.message || 'Unable to load trips.');
       });
 
+    // Cleanup prevents state updates after the user navigates away.
     return () => {
       isMounted = false;
     };
   }, []);
 
+  // Searching checks the visible trip title and destination fields without mutating the stored list.
   const visibleTrips = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     if (!query) return trips.slice(0, 6);
@@ -136,12 +158,15 @@ function TripsPage() {
   const previewSegments = form.destinationSegments.filter((segment) => segment.city.trim());
   const totalBudget = Number(form.budgetAmount || 0);
   const primarySegment = form.destinationSegments[0];
+
+  // Preview values are recalculated from the draft form so the summary stays accurate while typing.
   const flexibleMonthOptions = useMemo(() => getMonthOptions(), []);
   const displayedDateRange = form.dateMode === 'flexible'
     ? getFlexibleDateRange(form.flexibleMonth, form.flexibleWindowDays)
     : { startDate: form.startDate, endDate: form.endDate };
   const durationDays = getDurationDays(displayedDateRange.startDate, displayedDateRange.endDate);
 
+  // Country data is lazy-loaded because the selector library is only needed on this screen.
   useEffect(() => {
     let isMounted = true;
 
@@ -153,11 +178,13 @@ function TripsPage() {
         if (isMounted) setCountries([]);
       });
 
+    // Cleanup prevents the country loader from updating an unmounted screen.
     return () => {
       isMounted = false;
     };
   }, []);
 
+  // State/province options load after the first destination country changes.
   useEffect(() => {
     if (!primarySegment?.countryCode) {
       return;
@@ -176,16 +203,19 @@ function TripsPage() {
       })
       .catch(() => {});
 
+    // Cleanup prevents late state-option results after a destination change.
     return () => {
       isMounted = false;
     };
   }, [primarySegment?.countryCode]);
 
+  // Simple field updates clear the previous validation error so fresh input gets a clean attempt.
   const updateField = (field, value) => {
     setFormError('');
     setForm((current) => ({ ...current, [field]: value }));
   };
 
+  // Segment updates target one destination without rebuilding the full form by hand.
   const updateSegment = (index, field, value) => {
     setFormError('');
     setForm((current) => ({
@@ -196,6 +226,7 @@ function TripsPage() {
     }));
   };
 
+  // Changing a country resets the city field because city choices belong to the selected country.
   const updateSegmentCountry = (index, countryCode) => {
     const country = countries.find((item) => item.isoCode === countryCode);
     setFormError('');
@@ -219,6 +250,7 @@ function TripsPage() {
     }));
   };
 
+  // Multi-select options use a shared toggle for travel styles and document checklist types.
   const toggleArrayValue = (field, value) => {
     setForm((current) => ({
       ...current,
@@ -228,6 +260,7 @@ function TripsPage() {
     }));
   };
 
+  // Added destinations inherit the current trip dates so multi-city planning starts in sync.
   const addSegment = () => {
     setForm((current) => ({
       ...current,
@@ -238,6 +271,7 @@ function TripsPage() {
     }));
   };
 
+  // Removing a destination reorders remaining segments before submission.
   const removeSegment = (index) => {
     setForm((current) => ({
       ...current,
@@ -247,6 +281,7 @@ function TripsPage() {
     }));
   };
 
+  // Client-side validation catches the most common form mistakes before sending an API request.
   const validateForm = () => {
     const segments = form.destinationSegments.filter((segment) => segment.city.trim());
 
@@ -261,6 +296,7 @@ function TripsPage() {
     return '';
   };
 
+  // Submission builds the final trip payload and optionally creates a matching packing list.
   const handleSubmit = async (event) => {
     event.preventDefault();
     const error = validateForm();
@@ -272,10 +308,12 @@ function TripsPage() {
     setIsSaving(true);
     setFormError('');
 
+    // Flexible trips use generated dates; exact trips keep the dates selected for each segment.
     const submitDates = form.dateMode === 'flexible'
       ? getFlexibleDateRange(form.flexibleMonth, form.flexibleWindowDays)
       : { startDate: form.startDate, endDate: form.endDate };
 
+    // Empty destination rows are ignored so unfinished rows do not reach backend validation.
     const segments = form.destinationSegments
       .filter((segment) => segment.city.trim())
       .map((segment, index) => ({
@@ -287,6 +325,7 @@ function TripsPage() {
         order: index + 1,
       }));
 
+    // Payload structure matches the backend trip service, including budget and preference nesting.
     const payload = {
       title: form.title.trim(),
       destination: segments[0].city,
@@ -323,6 +362,7 @@ function TripsPage() {
       const response = await createTrip(payload);
       const trip = response.data?.data?.trip;
 
+      // Packing-list creation is optional and follows trip creation so the list can link to tripId.
       if (trip && form.createPackingList) {
         await createPackingList({
           title: `${trip.title || trip.destination} packing list`,
@@ -434,7 +474,6 @@ function TripsPage() {
             <div className="trip-directory-grid">
               {visibleTrips.map((trip) => {
                 const tripDays = getDurationDays(trip.startDate, trip.endDate);
-
                 return (
                   <Link className="trip-directory-card" to={`/trips/${trip._id}`} key={trip._id}>
                     <div className="trip-directory-card-art">

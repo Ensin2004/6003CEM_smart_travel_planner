@@ -1,3 +1,7 @@
+/**
+ * Explore module.
+ * Route definitions connect endpoints with validation, authorization, and controllers.
+ */
 const express = require('express');
 const exploreController = require('./explore.controller');
 const {
@@ -15,6 +19,7 @@ const { thirdPartyApiRateLimit } = require('../../middleware/rateLimit.middlewar
 
 const router = express.Router();
 
+// Route section connects URL patterns with validation, authentication, and controller actions.
 router.get(
   '/weather',
   protect,
@@ -23,7 +28,10 @@ router.get(
   validate,
   exploreController.getWeather
 );
+//  route wires  to validation, access checks, and controller logic.
 router.get('/attractions', protect, thirdPartyApiRateLimit, attractionRules, validate, exploreController.getAttractions);
+
+// Route section connects URL patterns with validation, authentication, and controller actions.
 router.get(
   '/hotels/detail',
   protect,
@@ -32,6 +40,8 @@ router.get(
   validate,
   exploreController.getHotelDetail
 );
+
+// Route section connects URL patterns with validation, authentication, and controller actions.
 router.get(
   '/hotels',
   protect,
@@ -40,6 +50,8 @@ router.get(
   validate,
   exploreController.getHotels
 );
+
+// Route section connects URL patterns with validation, authentication, and controller actions.
 router.get(
   '/restaurants/detail',
   protect,
@@ -48,6 +60,8 @@ router.get(
   validate,
   exploreController.getRestaurantDetail
 );
+
+// Route section connects URL patterns with validation, authentication, and controller actions.
 router.get(
   '/restaurants',
   protect,
@@ -56,6 +70,8 @@ router.get(
   validate,
   exploreController.getRestaurants
 );
+
+// Route section connects URL patterns with validation, authentication, and controller actions.
 router.post(
   '/ai-recommendations',
   protect,
@@ -64,5 +80,4 @@ router.post(
   validate,
   exploreController.getAiRecommendations
 );
-
 module.exports = router;

@@ -1,4 +1,8 @@
-﻿.landing-nav,
+/**
+ * Public Topbar styles.
+ * Layout, spacing, and interaction rules support the matching React view.
+ */
+.landing-nav,
 .nav-actions,
 .nav-links,
 .brand-mark,
@@ -9,7 +13,6 @@
   display: flex;
   align-items: center;
 }
-
 .landing-nav {
   justify-content: space-between;
   gap: 20px;
@@ -36,7 +39,6 @@
   font-weight: var(--font-weight-semibold);
   color: var(--navy);
 }
-
 .brand-logo {
   width: auto;
   height: 42px;
@@ -47,12 +49,10 @@
   background: transparent;
   box-shadow: none;
 }
-
 .nav-actions {
   gap: 12px;
   font-weight: var(--font-weight-medium);
 }
-
 .nav-links {
   gap: 8px;
   padding: 6px;
@@ -63,7 +63,6 @@
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
 }
-
 .nav-links a {
   display: inline-flex;
   align-items: center;
@@ -71,11 +70,9 @@
   border-radius: 6px;
   padding: 8px 10px;
 }
-
 .nav-links svg {
   color: var(--color-primary);
 }
-
 .nav-links a:hover {
   background: rgba(20, 184, 166, 0.1);
   color: var(--teal);
@@ -93,7 +90,6 @@
   font-weight: var(--font-weight-semibold);
   border: 1px solid transparent;
 }
-
 .nav-button {
   padding: 0 18px;
   background: var(--color-primary);

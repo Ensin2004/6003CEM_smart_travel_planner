@@ -1,3 +1,7 @@
+/**
+ * Travel Tools module.
+ * Reusable labels, keys, and defaults stay centralized for feature code.
+ */
 const packingCategories = [
   'clothes',
   'toiletries',
@@ -19,9 +23,8 @@ const legacyPriorityMap = {
   important: 'Medium',
   optional: 'Low',
 };
-
+// Normalize Priority Level prepares incoming data for consistent storage.
 const normalizePriorityLevel = (priority) => legacyPriorityMap[priority] || priority || defaultPriorityLevel;
-
 module.exports = {
   defaultPackingCategory,
   defaultPriorityLevel,

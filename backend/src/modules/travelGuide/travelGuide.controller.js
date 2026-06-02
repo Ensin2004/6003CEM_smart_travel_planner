@@ -1,7 +1,10 @@
+/**
+ * Travel Guide module.
+ * Request handlers translate HTTP input into service calls and response payloads.
+ */
 const catchAsync = require('../../utils/catchAsync');
 const { sendSuccess } = require('../../utils/apiResponse');
 const travelGuideService = require('./travelGuide.service');
-
 const getDestinations = catchAsync(async (req, res) => {
   const guide = await travelGuideService.getDestinationList({
     country: req.query.country,
@@ -15,7 +18,6 @@ const getDestinations = catchAsync(async (req, res) => {
 
   sendSuccess(res, 200, { guide });
 });
-
 const getCountries = catchAsync(async (req, res) => {
   const countries = await travelGuideService.getCountryList({
     currentCountry: req.query.currentCountry,
@@ -28,7 +30,6 @@ const getCountries = catchAsync(async (req, res) => {
 
   sendSuccess(res, 200, { countries });
 });
-
 const getDestinationDetails = catchAsync(async (req, res) => {
   const guide = await travelGuideService.getDestinationDetails({
     destination: req.query.destination,
@@ -43,7 +44,6 @@ const getDestinationDetails = catchAsync(async (req, res) => {
 
   sendSuccess(res, 200, { guide });
 });
-
 module.exports = {
   getCountries,
   getDestinations,

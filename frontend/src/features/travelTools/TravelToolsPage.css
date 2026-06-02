@@ -1,3 +1,7 @@
+/**
+ * Travel Tools styles.
+ * Layout, spacing, and interaction rules support the matching React view.
+ */
 .travel-tools-page {
   position: relative;
   display: grid;
@@ -15,7 +19,6 @@
   background: #ffffff;
   box-shadow: 0 6px 16px rgba(16, 42, 67, 0.032);
 }
-
 .travel-tools-hero {
   position: relative;
   display: flex;
@@ -29,7 +32,6 @@
     #0f172a;
   color: #dbeafe;
 }
-
 .travel-tools-hero::before {
   content: "";
   position: absolute;
@@ -41,7 +43,6 @@
   mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.7), transparent 76%);
   pointer-events: none;
 }
-
 .travel-tools-hero > * {
   position: relative;
   z-index: 1;
@@ -53,7 +54,6 @@
   color: var(--navy);
   font-size: var(--font-size-3xl);
 }
-
 .travel-tools-hero h2 {
   color: #ffffff;
 }
@@ -62,17 +62,14 @@
 .travel-tools-detail-header p {
   color: var(--muted);
 }
-
 .travel-tools-hero .eyebrow {
   color: #7dd3fc;
 }
-
 .travel-tools-hero p:not(.eyebrow) {
   max-width: 760px;
   color: rgba(226, 232, 240, 0.86);
   line-height: 1.65;
 }
-
 .travel-tools-hero-meta {
   display: flex;
   align-items: center;
@@ -80,7 +77,6 @@
   gap: 10px;
   margin-top: 18px;
 }
-
 .travel-tools-hero-meta span {
   display: inline-flex;
   align-items: center;

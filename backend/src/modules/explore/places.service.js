@@ -1,3 +1,7 @@
+/**
+ * Explore module.
+ * Business rules, repository access, and external integrations live in this layer.
+ */
 const env = require('../../config/env');
 const {
   getGoogleMapsFailureMessage,
@@ -9,14 +13,13 @@ const {
 } = require('./googleMaps.service');
 
 const attractionsCache = new Map();
-
 const fallbackAttractions = (destination, message = 'Attractions temporarily unavailable') => ({
   available: false,
   destination,
   message,
   items: [],
 });
-
+// Normalize Attraction prepares incoming data for consistent storage.
 const normalizeAttraction = (item = {}, index) => ({
   ...normalizePlaceItem(item, index, {
     name: 'Untitled attraction',
@@ -25,12 +28,10 @@ const normalizeAttraction = (item = {}, index) => ({
   price: getText(item.price || item.price_level),
   priceDetail: getPriceDetail(item.price || item.price_level),
 });
-
 const getAttractionsByDestination = async (destination, start = 0) => {
   if (!env.serpApiKey || env.nodeEnv === 'test') {
     return fallbackAttractions(destination, 'SerpApi key is not configured');
   }
-
   try {
     const pageStart = Math.max(Number(start) || 0, 0);
     const attractions = await searchGoogleMaps({
@@ -50,5 +51,4 @@ const getAttractionsByDestination = async (destination, start = 0) => {
     return fallbackAttractions(destination, message);
   }
 };
-
 module.exports = { getAttractionsByDestination };

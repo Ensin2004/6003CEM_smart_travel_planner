@@ -1,8 +1,11 @@
+/**
+ * Explore styles.
+ * Layout, spacing, and interaction rules support the matching React view.
+ */
 .shared-detail-page {
   display: grid;
   gap: 22px;
 }
-
 .shared-detail-back {
   display: inline-flex;
   align-items: center;
@@ -16,11 +19,9 @@
   font-weight: 700;
   cursor: pointer;
 }
-
 .shared-detail-loading {
   min-height: 260px;
 }
-
 .shared-detail-hero {
   display: grid;
   grid-template-columns: minmax(280px, 0.9fr) minmax(320px, 1.1fr);
@@ -37,21 +38,18 @@
   min-height: 360px;
   object-fit: cover;
 }
-
 .shared-detail-image-placeholder {
   display: grid;
   place-items: center;
   color: var(--teal);
   background: var(--gradient-bright-surface-soft);
 }
-
 .shared-detail-hero-copy {
   display: grid;
   align-content: center;
   gap: 15px;
   padding: 34px;
 }
-
 .shared-detail-hero-copy h2 {
   margin: 0;
   color: var(--navy);
@@ -77,12 +75,10 @@
   align-items: center;
   gap: 7px;
 }
-
 .shared-detail-meta span {
   color: var(--color-text-muted);
   font-weight: 700;
 }
-
 .shared-detail-meta svg {
   color: #f59e0b;
 }

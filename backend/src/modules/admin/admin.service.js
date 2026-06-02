@@ -1,8 +1,11 @@
+/**
+ * Admin module.
+ * Business rules, repository access, and external integrations live in this layer.
+ */
 const userRepository = require('../users/user.repository');
 const tripRepository = require('../trips/trip.repository');
 const apiLogRepository = require('../apiLogs/apiLog.repository');
 const AppError = require('../../utils/AppError');
-
 const getDashboard = async () => {
   const [
     users,
@@ -78,7 +81,6 @@ const getDashboard = async () => {
     dailyLogCounts: fillDailyCounts(logDailyCounts),
   };
 };
-
 const fillDailyCounts = (dailyCounts, days = 7) => {
   const today = new Date();
 
@@ -96,7 +98,6 @@ const fillDailyCounts = (dailyCounts, days = 7) => {
     };
   });
 };
-
 const getUsers = async () => {
   const [users, userIssues] = await Promise.all([
     userRepository.findAll(),
@@ -159,7 +160,7 @@ const getUsers = async () => {
 
   return { users: enrichedUsers, summary: { ...summary, ...issueTotals } };
 };
-
+// Remove User removes a record after ownership checks.
 const removeUser = async (userId, adminUserId) => {
   if (userId === adminUserId) {
     throw new AppError('You cannot remove your own admin account', 400);
@@ -182,5 +183,4 @@ const removeUser = async (userId, adminUserId) => {
     removedTrips: deletedTrips.deletedCount || 0,
   };
 };
-
 module.exports = { getDashboard, getUsers, removeUser };

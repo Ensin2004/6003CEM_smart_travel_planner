@@ -1,9 +1,14 @@
+/**
+ * Trips module.
+ * Page state, event handlers, and render sections define the screen experience.
+ */
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   ArrowLeft,
   AlertTriangle,
   BedDouble,
+  Building2,
   CalendarDays,
   CheckCircle2,
   Clock3,
@@ -19,8 +24,10 @@ import {
   Sparkles,
   Star,
   StickyNote,
+  Sun,
   TrainFront,
   Trash2,
+  Umbrella,
   Utensils,
   WalletCards,
   X,
@@ -34,8 +41,11 @@ import {
 } from '../../api/itineraryApi';
 import { getTripSummary } from '../../api/tripApi';
 import { searchOpenStreetMapCategoryPlaces } from '../../api/mapApi';
+import { getVisitedPlaces } from '../../api/visitedPlaceApi';
 import TripMapPreview from '../../components/trips/TripMapPreview';
 import { getTripMapPoint } from '../../components/trips/tripMapUtils';
+import VisitedPlaceControl from '../../components/visitedPlaces/VisitedPlaceControl';
+import { buildVisitedLookup, getVisitedPlacePayload } from '../../components/visitedPlaces/visitedPlaceUtils';
 import CurrencyContext from '../../context/currencyContext';
 import './TripDetailsPage.css';
 
@@ -46,6 +56,13 @@ const ideaCategories = [
   { id: 'train', label: 'Transport', icon: TrainFront },
   { id: 'shopping', label: 'Shopping', icon: Lightbulb },
 ];
+const weatherModeIcons = {
+  rainy: Umbrella,
+  sunny: Sun,
+  cold: Building2,
+  comfortable: CloudSun,
+  default: CloudSun,
+};
 
 const itineraryGroups = [
   { id: 'food', title: 'What to eat', addLabel: 'Food', categoryId: 'food', types: ['restaurant'], icon: Utensils },
@@ -53,7 +70,6 @@ const itineraryGroups = [
   { id: 'stay', title: 'Where to stay', addLabel: 'Stay', categoryId: 'hotels', types: ['hotel'], icon: BedDouble },
   { id: 'move', title: 'How to get there', addLabel: 'Transportation', categoryId: 'train', types: ['transport', 'flight'], icon: TrainFront },
 ];
-
 const getFallbackIdeas = (category, trip) => {
   const destination = [trip?.destination, trip?.country].filter(Boolean).join(', ') || 'this destination';
 
@@ -68,9 +84,8 @@ const getFallbackIdeas = (category, trip) => {
     fallback: true,
   }];
 };
-
 const getPlaceAddress = (place) => place.address || place.displayName || 'Location details unavailable';
-
+// Format Idea Place converts raw values into readable display text.
 const formatIdeaPlace = (place, categoryId) => ({
   ...place,
   lat: Number(place.lat ?? place.coordinates?.latitude),
@@ -87,26 +102,22 @@ const formatIdeaPlace = (place, categoryId) => ({
   summary: place.summary || place.category || 'Place result from map data.',
   type: 'idea',
 });
-
+// Format Date converts raw values into readable display text.
 const formatDate = (date) => (date ? new Date(date).toLocaleDateString() : 'No date');
-
+// Format Input Date converts raw values into readable display text.
 const formatInputDate = (date) => (date ? new Date(date).toISOString().slice(0, 10) : '');
-
 const getItemsForDay = (items, day) =>
   items.filter((item) => formatInputDate(item.scheduledDate) === formatInputDate(day.date));
-
 const getIdeaItemType = (category) => {
   if (category === 'food') return 'restaurant';
   if (category === 'hotels') return 'hotel';
   return 'attraction';
 };
-
 const parseTimeToMinutes = (time) => {
   const match = String(time || '').match(/^(\d{1,2}):(\d{2})$/);
   if (!match) return null;
   return Number(match[1]) * 60 + Number(match[2]);
 };
-
 const parseHourTextToMinutes = (value) => {
   const match = String(value || '').match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?/i);
   if (!match) return null;
@@ -120,7 +131,6 @@ const parseHourTextToMinutes = (value) => {
 
   return hour * 60 + minute;
 };
-
 const getOpeningWindow = (hoursText) => {
   const text = String(hoursText || '');
   const rangeMatch = text.match(/(\d{1,2}(?::\d{2})?\s*(?:AM|PM)?)\s*[-–]\s*(\d{1,2}(?::\d{2})?\s*(?:AM|PM)?)/i);
@@ -142,7 +152,6 @@ const getOpeningWindow = (hoursText) => {
 
   return null;
 };
-
 const getOpeningWarning = ({ hoursText, startTime, endTime }) => {
   const start = parseTimeToMinutes(startTime);
   const end = parseTimeToMinutes(endTime);
@@ -162,7 +171,6 @@ const getOpeningWarning = ({ hoursText, startTime, endTime }) => {
 
   return '';
 };
-
 const getOpenStreetMapTileUrl = (lat, lng, zoom = 15) => {
   const latitude = Number(lat);
   const longitude = Number(lng);
@@ -177,12 +185,10 @@ const getOpenStreetMapTileUrl = (lat, lng, zoom = 15) => {
 
   return `https://tile.openstreetmap.org/${zoom}/${x}/${y}.png`;
 };
-
 const getItemPoint = (item) => ({
   lat: item.location?.coordinates?.coordinates?.[1],
   lng: item.location?.coordinates?.coordinates?.[0],
 });
-
 const getRecommendationLocation = (trip) => {
   const primaryDestination = trip?.destinationSegments?.[0];
   return [
@@ -190,7 +196,7 @@ const getRecommendationLocation = (trip) => {
     primaryDestination?.country || trip?.country,
   ].filter(Boolean).join(', ');
 };
-
+// TripDetailsPage renders the main screen and handles nearby interactions.
 function TripDetailsPage() {
   const { id } = useParams();
   const currency = useContext(CurrencyContext);
@@ -199,7 +205,10 @@ function TripDetailsPage() {
   const [trip, setTrip] = useState(null);
   const [days, setDays] = useState([]);
   const [items, setItems] = useState([]);
+  const [visitedPlaces, setVisitedPlaces] = useState([]);
   const [weather, setWeather] = useState(null);
+  const [weatherGuidance, setWeatherGuidance] = useState(null);
+  const [showWeatherHelp, setShowWeatherHelp] = useState(true);
   const [ideas, setIdeas] = useState([]);
   const [ideaCategory, setIdeaCategory] = useState('attractions');
   const [status, setStatus] = useState('loading');
@@ -213,7 +222,6 @@ function TripDetailsPage() {
   const [isAddingIdea, setIsAddingIdea] = useState(false);
   const [actionMessage, setActionMessage] = useState('');
   const [selectedIdeaSchedule, setSelectedIdeaSchedule] = useState({ startTime: '09:00', endTime: '10:00' });
-
   useEffect(() => {
     let isMounted = true;
 
@@ -225,6 +233,7 @@ function TripDetailsPage() {
         setDays(itinerary.days || []);
         setItems(itinerary.items || []);
         setWeather(summaryResponse.data?.data?.weather || null);
+        setWeatherGuidance(summaryResponse.data?.data?.weatherGuidance || null);
         setStatus('success');
       })
       .catch((error) => {
@@ -233,17 +242,34 @@ function TripDetailsPage() {
         setMessage(error.response?.data?.message || 'Unable to load trip details.');
       });
 
+    // Cleanup prevents state updates after component unmount.
     return () => {
       isMounted = false;
     };
   }, [id]);
+  useEffect(() => {
+    let isMounted = true;
 
+    getVisitedPlaces()
+      .then((response) => {
+        if (!isMounted) return;
+        setVisitedPlaces(response.data?.data?.visitedPlaces || []);
+      })
+      .catch(() => {
+        if (isMounted) setVisitedPlaces([]);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
   const activeDay = useMemo(
     () => days.find((day) => day.dayNumber === activeDayNumber) || days[0],
     [activeDayNumber, days]
   );
 
   const activeDayItems = useMemo(() => getItemsForDay(items, activeDay || {}), [activeDay, items]);
+  const visitedLookup = useMemo(() => buildVisitedLookup(visitedPlaces), [visitedPlaces]);
   const groupedDayItems = useMemo(() => itineraryGroups.map((group) => ({
     ...group,
     items: activeDayItems.filter((item) => group.types.includes(item.type)),
@@ -267,6 +293,12 @@ function TripDetailsPage() {
   const weatherTemperature = weather?.temperature?.max || weather?.temperature?.mean
     ? `${Math.round(weather.temperature.max || weather.temperature.mean)}${weather.temperature.unit || 'C'}`
     : '';
+  const WeatherModeIcon = weatherModeIcons[weatherGuidance?.mode] || CloudSun;
+  const weatherCategoryShortcuts = showWeatherHelp
+    ? (weatherGuidance?.recommendedCategories || [])
+      .map((categoryId) => ideaCategories.find((category) => category.id === categoryId))
+      .filter(Boolean)
+    : [];
   const destinationPlaces = trip?.destinationSegments?.length
     ? trip.destinationSegments
     : trip
@@ -282,6 +314,28 @@ function TripDetailsPage() {
     })),
   ];
   const ideaMapPlaces = selectedIdea ? [selectedIdea, ...ideas.filter((idea) => idea.id !== selectedIdea.id)] : ideas;
+  const handleVisitedChange = (visitedPlace) => {
+    if (!visitedPlace?.placeKey) return;
+    setVisitedPlaces((currentPlaces) => {
+      const withoutCurrent = currentPlaces.filter((place) => place.placeKey !== visitedPlace.placeKey);
+      return [visitedPlace, ...withoutCurrent];
+    });
+  };
+  const getIdeaVisitedPayload = (idea) => getVisitedPlacePayload({
+    item: idea,
+    type: getIdeaItemType(idea?.categoryId || ideaCategory),
+    source: 'trip-ideas',
+    defaultDate: activeDay?.date || trip?.startDate,
+    tripId: trip?._id,
+  });
+  const getItemVisitedPayload = (item) => getVisitedPlacePayload({
+    item,
+    type: item?.type || 'location',
+    source: 'trip-itinerary',
+    defaultDate: item?.scheduledDate || activeDay?.date || trip?.startDate,
+    tripId: trip?._id,
+    itineraryItemId: item?._id,
+  });
 
   const updateDayLocal = (dayNumber, patch) => {
     setDays((currentDays) =>
@@ -516,6 +570,45 @@ function TripDetailsPage() {
                 </button>
               </form>
 
+              {showWeatherHelp && weatherGuidance ? (
+                <section className={weatherGuidance.available ? 'trip-weather-helper' : 'trip-weather-helper is-compact'} aria-label="Weather planning help">
+                  <div className="trip-weather-helper-heading">
+                    <span><WeatherModeIcon size={16} aria-hidden="true" /></span>
+                    <div>
+                      <strong>{weatherGuidance.headline}</strong>
+                      {weatherGuidance.available ? (
+                        <small>{weather?.available ? `${weather.condition}${weatherTemperature ? `, ${weatherTemperature}` : ''}` : weatherGuidance.message}</small>
+                      ) : null}
+                    </div>
+                    <button className="trip-weather-hide" type="button" onClick={() => setShowWeatherHelp(false)}>
+                      Default
+                    </button>
+                  </div>
+                  {weatherGuidance.available ? (
+                    <div className="trip-weather-tip-list">
+                      {(weatherGuidance.packingTips || []).slice(0, 2).map((tip) => <span key={tip}>{tip}</span>)}
+                      {(weatherGuidance.placeTips || []).slice(0, 1).map((tip) => <span key={tip}>{tip}</span>)}
+                    </div>
+                  ) : null}
+                  <div className="trip-weather-shortcuts" aria-label="Weather-based place shortcuts">
+                    {weatherCategoryShortcuts.map((category) => {
+                      const CategoryIcon = category.icon;
+
+                      return (
+                        <button
+                          type="button"
+                          key={category.id}
+                          onClick={() => switchAddCategory(category)}
+                        >
+                          <CategoryIcon size={14} aria-hidden="true" />
+                          {category.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              ) : null}
+
               <div className="trip-add-search-tabs" aria-label="Search shortcuts">
                 <button className="active" type="button" onClick={() => loadIdeas(addMode.categoryId, '')}>
                   Recommend
@@ -553,32 +646,38 @@ function TripDetailsPage() {
                 <p className="settings-empty"><LoaderCircle className="trip-details-spin" size={16} aria-hidden="true" /> Loading places...</p>
               ) : (
                 <div className="trip-idea-list">
-                  {ideas.map((idea) => (
-                    <button
-                      className={selectedIdea?.id === idea.id ? 'trip-idea-result is-active' : 'trip-idea-result'}
-                      key={idea.id}
-                      type="button"
-                      onClick={() => selectIdea(idea)}
-                    >
-                      <div className="trip-idea-card-main">
-                        <span className="trip-idea-thumb">
-                          {idea.imageUrl || getOpenStreetMapTileUrl(idea.lat, idea.lng)
-                            ? <img src={idea.imageUrl || getOpenStreetMapTileUrl(idea.lat, idea.lng)} alt="" loading="lazy" />
-                            : <AddModeIcon size={20} aria-hidden="true" />}
-                        </span>
-                        <div>
-                          <span className="trip-idea-type">{addMode.addLabel}</span>
-                          <strong>{idea.name}</strong>
-                          <p>{idea.address || idea.displayName || idea.summary || 'Suggested place near this trip.'}</p>
+                  {ideas.map((idea) => {
+                    const visitedPayload = getIdeaVisitedPayload(idea);
+                    const visitedRecord = visitedLookup[visitedPayload.placeKey];
+
+                    return (
+                      <button
+                        className={selectedIdea?.id === idea.id ? 'trip-idea-result is-active' : 'trip-idea-result'}
+                        key={idea.id}
+                        type="button"
+                        onClick={() => selectIdea(idea)}
+                      >
+                        {visitedRecord ? <span className="visited-place-watermark">Visited</span> : null}
+                        <div className="trip-idea-card-main">
+                          <span className="trip-idea-thumb">
+                            {idea.imageUrl || getOpenStreetMapTileUrl(idea.lat, idea.lng)
+                              ? <img src={idea.imageUrl || getOpenStreetMapTileUrl(idea.lat, idea.lng)} alt="" loading="lazy" />
+                              : <AddModeIcon size={20} aria-hidden="true" />}
+                          </span>
+                          <div>
+                            <span className="trip-idea-type">{addMode.addLabel}</span>
+                            <strong>{idea.name}</strong>
+                            <p>{idea.address || idea.displayName || idea.summary || 'Suggested place near this trip.'}</p>
+                          </div>
                         </div>
-                      </div>
-                      <div className="trip-idea-meta">
-                        <span><Star size={12} aria-hidden="true" />{idea.rating && idea.rating !== 'N/A' ? `${Number(idea.rating).toFixed(1)} rating` : 'No rating yet'}</span>
-                        {idea.reviews ? <span>{Number(idea.reviews) ? `${Number(idea.reviews).toLocaleString()} reviews` : idea.reviews}</span> : null}
-                        <span><Clock3 size={12} aria-hidden="true" />{idea.openState || idea.hours || 'Hours unavailable'}</span>
-                      </div>
-                    </button>
-                  ))}
+                        <div className="trip-idea-meta">
+                          <span><Star size={12} aria-hidden="true" />{idea.rating && idea.rating !== 'N/A' ? `${Number(idea.rating).toFixed(1)} rating` : 'No rating yet'}</span>
+                          {idea.reviews ? <span>{Number(idea.reviews) ? `${Number(idea.reviews).toLocaleString()} reviews` : idea.reviews}</span> : null}
+                          <span><Clock3 size={12} aria-hidden="true" />{idea.openState || idea.hours || 'Hours unavailable'}</span>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -613,6 +712,14 @@ function TripDetailsPage() {
 
               {activeTab === 'itinerary' ? (
               <div className="trip-itinerary-workspace">
+              <label className="trip-weather-toggle">
+                <input
+                  type="checkbox"
+                  checked={showWeatherHelp}
+                  onChange={(event) => setShowWeatherHelp(event.target.checked)}
+                />
+                <span>Show weather-based advice and place ideas</span>
+              </label>
               <section className="trip-budget-overview" aria-label="Budget overview">
                 <div>
                   <span>Daily budget</span>
@@ -626,12 +733,27 @@ function TripDetailsPage() {
                   <small>{currency?.formatAmount ? currency.formatAmount(remainingBudget, tripCurrency) : remainingBudget} left unassigned</small>
                   <span className="trip-budget-bar"><em style={{ width: `${plannedBudgetPercent}%` }} /></span>
                 </div>
-                <div>
+                {showWeatherHelp ? <div>
                   <span>Weather</span>
-                  <strong>{weather?.available ? `${weather.condition}${weatherTemperature ? `, ${weatherTemperature}` : ''}` : 'Unavailable'}</strong>
-                  <small>{weather?.available ? weather.travelTip || 'Use this when choosing outdoor ideas.' : weather?.message || 'Weather service is temporarily unavailable.'}</small>
-                </div>
+                  <strong>{weather?.available ? `${weather.condition}${weatherTemperature ? `, ${weatherTemperature}` : ''}` : 'Default ideas'}</strong>
+                  <small>{weatherGuidance?.packingTips?.[0] || weather?.message || 'Weather help is turned off or unavailable.'}</small>
+                </div> : null}
               </section>
+
+              {showWeatherHelp && weatherGuidance ? (
+                <section className="trip-weather-advice">
+                  <div>
+                    <span><WeatherModeIcon size={17} aria-hidden="true" /></span>
+                    <div>
+                      <h3>{weatherGuidance.headline}</h3>
+                      <p>{weatherGuidance.placeTips?.[0] || weather?.travelTip || 'Use the forecast as a planning signal.'}</p>
+                    </div>
+                  </div>
+                  <ul>
+                    {(weatherGuidance.packingTips || []).slice(0, 2).map((tip) => <li key={tip}>{tip}</li>)}
+                  </ul>
+                </section>
+              ) : null}
 
               {activeDay && (
                 <section className="trip-day-editor">
@@ -693,6 +815,8 @@ function TripDetailsPage() {
                       {group.items.map((item) => {
                         const itemPoint = getItemPoint(item);
                         const itemPreviewUrl = getOpenStreetMapTileUrl(itemPoint.lat, itemPoint.lng, 15);
+                        const visitedPayload = getItemVisitedPayload(item);
+                        const visitedRecord = visitedLookup[visitedPayload.placeKey];
                         const itemTimeWarning = getOpeningWarning({
                           hoursText: item.description,
                           startTime: item.startTime,
@@ -701,6 +825,7 @@ function TripDetailsPage() {
 
                         return (
                         <article className="trip-itinerary-item" key={item._id}>
+                          {visitedRecord ? <span className="visited-place-watermark">Visited</span> : null}
                           <div className="trip-item-card-main">
                             <span className="trip-itinerary-thumb">
                               {itemPreviewUrl ? <img src={itemPreviewUrl} alt="" loading="lazy" /> : <MapPin size={20} aria-hidden="true" />}
@@ -748,6 +873,12 @@ function TripDetailsPage() {
                                 onBlur={() => saveItemPrice(item._id)}
                               />
                             </label>
+                            <VisitedPlaceControl
+                              compact
+                              payload={visitedPayload}
+                              visitedRecord={visitedRecord}
+                              onVisitedChange={handleVisitedChange}
+                            />
                           </div>
                           {itemTimeWarning ? (
                             <p className="trip-opening-warning">
@@ -800,34 +931,40 @@ function TripDetailsPage() {
                 <p className="settings-empty">Choose a category to load map-based ideas for this trip.</p>
               ) : (
                 <div className="trip-idea-list">
-                  {ideas.map((idea) => (
-                    <button
-                      className={selectedIdea?.id === idea.id ? 'trip-idea-result is-active' : 'trip-idea-result'}
-                      key={idea.id}
-                      type="button"
-                      onClick={() => selectIdea(idea)}
-                    >
-                      <div className="trip-idea-card-main">
-                        <span className="trip-idea-thumb">
-                          {idea.imageUrl || getOpenStreetMapTileUrl(idea.lat, idea.lng)
-                            ? <img src={idea.imageUrl || getOpenStreetMapTileUrl(idea.lat, idea.lng)} alt="" loading="lazy" />
-                            : <Lightbulb size={20} aria-hidden="true" />}
-                        </span>
-                        <div>
-                          <span className="trip-idea-type">{ideaCategory}</span>
-                          <strong>{idea.name}</strong>
-                          <p>{idea.address || idea.displayName || idea.summary || 'Suggested place near this trip.'}</p>
+                  {ideas.map((idea) => {
+                    const visitedPayload = getIdeaVisitedPayload(idea);
+                    const visitedRecord = visitedLookup[visitedPayload.placeKey];
+
+                    return (
+                      <button
+                        className={selectedIdea?.id === idea.id ? 'trip-idea-result is-active' : 'trip-idea-result'}
+                        key={idea.id}
+                        type="button"
+                        onClick={() => selectIdea(idea)}
+                      >
+                        {visitedRecord ? <span className="visited-place-watermark">Visited</span> : null}
+                        <div className="trip-idea-card-main">
+                          <span className="trip-idea-thumb">
+                            {idea.imageUrl || getOpenStreetMapTileUrl(idea.lat, idea.lng)
+                              ? <img src={idea.imageUrl || getOpenStreetMapTileUrl(idea.lat, idea.lng)} alt="" loading="lazy" />
+                              : <Lightbulb size={20} aria-hidden="true" />}
+                          </span>
+                          <div>
+                            <span className="trip-idea-type">{ideaCategory}</span>
+                            <strong>{idea.name}</strong>
+                            <p>{idea.address || idea.displayName || idea.summary || 'Suggested place near this trip.'}</p>
+                          </div>
                         </div>
-                      </div>
-                      <div className="trip-idea-meta">
-                        <span><Star size={12} aria-hidden="true" />{idea.rating && idea.rating !== 'N/A' ? `${Number(idea.rating).toFixed(1)} rating` : 'No rating yet'}</span>
-                        {idea.reviews ? <span>{Number(idea.reviews) ? `${Number(idea.reviews).toLocaleString()} reviews` : idea.reviews}</span> : null}
-                        <span><Clock3 size={12} aria-hidden="true" />{idea.openState || idea.hours || 'Hours unavailable'}</span>
-                        <span><DollarSign size={12} aria-hidden="true" />{idea.price || 'Price unavailable'}</span>
-                        {idea.fallback && <span>Planning placeholder</span>}
-                      </div>
-                    </button>
-                  ))}
+                        <div className="trip-idea-meta">
+                          <span><Star size={12} aria-hidden="true" />{idea.rating && idea.rating !== 'N/A' ? `${Number(idea.rating).toFixed(1)} rating` : 'No rating yet'}</span>
+                          {idea.reviews ? <span>{Number(idea.reviews) ? `${Number(idea.reviews).toLocaleString()} reviews` : idea.reviews}</span> : null}
+                          <span><Clock3 size={12} aria-hidden="true" />{idea.openState || idea.hours || 'Hours unavailable'}</span>
+                          <span><DollarSign size={12} aria-hidden="true" />{idea.price || 'Price unavailable'}</span>
+                          {idea.fallback && <span>Planning placeholder</span>}
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -868,6 +1005,7 @@ function TripDetailsPage() {
           <TripMapPreview className="trip-details-map" places={(addMode || activeTab === 'ideas') && ideaMapPlaces.length ? ideaMapPlaces : mapPlaces} zoom={(addMode || activeTab === 'ideas') ? 8 : undefined} />
           {(addMode || activeTab === 'ideas') && selectedIdea ? (
             <aside className="trip-place-detail-panel" aria-label={`${selectedIdea.name} details`}>
+              {visitedLookup[getIdeaVisitedPayload(selectedIdea).placeKey] ? <span className="visited-place-watermark">Visited</span> : null}
               <button className="trip-place-detail-close" type="button" onClick={() => setSelectedIdea(null)} aria-label="Close place details">
                 <X size={18} aria-hidden="true" />
               </button>
@@ -930,6 +1068,11 @@ function TripDetailsPage() {
                     {selectedIdeaWarning}
                   </p>
                 ) : null}
+                <VisitedPlaceControl
+                  payload={getIdeaVisitedPayload(selectedIdea)}
+                  visitedRecord={visitedLookup[getIdeaVisitedPayload(selectedIdea).placeKey]}
+                  onVisitedChange={handleVisitedChange}
+                />
                 <button type="button" onClick={() => addIdeaToDay(selectedIdea)} disabled={isAddingIdea || selectedIdea.fallback || hasInvalidSelectedIdeaTime}>
                   {isAddingIdea ? <LoaderCircle className="trip-details-spin" size={16} aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />}
                   {isAddingIdea ? 'Adding...' : 'Add to itinerary'}
@@ -939,7 +1082,7 @@ function TripDetailsPage() {
             </aside>
           ) : null}
           <div className="trip-details-summary-strip">
-            <span><CloudSun size={16} aria-hidden="true" />{weather?.available ? weather.condition : weather?.message || 'Weather unavailable'}</span>
+            {showWeatherHelp ? <span><CloudSun size={16} aria-hidden="true" />{weather?.available ? weather.condition : weather?.message || 'Weather unavailable'}</span> : null}
             <span><WalletCards size={16} aria-hidden="true" />Daily planned: {currency?.formatAmount ? currency.formatAmount(plannedBudget, tripCurrency) : plannedBudget}</span>
             <span><CheckCircle2 size={16} aria-hidden="true" />Item estimates: {currency?.formatAmount ? currency.formatAmount(itemSpend, tripCurrency) : itemSpend}</span>
           </div>

@@ -1,3 +1,7 @@
+/**
+ * Language Helper styles.
+ * Layout, spacing, and interaction rules support the matching React view.
+ */
 .language-helper-page {
   display: grid;
   gap: 18px;
@@ -16,7 +20,6 @@
   background: #ffffff;
   box-shadow: 0 8px 20px rgba(16, 42, 67, 0.04);
 }
-
 .language-helper-hero {
   position: relative;
   display: flex;
@@ -27,7 +30,6 @@
   padding: 28px;
   background: var(--gradient-bright-surface);
 }
-
 .language-helper-hero::before {
   content: "";
   position: absolute;
@@ -39,7 +41,6 @@
   mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.38), transparent 78%);
   pointer-events: none;
 }
-
 .language-helper-hero > * {
   position: relative;
   z-index: 1;
@@ -55,7 +56,6 @@
   letter-spacing: 0;
   text-transform: uppercase;
 }
-
 .language-helper-hero h2 {
   margin: 0 0 8px;
   color: var(--navy);
@@ -63,20 +63,17 @@
   font-weight: 600;
   letter-spacing: 0;
 }
-
 .language-helper-hero p:not(.eyebrow) {
   max-width: 720px;
   color: var(--muted);
   line-height: 1.65;
 }
-
 .language-helper-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   margin-top: 18px;
 }
-
 .language-helper-meta span {
   display: inline-flex;
   align-items: center;
@@ -91,7 +88,6 @@
   font-weight: 650;
   box-shadow: 0 5px 12px rgba(16, 42, 67, 0.035);
 }
-
 .language-helper-live-card {
   display: grid;
   align-content: center;
@@ -106,7 +102,6 @@
     #ffffff;
   box-shadow: 0 8px 18px rgba(15, 118, 110, 0.065);
 }
-
 .language-helper-live-card span {
   color: var(--teal);
   font-size: 12px;

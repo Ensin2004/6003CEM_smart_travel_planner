@@ -1,5 +1,9 @@
+/**
+ * Language module.
+ * Schema fields define stored document structure, defaults, and indexes.
+ */
 const mongoose = require('mongoose');
-
+// Phrase Schema groups database fields before model registration.
 const phraseSchema = new mongoose.Schema(
   {
     category: { type: String, required: true, trim: true, maxlength: 80 },
@@ -9,7 +13,7 @@ const phraseSchema = new mongoose.Schema(
   },
   { _id: false }
 );
-
+// Language Resource Schema groups database fields before model registration.
 const languageResourceSchema = new mongoose.Schema(
   {
     languageCode: { type: String, required: true, unique: true, trim: true, lowercase: true },
@@ -18,5 +22,4 @@ const languageResourceSchema = new mongoose.Schema(
   },
   { timestamps: true }
 );
-
 module.exports = mongoose.model('LanguageResource', languageResourceSchema, 'languageResources');

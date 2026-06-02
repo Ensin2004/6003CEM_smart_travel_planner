@@ -1,8 +1,11 @@
+/**
+ * Favorites styles.
+ * Layout, spacing, and interaction rules support the matching React view.
+ */
 .favorites-page {
   display: grid;
   gap: 22px;
 }
-
 .favorites-hero {
   display: flex;
   align-items: center;
@@ -35,7 +38,6 @@
 .favorite-card p {
   color: var(--color-text-muted);
 }
-
 .favorites-empty {
   display: grid;
   place-items: center;
@@ -47,18 +49,15 @@
   padding: 28px;
   text-align: center;
 }
-
 .favorites-empty a {
   color: var(--teal-dark);
   font-weight: 800;
 }
-
 .favorites-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 14px;
 }
-
 .favorite-card {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -68,7 +67,6 @@
   background: #ffffff;
   padding: 16px;
 }
-
 .favorite-card-icon {
   display: grid;
   place-items: center;
@@ -78,13 +76,11 @@
   background: var(--gradient-bright-surface-soft);
   color: var(--teal);
 }
-
 .favorite-card-body {
   display: grid;
   gap: 10px;
   min-width: 0;
 }
-
 .favorite-card-title {
   display: flex;
   align-items: flex-start;

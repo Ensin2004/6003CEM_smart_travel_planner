@@ -1,3 +1,7 @@
+/**
+ * Travel Guide module.
+ * Validation schemas reject unsafe or incomplete request payloads.
+ */
 const { query } = require('express-validator');
 
 const countryRule = query('country').trim().isLength({ min: 2, max: 120 }).withMessage('Country is required');
@@ -48,7 +52,6 @@ const destinationDetailRules = [
   optionalStartRule('restaurantStart'),
   optionalStartRule('hotelStart'),
 ];
-
 module.exports = {
   countryListRules,
   destinationListRules,

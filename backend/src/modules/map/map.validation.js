@@ -1,3 +1,7 @@
+/**
+ * Map module.
+ * Validation schemas reject unsafe or incomplete request payloads.
+ */
 const { query } = require('express-validator');
 
 const mapCategories = ['hotels', 'airports', 'train', 'food', 'attractions', 'shopping'];
@@ -11,12 +15,10 @@ const destinationRule = query('destination')
   .trim()
   .isLength({ min: 2, max: 120 })
   .withMessage('Destination must be between 2 and 120 characters');
-
 const coordinateRule = (field, min, max) =>
   query(field)
     .isFloat({ min, max })
     .withMessage(`${field} must be a valid coordinate`);
-
 const optionalCoordinateRule = (field, min, max) =>
   query(field)
     .optional({ checkFalsy: true })
@@ -27,7 +29,6 @@ const placeNameRule = query('name')
   .trim()
   .isLength({ min: 2, max: 160 })
   .withMessage('Place name is required');
-
 const optionalTextRule = (field, max = 180) =>
   query(field)
     .optional({ checkFalsy: true })
@@ -63,5 +64,4 @@ const mapWeatherRules = [
   optionalCoordinateRule('longitude', -180, 180),
   optionalTextRule('locationLabel', 160),
 ];
-
 module.exports = { mapPlacesRules, mapPlaceDetailsRules, mapWeatherRules };

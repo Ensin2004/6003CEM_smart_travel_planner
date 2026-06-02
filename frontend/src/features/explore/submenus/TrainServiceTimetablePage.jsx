@@ -1,14 +1,19 @@
+/**
+ * Explore module.
+ * Business rules, repository access, and external integrations live in this layer.
+ */
 import { ArrowLeft, LoaderCircle, TrainFront } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { searchTrainServiceTimetable } from '../../../api/exploreApi';
 import { getErrorMessage } from '../explore.helpers';
 import './Transportation.css';
-
+// Format Time converts raw values into readable display text.
 const formatTime = (value) => value || '--:--';
+// Format Date converts raw values into readable display text.
 const formatDate = (value) => value || 'Date unavailable';
 const getStopKey = (stop = {}) => [stop.stationCode, stop.stationName].filter(Boolean).join(':').toLowerCase();
-
+// TrainServiceTimetablePage renders the main screen and handles nearby interactions.
 function TrainServiceTimetablePage() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -16,7 +21,6 @@ function TrainServiceTimetablePage() {
   const [timetable, setTimetable] = useState(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-
   const request = useMemo(
     () => ({
       serviceIdentifier: searchParams.get('serviceIdentifier') || '',
@@ -34,10 +38,8 @@ function TrainServiceTimetablePage() {
     stationName: searchParams.get('stationName') || '',
     stationCode: searchParams.get('stationCode') || '',
   };
-
   useEffect(() => {
     let isActive = true;
-
     const loadTimetable = async () => {
       if (!request.serviceDate || (!request.serviceIdentifier && !request.trainUid)) {
         setError('Service details are missing. Return to the station timetable and choose a train again.');
@@ -47,7 +49,6 @@ function TrainServiceTimetablePage() {
 
       setIsLoading(true);
       setError('');
-
       try {
         const response = await searchTrainServiceTimetable(request);
         if (!isActive) return;
@@ -64,12 +65,11 @@ function TrainServiceTimetablePage() {
     };
 
     loadTimetable();
-
+    // Cleanup prevents state updates after component unmount.
     return () => {
       isActive = false;
     };
   }, [request]);
-
   const performanceStopsByKey = useMemo(() => {
     const stops = timetable?.performance?.stops || [];
     return new Map(stops.map((stop) => [getStopKey(stop), stop]));
@@ -88,13 +88,11 @@ function TrainServiceTimetablePage() {
   const runningLateCode = timetable?.runningLateCode || timetable?.performance?.runningLateCode;
   const getSegmentDistanceLabel = (stop = {}, index) => (index === 0 ? 'Start' : stop.segmentEstimate?.display || 'Estimate unavailable');
   const getSegmentPriceLabel = (stop = {}, index) => (index === 0 ? 'Start' : stop.segmentEstimate?.priceEstimate?.display || 'Estimate unavailable');
-
   const handleBackToSearch = () => {
     navigate('/explore?view=transport', {
       state: location.state || null,
     });
   };
-
   return (
     <section className="explore-page">
       <div className="explore-hero">
@@ -159,7 +157,6 @@ function TrainServiceTimetablePage() {
                   const statusLabel = stopCancelled ? 'Cancelled' : statusReason ? 'Late' : 'On time';
                   const statusClassName = `explore-train-status-text ${stopCancelled || statusReason ? 'late' : 'on-time'}`;
                   const stationLabel = stop.stationName && stop.stationCode ? `${stop.stationName} (${stop.stationCode})` : stop.stationName || stop.stationCode || 'Station unavailable';
-
                   return (
                     <article className="explore-train-stop explore-train-stop-detail" key={`${stop.id}-${index}`}>
                       <div>
@@ -211,4 +208,5 @@ function TrainServiceTimetablePage() {
   );
 }
 
+// Default export registers the primary  value.
 export default TrainServiceTimetablePage;
