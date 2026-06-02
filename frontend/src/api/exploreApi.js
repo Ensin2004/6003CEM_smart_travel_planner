@@ -55,6 +55,16 @@ export const searchFlight = ({
     },
   });
 
+export const getHotelDetails = ({ name, address, dataId, placeId }) =>
+  axiosClient.get('/explore/hotels/detail', {
+    params: {
+      name,
+      address,
+      dataId,
+      placeId,
+    },
+  });
+
 export const searchTrainStationTimetable = ({ stationCode, stationQuery, departureDate, arrivalDate, operatorName }) =>
   axiosClient.get('/transportation/trains/station_timetable', {
     params: {

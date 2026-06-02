@@ -7,6 +7,7 @@ const exploreAiService = require('./exploreAi.service');
 module.exports = {
   getWeatherByDestination: weatherService.getWeatherByDestination,
   getAttractionsByDestination: placesService.getAttractionsByDestination,
+  getHotelDetail: hotelsService.getHotelDetail,
   getHotelsByDestination: hotelsService.getHotelsByDestination,
   getRestaurantsByDestination: restaurantService.getRestaurantsByDestination,
   getAiRecommendations: exploreAiService.getAiRecommendations,

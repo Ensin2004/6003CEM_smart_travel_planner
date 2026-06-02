@@ -2,7 +2,7 @@ import './UserDashboard.css';
 
 function UserDashboard() {
   return (
-    <section>
+    <section className="dashboard-page">
       <h2>Dashboard</h2>
       <div className="grid">
         <article className="panel">Upcoming trips</article>

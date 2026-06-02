@@ -156,6 +156,8 @@ const consumeDailyQuota = () => {
 
 const normalizePlaceItem = (item = {}, index, defaults = {}) => ({
   id: String(item.place_id || item.data_id || item.data_cid || item.position || index),
+  placeId: getText(item.place_id),
+  dataId: getText(item.data_id || item.data_cid),
   name: getText(item.title || item.name) || defaults.name,
   rating: Number(item.rating || 0) || null,
   reviewCount: Number(item.reviews || 0) || 0,
@@ -254,6 +256,51 @@ const searchGoogleMaps = async ({ cache, cacheKey, query, start = 0, metadata = 
   return data;
 };
 
+const normalizeReview = (review = {}, index = 0) => ({
+  id: String(review.review_id || review.link || review.user?.link || index),
+  author: getText(review.user?.name || review.user || review.author || review.name) || 'Google user',
+  avatarUrl: getText(review.user?.thumbnail || review.thumbnail),
+  rating: Number(review.rating || 0) || null,
+  date: getText(review.date || review.iso_date || review.relative_time_description),
+  text: getText(review.snippet || review.text || review.review),
+  likes: Number(review.likes || 0) || 0,
+});
+
+const searchGoogleMapsReviews = async ({ dataId, placeId, sortBy = 'qualityScore', hl = 'en' }) => {
+  if (!dataId && !placeId) {
+    return { available: false, message: 'Google review identifier is unavailable', items: [] };
+  }
+
+  if (!consumeDailyQuota()) {
+    const error = new Error('Daily travel data API limit reached. Please try again tomorrow.');
+    error.isDailyLimit = true;
+    throw error;
+  }
+
+  const response = await serpApiClient.get('/search', {
+    params: {
+      engine: 'google_maps_reviews',
+      data_id: dataId,
+      place_id: placeId,
+      sort_by: sortBy,
+      hl,
+      api_key: env.serpApiKey,
+    },
+  });
+
+  if (response.data?.error) {
+    throw new Error(response.data.error);
+  }
+
+  const rawReviews = response.data?.reviews || [];
+  return {
+    available: true,
+    items: rawReviews.map(normalizeReview),
+    nextPageToken: response.data?.serpapi_pagination?.next_page_token || '',
+    lastUpdated: new Date().toISOString(),
+  };
+};
+
 module.exports = {
   getGoogleMapsFailureMessage,
   getPriceDetail,
@@ -261,4 +308,5 @@ module.exports = {
   normalizePlaceItem,
   recordGoogleMapsFailure,
   searchGoogleMaps,
+  searchGoogleMapsReviews,
 };

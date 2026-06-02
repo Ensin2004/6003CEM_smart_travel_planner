@@ -25,7 +25,6 @@ function PlaceSearchWorkspace({
   destination,
   destinationLabel,
   error,
-  getCarouselIndex,
   getConvertedPriceText,
   getOriginalPriceText,
   handleCountryChange,
@@ -35,6 +34,8 @@ function PlaceSearchWorkspace({
   handleTravelDateChange,
   hasMoreFilteredItems,
   hasResults,
+  isHotelFavorite,
+  hotelDetailReturnState,
   isAiLoading,
   isFilteredSearchView,
   isFoodView,
@@ -42,7 +43,7 @@ function PlaceSearchWorkspace({
   isLoadingMore,
   isSearching,
   isWeatherLoading,
-  moveCarousel,
+  onHotelFavoriteChange,
   pricedCount,
   ratedCount,
   resultCount,
@@ -274,7 +275,6 @@ function PlaceSearchWorkspace({
           ) : (
             activeItems.map((item, index) => (
               <PlaceCard
-                carouselIndex={getCarouselIndex(item.id || item.name, item.imageUrls?.length || (item.imageUrl ? 1 : 0))}
                 categoryLabel={
                   isHotelsView && activeFilters.roomType
                     ? selectedRoomLabel
@@ -284,10 +284,12 @@ function PlaceSearchWorkspace({
                 }
                 convertedPriceText={getConvertedPriceText(item)}
                 index={index}
+                isInitiallyFavorite={isHotelsView ? isHotelFavorite?.(item) : false}
                 item={item}
                 key={`${item.id}-${index}`}
-                onMoveCarousel={moveCarousel}
+                onFavoriteChange={onHotelFavoriteChange}
                 originalPriceText={getOriginalPriceText(item)}
+                returnState={hotelDetailReturnState}
                 type={isHotelsView ? 'hotels' : isFoodView ? 'food' : 'attractions'}
               />
             ))
