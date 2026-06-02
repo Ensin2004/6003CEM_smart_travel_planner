@@ -74,6 +74,8 @@ function PlaceCard({
   const primaryImage = visibleImages[0];
   const openStatus = getOpenStatus(item.openState);
   const isHotelCard = type === 'hotels';
+  const isFoodCard = type === 'food' || type === 'restaurants';
+  const isFavoriteEnabled = isHotelCard || isFoodCard;
   const [isFavorite, setIsFavorite] = useState(isInitiallyFavorite);
   const [isSavingFavorite, setIsSavingFavorite] = useState(false);
   const priceIcon =
@@ -90,7 +92,7 @@ function PlaceCard({
   }, [isInitiallyFavorite]);
 
   const handleOpenDetails = () => {
-    if (!isHotelCard) return;
+    if (!isFavoriteEnabled) return;
 
     const params = new URLSearchParams({
       name: item.name || '',
@@ -98,10 +100,12 @@ function PlaceCard({
       dataId: item.dataId || '',
       placeId: item.placeId || '',
     });
+    const detailPath = isHotelCard ? '/explore/hotels/detail' : '/explore/restaurants/detail';
+    const stateKey = isHotelCard ? 'hotel' : 'restaurant';
 
-    navigate(`/explore/hotels/detail?${params.toString()}`, {
+    navigate(`${detailPath}?${params.toString()}`, {
       state: {
-        hotel: item,
+        [stateKey]: item,
         originalPriceText,
         convertedPriceText,
         returnState,
@@ -115,8 +119,9 @@ function PlaceCard({
 
     setIsSavingFavorite(true);
     try {
+      const favoriteType = isHotelCard ? 'hotel' : 'restaurant';
       await addFavorite({
-        type: 'hotel',
+        type: favoriteType,
         title: item.name,
         description: item.address,
         address: item.address,
@@ -124,7 +129,7 @@ function PlaceCard({
         priceLevel: originalPriceText || item.priceDetail?.display || item.price,
         rating: item.rating,
         externalId: item.dataId || item.placeId || item.id || item.name,
-        source: 'explore-hotels',
+        source: isHotelCard ? 'explore-hotels' : 'explore-food',
       });
       setIsFavorite(true);
       onFavoriteChange?.(item);
@@ -137,12 +142,12 @@ function PlaceCard({
 
   return (
     <article
-      className={`explore-attraction ${isHotelCard ? 'is-clickable' : ''}`}
+      className={`explore-attraction ${isFavoriteEnabled ? 'is-clickable' : ''}`}
       onClick={handleOpenDetails}
-      role={isHotelCard ? 'button' : undefined}
-      tabIndex={isHotelCard ? 0 : undefined}
+      role={isFavoriteEnabled ? 'button' : undefined}
+      tabIndex={isFavoriteEnabled ? 0 : undefined}
       onKeyDown={(event) => {
-        if (isHotelCard && (event.key === 'Enter' || event.key === ' ')) {
+        if (isFavoriteEnabled && (event.key === 'Enter' || event.key === ' ')) {
           event.preventDefault();
           handleOpenDetails();
         }
@@ -174,7 +179,7 @@ function PlaceCard({
         <div className="explore-attraction-title">
           <div className="explore-card-category-row">
             <span className="explore-category">{categoryLabel || item.category || item.type || 'Place'}</span>
-            {isHotelCard && (
+            {isFavoriteEnabled && (
               <button
                 className={`explore-favorite-button ${isFavorite ? 'active' : ''}`}
                 type="button"

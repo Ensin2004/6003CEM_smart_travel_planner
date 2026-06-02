@@ -9,6 +9,7 @@ module.exports = {
   getAttractionsByDestination: placesService.getAttractionsByDestination,
   getHotelDetail: hotelsService.getHotelDetail,
   getHotelsByDestination: hotelsService.getHotelsByDestination,
+  getRestaurantDetail: restaurantService.getRestaurantDetail,
   getRestaurantsByDestination: restaurantService.getRestaurantsByDestination,
   getAiRecommendations: exploreAiService.getAiRecommendations,
 };

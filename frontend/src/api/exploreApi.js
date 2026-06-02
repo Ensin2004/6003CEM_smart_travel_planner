@@ -36,6 +36,16 @@ export const searchRestaurants = ({ destination, country, state, foodCategory, s
     },
   });
 
+export const getRestaurantDetails = ({ name, address, dataId, placeId }) =>
+  axiosClient.get('/explore/restaurants/detail', {
+    params: {
+      name,
+      address,
+      dataId,
+      placeId,
+    },
+  });
+
 export const searchFlight = ({
   airlineName,
   fromCountryCode,
