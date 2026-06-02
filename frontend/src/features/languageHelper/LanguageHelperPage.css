@@ -151,8 +151,7 @@
 }
 
 .language-helper-history {
-  position: sticky;
-  top: 88px;
+  align-self: start;
   background:
     linear-gradient(180deg, #ffffff, #f8fbff),
     #ffffff;
@@ -385,6 +384,7 @@
   max-height: 620px;
   overflow-y: auto;
   padding-right: 2px;
+  scrollbar-gutter: stable;
 }
 
 .language-helper-history-list article {
@@ -487,9 +487,6 @@
     justify-self: center;
   }
 
-  .language-helper-history {
-    position: static;
-  }
 }
 
 @media (max-width: 560px) {
