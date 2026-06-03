@@ -812,6 +812,7 @@
 
 .packing-template-description-heading {
   color: var(--navy);
+  font-size: 14px;
   font-weight: var(--font-weight-bold);
 }
 
@@ -920,10 +921,11 @@
 }
 
 .packing-template-item-list article.packing-template-item-card {
-  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
 }
 
 .packing-template-controls .travel-tools-template-filters {
+  grid-template-columns: minmax(240px, 1fr) minmax(160px, 0.78fr) auto;
   padding: 0;
   border: 0;
   background: transparent;
@@ -1087,6 +1089,10 @@
   grid-template-columns: minmax(240px, 1fr) minmax(150px, 0.38fr) auto;
 }
 
+.travel-tools-detail .packing-template-controls .travel-tools-template-filters {
+  grid-template-columns: minmax(240px, 1fr) minmax(160px, 0.78fr) auto;
+}
+
 .travel-tools-filter-action {
   min-height: 42px;
   gap: 8px;
@@ -1149,6 +1155,10 @@
   transform: translateY(-1px);
 }
 
+.travel-tools-item-list article:has(.travel-tools-item-actions-menu[open]) {
+  z-index: 25;
+}
+
 .travel-tools-item-list article.packed {
   background: #f1f5f9;
   color: #94a3b8;
@@ -1185,6 +1195,79 @@
   height: 36px;
   place-items: center;
   padding: 0;
+}
+
+.travel-tools-item-actions-menu {
+  position: relative;
+  justify-self: end;
+}
+
+.travel-tools-item-actions-menu[open] {
+  z-index: 26;
+}
+
+.travel-tools-item-actions-menu summary {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--color-primary);
+  cursor: pointer;
+  list-style: none;
+}
+
+.travel-tools-item-actions-menu summary::-webkit-details-marker {
+  display: none;
+}
+
+.travel-tools-item-actions-menu[open] summary,
+.travel-tools-item-actions-menu summary:hover {
+  background: var(--color-primary-soft);
+}
+
+.travel-tools-item-actions-menu > div {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 27;
+  display: grid;
+  gap: 4px;
+  min-width: 132px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(16, 42, 67, 0.12);
+}
+
+.travel-tools-item-actions-menu button,
+.travel-tools-item-actions-menu label {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--navy);
+  font: inherit;
+  font-weight: var(--font-weight-semibold);
+}
+
+.travel-tools-item-actions-menu button:hover,
+.travel-tools-item-actions-menu label:hover {
+  background: #f8fafc;
+  color: var(--color-primary);
+}
+
+.travel-tools-item-actions-menu button:last-child:hover {
+  background: #fef2f2;
+  color: var(--color-danger);
 }
 
 .travel-document-upload {
@@ -1468,15 +1551,42 @@
 }
 
 .travel-document-list-item {
-  grid-template-columns: minmax(0, 1fr) auto auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
 }
 
 .travel-document-row-upload {
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  min-height: 36px;
+  padding: 0 14px;
   cursor: pointer;
 }
 
+.travel-tools-item-list article > .travel-document-row-upload {
+  display: inline-flex;
+  width: auto;
+  height: auto;
+  min-width: 106px;
+}
+
 .travel-document-row-upload input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.travel-document-menu-upload {
+  position: relative;
+  cursor: pointer;
+}
+
+.travel-document-menu-upload input {
   position: absolute;
   width: 1px;
   height: 1px;
@@ -1512,7 +1622,7 @@
 }
 
 .travel-tools-document-file-list article {
-  grid-template-columns: auto minmax(0, 1fr) auto auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto;
 }
 
 .travel-document-file-icon {
