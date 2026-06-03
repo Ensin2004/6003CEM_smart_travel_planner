@@ -14,7 +14,6 @@ import {
   Edit3,
   FileText,
   ListChecks,
-  Luggage,
   MoreVertical,
   Plus,
   Search,
@@ -178,6 +177,8 @@ const normalizeTravelDocumentForUi = (document) => ({
 });
 // PackingListTools renders the main screen and handles nearby interactions.
 function PackingListTools() {
+  const [packingListSearch, setPackingListSearch] = useState('');
+  const [packingTemplateSearch, setPackingTemplateSearch] = useState('');
   const {
     categoryOptions,
     closeItemModal,
@@ -212,7 +213,6 @@ function PackingListTools() {
     handleSaveTemplateTitle,
     handleStartListTitleEdit,
     handleStartTemplateDescriptionEdit,
-    handleStartTemplateTitleEdit,
     handleTemplatePageChange,
     handleTemplateSaveFormChange,
     handleTemplateSelect,
@@ -260,7 +260,6 @@ function PackingListTools() {
     templateTitleDraft,
     templates,
     trips,
-    unpackedItemCount,
     visibleTemplates,
   } = useTravelToolsPage();
 
@@ -276,12 +275,22 @@ function PackingListTools() {
         String(list.tripId || '') === String(tripId) &&
         (!excludedListId || String(list._id) !== String(excludedListId))
     );
+  const filteredPackingLists = packingLists.filter((list) => {
+    const normalizedSearch = packingListSearch.toLowerCase().trim();
+    if (!normalizedSearch) return true;
+    return [list.title, list.destination].some((value) => value?.toLowerCase().includes(normalizedSearch));
+  });
+  const filteredCustomTemplates = customTemplates.filter((template) => {
+    const normalizedSearch = packingTemplateSearch.toLowerCase().trim();
+    if (!normalizedSearch) return true;
+    return [template.title, template.description].some((value) => value?.toLowerCase().includes(normalizedSearch));
+  });
   return (
     <TravelToolsPageFrame labelledBy="packing-title" className="travel-tools-enhanced-page">
       <TravelToolsHero
         labelledBy="packing-title"
         eyebrow="Trip checklist"
-        title="Packing List"
+        title="Packing Lists"
         description="Plan what to bring, tick items as packed, and reuse templates for future trips."
         metaLabel="Packing list summary"
         meta={
@@ -317,11 +326,11 @@ function PackingListTools() {
         ))}
       </datalist>
 
-      <form className="travel-tools-create-panel" onSubmit={handleCreateList}>
+      <form className="travel-tools-create-panel packing-create-panel" onSubmit={handleCreateList}>
         <div className="travel-tools-panel-heading">
           <div>
             <span>Create a packing list</span>
-            <h3>Create a list manually or start from a packing template</h3>
+            <h3>Create a list manually or start from a packing template.</h3>
           </div>
           <button className="secondary-action" type="submit" disabled={isSaving}>
             <Plus size={17} aria-hidden="true" />
@@ -329,7 +338,7 @@ function PackingListTools() {
           </button>
         </div>
 
-        <div className="packing-create-mode" role="group" aria-label="Create packing list type">
+        <div className="packing-create-mode packing-create-card-mode" role="group" aria-label="Create packing list type">
           <button
             className={createMode === 'manual' ? 'active' : ''}
             type="button"
@@ -339,7 +348,13 @@ function PackingListTools() {
               setCreateForm((current) => ({ ...current, templateKey: '' }));
             }}
           >
-            Manual
+            <span className="packing-create-option-icon">
+              <Edit3 size={24} aria-hidden="true" />
+            </span>
+            <span>
+              <strong>Create manually</strong>
+              <small>Start with a blank list</small>
+            </span>
           </button>
           <button
             className={createMode === 'template' ? 'active' : ''}
@@ -349,7 +364,13 @@ function PackingListTools() {
               setCreateMode('template');
             }}
           >
-            Use template
+            <span className="packing-create-option-icon packing-create-option-icon-blue">
+              <ListChecks size={24} aria-hidden="true" />
+            </span>
+            <span>
+              <strong>Use template</strong>
+              <small>Choose from saved templates</small>
+            </span>
           </button>
         </div>
 
@@ -449,46 +470,67 @@ function PackingListTools() {
         </div>
         {createFormError && <p className="form-error travel-tools-status">{createFormError}</p>}
       </form>
-      <div className="travel-tools-layout">
-        <aside className="travel-tools-list-panel">
-          <div className="travel-tools-panel-heading">
-            <div>
-              <span>View Packing Lists</span>
-              <h3>My Lists</h3>
+      <div className="travel-tools-layout packing-dashboard-layout">
+        <aside className="travel-tools-list-panel packing-side-panel">
+          <div className="travel-tools-side-section packing-list-side-section">
+            <div className="travel-tools-panel-heading">
+              <div>
+                <span>View Packing Lists</span>
+                <h3>My Packing Lists</h3>
+              </div>
+              <strong>{packingLists.length}</strong>
             </div>
-            <strong>{packingLists.length}</strong>
-          </div>
 
-          {isLoading ? (
-            <p className="settings-empty">Loading packing lists...</p>
-          ) : packingLists.length === 0 ? (
-            <p className="settings-empty">No packing lists yet. Create one manually or start from a template.</p>
-          ) : (
-            <div className="travel-tools-list-stack">
-              {packingLists.map((list) => {
-                const listProgress = list.progress || {
-                  packedItems: list.items.filter((item) => item.isPacked).length,
-                  totalItems: list.items.length,
-                };
-                return (
-                  <button
-                    className={`travel-tools-list-card ${!selectedTemplate && selectedList?._id === list._id ? 'active' : ''}`}
-                    type="button"
-                    key={list._id}
-                    onClick={() => {
-                      setSelectedListId(list._id);
-                      setSelectedTemplateId('');
-                    }}
-                  >
-                    <span>{list.title}</span>
-                    <small>
-                      {listProgress.packedItems}/{listProgress.totalItems} packed
-                    </small>
-                  </button>
-                );
-              })}
+            <div className="travel-tools-filters travel-tools-template-filters packing-side-search">
+              <span className="travel-tools-search-field">
+                <Search size={16} aria-hidden="true" />
+                <input
+                  value={packingListSearch}
+                  onChange={(event) => setPackingListSearch(event.target.value)}
+                  placeholder="Search packing lists"
+                />
+              </span>
             </div>
-          )}
+
+            {isLoading ? (
+              <p className="settings-empty">Loading packing lists...</p>
+            ) : packingLists.length === 0 ? (
+              <div className="packing-side-empty">
+                <p>No packing lists yet.</p>
+                <small>Create one manually or start from a template.</small>
+                <span aria-hidden="true">
+                  <ListChecks size={28} />
+                </span>
+              </div>
+            ) : filteredPackingLists.length === 0 ? (
+              <p className="settings-empty">No packing lists match the current search.</p>
+            ) : (
+              <div className="travel-tools-list-stack">
+                {filteredPackingLists.map((list) => {
+                  const listProgress = list.progress || {
+                    packedItems: list.items.filter((item) => item.isPacked).length,
+                    totalItems: list.items.length,
+                  };
+                  return (
+                    <button
+                      className={`travel-tools-list-card ${!selectedTemplate && selectedList?._id === list._id ? 'active' : ''}`}
+                      type="button"
+                      key={list._id}
+                      onClick={() => {
+                        setSelectedListId(list._id);
+                        setSelectedTemplateId('');
+                      }}
+                    >
+                      <span>{list.title}</span>
+                      <small>
+                        {listProgress.packedItems}/{listProgress.totalItems} packed
+                      </small>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
 
           <div className="travel-tools-side-section">
             <div className="travel-tools-panel-heading">
@@ -498,11 +540,28 @@ function PackingListTools() {
               </div>
               <strong>{customTemplates.length}</strong>
             </div>
+            <div className="travel-tools-filters travel-tools-template-filters packing-side-search">
+              <span className="travel-tools-search-field">
+                <Search size={16} aria-hidden="true" />
+                <input
+                  value={packingTemplateSearch}
+                  onChange={(event) => setPackingTemplateSearch(event.target.value)}
+                  placeholder="Search templates"
+                />
+              </span>
+            </div>
             {customTemplates.length === 0 ? (
-              <p className="settings-empty">No saved templates yet.</p>
+              <div className="packing-side-empty">
+                <p>No saved templates yet.</p>
+                <span aria-hidden="true">
+                  <FileText size={28} />
+                </span>
+              </div>
+            ) : filteredCustomTemplates.length === 0 ? (
+              <p className="settings-empty">No templates match the current search.</p>
             ) : (
               <div className="travel-tools-list-stack">
-                {customTemplates.map((template) => (
+                {filteredCustomTemplates.map((template) => (
                   <button
                     className={`travel-tools-list-card travel-tools-template-card ${selectedTemplateId === template.key ? 'active' : ''}`}
                     type="button"
@@ -538,14 +597,11 @@ function PackingListTools() {
                         <button type="submit" disabled={isSaving}>Save</button>
                         <button type="button" onClick={handleCancelTemplateTitleEdit}>Cancel</button>
                       </form>
-                    ) : (
-                      <div className="travel-tools-title-row">
-                        <h3>{templateEditForm.title}</h3>
-                        <button type="button" onClick={handleStartTemplateTitleEdit} aria-label="Edit packing template name">
-                          <Edit3 size={17} aria-hidden="true" />
-                        </button>
-                      </div>
-                    )}
+                  ) : (
+                    <div className="travel-tools-title-row">
+                      <h3>{templateEditForm.title}</h3>
+                    </div>
+                  )}
                     <p>
                       {templateEditForm.items.length} template item{templateEditForm.items.length === 1 ? '' : 's'}
                     </p>
@@ -553,116 +609,129 @@ function PackingListTools() {
                       <span>{selectedTemplate.source === 'custom' ? 'Custom template' : 'System template'}</span>
                     </div>
                   </div>
-                  <div className="travel-tools-actions">
-                    <button
-                      type="button"
-                      onClick={() => setConfirmAction({ type: 'duplicate-template', template: selectedTemplate })}
-                      disabled={isSaving}
-                    >
-                      <Copy size={16} aria-hidden="true" />
-                      Duplicate
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setConfirmAction({ type: 'delete-template', template: selectedTemplate })}
-                      disabled={isSaving}
-                    >
-                      <Trash2 size={16} aria-hidden="true" />
-                      Delete
-                    </button>
-                  </div>
-                </div>
-
-                <div className="packing-reminder packing-template-description">
-                  <div className="packing-template-description-summary">
-                    <div className="packing-template-description-heading">
-                      <span>Template description</span>
+                  <details className="travel-tools-actions-menu">
+                    <summary>
+                      <MoreVertical size={17} aria-hidden="true" />
+                      More
+                    </summary>
+                    <div>
                       <button
                         type="button"
-                        onClick={handleStartTemplateDescriptionEdit}
-                        aria-label="Edit template description"
+                        onClick={() => setConfirmAction({ type: 'duplicate-template', template: selectedTemplate })}
+                        disabled={isSaving}
                       >
-                        <Edit3 size={16} aria-hidden="true" />
+                        <Copy size={16} aria-hidden="true" />
+                        Duplicate
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmAction({ type: 'delete-template', template: selectedTemplate })}
+                        disabled={isSaving}
+                      >
+                        <Trash2 size={16} aria-hidden="true" />
+                        Delete
                       </button>
                     </div>
-                    <p>{templateEditForm.description || 'No description added yet.'}</p>
-                  </div>
-                  {isEditingTemplateDescription && (
-                    <div className="packing-template-description-editor">
+                  </details>
+                </div>
+
+                <div className="packing-template-description">
+                  <div className="packing-template-description-summary">
+                    <span className="packing-template-description-heading">Template description</span>
+                    <div className="packing-template-description-box">
                       <textarea
-                        value={templateDescriptionDraft}
+                        value={
+                          isEditingTemplateDescription
+                            ? templateDescriptionDraft
+                            : templateEditForm.description || 'No description added yet.'
+                        }
                         onChange={(event) => {
+                          if (!isEditingTemplateDescription) return;
                           setTemplateEditError('');
                           setTemplateDescriptionDraft(event.target.value);
                         }}
                         placeholder="Template description"
-                        rows="3"
-                        autoFocus
+                        rows="4"
+                        readOnly={!isEditingTemplateDescription}
+                        autoFocus={isEditingTemplateDescription}
                       />
-                      <div className="packing-template-description-actions">
-                        <button className="secondary-action" type="button" onClick={handleCancelTemplateDescriptionEdit}>
-                          Cancel
+                      {!isEditingTemplateDescription && (
+                        <button
+                          type="button"
+                          onClick={handleStartTemplateDescriptionEdit}
+                          aria-label="Edit template description"
+                        >
+                          <Edit3 size={16} aria-hidden="true" />
                         </button>
-                        <button className="primary-action" type="button" onClick={handleSaveTemplateDescription} disabled={isSaving}>
-                          Save
-                        </button>
-                      </div>
+                      )}
+                    </div>
+                  </div>
+                  {isEditingTemplateDescription && (
+                    <div className="packing-template-description-actions">
+                      <button className="secondary-action" type="button" onClick={handleCancelTemplateDescriptionEdit}>
+                        Cancel
+                      </button>
+                      <button className="primary-action" type="button" onClick={handleSaveTemplateDescription} disabled={isSaving}>
+                        Save
+                      </button>
                     </div>
                   )}
                 </div>
 
-                <div className="travel-tools-filters travel-tools-template-filters">
-                  <span className="travel-tools-search-field">
-                    <Search size={16} aria-hidden="true" />
-                    <input
-                      value={templateFilters.search}
-                      onChange={(event) => setTemplateFilters((current) => ({ ...current, search: event.target.value }))}
-                      placeholder="Search items"
-                    />
-                  </span>
-                  <select value={templateFilters.category} onChange={(event) => setTemplateFilters((current) => ({ ...current, category: event.target.value }))}>
-                    <option value="">All categories</option>
-                    {packingCategories.map((category) => (
-                      <option key={category} value={category}>{formatPackingCategory(category)}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {filteredTemplateItems.length === 0 ? (
-                  <p className="settings-empty">No template items match the current filters.</p>
-                ) : (
-                  <div className="travel-tools-item-list packing-template-item-list">
-                    {filteredTemplateItems.map((item) => {
-                      const CategoryIcon = getCategoryIcon(item.category);
-                      return (
-                        <article className={item.isPacked ? 'packing-template-item-card packed' : 'packing-template-item-card'} key={item.id || item.index}>
-                          <div>
-                            <div className="travel-tools-item-title-row">
-                              <strong>{item.name}</strong>
-                            </div>
-                            <span className="travel-tools-item-category packing-template-item-category">
-                              <CategoryIcon size={14} aria-hidden="true" />
-                              {formatPackingCategory(item.category)}
-                            </span>
-                          </div>
-                          <div className="travel-tools-item-meta" aria-label="Template item quantity">
-                            <span className="travel-tools-quantity">Qty {item.quantity}</span>
-                          </div>
-                          <button type="button" onClick={() => handleEditTemplateItem(item.index)} aria-label="Edit template item">
-                            <Edit3 size={16} aria-hidden="true" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setConfirmAction({ type: 'delete-template-item', item, itemIndex: item.index })}
-                            aria-label="Remove template item"
-                          >
-                            <Trash2 size={16} aria-hidden="true" />
-                          </button>
-                        </article>
-                      );
-                    })}
+                <div className="packing-workspace-controls packing-template-controls">
+                  <div className="travel-tools-filters travel-tools-template-filters">
+                    <span className="travel-tools-search-field">
+                      <Search size={16} aria-hidden="true" />
+                      <input
+                        value={templateFilters.search}
+                        onChange={(event) => setTemplateFilters((current) => ({ ...current, search: event.target.value }))}
+                        placeholder="Search items"
+                      />
+                    </span>
+                    <select value={templateFilters.category} onChange={(event) => setTemplateFilters((current) => ({ ...current, category: event.target.value }))}>
+                      <option value="">All categories</option>
+                      {packingCategories.map((category) => (
+                        <option key={category} value={category}>{formatPackingCategory(category)}</option>
+                      ))}
+                    </select>
                   </div>
-                )}
+
+                  {filteredTemplateItems.length === 0 ? (
+                    <p className="settings-empty packing-template-empty">No template items match the current filters.</p>
+                  ) : (
+                    <div className="travel-tools-item-list packing-template-item-list">
+                      {filteredTemplateItems.map((item) => {
+                        const CategoryIcon = getCategoryIcon(item.category);
+                        return (
+                          <article className={item.isPacked ? 'packing-template-item-card packed' : 'packing-template-item-card'} key={item.id || item.index}>
+                            <div>
+                              <div className="travel-tools-item-title-row">
+                                <strong>{item.name}</strong>
+                              </div>
+                              <span className="travel-tools-item-category packing-template-item-category">
+                                <CategoryIcon size={14} aria-hidden="true" />
+                                {formatPackingCategory(item.category)}
+                              </span>
+                            </div>
+                            <div className="travel-tools-item-meta" aria-label="Template item quantity">
+                              <span className="travel-tools-quantity">Qty {item.quantity}</span>
+                            </div>
+                            <button type="button" onClick={() => handleEditTemplateItem(item.index)} aria-label="Edit template item">
+                              <Edit3 size={16} aria-hidden="true" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setConfirmAction({ type: 'delete-template-item', item, itemIndex: item.index })}
+                              aria-label="Remove template item"
+                            >
+                              <Trash2 size={16} aria-hidden="true" />
+                            </button>
+                          </article>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
 
                 <div className="travel-tools-add-row">
                   <button className="primary-action" type="button" onClick={handleOpenAddTemplateItem}>
@@ -677,10 +746,10 @@ function PackingListTools() {
               </div>
             </section>
           ) : selectedList ? (
-            <section className="travel-tools-detail">
+            <section className="travel-tools-detail packing-workspace-detail">
               <div className="travel-tools-detail-header">
                 <div>
-                  <span className="travel-tools-workspace-label">Packing workspace</span>
+                  <span className="travel-tools-workspace-label">Packing Workspace</span>
                   {isEditingListTitle ? (
                     <form className="travel-tools-title-edit" onSubmit={handleSaveListTitle}>
                       <input
@@ -695,9 +764,6 @@ function PackingListTools() {
                   ) : (
                     <div className="travel-tools-title-row">
                       <h3>{selectedList.title}</h3>
-                      <button type="button" onClick={handleStartListTitleEdit} aria-label="Edit packing list name">
-                        <Edit3 size={17} aria-hidden="true" />
-                      </button>
                     </div>
                   )}
                   <p>
@@ -729,135 +795,152 @@ function PackingListTools() {
                 </details>
               </div>
 
-              <div className="packing-progress" aria-label="Packing progress">
-                <span style={{ width: `${progress.percent || 0}%` }} />
-              </div>
-
-              <div className="packing-trip-link-panel">
-                <label>
-                  <span className="travel-tools-field-label">
-                    Link trip
-                    {renderTip('Choose a trip to link this list or select "None" to unlink it.')}
+              <div className="packing-workspace-fields">
+                <label className="packing-title-field">
+                  <span>List title</span>
+                  <span className="packing-title-input">
+                    <input value={selectedList.title} readOnly aria-label="Current packing list title" />
+                    <button type="button" onClick={handleStartListTitleEdit} aria-label="Edit packing list name">
+                      <Edit3 size={16} aria-hidden="true" />
+                    </button>
                   </span>
-                  <select value={selectedList.tripId || ''} onChange={handlePackingListTripChange} disabled={isSaving}>
-                    <option value="">None</option>
-                    {trips.map((trip) => {
-                      const isUnavailable = isTripLinkedToOtherPackingList(trip._id, selectedList._id);
-                      return (
-                        <option key={trip._id} value={trip._id} disabled={isUnavailable}>
-                          {getTripOptionLabel(trip)}{isUnavailable ? ' (Already linked)' : ''}
-                        </option>
-                      );
-                    })}
-                  </select>
                 </label>
-              </div>
-
-              <div className="packing-reminder">
-                <span>
-                  <Bell size={17} aria-hidden="true" />
-                  Packing reminder
-                </span>
-                <strong className={isPackingReminderEnabled ? 'enabled' : 'disabled'}>
-                  {isPackingReminderEnabled ? 'Enabled' : 'Disabled'}
-                </strong>
-                {renderTip(
-                  isPackingReminderEnabled
-                    ? 'Packing reminders are currently enabled in your notification settings.'
-                    : 'Packing reminders are currently disabled in your notification settings.'
-                )}
-                <label>
-                  {renderTip('Choose how many days before the trip you want to be reminded.')}
-                  Notify
-                  <input
-                    type="number"
-                    min="0"
-                    max="30"
-                    value={selectedList.reminder?.daysBeforeTrip ?? reminderDays}
-                    onChange={handleReminderDaysChange}
-                  />
-                  days before trip
-                </label>
-                {unpackedItemCount > 0 && (
-                  <small>
-                    {isPackingReminderEnabled ? 'Notification will be sent while ' : ''}
-                    {unpackedItemCount} item{unpackedItemCount === 1 ? '' : 's'} remain unpacked.
-                  </small>
-                )}
-              </div>
-
-              <div className="travel-tools-filters packing-item-filters">
-                <span className="travel-tools-search-field">
-                  <Search size={16} aria-hidden="true" />
-                  <input
-                    value={filters.search}
-                    onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
-                    placeholder="Search items"
-                  />
-                </span>
-                <select value={filters.category} onChange={(event) => setFilters((current) => ({ ...current, category: event.target.value }))}>
-                  <option value="">All categories</option>
-                  {packingCategories.map((category) => (
-                    <option key={category} value={category}>{formatPackingCategory(category)}</option>
-                  ))}
-                </select>
-                <select value={filters.packed} onChange={(event) => setFilters((current) => ({ ...current, packed: event.target.value }))}>
-                  <option value="">All status</option>
-                  <option value="packed">Packed</option>
-                  <option value="unpacked">Unpacked</option>
-                </select>
-                <button className="secondary-action travel-tools-filter-action" type="button" onClick={handleOpenAddItem}>
-                  <Plus size={16} aria-hidden="true" />
-                  Add item
-                </button>
-              </div>
-
-              {filteredItems.length === 0 ? (
-                <p className="settings-empty">No packing items match the current filters.</p>
-              ) : (
-                <div className="travel-tools-item-list">
-                  {filteredItems.map((item) => (
-                    <article className={item.isPacked ? 'packed' : ''} key={item._id}>
-                      <label className="packing-check">
-                        <input
-                          type="checkbox"
-                          checked={Boolean(item.isPacked)}
-                          onChange={() => handleTogglePacked(item)}
-                        />
-                        <span className="sr-only">{item.isPacked ? 'Mark unpacked' : 'Mark packed'}</span>
-                      </label>
-                      <div>
-                        <div className="travel-tools-item-title-row">
-                          <strong>{item.name}</strong>
-                        </div>
-                        <span className="travel-tools-item-category">
-                          {(() => {
-                            const CategoryIcon = getCategoryIcon(item.category);
-                            return <CategoryIcon size={14} aria-hidden="true" />;
-                          })()}
-                          {formatPackingCategory(item.category)}
-                        </span>
-                      </div>
-                      <div className="travel-tools-item-meta" aria-label="Item quantity">
-                        <span className="travel-tools-quantity">Qty {item.quantity}</span>
-                      </div>
-                      <button type="button" onClick={() => handleEditItem(item)} aria-label="Edit item">
-                        <Edit3 size={16} aria-hidden="true" />
-                      </button>
-                      <button type="button" onClick={() => setConfirmAction({ type: 'delete-item', list: selectedList, item })} aria-label="Delete item">
-                        <Trash2 size={16} aria-hidden="true" />
-                      </button>
-                    </article>
-                  ))}
+                <div className="packing-trip-link-panel">
+                  <label>
+                    <span className="travel-tools-field-label">
+                      Link trip (optional)
+                      {renderTip('Choose a trip to link this list or select "None" to unlink it.')}
+                    </span>
+                    <select value={selectedList.tripId || ''} onChange={handlePackingListTripChange} disabled={isSaving}>
+                      <option value="">None</option>
+                      {trips.map((trip) => {
+                        const isUnavailable = isTripLinkedToOtherPackingList(trip._id, selectedList._id);
+                        return (
+                          <option key={trip._id} value={trip._id} disabled={isUnavailable}>
+                            {getTripOptionLabel(trip)}{isUnavailable ? ' (Already linked)' : ''}
+                          </option>
+                        );
+                      })}
+                    </select>
+                  </label>
                 </div>
-              )}
+              </div>
+
+              <div className="packing-workspace-controls">
+                <div className="packing-reminder">
+                  <span>
+                    <Bell size={17} aria-hidden="true" />
+                    Packing reminder
+                  </span>
+                  <strong className={isPackingReminderEnabled ? 'enabled' : 'disabled'}>
+                    {isPackingReminderEnabled ? 'Enabled' : 'Disabled'}
+                  </strong>
+                  {renderTip(
+                    isPackingReminderEnabled
+                      ? 'Packing reminders are currently enabled in your notification settings.'
+                      : 'Packing reminders are currently disabled in your notification settings.'
+                  )}
+                  <label>
+                    {renderTip('Choose how many days before the trip you want to be reminded.')}
+                    Notify
+                    <input
+                      type="number"
+                      min="0"
+                      max="30"
+                      value={selectedList.reminder?.daysBeforeTrip ?? reminderDays}
+                      onChange={handleReminderDaysChange}
+                    />
+                    days before trip
+                  </label>
+                </div>
+
+                <div className="travel-tools-filters packing-item-filters">
+                  <span className="travel-tools-search-field">
+                    <Search size={16} aria-hidden="true" />
+                    <input
+                      value={filters.search}
+                      onChange={(event) => setFilters((current) => ({ ...current, search: event.target.value }))}
+                      placeholder="Search items"
+                    />
+                  </span>
+                  <select value={filters.category} onChange={(event) => setFilters((current) => ({ ...current, category: event.target.value }))}>
+                    <option value="">All categories</option>
+                    {packingCategories.map((category) => (
+                      <option key={category} value={category}>{formatPackingCategory(category)}</option>
+                    ))}
+                  </select>
+                  <select value={filters.packed} onChange={(event) => setFilters((current) => ({ ...current, packed: event.target.value }))}>
+                    <option value="">All status</option>
+                    <option value="packed">Packed</option>
+                    <option value="unpacked">Unpacked</option>
+                  </select>
+                  <button className="secondary-action travel-tools-filter-action" type="button" onClick={handleOpenAddItem}>
+                    <Plus size={16} aria-hidden="true" />
+                    Add item
+                  </button>
+                </div>
+
+                {filteredItems.length === 0 ? (
+                  <div className="packing-items-empty">
+                    <span aria-hidden="true">
+                      <ListChecks size={28} />
+                    </span>
+                    <div>
+                      <strong>{selectedList.items.length === 0 ? 'No packing items yet' : 'No packing items match'}</strong>
+                      <p>
+                        {selectedList.items.length === 0
+                          ? 'Add items to your list to get organized for your trip.'
+                          : 'Try changing the current filters.'}
+                      </p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="travel-tools-item-list packing-workspace-item-list">
+                    {filteredItems.map((item) => (
+                      <article className={item.isPacked ? 'packed' : ''} key={item._id}>
+                        <label className="packing-check">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(item.isPacked)}
+                            onChange={() => handleTogglePacked(item)}
+                          />
+                          <span className="sr-only">{item.isPacked ? 'Mark unpacked' : 'Mark packed'}</span>
+                        </label>
+                        <div>
+                          <div className="travel-tools-item-title-row">
+                            <strong>{item.name}</strong>
+                          </div>
+                          <span className="travel-tools-item-category">
+                            {(() => {
+                              const CategoryIcon = getCategoryIcon(item.category);
+                              return <CategoryIcon size={14} aria-hidden="true" />;
+                            })()}
+                            {formatPackingCategory(item.category)}
+                          </span>
+                        </div>
+                        <div className="travel-tools-item-meta" aria-label="Item quantity">
+                          <span className="travel-tools-quantity">Qty {item.quantity}</span>
+                        </div>
+                        <button type="button" onClick={() => handleEditItem(item)} aria-label="Edit item">
+                          <Edit3 size={16} aria-hidden="true" />
+                        </button>
+                        <button type="button" onClick={() => setConfirmAction({ type: 'delete-item', list: selectedList, item })} aria-label="Delete item">
+                          <Trash2 size={16} aria-hidden="true" />
+                        </button>
+                      </article>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               {statusScope === 'packing' && error && <p className="form-error travel-tools-status">{error}</p>}
               {statusScope === 'packing' && successMessage && <p className="form-success travel-tools-status">{successMessage}</p>}
             </section>
           ) : (
-            <section className="travel-tools-detail travel-tools-empty-detail">
-              <Luggage size={34} aria-hidden="true" />
+            <section className="travel-tools-detail travel-tools-empty-detail packing-empty-detail">
+              <span className="packing-empty-illustration" aria-hidden="true">
+                <ListChecks size={64} />
+              </span>
               <h3>Create your first packing list</h3>
               <p>Choose manual creation or start from a ready-made template.</p>
               {statusScope === 'packing' && error && <p className="form-error travel-tools-status">{error}</p>}
@@ -1598,7 +1681,7 @@ function TravelDocumentTools() {
         }
         liveCard={
           <div className="travel-tools-live-card">
-            <span>Current list</span>
+            <span>Packing Workspace</span>
             <strong>{selectedDocument?.items.length || 0}</strong>
             <small>{selectedDocument?.name || 'No document selected'}</small>
           </div>
@@ -1771,7 +1854,7 @@ function TravelDocumentTools() {
           <div className="travel-tools-panel-heading">
             <div>
               <span>View document lists</span>
-              <h3>Document List</h3>
+              <h3>My Document Lists</h3>
             </div>
             <strong>{documents.length}</strong>
           </div>
