@@ -38,7 +38,19 @@ function FavoritesPage() {
     setFavorites((currentFavorites) => currentFavorites.filter((favorite) => favorite._id !== favoriteId));
   };
 
-  const placeFavorites = favorites.filter((favorite) => favorite.type === 'hotel' || favorite.type === 'restaurant');
+  const placeFavorites = favorites.filter((favorite) => ['hotel', 'restaurant', 'location', 'attraction'].includes(favorite.type));
+  const getFavoriteTypeLabel = (type) => {
+    if (type === 'restaurant') return 'Restaurant';
+    if (type === 'hotel') return 'Hotel';
+    if (type === 'location') return 'Trip destination';
+    return 'Attraction';
+  };
+
+  const getFavoriteIcon = (type) => {
+    if (type === 'restaurant') return Utensils;
+    if (type === 'hotel') return Building2;
+    return MapPin;
+  };
   return (
     <section className="favorites-page">
       <div className="favorites-hero">
@@ -63,7 +75,7 @@ function FavoritesPage() {
         <div className="favorites-empty">
           <Building2 size={34} aria-hidden="true" />
           <h3>No favourites yet</h3>
-          <p>Save hotels or restaurants from Explore to see them here.</p>
+          <p>Save trips, hotels, restaurants, or attractions to see them here.</p>
           <Link to="/explore?view=hotels">Explore places</Link>
         </div>
       )}
@@ -71,7 +83,7 @@ function FavoritesPage() {
       {!isLoading && placeFavorites.length > 0 && (
         <div className="favorites-grid">
           {placeFavorites.map((favorite) => {
-            const Icon = favorite.type === 'restaurant' ? Utensils : Building2;
+            const Icon = getFavoriteIcon(favorite.type);
             return (
             <article className="favorite-card" key={favorite._id}>
               <div className="favorite-card-icon">
@@ -80,7 +92,7 @@ function FavoritesPage() {
               <div className="favorite-card-body">
                 <div className="favorite-card-title">
                   <div>
-                    <span>{favorite.type === 'restaurant' ? 'Restaurant' : 'Hotel'}</span>
+                    <span>{getFavoriteTypeLabel(favorite.type)}</span>
                     <h3>{favorite.title}</h3>
                   </div>
                   <button type="button" aria-label="Remove favourite" onClick={() => handleRemove(favorite._id)}>

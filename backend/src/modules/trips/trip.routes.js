@@ -24,5 +24,6 @@ router
   .route('/:id')
   .get(objectIdRule, validate, tripController.getTrip)
   .put(updateTripRules, validate, tripController.updateTrip)
+  .patch(updateTripRules, validate, tripController.updateTrip)
   .delete(objectIdRule, validate, tripController.deleteTrip);
 module.exports = router;

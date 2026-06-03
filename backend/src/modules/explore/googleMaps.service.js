@@ -199,6 +199,16 @@ const getGoogleMapsFailureMessage = (error) => {
 
   return { message: error.message || 'External service unavailable', statusCode: error.response.status || 503 };
 };
+const getLocalResults = (data = {}) => {
+  const candidates = [
+    data.local_results,
+    data.local_results?.places,
+    data.places_results,
+    data.place_results ? [data.place_results] : [],
+  ];
+
+  return candidates.find((candidate) => Array.isArray(candidate)) || [];
+};
 const searchGoogleMaps = async ({ cache, cacheKey, query, start = 0, metadata = {}, mapItem }) => {
   const cached = cache.get(cacheKey);
 
@@ -226,18 +236,21 @@ const searchGoogleMaps = async ({ cache, cacheKey, query, start = 0, metadata = 
     throw new Error(response.data.error);
   }
 
-  const rawItems = response.data?.local_results || [];
+  const rawItems = getLocalResults(response.data);
   const data = {
-    available: true,
+    available: rawItems.length > 0,
     ...metadata,
     query,
     nextStart: start + rawItems.length,
     hasMore: rawItems.length >= DEFAULT_PAGE_SIZE || Boolean(response.data?.serpapi_pagination?.next),
     items: rawItems.map(mapItem),
+    message: rawItems.length ? '' : `No Google Maps results found for "${query}".`,
     lastUpdated: new Date().toISOString(),
   };
 
-  cache.set(cacheKey, { data, createdAt: Date.now() });
+  if (rawItems.length) {
+    cache.set(cacheKey, { data, createdAt: Date.now() });
+  }
   return data;
 };
 // Normalize Review prepares incoming data for consistent storage.

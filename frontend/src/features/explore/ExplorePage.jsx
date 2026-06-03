@@ -21,6 +21,7 @@ import {
   searchTrainStationTimetable,
   searchWeather,
 } from '../../api/exploreApi';
+import { getFavorites } from '../../api/favoriteApi';
 import CurrencyContext from '../../context/currencyContext';
 import { foodCategoryOptions, roomTypeOptions } from './explore.constants';
 import { formatMoney, getDateKey, getErrorMessage, getPriceConversionKey } from './explore.helpers';
@@ -42,6 +43,10 @@ const getHotelFavoriteKey = (hotel = {}) =>
     .toLowerCase();
 const getRestaurantFavoriteKey = (restaurant = {}) =>
   String(restaurant.dataId || restaurant.placeId || restaurant.id || restaurant.name || '')
+    .trim()
+    .toLowerCase();
+const getAttractionFavoriteKey = (attraction = {}) =>
+  String(attraction.dataId || attraction.placeId || attraction.id || attraction.name || '')
     .trim()
     .toLowerCase();
 // ExplorePage renders the main screen and handles nearby interactions.
@@ -88,8 +93,12 @@ function ExplorePage() {
     foodCategory: restoredRestaurantState?.restaurantFilters?.foodCategory || '',
   });
   const [hotelSearchCriteria, setHotelSearchCriteria] = useState(restoredHotelState?.hotelSearchCriteria || null);
+  const [favoriteAttractionKeys, setFavoriteAttractionKeys] = useState(restoredAttractionState?.favoriteAttractionKeys || []);
   const [favoriteHotelKeys, setFavoriteHotelKeys] = useState(restoredHotelState?.favoriteHotelKeys || []);
   const [favoriteRestaurantKeys, setFavoriteRestaurantKeys] = useState(restoredRestaurantState?.favoriteRestaurantKeys || []);
+  const [favoriteAttractionRecords, setFavoriteAttractionRecords] = useState({});
+  const [favoriteHotelRecords, setFavoriteHotelRecords] = useState({});
+  const [favoriteRestaurantRecords, setFavoriteRestaurantRecords] = useState({});
   const [restaurantSearchCriteria, setRestaurantSearchCriteria] = useState(restoredRestaurantState?.restaurantSearchCriteria || null);
   const restoredTrainState = location.state?.trainResults ? location.state : null;
   const [activeTransportTab, setActiveTransportTab] = useState(restoredTrainState ? 'trains' : 'flights');
@@ -117,7 +126,7 @@ function ExplorePage() {
     restoredAttractionState?.attractionResults?.length
       ? `${restoredAttractionState.attractionResults.length} attraction match${restoredAttractionState.attractionResults.length === 1 ? '' : 'es'} restored.`
       : restoredHotelState?.hotelResults?.length
-      ? `${restoredHotelState.hotelResults.length} hotel match${restoredHotelState.hotelResults.length === 1 ? '' : 'es'} restored.`
+        ? `${restoredHotelState.hotelResults.length} hotel match${restoredHotelState.hotelResults.length === 1 ? '' : 'es'} restored.`
       : restoredRestaurantState?.restaurantResults?.length
         ? `${restoredRestaurantState.restaurantResults.length} restaurant match${restoredRestaurantState.restaurantResults.length === 1 ? '' : 'es'} restored.`
       : restoredTrainState?.trainResults?.available
@@ -128,7 +137,7 @@ function ExplorePage() {
     restoredAttractionState?.attractionResults?.length
       ? 'attractions'
       : restoredHotelState?.hotelResults?.length
-      ? 'hotels'
+        ? 'hotels'
       : restoredRestaurantState?.restaurantResults?.length
         ? 'food'
         : restoredTrainState?.trainResults?.available
@@ -902,29 +911,111 @@ function ExplorePage() {
   ]);
 
   const updateActiveFilterField = isFoodView ? handleRestaurantFilterChange : handleHotelFilterChange;
-  const handleHotelFavoriteChange = (hotel, isFavorite = true) => {
+  useEffect(() => {
+    let isActive = true;
+
+    getFavorites()
+      .then((response) => {
+        if (!isActive) return;
+        const favorites = response.data?.data?.favorites || [];
+        const attractionRecords = {};
+        const hotelRecords = {};
+        const restaurantRecords = {};
+
+        favorites.forEach((favorite) => {
+          if (favorite.type === 'attraction') {
+            const key = getAttractionFavoriteKey({ dataId: favorite.externalId, name: favorite.title });
+            if (key) attractionRecords[key] = favorite;
+          }
+          if (favorite.type === 'hotel') {
+            const key = getHotelFavoriteKey({ dataId: favorite.externalId, name: favorite.title });
+            if (key) hotelRecords[key] = favorite;
+          }
+          if (favorite.type === 'restaurant') {
+            const key = getRestaurantFavoriteKey({ dataId: favorite.externalId, name: favorite.title });
+            if (key) restaurantRecords[key] = favorite;
+          }
+        });
+
+        setFavoriteAttractionRecords(attractionRecords);
+        setFavoriteHotelRecords(hotelRecords);
+        setFavoriteRestaurantRecords(restaurantRecords);
+        setFavoriteAttractionKeys(Object.keys(attractionRecords));
+        setFavoriteHotelKeys(Object.keys(hotelRecords));
+        setFavoriteRestaurantKeys(Object.keys(restaurantRecords));
+      })
+      .catch(() => {
+        if (!isActive) return;
+        setFavoriteAttractionRecords({});
+        setFavoriteHotelRecords({});
+        setFavoriteRestaurantRecords({});
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+  const handleAttractionFavoriteChange = (attraction, result = {}) => {
+    const favoriteKey = getAttractionFavoriteKey(attraction);
+    if (!favoriteKey) return;
+
+    if (result.action === 'removed') {
+      setFavoriteAttractionKeys((currentKeys) => currentKeys.filter((key) => key !== favoriteKey));
+      setFavoriteAttractionRecords((currentRecords) => {
+        const nextRecords = { ...currentRecords };
+        delete nextRecords[favoriteKey];
+        return nextRecords;
+      });
+      return;
+    }
+
+    setFavoriteAttractionKeys((currentKeys) => (currentKeys.includes(favoriteKey) ? currentKeys : [...currentKeys, favoriteKey]));
+    if (result.favorite) {
+      setFavoriteAttractionRecords((currentRecords) => ({ ...currentRecords, [favoriteKey]: result.favorite }));
+    }
+  };
+  const handleHotelFavoriteChange = (hotel, result = {}) => {
     const favoriteKey = getHotelFavoriteKey(hotel);
     if (!favoriteKey) return;
 
-    setFavoriteHotelKeys((currentKeys) =>
-      isFavorite
-        ? currentKeys.includes(favoriteKey) ? currentKeys : [...currentKeys, favoriteKey]
-        : currentKeys.filter((key) => key !== favoriteKey)
-    );
+    if (result.action === 'removed') {
+      setFavoriteHotelKeys((currentKeys) => currentKeys.filter((key) => key !== favoriteKey));
+      setFavoriteHotelRecords((currentRecords) => {
+        const nextRecords = { ...currentRecords };
+        delete nextRecords[favoriteKey];
+        return nextRecords;
+      });
+      return;
+    }
+
+    setFavoriteHotelKeys((currentKeys) => (currentKeys.includes(favoriteKey) ? currentKeys : [...currentKeys, favoriteKey]));
+    if (result.favorite) {
+      setFavoriteHotelRecords((currentRecords) => ({ ...currentRecords, [favoriteKey]: result.favorite }));
+    }
   };
-  const handleRestaurantFavoriteChange = (restaurant, isFavorite = true) => {
+  const handleRestaurantFavoriteChange = (restaurant, result = {}) => {
     const favoriteKey = getRestaurantFavoriteKey(restaurant);
     if (!favoriteKey) return;
 
-    setFavoriteRestaurantKeys((currentKeys) =>
-      isFavorite
-        ? currentKeys.includes(favoriteKey) ? currentKeys : [...currentKeys, favoriteKey]
-        : currentKeys.filter((key) => key !== favoriteKey)
-    );
+    if (result.action === 'removed') {
+      setFavoriteRestaurantKeys((currentKeys) => currentKeys.filter((key) => key !== favoriteKey));
+      setFavoriteRestaurantRecords((currentRecords) => {
+        const nextRecords = { ...currentRecords };
+        delete nextRecords[favoriteKey];
+        return nextRecords;
+      });
+      return;
+    }
+
+    setFavoriteRestaurantKeys((currentKeys) => (currentKeys.includes(favoriteKey) ? currentKeys : [...currentKeys, favoriteKey]));
+    if (result.favorite) {
+      setFavoriteRestaurantRecords((currentRecords) => ({ ...currentRecords, [favoriteKey]: result.favorite }));
+    }
   };
 
   const attractionDetailReturnState = {
     attractionResults: attractions,
+    favoriteAttractionKeys,
     attractionWeather: weatherByView.attractions,
     attractionAi: aiByView.attractions,
     returnSearch: searchParams.toString(),
@@ -982,8 +1073,19 @@ function ExplorePage() {
         ? favoriteHotelKeys.includes(getHotelFavoriteKey(item))
         : isFoodView
           ? favoriteRestaurantKeys.includes(getRestaurantFavoriteKey(item))
-          : false,
+          : isAttractionsView
+            ? favoriteAttractionKeys.includes(getAttractionFavoriteKey(item))
+            : false,
+    getFavoriteRecord: (item) =>
+      isHotelsView
+        ? favoriteHotelRecords[getHotelFavoriteKey(item)]
+        : isFoodView
+          ? favoriteRestaurantRecords[getRestaurantFavoriteKey(item)]
+          : isAttractionsView
+            ? favoriteAttractionRecords[getAttractionFavoriteKey(item)]
+            : null,
     detailReturnState: activeDetailReturnState,
+    onAttractionFavoriteChange: handleAttractionFavoriteChange,
     onHotelFavoriteChange: handleHotelFavoriteChange,
     onRestaurantFavoriteChange: handleRestaurantFavoriteChange,
     isAiLoading,

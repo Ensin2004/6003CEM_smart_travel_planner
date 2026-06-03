@@ -25,12 +25,23 @@ const buildDefaultDays = (trip, savedDays = []) => {
     const dayNumber = index + 1;
     const savedDay = savedDayMap.get(dayNumber);
 
+    const destinationSegment = (trip.destinationSegments || []).find((segment) => {
+      const date = addDays(trip.startDate, index);
+      return new Date(segment.startDate) <= date && new Date(segment.endDate) >= date;
+    }) || trip.destinationSegments?.[0];
+
     return savedDay || {
       tripId: trip._id,
       userId: trip.userId,
       dayNumber,
       date: addDays(trip.startDate, index),
       title: `Day ${dayNumber}`,
+      location: {
+        name: destinationSegment?.city || trip.destination || '',
+        country: destinationSegment?.country || trip.country || '',
+        address: [destinationSegment?.city || trip.destination, destinationSegment?.country || trip.country].filter(Boolean).join(', '),
+        coordinates: destinationSegment?.coordinates,
+      },
       notes: '',
       budget: {
         amount: trip.budget?.dailyLimit || 0,
@@ -64,6 +75,12 @@ const updateDay = async (tripId, dayNumber, userId, data) => {
   return itineraryRepository.upsertDay(tripId, userId, numericDayNumber, {
     date: data.date || addDays(trip.startDate, numericDayNumber - 1),
     title: data.title?.trim() || `Day ${numericDayNumber}`,
+    location: {
+      name: data.location?.name?.trim() || '',
+      country: data.location?.country?.trim() || '',
+      address: data.location?.address?.trim() || '',
+      coordinates: data.location?.coordinates,
+    },
     notes: data.notes?.trim() || '',
     budget: {
       amount: Number(data.budget?.amount) || 0,

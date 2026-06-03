@@ -31,17 +31,19 @@ const normalizeAttraction = (item = {}, index) => ({
   priceDetail: getPriceDetail(item.price || item.price_level),
 });
 const getAttractionsByDestination = async (destination, start = 0) => {
+  const normalizedDestination = (destination || '').trim();
+
   if (!env.serpApiKey || env.nodeEnv === 'test') {
-    return fallbackAttractions(destination, 'SerpApi key is not configured');
+    return fallbackAttractions(normalizedDestination, 'SerpApi key is not configured');
   }
   try {
     const pageStart = Math.max(Number(start) || 0, 0);
     const attractions = await searchGoogleMaps({
       cache: attractionsCache,
-      cacheKey: `${destination.toLowerCase()}:${pageStart}`,
-      query: `attractions in ${destination}`,
+      cacheKey: `${normalizedDestination.toLowerCase()}:${pageStart}`,
+      query: `tourist attractions in ${normalizedDestination}`,
       start: pageStart,
-      metadata: { destination },
+      metadata: { destination: normalizedDestination },
       mapItem: normalizeAttraction,
     });
 
@@ -49,8 +51,8 @@ const getAttractionsByDestination = async (destination, start = 0) => {
     return publicAttractions;
   } catch (error) {
     const { message, statusCode } = getGoogleMapsFailureMessage(error);
-    recordGoogleMapsFailure('attractions', message, statusCode, { destination });
-    return fallbackAttractions(destination, message);
+    recordGoogleMapsFailure('attractions', message, statusCode, { destination: normalizedDestination });
+    return fallbackAttractions(normalizedDestination, message);
   }
 };
 const getWikipediaPageSummary = async (title) => {

@@ -76,6 +76,7 @@ const getAiRecommendations = catchAsync(async (req, res) => {
 });
 module.exports = {
   getWeather,
+  getAttractionDetail,
   getAttractions,
   getAttractionDetail,
   getHotels,

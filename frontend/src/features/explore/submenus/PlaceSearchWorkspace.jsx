@@ -32,6 +32,7 @@ function PlaceSearchWorkspace({
   destination,
   destinationLabel,
   error,
+  getFavoriteRecord,
   getConvertedPriceText,
   getOriginalPriceText,
   handleCountryChange,
@@ -51,6 +52,7 @@ function PlaceSearchWorkspace({
   isSearching,
   isWeatherLoading,
   onHotelFavoriteChange,
+  onAttractionFavoriteChange,
   onRestaurantFavoriteChange,
   pricedCount,
   ratedCount,
@@ -346,11 +348,18 @@ function PlaceSearchWorkspace({
                       : item.category
                 }
                 convertedPriceText={getConvertedPriceText(item)}
+                favoriteRecord={getFavoriteRecord?.(item)}
                 index={index}
-                isInitiallyFavorite={isHotelsView || isFoodView ? isItemFavorite?.(item) : false}
+                isInitiallyFavorite={isItemFavorite?.(item)}
                 item={item}
                 key={`${item.id}-${index}`}
-                onFavoriteChange={isHotelsView ? onHotelFavoriteChange : isFoodView ? onRestaurantFavoriteChange : undefined}
+                onFavoriteChange={
+                  isHotelsView
+                    ? onHotelFavoriteChange
+                    : isFoodView
+                      ? onRestaurantFavoriteChange
+                      : onAttractionFavoriteChange
+                }
                 onVisitedChange={handleVisitedChange}
                 originalPriceText={getOriginalPriceText(item)}
                 returnState={detailReturnState}

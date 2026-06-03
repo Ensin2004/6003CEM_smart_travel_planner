@@ -4,6 +4,7 @@
  */
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getFavorites } from '../../../api/favoriteApi';
+import { getTripItinerary } from '../../../api/itineraryApi';
 import { getTrips, getTripSummary } from '../../../api/tripApi';
 import { getVisitedCalendar, getVisitedPlaces } from '../../../api/visitedPlaceApi';
 import { buildVisitedLookup, getVisitedPlacePayload } from '../../../components/visitedPlaces/visitedPlaceUtils';
@@ -16,6 +17,8 @@ import {
   getDatedVisitCount,
   getDonutSegments,
   getLatestVisitLabel,
+  buildCountryRows,
+  getPlaceCountry,
   getMonthBounds,
   getTripDestinationPlaces,
   getTripStatusGroups,
@@ -41,6 +44,7 @@ export function useUserDashboard() {
   const [visitedPlaces, setVisitedPlaces] = useState([]);
   const [favorites, setFavorites] = useState([]);
   const [trips, setTrips] = useState([]);
+  const [tripItineraryDays, setTripItineraryDays] = useState({});
   const [weatherPreview, setWeatherPreview] = useState(null);
   const [tripStatus, setTripStatus] = useState('loading');
   const [status, setStatus] = useState('loading');
@@ -208,6 +212,34 @@ export function useUserDashboard() {
   const visitedShare = uniquePlaceCount + placeToVisitCount
     ? Math.round((uniquePlaceCount / (uniquePlaceCount + placeToVisitCount)) * 100)
     : 0;
+  const countryInsights = useMemo(() => {
+    const visitedCountryRows = buildCountryRows([
+      ...visitedPlaces.map((place) => getPlaceCountry(place)),
+      ...allTripDestinationRows.filter((destination) => destination.visited).map((destination) => destination.country),
+    ]);
+    const itineraryDestinationRows = Object.values(tripItineraryDays).flat();
+    const nextCountryRows = buildCountryRows(
+      [...allTripDestinationRows, ...itineraryDestinationRows]
+        .filter((destination) => !destination.visited)
+        .sort((firstDestination, secondDestination) => new Date(firstDestination.startDate) - new Date(secondDestination.startDate))
+        .map((destination) => destination.country || getPlaceCountry(destination))
+    );
+    const topCountryValue = Math.max(
+      ...visitedCountryRows.map((row) => row.value),
+      ...nextCountryRows.map((row) => row.value),
+      1
+    );
+
+    return {
+      visitedCountries: visitedCountryRows,
+      nextCountries: nextCountryRows,
+      topCountryValue,
+      visitedCountryCount: visitedCountryRows.length,
+      nextCountryCount: nextCountryRows.length,
+      visitedCountryNames: visitedCountryRows.map((row) => row.label),
+      nextCountryNames: nextCountryRows.map((row) => row.label),
+    };
+  }, [allTripDestinationRows, tripItineraryDays, visitedPlaces]);
   const monthlyTripCounts = useMemo(() => {
     const year = monthDate.getFullYear();
     return Array.from({ length: 12 }, (_, index) => {
@@ -262,6 +294,51 @@ export function useUserDashboard() {
       isActive = false;
     };
   }, []);
+
+  useEffect(() => {
+    let isActive = true;
+
+    if (!trips.length) {
+      deferStateUpdate(() => {
+        if (isActive) setTripItineraryDays({});
+      });
+      return () => {
+        isActive = false;
+      };
+    }
+
+    Promise.allSettled(trips.map(async (trip) => {
+      const response = await getTripItinerary(trip._id);
+      const days = response.data?.data?.days || [];
+      return [
+        trip._id,
+        days
+          .filter((day) => day.location?.name || day.location?.country)
+          .map((day) => ({
+            title: day.location?.name || day.location?.country,
+            name: day.location?.name || day.location?.country,
+            address: [day.location?.name, day.location?.country].filter(Boolean).join(', '),
+            country: day.location?.country,
+            startDate: day.date || trip.startDate,
+            endDate: day.date || trip.endDate,
+            tripId: trip._id,
+            tripTitle: trip.title || trip.destination,
+            visited: false,
+          })),
+      ];
+    })).then((results) => {
+      if (!isActive) return;
+      setTripItineraryDays(Object.fromEntries(
+        results
+          .filter((result) => result.status === 'fulfilled')
+          .map((result) => result.value)
+      ));
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, [trips]);
 
   useEffect(() => {
     let isActive = true;
@@ -359,6 +436,7 @@ export function useUserDashboard() {
     favoritesCount: favorites.length,
     handleDestinationAction,
     handleReportClick,
+    countryInsights,
     handleVisitedPlaceAction,
     maxMonthlyTripCount,
     monthDate,

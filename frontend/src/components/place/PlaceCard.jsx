@@ -4,6 +4,7 @@
  */
 import {
   Building2,
+  Check,
   Clock,
   Heart,
   Image,
@@ -19,6 +20,7 @@ import { addFavorite, removeFavorite } from '../../api/favoriteApi';
 import CompareButton from '../compare/CompareButton';
 import VisitedPlaceControl from '../visitedPlaces/VisitedPlaceControl';
 import { getVisitedPlacePayload } from '../visitedPlaces/visitedPlaceUtils';
+import { buildPlaceFavoritePayload } from '../../utils/favoriteUtils';
 import './PlaceCard.css';
 const getOpenStatus = (openState = '') => {
   const normalizedState = openState.toLowerCase();
@@ -61,6 +63,7 @@ function PlaceCard({
   originalPriceText,
   convertedPriceText = '',
   isInitiallyFavorite = false,
+  favoriteRecord,
   onFavoriteChange,
   returnState,
   visitedRecord,
@@ -84,9 +87,7 @@ function PlaceCard({
   const isHotelCard = type === 'hotels';
   const isFoodCard = type === 'food' || type === 'restaurants';
   const isAttractionCard = type === 'attractions';
-  const isDetailEnabled = isHotelCard || isFoodCard || isAttractionCard;
-  const isFavoriteEnabled = isHotelCard || isFoodCard || isAttractionCard;
-  const canOpenDetails = isDetailEnabled;
+  const canOpenDetails = isHotelCard || isFoodCard || isAttractionCard;
   const visitedType = isHotelCard ? 'hotel' : isFoodCard ? 'restaurant' : type === 'food' ? 'food' : 'attraction';
   const visitedPayload = getVisitedPlacePayload({
     item,
@@ -95,9 +96,10 @@ function PlaceCard({
     defaultDate: visitedDefaultDate,
   });
   const [favoriteOverride, setFavoriteOverride] = useState(null);
-  const [favoriteId, setFavoriteId] = useState('');
+  const [currentFavoriteRecord, setCurrentFavoriteRecord] = useState(null);
   const [isSavingFavorite, setIsSavingFavorite] = useState(false);
-  const isFavorite = favoriteOverride ?? isInitiallyFavorite;
+  const effectiveFavoriteRecord = currentFavoriteRecord || favoriteRecord;
+  const isFavorite = favoriteOverride ?? (Boolean(effectiveFavoriteRecord?._id) || isInitiallyFavorite);
   const priceIcon =
     type === 'hotels' ? (
       <Building2 size={16} aria-hidden="true" />
@@ -119,7 +121,6 @@ function PlaceCard({
     imageUrl: primaryImage,
   };
   const handleOpenDetails = () => {
-    if (!isDetailEnabled) return;
     if (!canOpenDetails) return;
 
     const params = new URLSearchParams({
@@ -150,35 +151,27 @@ function PlaceCard({
 
     setIsSavingFavorite(true);
     try {
-      const favoriteType = isHotelCard ? 'hotel' : isFoodCard ? 'restaurant' : 'attraction';
-      const favoritePayload = {
-        type: favoriteType,
-        title: item.name,
-        description: item.address,
-        address: item.address,
-        coordinates: item.coordinates,
-        priceLevel: originalPriceText || item.priceDetail?.display || item.price,
-        rating: item.rating,
-        externalId: item.dataId || item.placeId || item.id || item.name,
-        source: isHotelCard ? 'explore-hotels' : isFoodCard ? 'explore-food' : visitedSource || `explore-${type}`,
-      };
-
-      if (isFavorite) {
-        const existingFavoriteId = favoriteId || (await addFavorite(favoritePayload)).data.data.favorite?._id;
-        if (existingFavoriteId) {
-          await removeFavorite(existingFavoriteId);
-        }
-        setFavoriteId('');
+      if (isFavorite && effectiveFavoriteRecord?._id) {
+        const favoriteId = effectiveFavoriteRecord._id;
+        await removeFavorite(favoriteId);
+        setCurrentFavoriteRecord(null);
         setFavoriteOverride(false);
-        onFavoriteChange?.(item, false);
-      } else {
-        const response = await addFavorite(favoritePayload);
-        setFavoriteId(response.data.data.favorite?._id || '');
-        setFavoriteOverride(true);
-        onFavoriteChange?.(item, true);
+        onFavoriteChange?.(item, { action: 'removed', favoriteId });
+        return;
       }
+
+      const response = await addFavorite(buildPlaceFavoritePayload({
+        item,
+        type,
+        originalPriceText,
+        visitedSource,
+      }));
+      const savedFavorite = response.data?.data?.favorite || null;
+      setCurrentFavoriteRecord(savedFavorite);
+      setFavoriteOverride(true);
+      onFavoriteChange?.(item, { action: 'added', favorite: savedFavorite });
     } catch {
-      setFavoriteOverride(isFavorite);
+      setFavoriteOverride(Boolean(effectiveFavoriteRecord?._id));
     } finally {
       setIsSavingFavorite(false);
     }
@@ -217,28 +210,27 @@ function PlaceCard({
           </div>
         )}
         <span className="explore-card-rank">#{index + 1}</span>
+        <div className="explore-media-actions">
+          <button
+            className={`explore-favorite-button ${isFavorite ? 'active' : ''}`}
+            type="button"
+            aria-label={isFavorite ? 'Saved to favorites' : 'Add to favorites'}
+            disabled={isSavingFavorite}
+            onClick={handleFavoriteClick}
+          >
+            <Heart size={18} fill={isFavorite ? 'currentColor' : 'none'} />
+          </button>
+          {visitedRecord ? (
+            <span className="explore-visited-check" aria-label="Visited">
+              <Check size={19} aria-hidden="true" />
+            </span>
+          ) : null}
+        </div>
       </div>
       <div className="explore-attraction-body">
         <div className="explore-attraction-title">
-          <div className="explore-card-category-row">
-            <span className="explore-category" title={categoryText}>{priceIcon}{categoryText}</span>
-          </div>
-          <div className="explore-card-name-row">
-            <h3>{item.name}</h3>
-            <div className="explore-card-actions">
-              {isFavoriteEnabled && (
-                <button
-                  className={`explore-favorite-button ${isFavorite ? 'active' : ''}`}
-                  type="button"
-                  aria-label={isFavorite ? 'Place saved to favorites' : 'Add place to favorites'}
-                  disabled={isSavingFavorite}
-                  onClick={handleFavoriteClick}
-                >
-                  <Heart size={17} fill={isFavorite ? 'currentColor' : 'none'} />
-                </button>
-              )}
-            </div>
-          </div>
+          <span className="explore-category" title={categoryText}>{priceIcon}{categoryText}</span>
+          <h3 title={item.name}>{item.name}</h3>
         </div>
 
         <div className="explore-card-rating">

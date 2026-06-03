@@ -2,6 +2,8 @@
  * Dashboard utilities.
  * Pure helpers centralize date ranges, trip grouping, destination normalization, and chart geometry.
  */
+import { Country } from 'country-state-city';
+
 export const formatDateKey = (date) => date.toISOString().slice(0, 10);
 
 export const parseDateKey = (dateKey) => {
@@ -79,6 +81,51 @@ export const formatLongDate = (dateKey) =>
 export const formatDateRange = (startDate, endDate) => `${formatShortDate(startDate)} - ${formatShortDate(endDate)}`;
 
 export const normalizeVisitText = (value) => String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+export const getCountryFromText = (value) => {
+  const parts = String(value || '')
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  return parts[parts.length - 1] || '';
+};
+
+const knownCountryNames = new Set(Country.getAllCountries().map((country) => country.name.toLowerCase()));
+const normalizeCountryName = (value) => {
+  const name = String(value || '').trim();
+  if (!name) return '';
+
+  const countryMatch = Country.getAllCountries().find((country) => country.name.toLowerCase() === name.toLowerCase());
+  if (countryMatch) return countryMatch.name;
+
+  return name
+    .split(/\s+/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
+    .join(' ');
+};
+
+export const getPlaceCountry = (place = {}) => {
+  const explicitCountry = place.country || place.location?.country || place.destinationCountry;
+  if (explicitCountry) return normalizeCountryName(explicitCountry);
+
+  const textCountry = getCountryFromText(place.address || place.displayName || '');
+  if (textCountry) return normalizeCountryName(textCountry);
+
+  const name = String(place.title || place.name || '').trim();
+  return knownCountryNames.has(name.toLowerCase()) ? normalizeCountryName(name) : '';
+};
+
+export const buildCountryRows = (countries = []) => {
+  const counts = countries.map(normalizeCountryName).filter(Boolean).reduce((lookup, country) => ({
+    ...lookup,
+    [country]: (lookup[country] || 0) + 1,
+  }), {});
+
+  return Object.entries(counts)
+    .map(([label, value]) => ({ label, value }))
+    .sort((firstCountry, secondCountry) => secondCountry.value - firstCountry.value || firstCountry.label.localeCompare(secondCountry.label));
+};
 
 export const getGreeting = () => {
   const hour = new Date().getHours();
