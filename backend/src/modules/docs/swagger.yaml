@@ -664,7 +664,7 @@ paths:
           description: External service unavailable
   /api/v1/map/places:
     get:
-      summary: Search map places with rich Google Maps details
+      summary: Search map places using Foursquare and SerpApi Google Maps
       tags:
         - Map
       security:

@@ -190,7 +190,9 @@ export const searchMapCategoryPlaces = async (categoryId, center, options = {}) 
   });
 
   const places = response.data.data.places;
-  return Array.isArray(places) ? places : places?.items || [];
+  return Array.isArray(places)
+    ? { available: places.length > 0, items: places }
+    : places || { available: false, items: [] };
 };
 
 // Place details are requested with the identifying fields available from the selected marker.
@@ -198,6 +200,10 @@ export const getMapPlaceDetails = async (place, options = {}) => {
   const response = await axiosClient.get('/map/place-details', {
     params: {
       category: place.categoryId,
+      placeId: place.id,
+      foursquarePlaceId: place.foursquarePlaceId,
+      googlePlaceId: place.placeId,
+      dataId: place.dataId,
       name: place.name,
       address: place.address || place.displayName,
       latitude: place.lat,
