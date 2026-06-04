@@ -2,7 +2,7 @@
  * Explore module.
  * Exports and local helpers keep related behavior in a single module.
  */
-import { ArrowLeftRight, DollarSign, LoaderCircle, Plane, Search, TrainFront, X } from 'lucide-react';
+import { ArrowLeftRight, Clock, DollarSign, LoaderCircle, Plane, Search, Sparkles, TrainFront, X } from 'lucide-react';
 import { getDateKey } from '../explore.helpers';
 import './Transportation.css';
 
@@ -53,6 +53,62 @@ function TransportationSubmenu({
     [train.trainUid || train.service || trainResults?.stationCode, train.platform ? `Platform ${train.platform}` : '']
       .filter(Boolean)
       .join(' - ') || 'Train service';
+  const activeItems = activeTransportTab === 'flights' ? flightResults?.items || [] : trainResults?.items || [];
+  const activeResultCount = activeItems.length;
+  const transportTips =
+    activeTransportTab === 'flights'
+      ? [
+          'Compare departure and arrival timing before saving transport.',
+          'Use country and date filters to reduce noisy route matches.',
+          'Review estimated prices as guidance rather than confirmed fares.',
+        ]
+      : [
+          'Compare departure and arrival timing before saving transport.',
+          'Use station, operator, and date filters to reduce noisy matches.',
+          'Review estimated prices as guidance rather than confirmed fares.',
+        ];
+  const transportBriefing = (
+    <section className="explore-briefing explore-transport-briefing" aria-label="Transportation travel briefing">
+      <div className="explore-stats-row" aria-label="Transportation result summary">
+        <article>
+          <Search size={17} aria-hidden="true" />
+          <div>
+            <strong>{activeResultCount || '--'}</strong>
+            <span>{activeTransportTab === 'flights' ? 'Flights loaded' : 'Trains loaded'}</span>
+          </div>
+        </article>
+        <article>
+          <Clock size={17} aria-hidden="true" />
+          <div>
+            <strong>{activeTransportTab === 'flights' ? 'Live' : 'Timetable'}</strong>
+            <span>Schedule source</span>
+          </div>
+        </article>
+        <article>
+          <DollarSign size={17} aria-hidden="true" />
+          <div>
+            <strong>{activeResultCount ? 'AI' : '--'}</strong>
+            <span>Price estimates</span>
+          </div>
+        </article>
+      </div>
+
+      <article className="explore-briefing-card explore-quick-tips-card">
+        <div className="explore-briefing-title">
+          <Sparkles size={17} aria-hidden="true" />
+          <div>
+            <span>Quick tips</span>
+            <strong>Transport planning</strong>
+          </div>
+        </div>
+        <ul className="explore-quick-tips-list">
+          {transportTips.map((tip) => (
+            <li key={tip}>{tip}</li>
+          ))}
+        </ul>
+      </article>
+    </section>
+  );
   return (
     <div className="explore-workspace">
       <div className="explore-transport-toolbar">
@@ -287,6 +343,7 @@ function TransportationSubmenu({
         <>
           {error && <p className="form-error explore-status">{error}</p>}
           {status && <p className="form-success explore-status">{status}</p>}
+          {transportBriefing}
 
           {flightResults?.available ? (
             <section className="explore-results-layout explore-results-layout--flight">
@@ -328,7 +385,8 @@ function TransportationSubmenu({
                         <div className="explore-transport-action">
                           <div className="explore-transport-price-badge" tabIndex="0" aria-label="AI estimated ticket price">
                             <DollarSign size={14} aria-hidden="true" />
-                            <strong>{flight.priceEstimate?.display || 'AI estimate unavailable'}</strong>
+                            <span>AI estimate</span>
+                            <strong>{flight.priceEstimate?.display || '-'}</strong>
                           </div>
                           <button type="button">View</button>
                         </div>
@@ -352,6 +410,7 @@ function TransportationSubmenu({
         <>
           {error && <p className="form-error explore-status">{error}</p>}
           {status && <p className="form-success explore-status">{status}</p>}
+          {transportBriefing}
 
           {trainResults?.available ? (
             <section className="explore-results-layout explore-results-layout--train">
@@ -391,7 +450,8 @@ function TransportationSubmenu({
                       <div className="explore-transport-action">
                         <div className="explore-transport-price-badge" tabIndex="0" aria-label="AI estimated train ticket price">
                           <DollarSign size={14} aria-hidden="true" />
-                          <strong>{train.priceEstimate?.display || 'AI estimate unavailable'}</strong>
+                          <span>AI estimate</span>
+                          <strong>{train.priceEstimate?.display || '-'}</strong>
                         </div>
                         <button type="button" onClick={() => handleTrainSelect(train)} disabled={isSearching}>
                           View stops

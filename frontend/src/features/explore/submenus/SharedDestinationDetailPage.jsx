@@ -2,18 +2,168 @@
  * Explore module.
  * Shared destination detail screen for attractions, hotels, and restaurants.
  */
-import { ArrowLeft, ExternalLink, Heart, LoaderCircle, MapPin, Phone, Search, Star } from 'lucide-react';
-import { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, Clock, ExternalLink, Heart, Info, LoaderCircle, MapPin, Phone, Search, Star } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { getPlaceReviews } from '../../../api/exploreApi';
 import { addFavorite } from '../../../api/favoriteApi';
 import { getErrorMessage } from '../explore.helpers';
 import './SharedDetailPage.css';
 
+const missingPriceValues = new Set(['', '-', 'price unavailable', 'unavailable', 'not provided']);
+const hasPriceText = (value = '') => !missingPriceValues.has(String(value).trim().toLowerCase());
+const approximateUsdRates = {
+  USD: 1,
+  MYR: 4.7,
+  SGD: 1.35,
+  EUR: 0.92,
+  GBP: 0.79,
+  JPY: 157,
+  THB: 36,
+  IDR: 16200,
+  VND: 25400,
+};
+const formatEstimatedMoney = (amount, currencyCode) =>
+  new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency: currencyCode,
+    maximumFractionDigits: amount >= 1000 ? 0 : 2,
+  }).format(amount);
+const getImageDedupeKey = (imageUrl = '') => {
+  try {
+    const parsedUrl = new URL(imageUrl);
+    return `${parsedUrl.origin}${parsedUrl.pathname.replace(/=(?:w|h|s|rw|rj).+$/i, '')}`;
+  } catch {
+    return imageUrl.split('?')[0].replace(/=(?:w|h|s|rw|rj).+$/i, '');
+  }
+};
+const getUniqueImages = (images = []) => {
+  const seenImageKeys = new Set();
+
+  return images.filter((imageUrl) => {
+    if (!imageUrl) return false;
+    const key = getImageDedupeKey(imageUrl);
+    if (seenImageKeys.has(key)) return false;
+    seenImageKeys.add(key);
+    return true;
+  });
+};
 const getPrimaryImage = (place = {}) => place.imageUrl || place.imageUrls?.[0] || '';
+const getGalleryImages = (place = {}) =>
+  getUniqueImages([place.imageUrl, ...(place.imageUrls || [])]);
+const getCurrencyForPlace = ({ place = {}, fallbackCurrency = 'USD' }) => {
+  if (place.priceDetail?.currency) return place.priceDetail.currency;
+  return fallbackCurrency || 'USD';
+};
 const getFavoriteKey = (place = {}) =>
   String(place.dataId || place.placeId || place.id || place.name || '')
     .trim()
     .toLowerCase();
+const getCoordinateText = (coordinates = {}) => {
+  const latitude = Number(coordinates.latitude);
+  const longitude = Number(coordinates.longitude);
+
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) {
+    return '';
+  }
+
+  return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
+};
+const getSearchResultDescription = (place = {}, singularLower = 'place') => {
+  const ratingText = place.rating
+    ? `${Number(place.rating).toFixed(1)} stars${place.reviewCount ? ` from ${Number(place.reviewCount).toLocaleString()} Google reviews` : ''}`
+    : '';
+  const detailParts = [
+    place.category ? `${place.category} ${singularLower}` : `Selected ${singularLower}`,
+    ratingText,
+    place.openState,
+    place.priceDetail?.display || place.price,
+  ].filter(Boolean);
+  const locationText = place.address ? ` Located at ${place.address}.` : '';
+
+  return {
+    available: true,
+    title: place.name || `Selected ${singularLower}`,
+    extract: `${place.name || `This ${singularLower}`} is a ${detailParts.join(' | ') || singularLower} from the current search results.${locationText}`.replace(/\s+/g, ' ').trim(),
+    url: '',
+    source: 'search-result',
+  };
+};
+const getHighlightItems = ({ place = {}, originalPriceText = '' }) =>
+  [
+    place.rating ? `Rated ${Number(place.rating).toFixed(1)} stars by Google users` : '',
+    place.reviewCount ? `${Number(place.reviewCount).toLocaleString()} Google reviews listed` : '',
+    originalPriceText || place.priceDetail?.display || place.price ? 'Price information is available' : '',
+    place.openState || place.hoursSummary ? `Hours: ${place.openState || place.hoursSummary}` : '',
+    place.address ? 'Address is available for trip planning' : '',
+    place.category ? `${place.category} category` : '',
+  ].filter(Boolean).slice(0, 5);
+const getVisitTimingText = (place = {}) => {
+  const hoursText = (place.openState || place.hoursSummary || '').trim();
+
+  if (/open/i.test(hoursText)) {
+    return {
+      title: 'Current hours shown',
+      detail: hoursText,
+      note: 'Confirm current timing before departure.',
+    };
+  }
+
+  if (/closed/i.test(hoursText)) {
+    return {
+      title: 'Check before visiting',
+      detail: hoursText,
+      note: 'Plan a nearby backup stop.',
+    };
+  }
+
+  return {
+    title: 'Timing unavailable',
+    detail: 'Opening hours were not provided by the search result.',
+    note: 'Use the Google listing for current hours.',
+  };
+};
+const getReviewIdentifiers = (place = {}) => {
+  const fallbackId = String(place.id || '');
+  const idLooksLikeGoogleReference = fallbackId.startsWith('ChIJ') || fallbackId.startsWith('0x');
+
+  return {
+    dataId: place.dataId || (fallbackId.startsWith('0x') ? fallbackId : ''),
+    placeId: place.placeId || (idLooksLikeGoogleReference && fallbackId.startsWith('ChIJ') ? fallbackId : ''),
+  };
+};
+const getEstimatedPriceText = ({ config, place = {}, currencyCode = 'USD' }) => {
+  const category = String(place.category || place.type || '').toLowerCase();
+  let usdRange = [];
+
+  if (config.favoriteType === 'hotel') {
+    if (category.includes('luxury') || category.includes('suite')) usdRange = [75, 140];
+    else if (category.includes('budget') || category.includes('hostel')) usdRange = [18, 40];
+    else usdRange = [35, 70];
+  }
+
+  if (config.favoriteType === 'restaurant') {
+    if (category.includes('fine') || category.includes('steak')) usdRange = [14, 35];
+    else if (category.includes('cafe') || category.includes('dessert')) usdRange = [3, 8];
+    else usdRange = [4, 12];
+  }
+
+  if (!usdRange.length) return '';
+
+  const rate = approximateUsdRates[currencyCode] || approximateUsdRates.USD;
+  const [minimum, maximum] = usdRange.map((amount) => amount * rate);
+  return `${formatEstimatedMoney(minimum, currencyCode)} - ${formatEstimatedMoney(maximum, currencyCode)}`;
+};
+function ReviewAvatar({ review }) {
+  const [hasImageError, setHasImageError] = useState(false);
+  const initial = String(review.author || 'G').slice(0, 1).toUpperCase();
+
+  if (review.avatarUrl && !hasImageError) {
+    return <img src={review.avatarUrl} alt="" loading="lazy" onError={() => setHasImageError(true)} />;
+  }
+
+  return <span>{initial}</span>;
+}
 
 function SharedDestinationDetailPage({
   config,
@@ -28,18 +178,31 @@ function SharedDestinationDetailPage({
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isReviewLoading, setIsReviewLoading] = useState(false);
   const [favoriteKeys, setFavoriteKeys] = useState(location.state?.returnState?.[config.favoriteKeysState] || []);
   const [isFavorite, setIsFavorite] = useState(
     Boolean(initialFavoriteKey && location.state?.returnState?.[config.favoriteKeysState]?.includes(initialFavoriteKey))
   );
   const [reviewSearch, setReviewSearch] = useState('');
   const [minRating, setMinRating] = useState('all');
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [hasRequestedReviews, setHasRequestedReviews] = useState(false);
 
   useEffect(() => {
     let isActive = true;
     const loadPlace = async () => {
       setIsLoading(true);
       setError('');
+
+      if (statePlace) {
+        setPlace(statePlace);
+        setDescription(getSearchResultDescription(statePlace, config.singularLower));
+        setReviews([]);
+        setStatus('');
+        setIsLoading(false);
+        return;
+      }
+
       try {
         const searchParams = new URLSearchParams(location.search);
         const response = await config.getDetails({
@@ -51,7 +214,7 @@ function SharedDestinationDetailPage({
         const detail = response.data.data[config.responseKey];
 
         if (!isActive) return;
-        setPlace({ ...(statePlace || {}), ...(detail.item || {}) });
+        setPlace(detail.item || null);
         setDescription(detail.description);
         setReviews(detail.reviews?.items || []);
         setStatus(detail.message || detail.reviews?.message || '');
@@ -70,17 +233,28 @@ function SharedDestinationDetailPage({
 
   const filteredReviews = useMemo(() => {
     const query = reviewSearch.trim().toLowerCase();
-    const ratingFloor = minRating === 'all' ? 0 : Number(minRating);
+    const selectedRating = minRating === 'all' ? 0 : Number(minRating);
 
     return reviews.filter((review) => {
-      const matchesRating = !ratingFloor || Number(review.rating || 0) >= ratingFloor;
+      const matchesRating = !selectedRating || Math.round(Number(review.rating || 0)) === selectedRating;
       const matchesText =
         !query ||
         review.author?.toLowerCase().includes(query) ||
-        review.text?.toLowerCase().includes(query);
+        review.text?.toLowerCase().includes(query) ||
+        review.ownerReply?.text?.toLowerCase().includes(query);
       return matchesRating && matchesText;
     });
   }, [minRating, reviewSearch, reviews]);
+  const ratingDistribution = useMemo(() => {
+    const counts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
+
+    reviews.forEach((review) => {
+      const rating = Math.max(1, Math.min(5, Math.round(Number(review.rating || 0))));
+      if (counts[rating] !== undefined) counts[rating] += 1;
+    });
+
+    return counts;
+  }, [reviews]);
 
   const handleFavorite = async () => {
     if (!place || isFavorite) return;
@@ -103,8 +277,120 @@ function SharedDestinationDetailPage({
       setError(getErrorMessage(requestError));
     }
   };
+  const handleLoadReviews = useCallback(async () => {
+    if (!place || isReviewLoading) return;
+    const reviewIdentifiers = getReviewIdentifiers(place);
 
-  const primaryImage = getPrimaryImage(place);
+    if (!reviewIdentifiers.dataId && !reviewIdentifiers.placeId) {
+      setStatus('Google review snippets need a Google place identifier. Open the Google listing to read reviews for this place.');
+      return;
+    }
+
+    setIsReviewLoading(true);
+    setError('');
+    try {
+      const response = await getPlaceReviews({
+        dataId: reviewIdentifiers.dataId,
+        placeId: reviewIdentifiers.dataId ? '' : reviewIdentifiers.placeId,
+        allPages: true,
+      });
+      const nextReviews = response.data.data.reviews;
+
+      setReviews(nextReviews.items || []);
+      setStatus(nextReviews.message || '');
+    } catch (requestError) {
+      setStatus(`${getErrorMessage(requestError)}. Open the Google listing to read all reviews for this place.`);
+    } finally {
+      setIsReviewLoading(false);
+    }
+  }, [isReviewLoading, place]);
+
+  useEffect(() => {
+    if (!place || isLoading || reviews.length || hasRequestedReviews) return;
+    const reviewIdentifiers = getReviewIdentifiers(place);
+
+    if (!reviewIdentifiers.dataId && !reviewIdentifiers.placeId) return;
+
+    setHasRequestedReviews(true);
+    handleLoadReviews();
+  }, [handleLoadReviews, hasRequestedReviews, isLoading, place, reviews.length]);
+
+  useEffect(() => {
+    setSelectedImageIndex(0);
+  }, [place?.id, place?.dataId, place?.placeId]);
+
+  const galleryImages = getGalleryImages(place);
+  const primaryImage = galleryImages[selectedImageIndex] || getPrimaryImage(place);
+  const openedFromSearchResult = description?.source === 'search-result';
+  const highlightItems = getHighlightItems({
+    place,
+    originalPriceText: location.state?.originalPriceText,
+  });
+  const visitTiming = getVisitTimingText(place);
+  const providerOriginalPrice = location.state?.originalPriceText || place?.priceDetail?.display || place?.price || '';
+  const selectedCurrency = location.state?.selectedCurrency || 'USD';
+  const estimateCurrency = getCurrencyForPlace({ place, fallbackCurrency: selectedCurrency });
+  const estimatedPrice = hasPriceText(providerOriginalPrice) ? '' : getEstimatedPriceText({ config, place, currencyCode: estimateCurrency });
+  const estimatedConvertedPrice = hasPriceText(providerOriginalPrice) ? '' : getEstimatedPriceText({ config, place, currencyCode: selectedCurrency });
+  const originalPriceValue = hasPriceText(providerOriginalPrice) ? providerOriginalPrice : estimatedPrice || '-';
+  const convertedPriceValue = hasPriceText(location.state?.convertedPriceText) ? location.state.convertedPriceText : estimatedConvertedPrice || '-';
+  const originalPriceLabel = estimatedPrice ? 'AI price estimate' : 'Original price';
+  const convertedPriceLabel = estimatedConvertedPrice && !hasPriceText(location.state?.convertedPriceText) ? 'AI converted estimate' : 'Converted price';
+  const infoCards = [
+    {
+      label: originalPriceLabel,
+      value: originalPriceValue,
+      helper: estimatedPrice ? 'Provider price was unavailable' : 'Local search result',
+      icon: Info,
+    },
+    {
+      label: convertedPriceLabel,
+      value: convertedPriceValue,
+      helper: convertedPriceValue === '-' ? 'Conversion unavailable' : 'Converted from original price',
+      icon: Info,
+    },
+    {
+      label: 'Category',
+      value: place?.category || place?.type || config.singularLabel,
+      helper: config.singularLabel,
+      icon: config.icon,
+    },
+    {
+      label: 'Open hours',
+      value: place?.openState || place?.hoursSummary || 'Not provided',
+      helper: place?.hoursSummary && place.hoursSummary !== place.openState ? place.hoursSummary : 'Check listing before going',
+      icon: Clock,
+    },
+    {
+      label: 'Phone',
+      value: place?.phone || 'Not provided',
+      helper: place?.phone ? 'Tap listing for more contact options' : 'Contact unavailable',
+      icon: Phone,
+    },
+    {
+      label: 'Address',
+      value: place?.address || 'Not provided',
+      helper: 'Use for trip planning',
+      icon: MapPin,
+    },
+    {
+      label: 'Coordinates',
+      value: getCoordinateText(place?.coordinates) || 'Not provided',
+      helper: 'Map-ready location',
+      icon: MapPin,
+    },
+  ];
+  const photoHighlights = galleryImages.length ? galleryImages : primaryImage ? [primaryImage] : [];
+  const reviewIdentifiers = getReviewIdentifiers(place);
+  const canLoadReviews =
+    Boolean(reviewIdentifiers.dataId || reviewIdentifiers.placeId) &&
+    !/identifier is unavailable/i.test(status);
+  const reviewEmptyTitle = isReviewLoading ? 'Loading Google reviews' : openedFromSearchResult ? 'Review snippets unavailable' : 'No review snippets loaded';
+  const reviewEmptyText = status || (
+    openedFromSearchResult && canLoadReviews
+      ? 'Review snippets are being requested from Google Maps when available.'
+      : 'Google review snippets need a Google place identifier. Use the Google listing link when review text is needed.'
+  );
   const returnSearch = location.state?.returnState?.returnSearch || config.returnSearch;
   const returnPath = `/explore?${returnSearch || config.returnSearch}`;
   const returnState = location.state?.returnState
@@ -134,35 +420,60 @@ function SharedDestinationDetailPage({
       {place && !isLoading && (
         <>
           <section className="shared-detail-hero">
-            {primaryImage ? (
-              <img src={primaryImage} alt="" />
-            ) : (
-              <div className="shared-detail-image-placeholder">
-                <PlaceholderIcon size={42} aria-hidden="true" />
+            <div className="shared-detail-media">
+              <div className="shared-detail-main-image">
+                {primaryImage ? (
+                  <img src={primaryImage} alt="" />
+                ) : (
+                  <div className="shared-detail-image-placeholder">
+                    <PlaceholderIcon size={42} aria-hidden="true" />
+                  </div>
+                )}
+                {photoHighlights.length > 1 && <span className="shared-detail-photo-count">{selectedImageIndex + 1} / {photoHighlights.length}</span>}
               </div>
-            )}
+              {photoHighlights.length > 1 && (
+                <div className="shared-detail-thumb-row" aria-label={`${place.name} photo thumbnails`}>
+                  {photoHighlights.map((imageUrl, index) => (
+                    <button
+                      className={`shared-detail-thumb ${selectedImageIndex === index ? 'active' : ''}`}
+                      key={`${imageUrl}-${index}`}
+                      type="button"
+                      onClick={() => setSelectedImageIndex(index)}
+                    >
+                      <img src={imageUrl} alt="" loading="lazy" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="shared-detail-hero-copy">
-              <span className="explore-category">{config.singularLabel}</span>
-              <h2>{place.name}</h2>
-              <div className="shared-detail-meta">
-                <span>
-                  <Star size={16} fill="currentColor" />
-                  {place.rating ? `${Number(place.rating).toFixed(1)} stars` : 'No rating'}
-                </span>
-                <span>{place.reviewCount ? `${Number(place.reviewCount).toLocaleString()} reviews` : 'No review count'}</span>
+              <div className="shared-detail-title-block">
+                <span className="explore-category">{config.singularLabel}</span>
+                <h2>{place.name}</h2>
+                <div className="shared-detail-rating-row">
+                  <span>
+                    <Star size={16} fill="currentColor" aria-hidden="true" />
+                    {place.rating ? Number(place.rating).toFixed(1) : 'No rating'}
+                  </span>
+                  <span>{place.reviewCount ? `${Number(place.reviewCount).toLocaleString()} Google reviews` : 'No review count'}</span>
+                </div>
               </div>
-              {place.address && (
-                <p>
-                  <MapPin size={16} aria-hidden="true" />
-                  {place.address}
-                </p>
-              )}
-              {place.phone && (
-                <p>
-                  <Phone size={16} aria-hidden="true" />
-                  {place.phone}
-                </p>
-              )}
+              <div className="shared-detail-info-grid">
+                {infoCards.map((card) => {
+                  const CardIcon = card.icon;
+
+                  return (
+                    <article key={card.label}>
+                      <CardIcon size={18} aria-hidden="true" />
+                      <div>
+                        <span>{card.label}</span>
+                        <strong>{card.value}</strong>
+                        <small>{card.helper}</small>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
               <div className="shared-detail-actions">
                 <button type="button" onClick={handleFavorite} className={isFavorite ? 'active' : ''}>
                   <Heart size={17} fill={isFavorite ? 'currentColor' : 'none'} />
@@ -178,9 +489,9 @@ function SharedDestinationDetailPage({
             </div>
           </section>
 
-          <section className="shared-detail-grid">
+          <section className="shared-detail-feature-grid">
             <article className="shared-detail-panel">
-              <h3>Description</h3>
+              <h3>About this place</h3>
               <p>{description?.extract || `A Wikipedia description is not available for this ${config.singularLower} yet.`}</p>
               {description?.url && (
                 <a href={description.url} target="_blank" rel="noreferrer">
@@ -190,68 +501,137 @@ function SharedDestinationDetailPage({
             </article>
 
             <article className="shared-detail-panel">
-              <h3>{config.singularLabel} Details</h3>
-              <dl>
-                <div>
-                  <dt>Price range</dt>
-                  <dd>{location.state?.originalPriceText || place.priceDetail?.display || place.price || 'Price unavailable'}</dd>
-                </div>
-                {location.state?.convertedPriceText && (
-                  <div>
-                    <dt>Converted price</dt>
-                    <dd>{location.state.convertedPriceText}</dd>
-                  </div>
+              <h3>Highlights</h3>
+              <ul className="shared-detail-highlight-list">
+                {highlightItems.length ? (
+                  highlightItems.map((item) => <li key={item}>{item}</li>)
+                ) : (
+                  <li>More highlights appear when provider data is available.</li>
                 )}
-                <div>
-                  <dt>Opening hours</dt>
-                  <dd>{place.openState || place.hoursSummary || 'Hours unavailable'}</dd>
-                </div>
-              </dl>
+              </ul>
+            </article>
+
+            <article className="shared-detail-panel shared-detail-visit-card">
+              <h3>Best time to visit</h3>
+              <strong>{visitTiming.title}</strong>
+              <p>{visitTiming.detail}</p>
+              <small>{visitTiming.note}</small>
             </article>
           </section>
+
+          {photoHighlights.length > 0 && (
+            <section className="shared-detail-photo-section">
+              <div className="shared-detail-section-heading">
+                <div>
+                  <span className="explore-category">Photos</span>
+                  <h3>Place highlights</h3>
+                </div>
+              </div>
+              <div className="shared-detail-photo-card-row">
+                {photoHighlights.map((imageUrl, index) => (
+                  <article key={`${imageUrl}-card-${index}`}>
+                    <img src={imageUrl} alt="" loading="lazy" />
+                    <div>
+                      <strong>{index === 0 ? place.name : `${config.singularLabel} photo ${index + 1}`}</strong>
+                      <p>{place.category || config.singularLabel}</p>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </section>
+          )}
 
           <section className="shared-detail-reviews">
             <div className="shared-detail-reviews-heading">
               <div>
                 <span className="explore-category">Google reviews</span>
-                <h3>{filteredReviews.length} review{filteredReviews.length === 1 ? '' : 's'}</h3>
+                <h3>{reviews.length ? `${filteredReviews.length} filtered review${filteredReviews.length === 1 ? '' : 's'}` : `${place.reviewCount ? Number(place.reviewCount).toLocaleString() : '0'} Google review${Number(place.reviewCount || 0) === 1 ? '' : 's'}`}</h3>
               </div>
-              <div className="shared-detail-review-filters">
-                <label>
-                  <Search size={15} aria-hidden="true" />
-                  <input
-                    type="search"
-                    value={reviewSearch}
-                    onChange={(event) => setReviewSearch(event.target.value)}
-                    placeholder="Filter reviews"
-                  />
-                </label>
-                <select value={minRating} onChange={(event) => setMinRating(event.target.value)}>
-                  <option value="all">All ratings</option>
-                  <option value="5">5 stars</option>
-                  <option value="4">4+ stars</option>
-                  <option value="3">3+ stars</option>
-                </select>
-              </div>
+              {reviews.length > 0 && (
+                <div className="shared-detail-review-filters">
+                  <label>
+                    <Search size={15} aria-hidden="true" />
+                    <input
+                      type="search"
+                      value={reviewSearch}
+                      onChange={(event) => setReviewSearch(event.target.value)}
+                      placeholder="Filter reviews"
+                    />
+                  </label>
+                  <select value={minRating} onChange={(event) => setMinRating(event.target.value)}>
+                    <option value="all">All ratings</option>
+                    <option value="5">5 stars</option>
+                    <option value="4">4 stars</option>
+                    <option value="3">3 stars</option>
+                    <option value="2">2 stars</option>
+                    <option value="1">1 star</option>
+                  </select>
+                </div>
+              )}
             </div>
 
-            {status && !reviews.length && <p className="explore-status">{status}</p>}
+            {reviews.length > 0 && (
+              <div className="shared-detail-rating-chart" aria-label="Google review rating distribution">
+                {[5, 4, 3, 2, 1].map((rating) => {
+                  const count = ratingDistribution[rating] || 0;
+                  const percentage = reviews.length ? Math.round((count / reviews.length) * 100) : 0;
+
+                  return (
+                    <button
+                      className={minRating === String(rating) ? 'active' : ''}
+                      key={rating}
+                      type="button"
+                      onClick={() => setMinRating((currentRating) => (currentRating === String(rating) ? 'all' : String(rating)))}
+                    >
+                      <span>{rating} star</span>
+                      <div>
+                        <i style={{ width: `${percentage}%` }} />
+                      </div>
+                      <strong>{count}</strong>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
 
             <div className="shared-detail-review-list">
               {filteredReviews.map((review) => (
                 <article className="shared-detail-review" key={review.id}>
-                  <div>
-                    <strong>{review.author}</strong>
-                    <span>
+                  <div className="shared-detail-review-author">
+                    <ReviewAvatar review={review} />
+                    <div>
+                      {review.authorLink ? (
+                        <a href={review.authorLink} target="_blank" rel="noreferrer">{review.author}</a>
+                      ) : (
+                        <strong>{review.author}</strong>
+                      )}
+                      <small>Google account</small>
+                    </div>
+                    <em>
                       <Star size={14} fill="currentColor" />
                       {review.rating || 'No rating'}
-                      {review.date ? ` | ${review.date}` : ''}
-                    </span>
+                    </em>
                   </div>
+                  {review.date && <small className="shared-detail-review-date">{review.date}</small>}
                   <p>{review.text || 'No written review provided.'}</p>
+                  {review.ownerReply?.text && (
+                    <div className="shared-detail-owner-reply">
+                      <strong>{review.ownerReply.author || 'Owner response'}</strong>
+                      {review.ownerReply.date && <small>{review.ownerReply.date}</small>}
+                      <p>{review.ownerReply.text}</p>
+                    </div>
+                  )}
                 </article>
               ))}
-              {!filteredReviews.length && <p className="explore-status">No reviews match the selected filter.</p>}
+              {!filteredReviews.length && (
+                <article className="shared-detail-review-empty">
+                  {isReviewLoading ? <LoaderCircle className="explore-spin" size={22} aria-hidden="true" /> : <Info size={22} aria-hidden="true" />}
+                  <div>
+                    <strong>{reviewEmptyTitle}</strong>
+                    <p>{reviewEmptyText}</p>
+                  </div>
+                </article>
+              )}
             </div>
           </section>
         </>

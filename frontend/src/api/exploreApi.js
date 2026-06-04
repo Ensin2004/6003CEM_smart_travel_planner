@@ -91,6 +91,14 @@ export const getHotelDetails = ({ name, address, dataId, placeId }) =>
       placeId,
     },
   });
+export const getPlaceReviews = ({ dataId, placeId, allPages = true }) =>
+  axiosClient.get('/explore/reviews', {
+    params: {
+      dataId,
+      placeId,
+      allPages,
+    },
+  });
 export const searchTrainStationTimetable = ({ stationCode, stationQuery, departureDate, arrivalDate, operatorName }) =>
   axiosClient.get('/transportation/trains/station_timetable', {
     params: {

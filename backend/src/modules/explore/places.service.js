@@ -23,13 +23,16 @@ const fallbackAttractions = (filters, message = 'Attractions temporarily unavail
   hasMore: false,
 });
 // Normalize Attraction prepares incoming data for consistent storage.
-const normalizeAttraction = (item = {}, index) => ({
+const normalizeAttraction = (item = {}, index, filters = {}) => ({
   ...normalizePlaceItem(item, index, {
     name: 'Untitled attraction',
     category: 'Attraction',
   }),
   price: getText(item.price || item.price_level),
-  priceDetail: getPriceDetail(item.price || item.price_level),
+  priceDetail: getPriceDetail(item.price || item.price_level, {
+    ...filters,
+    address: item.address,
+  }),
 });
 const normalizeFilters = (filters = {}) => {
   if (typeof filters === 'string') {
@@ -86,7 +89,7 @@ const getAttractionsByDestination = async (filters) => {
       query: getAttractionQuery(normalizedFilters),
       start: normalizedFilters.start,
       metadata: normalizedFilters,
-      mapItem: normalizeAttraction,
+      mapItem: (item, index) => normalizeAttraction(item, index, normalizedFilters),
     });
 
     const { query, ...publicAttractions } = attractions;

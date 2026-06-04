@@ -23,13 +23,16 @@ const fallbackHotels = (filters, message = 'Hotels temporarily unavailable') => 
   hasMore: false,
 });
 // Normalize Hotel prepares incoming data for consistent storage.
-const normalizeHotel = (item = {}, index) => ({
+const normalizeHotel = (item = {}, index, filters = {}) => ({
   ...normalizePlaceItem(item, index, {
     name: 'Untitled hotel',
     category: 'Hotel',
   }),
   price: getText(item.price || item.rate_per_night?.lowest || item.extracted_price),
-  priceDetail: getPriceDetail(item.price || item.rate_per_night?.lowest || item.extracted_price),
+  priceDetail: getPriceDetail(item.price || item.rate_per_night?.lowest || item.extracted_price, {
+    ...filters,
+    address: item.address,
+  }),
   roomType: getText(item.roomType || item.room_type),
 });
 // Normalize Filters prepares incoming data for consistent storage.
@@ -76,7 +79,7 @@ const getHotelsByDestination = async (filters) => {
       query: getHotelQuery(normalizedFilters),
       start: normalizedFilters.start,
       metadata: normalizedFilters,
-      mapItem: normalizeHotel,
+      mapItem: (item, index) => normalizeHotel(item, index, normalizedFilters),
     });
   } catch (error) {
     const { message, statusCode } = getGoogleMapsFailureMessage(error);

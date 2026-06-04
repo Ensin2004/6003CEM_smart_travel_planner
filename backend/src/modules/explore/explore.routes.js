@@ -10,6 +10,7 @@ const {
   attractionRules,
   hotelDetailRules,
   hotelRules,
+  placeReviewRules,
   restaurantDetailRules,
   restaurantRules,
   weatherRules,
@@ -80,6 +81,16 @@ router.get(
   restaurantRules,
   validate,
   exploreController.getRestaurants
+);
+
+// Route section connects URL patterns with validation, authentication, and controller actions.
+router.get(
+  '/reviews',
+  protect,
+  thirdPartyApiRateLimit,
+  placeReviewRules,
+  validate,
+  exploreController.getPlaceReviews
 );
 
 // Route section connects URL patterns with validation, authentication, and controller actions.

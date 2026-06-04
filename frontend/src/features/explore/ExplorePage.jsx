@@ -22,6 +22,7 @@ import {
   searchWeather,
 } from '../../api/exploreApi';
 import { getFavorites } from '../../api/favoriteApi';
+import { getReverseGeocodeLocation } from '../../api/mapApi';
 import CurrencyContext from '../../context/currencyContext';
 import { attractionCategoryOptions, foodCategoryOptions, roomTypeOptions } from './explore.constants';
 import { formatMoney, getDateKey, getErrorMessage, getPriceConversionKey } from './explore.helpers';
@@ -29,6 +30,7 @@ import AttractionsSubmenu from './submenus/Attractions';
 import RestaurantSubmenu from './submenus/Restaurant';
 import HotelsSubmenu from './submenus/Hotels';
 import TransportationSubmenu from './submenus/Transportation';
+import ExploreAiPanel from './submenus/ExploreAiPanel';
 import './ExplorePage.css';
 
 const viewOptions = [
@@ -161,6 +163,14 @@ function ExplorePage() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [weatherLoadingView, setWeatherLoadingView] = useState('');
   const [aiLoadingView, setAiLoadingView] = useState('');
+  const [currentLocation, setCurrentLocation] = useState({
+    label: 'current area',
+    state: '',
+    country: '',
+    latitude: null,
+    longitude: null,
+    available: false,
+  });
   const [lastSearchSummary, setLastSearchSummary] = useState({
     attractions: { loaded: 0, priced: 0, rated: 0, topRated: 0 },
     food: { loaded: 0, priced: 0, rated: 0, topRated: 0 },
@@ -192,6 +202,11 @@ function ExplorePage() {
   };
   const transportScope = `transport:${activeTransportTab}`;
   const countryOptions = useMemo(() => Country.getAllCountries(), []);
+  const currentLocationName = useMemo(() => {
+    const stateCountryLabel = [currentLocation.state, currentLocation.country].filter(Boolean).join(', ');
+
+    return stateCountryLabel || currentLocation.label || 'current area';
+  }, [currentLocation.country, currentLocation.label, currentLocation.state]);
   const stateOptions = useMemo(
     () => (activeFilters.countryCode ? State.getStatesOfCountry(activeFilters.countryCode) : []),
     [activeFilters.countryCode]
@@ -227,7 +242,6 @@ function ExplorePage() {
   const pricedCount = currentSummary.priced || activeItems.filter((item) => item.price || item.priceDetail).length;
   const hasResults = resultCount > 0;
   const destinationLabel = isFilteredSearchView ? filteredSearchLabel || 'None' : destination.trim() || 'None';
-  const weatherLocationLabel = activeWeather?.location?.label || activeWeather?.destination || destinationLabel;
   const aiDestination = (isFilteredSearchView ? filteredSearchLabel : destination.trim()) || destination.trim();
   const aiRequestKey = useMemo(() => {
     if (!isSearchView || !activeItems.length) {
@@ -276,6 +290,80 @@ function ExplorePage() {
         readyText: 'Search text or filters can begin',
         matchesLabel: 'curated matches',
       };
+  useEffect(() => {
+    let isActive = true;
+    const controller = new AbortController();
+
+    if (!navigator.geolocation) {
+      setCurrentLocation({
+        label: 'current area',
+        state: '',
+        country: '',
+        latitude: null,
+        longitude: null,
+        available: false,
+      });
+      return () => {
+        isActive = false;
+        controller.abort();
+      };
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        try {
+          const locationDetails = await getReverseGeocodeLocation(
+            {
+              latitude: position.coords.latitude,
+              longitude: position.coords.longitude,
+            },
+            { signal: controller.signal }
+          );
+
+          if (!isActive) return;
+          setCurrentLocation({
+            label: locationDetails.label || 'current area',
+            state: locationDetails.state || '',
+            country: locationDetails.country || '',
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            available: Boolean(locationDetails.available),
+          });
+        } catch {
+          if (!isActive) return;
+          setCurrentLocation({
+            label: 'current area',
+            state: '',
+            country: '',
+            latitude: position.coords.latitude,
+            longitude: position.coords.longitude,
+            available: false,
+          });
+        }
+      },
+      () => {
+        if (!isActive) return;
+        setCurrentLocation({
+          label: 'current area',
+          state: '',
+          country: '',
+          latitude: null,
+          longitude: null,
+          available: false,
+        });
+      },
+      {
+        enableHighAccuracy: false,
+        timeout: 8000,
+        maximumAge: 10 * 60 * 1000,
+      }
+    );
+
+    return () => {
+      isActive = false;
+      controller.abort();
+    };
+  }, []);
   useEffect(() => {
     const convertibleItems = activeItems.filter((item) => {
       const detail = item.priceDetail;
@@ -430,19 +518,40 @@ function ExplorePage() {
   const getWeatherRequest = (criteria, items = []) => {
     const weatherDestination = getWeatherDestination(criteria);
     const locatedItem = items.find((item) => item.coordinates?.latitude && item.coordinates?.longitude);
+    const coordinateLabel = locatedItem ? locatedItem.address || locatedItem.name || 'Selected search area' : '';
+    const currentLatitude = Number(currentLocation.latitude);
+    const currentLongitude = Number(currentLocation.longitude);
+    const hasCurrentCoordinates = Number.isFinite(currentLatitude) && Number.isFinite(currentLongitude);
+    const currentLocationLabel = currentLocationName === 'current area' ? '' : currentLocationName;
 
     return {
-      destination: weatherDestination || criteria.destination || destination.trim(),
-      latitude: locatedItem?.coordinates?.latitude,
-      longitude: locatedItem?.coordinates?.longitude,
-      locationLabel: locatedItem ? locatedItem.address || locatedItem.name : weatherDestination,
+      destination: weatherDestination || coordinateLabel || currentLocationLabel || criteria.destination || destination.trim(),
+      latitude: locatedItem?.coordinates?.latitude ?? (weatherDestination ? undefined : hasCurrentCoordinates ? currentLatitude : undefined),
+      longitude: locatedItem?.coordinates?.longitude ?? (weatherDestination ? undefined : hasCurrentCoordinates ? currentLongitude : undefined),
+      locationLabel: coordinateLabel || weatherDestination || currentLocationLabel,
+    };
+  };
+  const withCurrentLocationFallback = (criteria) => {
+    if (criteria.country || criteria.state) {
+      return criteria;
+    }
+
+    const currentCountry = currentLocation.country?.trim() || '';
+    const currentState = currentLocation.state?.trim() || '';
+
+    return {
+      ...criteria,
+      destination: criteria.destination || (currentCountry || currentState ? '' : currentLocation.label === 'current area' ? '' : currentLocation.label),
+      country: criteria.country || currentCountry,
+      state: criteria.state || currentState,
     };
   };
 
   const fetchDestinationWeather = async (viewId, weatherRequest) => {
     const weatherDestination = weatherRequest?.destination;
+    const hasCoordinates = Number.isFinite(Number(weatherRequest?.latitude)) && Number.isFinite(Number(weatherRequest?.longitude));
 
-    if (!weatherDestination) {
+    if (!weatherDestination && !hasCoordinates) {
       setWeatherByView((currentWeather) => ({
         ...currentWeather,
         [viewId]: null,
@@ -469,13 +578,45 @@ function ExplorePage() {
         ...currentWeather,
         [viewId]: {
           available: false,
-          message: getErrorMessage(requestError),
+          message: 'Weather temporarily unavailable. Search results are still available.',
         },
       }));
     } finally {
       setWeatherLoadingView('');
     }
   };
+
+  useEffect(() => {
+    if (!isSearchView || hasResults || activeWeather || isWeatherLoading) {
+      return;
+    }
+
+    const hasCurrentCoordinates =
+      Number.isFinite(Number(currentLocation.latitude)) && Number.isFinite(Number(currentLocation.longitude));
+    const hasCurrentLocationText = Boolean(currentLocation.country || currentLocation.state || currentLocation.label !== 'current area');
+
+    if (!hasCurrentCoordinates && !hasCurrentLocationText) {
+      return;
+    }
+
+    fetchDestinationWeather(viewOptions.find((option) => option.id === activeView)?.id || 'attractions', getWeatherRequest({
+      destination: '',
+      country: '',
+      state: '',
+    }));
+  }, [
+    activeView,
+    activeWeather,
+    currentLocation.country,
+    currentLocation.label,
+    currentLocation.latitude,
+    currentLocation.longitude,
+    currentLocation.state,
+    hasResults,
+    isSearchView,
+    isWeatherLoading,
+    travelDate,
+  ]);
 
   const getAttractionCriteria = () => ({
     destination: destination.trim(),
@@ -595,7 +736,7 @@ function ExplorePage() {
 
   const handleAttractionsSearch = async (event) => {
     event.preventDefault();
-    await fetchAttractions({ criteria: getAttractionCriteria() });
+    await fetchAttractions({ criteria: withCurrentLocationFallback(getAttractionCriteria()) });
   };
 
   const fetchHotels = async ({ criteria, start = 0, append = false }) =>
@@ -617,7 +758,7 @@ function ExplorePage() {
 
   const handleHotelsSearch = async (event) => {
     event.preventDefault();
-    await fetchHotels({ criteria: getHotelCriteria() });
+    await fetchHotels({ criteria: withCurrentLocationFallback(getHotelCriteria()) });
   };
 
   const fetchRestaurants = async ({ criteria, start = 0, append = false }) =>
@@ -639,7 +780,7 @@ function ExplorePage() {
 
   const handleRestaurantsSearch = async (event) => {
     event.preventDefault();
-    await fetchRestaurants({ criteria: getRestaurantCriteria() });
+    await fetchRestaurants({ criteria: withCurrentLocationFallback(getRestaurantCriteria()) });
   };
 
   const handleLoadMoreHotels = () => {
@@ -877,6 +1018,15 @@ function ExplorePage() {
   };
 
   const getOriginalPriceText = (item) => item.priceDetail?.display || item.price || 'Price unavailable';
+  const transportItems = activeTransportTab === 'flights' ? flightResults?.items || [] : trainResults?.items || [];
+  const transportResultCount = transportItems.length;
+  const transportAiSummary = transportResultCount
+    ? `${activeTransportTab === 'flights' ? 'Flight' : 'Train'} options are ready for review. Compare timing, route details, and estimated prices before adding transport to the trip.`
+    : `Search ${activeTransportTab === 'flights' ? 'flights' : 'trains'} to get AI-style transport recommendations.`;
+  const aiPanelItems = isTransportationView ? transportItems : activeItems;
+  const aiPanelResultCount = isTransportationView ? transportResultCount : resultCount;
+  const aiPanelSummary = isTransportationView ? transportAiSummary : '';
+  const aiPanelCanRefresh = isTransportationView ? false : hasResults;
 
   const handleGenerateAiRecommendations = useCallback(async ({ manual = false } = {}) => {
     if (!activeItems.length) {
@@ -1111,7 +1261,6 @@ function ExplorePage() {
     getConvertedPriceText,
     getOriginalPriceText,
     handleCountryChange,
-    handleGenerateAiRecommendations,
     handleLoadMoreFilteredItems,
     handleSearch,
     handleTravelDateChange,
@@ -1152,6 +1301,7 @@ function ExplorePage() {
     selectedAttractionCategory,
     selectedAttractionCategoryLabel,
     selectedFoodCategoryLabel,
+    selectedCurrency,
     selectedRoomLabel,
     selectedFoodCategory: selectedRestaurantFoodCategory,
     selectedRoomType: selectedHotelRoomType,
@@ -1161,7 +1311,6 @@ function ExplorePage() {
     travelDate,
     updateDestinationQuery,
     updateFilterField: updateActiveFilterField,
-    weatherLocationLabel,
   };
 
   const renderSubmenu = () => {
@@ -1214,30 +1363,58 @@ function ExplorePage() {
 
   return (
     <section className="explore-page">
-      <div className="explore-hero">
-        <div>
-          <span className="explore-eyebrow">
-            <MapPinned size={15} aria-hidden="true" />
-            Explore
-          </span>
-          <h2>{activeOption.label}</h2>
-          <p> Browse real-time availability and transit durations from live transport data to ensure a seamless connection for the rest of your trip.</p>
-        </div>
-        {isSearchView && (
-          <div className="explore-hero-panel" aria-label={`${activeOption.label} search summary`}>
+      <div className="explore-shell">
+        <div className="explore-main-column">
+          <div className="explore-hero">
             <div>
-              <span>Current search</span>
-              <strong>{destinationLabel}</strong>
+              <span className="explore-eyebrow">
+                <MapPinned size={15} aria-hidden="true" />
+                Explore
+              </span>
+              <h2>{activeOption.label}</h2>
+              <p> Browse real-time availability and transit durations from live transport data to ensure a seamless connection for the rest of your trip.</p>
             </div>
-            <small>{resultCount ? `${resultCount} result${resultCount === 1 ? '' : 's'} loaded` : 'Ready to discover places'}</small>
-            <div className="explore-hero-meter" aria-hidden="true">
-              <span style={{ width: hasResults ? '100%' : '38%' }} />
-            </div>
+            {isSearchView && (
+              <div className="explore-hero-panel" aria-label={`${activeOption.label} search summary`}>
+                <div>
+                  <span>Current search</span>
+                  <strong>{destinationLabel}</strong>
+                </div>
+                <small>{resultCount ? `${resultCount} result${resultCount === 1 ? '' : 's'} loaded` : 'Search to discover places'}</small>
+                <div className="explore-hero-meter" aria-hidden="true">
+                  <span style={{ width: hasResults ? '100%' : '38%' }} />
+                </div>
+              </div>
+            )}
+            {isTransportationView && (
+              <div className="explore-hero-panel" aria-label="Transportation search summary">
+                <div>
+                  <span>Current search</span>
+                  <strong>{activeTransportTab === 'flights' ? getFlightSearchTitle() : trainResults?.stationName || 'Transportation'}</strong>
+                </div>
+                <small>{transportResultCount ? `${transportResultCount} result${transportResultCount === 1 ? '' : 's'} loaded` : 'Ready to find routes'}</small>
+                <div className="explore-hero-meter" aria-hidden="true">
+                  <span style={{ width: transportResultCount ? '100%' : '38%' }} />
+                </div>
+              </div>
+            )}
           </div>
-        )}
-      </div>
 
-      {renderSubmenu()}
+          {renderSubmenu()}
+        </div>
+        <ExploreAiPanel
+          activeAi={isTransportationView ? null : activeAi}
+          activeOption={activeOption}
+          canRefresh={aiPanelCanRefresh}
+          currentLocationName={currentLocationName}
+          destinationLabel={isTransportationView ? activeTransportTab : destinationLabel}
+          isLoading={isTransportationView ? false : isAiLoading}
+          items={aiPanelItems}
+          onRefresh={() => handleGenerateAiRecommendations({ manual: true })}
+          resultCount={aiPanelResultCount}
+          summary={aiPanelSummary}
+        />
+      </div>
     </section>
   );
 }

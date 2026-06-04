@@ -830,11 +830,12 @@ paths:
       parameters:
         - in: query
           name: destination
-          required: true
+          required: false
           schema:
             type: string
             minLength: 2
           example: Tokyo
+          description: Required when latitude and longitude are not supplied.
         - in: query
           name: date
           required: false
@@ -866,7 +867,7 @@ paths:
           example: Tokyo Tower, Tokyo
       responses:
         '200':
-          description: Parsed Open-Meteo destination weather from forecast, seasonal, or historical archive data
+          description: Parsed Open-Meteo weather. Past dates use Archive API daily data, today uses Forecast API current_weather, future dates up to 16 days use Forecast API daily data, and dates beyond 16 days use Seasonal API daily data.
           content:
             application/json:
               example:
@@ -877,7 +878,7 @@ paths:
                     available: true
                     destination: Tokyo
                     requestedDate: '2026-06-01'
-                    forecastType: forecast
+                    forecastType: current
                     source: Open-Meteo Forecast
                     location:
                       name: Tokyo
@@ -894,8 +895,8 @@ paths:
                     condition: Light rain
                     icon: cloud-rain
                     precipitation:
-                      amountMm: 4.5
-                      probability: 65
+                      amountMm: null
+                      probability: null
                     windSpeed:
                       max: 18
                       unit: km/h
@@ -1013,6 +1014,68 @@ paths:
           description: External API configuration error
         '503':
           description: External flight service unavailable
+  /api/v1/explore/reviews:
+    get:
+      summary: Load Google review snippets for an Explore place on demand
+      tags:
+        - Explore
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: dataId
+          required: false
+          schema:
+            type: string
+            maxLength: 500
+          example: 0x304ac395b3f1e6b5:0xd2f0b4e7a1d1a123
+        - in: query
+          name: placeId
+          required: false
+          schema:
+            type: string
+            maxLength: 500
+          example: ChIJN1t_tDeuEmsRUsoyG83frY4
+        - in: query
+          name: allPages
+          required: false
+          schema:
+            type: boolean
+            default: true
+          example: true
+      responses:
+        '200':
+          description: Normalized Google review snippets loaded only after the user requests them
+          content:
+            application/json:
+              example:
+                status: success
+                message: Success
+                data:
+                  reviews:
+                    available: true
+                    items:
+                      - id: review-1
+                        author: Google user
+                        authorLink: https://www.google.com/maps/contrib/example
+                        avatarUrl: https://lh3.googleusercontent.com/example
+                        rating: 5
+                        date: 2 weeks ago
+                        text: Great place and friendly service.
+                        ownerReply:
+                          author: Owner response
+                          date: 1 week ago
+                          text: Thanks for visiting.
+                    pagesFetched: 2
+                    lastUpdated: '2026-06-04T12:00:00.000Z'
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid token
+        '429':
+          description: Too many third-party API requests
+        '503':
+          description: External review service unavailable
   /api/v1/explore/ai-recommendations:
     post:
       summary: Generate AI recommendations from Explore results
@@ -1096,6 +1159,8 @@ paths:
                       label: US Dollar
                     - code: MYR
                       label: Malaysian Ringgit
+                    - code: ARS
+                      label: Argentine Peso
   /api/v1/currency/convert:
     get:
       summary: Convert an amount with Frankfurter exchange rates

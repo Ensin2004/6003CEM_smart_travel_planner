@@ -1,0 +1,477 @@
+/**
+ * Explore AI panel styles.
+ * The same right rail supports attractions, restaurants, hotels, and transportation.
+ */
+.explore-ai-panel {
+  position: sticky;
+  top: 18px;
+  display: grid;
+  gap: 14px;
+  align-self: start;
+  min-width: 0;
+  border: 1px solid rgba(217, 226, 236, 0.95);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 16px;
+  box-shadow: 0 12px 28px rgba(16, 42, 67, 0.06);
+}
+
+.explore-ai-panel-heading {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.explore-ai-panel-heading > div:first-child {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.explore-ai-panel-heading span,
+.explore-ai-summary-card strong {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  color: var(--navy);
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.explore-ai-panel-heading span svg,
+.explore-ai-summary-card strong svg {
+  color: var(--teal);
+}
+
+.explore-ai-panel-heading p,
+.explore-ai-summary-card p,
+.explore-ai-answer-card p,
+.explore-ai-recommendation p,
+.explore-ai-empty,
+.explore-ai-error,
+.explore-ai-chat-message p,
+.explore-ai-chat-empty p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.explore-ai-heading-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+  min-width: 0;
+}
+
+.explore-ai-panel-heading button,
+.explore-ai-heading-actions button {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  min-height: 30px;
+  border: 0;
+  background: transparent;
+  color: var(--teal);
+  padding: 0;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.explore-ai-panel-heading button:disabled,
+.explore-ai-heading-actions button:disabled,
+.explore-ai-full-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.explore-ai-summary-card,
+.explore-ai-recommendations,
+.explore-ai-answer-card {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  border: 1px solid rgba(217, 226, 236, 0.9);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 14px;
+}
+
+.explore-ai-summary-card {
+  border-color: rgba(245, 158, 11, 0.24);
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(255, 255, 255, 0.96));
+}
+
+.explore-ai-summary-card strong {
+  font-size: 14px;
+}
+
+.explore-ai-recommendations h3,
+.explore-ai-answer-card strong {
+  margin: 0;
+  color: var(--navy);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.25;
+}
+
+.explore-ai-recommendation-list {
+  display: grid;
+  gap: 0;
+}
+
+.explore-ai-recommendation {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: start;
+  min-width: 0;
+  border-top: 1px solid rgba(217, 226, 236, 0.78);
+  padding: 12px 0;
+}
+
+.explore-ai-recommendation:first-child {
+  border-top: 0;
+  padding-top: 0;
+}
+
+.explore-ai-recommendation:last-child {
+  padding-bottom: 0;
+}
+
+.explore-ai-rank {
+  display: inline-grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 6px;
+  background: var(--teal);
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.explore-ai-recommendation div {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+}
+
+.explore-ai-recommendation strong {
+  overflow: hidden;
+  color: var(--navy);
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.3;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.explore-ai-recommendation small {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+  color: var(--sun);
+  font-size: 12px;
+  font-weight: 750;
+  line-height: 1.25;
+}
+
+.explore-ai-recommendation img {
+  width: 62px;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.explore-ai-full-button,
+.explore-ai-question-form button,
+.explore-ai-chat-preview button {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: center;
+  min-height: 38px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.explore-ai-full-button {
+  border: 0;
+  background: var(--teal);
+  color: #ffffff;
+  padding: 0 14px;
+}
+
+.explore-ai-ready-card {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  min-width: 0;
+  border: 1px solid rgba(217, 226, 236, 0.9);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #ffffff, #fbfcfe);
+  padding: 24px 14px;
+  text-align: center;
+}
+
+.explore-ai-ready-icon {
+  display: grid;
+  width: 72px;
+  height: 72px;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(15, 118, 110, 0.08);
+  color: var(--teal);
+}
+
+.explore-ai-ready-card h3 {
+  max-width: 260px;
+  margin: 0;
+  color: var(--navy);
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.explore-ai-ready-card p {
+  max-width: 280px;
+}
+
+.explore-ai-ready-card > small {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.explore-ai-question-list {
+  display: grid;
+  gap: 8px;
+  width: 100%;
+  border: 1px solid rgba(217, 226, 236, 0.9);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 12px;
+  text-align: left;
+}
+
+.explore-ai-question-list strong {
+  color: var(--navy);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.explore-ai-question-list button {
+  display: inline-flex;
+  gap: 8px;
+  align-items: center;
+  justify-content: flex-start;
+  min-height: 36px;
+  border: 1px solid rgba(217, 226, 236, 0.9);
+  border-radius: 6px;
+  background: linear-gradient(180deg, #ffffff, #f8fbfc);
+  color: var(--navy);
+  padding: 0 10px;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.explore-ai-question-list button svg {
+  flex: 0 0 auto;
+  color: var(--teal);
+}
+
+.explore-ai-question-form {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+.explore-ai-question-form label {
+  display: grid;
+  min-width: 0;
+}
+
+.explore-ai-question-form textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 78px;
+  resize: vertical;
+  border: 1px solid rgba(217, 226, 236, 0.95);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--ink);
+  padding: 12px;
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.explore-ai-question-form textarea:focus {
+  outline: none;
+  border-color: rgba(15, 118, 110, 0.45);
+  box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.09);
+}
+
+.explore-ai-question-form button {
+  border: 0;
+  background: var(--teal);
+  color: #ffffff;
+  padding: 0 12px;
+}
+
+.explore-ai-error {
+  border: 1px solid rgba(220, 38, 38, 0.2);
+  border-radius: 8px;
+  background: rgba(254, 242, 242, 0.86);
+  color: #991b1b;
+  padding: 10px 12px;
+}
+
+.explore-ai-answer-card {
+  background: linear-gradient(180deg, #ffffff, #f8fbfc);
+}
+
+.explore-ai-recommendations-full {
+  max-height: 620px;
+  overflow-y: auto;
+}
+
+.explore-ai-chat-preview {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+  border: 1px solid rgba(15, 118, 110, 0.18);
+  border-radius: 8px;
+  background: linear-gradient(180deg, rgba(240, 253, 250, 0.78), #ffffff);
+  padding: 12px;
+}
+
+.explore-ai-chat-preview strong {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  color: var(--navy);
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.explore-ai-chat-preview strong svg {
+  color: var(--teal);
+}
+
+.explore-ai-chat-preview p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.explore-ai-chat-preview button {
+  width: 100%;
+  border: 1px solid rgba(15, 118, 110, 0.24);
+  background: #ffffff;
+  color: var(--navy);
+  padding: 0 12px;
+  justify-content: space-between;
+  text-align: left;
+}
+
+.explore-ai-chat-preview button span {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.explore-ai-chat-preview button svg {
+  flex: 0 0 auto;
+  color: var(--teal);
+}
+
+.explore-ai-chat-thread {
+  display: grid;
+  gap: 10px;
+  max-height: 430px;
+  min-height: 180px;
+  overflow-y: auto;
+  border: 1px solid rgba(217, 226, 236, 0.85);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #ffffff, #fbfcfe);
+  padding: 12px;
+}
+
+.explore-ai-chat-message {
+  display: grid;
+  gap: 6px;
+  max-width: 92%;
+  min-width: 0;
+  border: 1px solid rgba(217, 226, 236, 0.9);
+  border-radius: 8px;
+  background: #ffffff;
+  padding: 10px 12px;
+}
+
+.explore-ai-chat-message-user {
+  justify-self: end;
+  border-color: rgba(15, 118, 110, 0.18);
+  background: rgba(240, 253, 250, 0.92);
+}
+
+.explore-ai-chat-message-assistant {
+  justify-self: start;
+}
+
+.explore-ai-chat-message span {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  color: var(--teal);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.explore-ai-chat-message p {
+  color: var(--navy);
+  overflow-wrap: anywhere;
+}
+
+.explore-ai-chat-empty {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 9px;
+  min-height: 150px;
+  text-align: center;
+}
+
+.explore-ai-chat-empty svg {
+  width: 54px;
+  height: 54px;
+  border-radius: 999px;
+  background: rgba(15, 118, 110, 0.08);
+  color: var(--teal);
+  padding: 13px;
+}
+
+.explore-ai-chat-empty strong {
+  color: var(--navy);
+  font-size: 15px;
+  font-weight: 800;
+}
+
+@media (max-width: 1180px) {
+  .explore-ai-panel {
+    position: static;
+  }
+}

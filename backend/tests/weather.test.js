@@ -39,9 +39,9 @@ describe('Weather service Open-Meteo normalization', () => {
     jest.clearAllMocks();
   });
   // Scenario verifies one expected outcome or error path.
-  test('parses useful forecast fields without returning the raw provider response', async () => {
+  test('parses useful current forecast fields without returning the raw provider response', async () => {
     jest.resetModules();
-    const forecastDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const forecastDate = new Date().toISOString().slice(0, 10);
 
     const get = jest
       .fn()
@@ -65,16 +65,11 @@ describe('Weather service Open-Meteo normalization', () => {
           latitude: 35.69,
           longitude: 139.69,
           generationtime_ms: 1.2,
-          daily: {
-            time: [forecastDate],
-            weather_code: [61],
-            temperature_2m_max: [27.2],
-            temperature_2m_min: [21.4],
-            temperature_2m_mean: [24.1],
-            apparent_temperature_mean: [25.3],
-            precipitation_sum: [4.5],
-            precipitation_probability_max: [65],
-            wind_speed_10m_max: [18],
+          current_weather: {
+            time: `${forecastDate}T13:00`,
+            temperature: 24.1,
+            weathercode: 61,
+            windspeed: 18,
           },
         },
       });
@@ -95,14 +90,14 @@ describe('Weather service Open-Meteo normalization', () => {
     expect(weather.source).toBe('Open-Meteo Forecast');
     expect(weather.condition).toBe('Light rain');
     expect(weather.temperature).toEqual({
-      min: 21.4,
-      max: 27.2,
+      min: 24.1,
+      max: 24.1,
       mean: 24.1,
       unit: 'C',
     });
     expect(weather.precipitation).toEqual({
-      amountMm: 4.5,
-      probability: 65,
+      amountMm: null,
+      probability: null,
     });
     expect(weather).not.toHaveProperty('daily');
     expect(weather).not.toHaveProperty('generationtime_ms');
@@ -110,19 +105,15 @@ describe('Weather service Open-Meteo normalization', () => {
   // Scenario verifies one expected outcome or error path.
   test('uses supplied coordinates when a place name is not geocodable', async () => {
     jest.resetModules();
-    const forecastDate = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    const forecastDate = new Date().toISOString().slice(0, 10);
 
     const get = jest.fn().mockResolvedValue({
       data: {
-        daily: {
-          time: [forecastDate],
-          weather_code: [0],
-          temperature_2m_max: [30],
-          temperature_2m_min: [22],
-          temperature_2m_mean: [26],
-          precipitation_sum: [0],
-          precipitation_probability_max: [5],
-          wind_speed_10m_max: [12],
+        current_weather: {
+          time: `${forecastDate}T12:00`,
+          temperature: 26,
+          weathercode: 0,
+          windspeed: 12,
         },
       },
     });
@@ -147,6 +138,111 @@ describe('Weather service Open-Meteo normalization', () => {
     expect(weather.available).toBe(true);
     expect(weather.location.label).toBe('KLCC Aquaria');
     expect(weather.condition).toBe('Clear');
+  });
+  // Scenario verifies near future dates use the Open-Meteo Forecast API daily endpoint.
+  test('uses Open-Meteo forecast daily data for future dates within 16 days', async () => {
+    jest.resetModules();
+    const futureDate = new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+    const get = jest
+      .fn()
+      .mockResolvedValueOnce({
+        data: {
+          results: [
+            {
+              name: 'Singapore',
+              country: 'Singapore',
+              country_code: 'SG',
+              admin1: '',
+              latitude: 1.3521,
+              longitude: 103.8198,
+              timezone: 'Asia/Singapore',
+            },
+          ],
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          daily: {
+            time: [futureDate],
+            weather_code: [80],
+            temperature_2m_max: [31],
+            temperature_2m_min: [25],
+            precipitation_sum: [6],
+          },
+        },
+      });
+
+    jest.doMock('axios', () => ({ get }));
+    jest.doMock('../src/config/env', () => ({
+      nodeEnv: 'development',
+      openMeteoDailyLimit: 500,
+    }));
+    jest.doMock('../src/modules/apiLogs/apiLog.service', () => ({
+      recordEvent: jest.fn().mockResolvedValue({}),
+    }));
+
+    const weatherService = require('../src/modules/explore/weather.service');
+    const weather = await weatherService.getWeatherByDestination('Singapore', futureDate);
+
+    expect(get.mock.calls[1][0]).toBe('https://api.open-meteo.com/v1/forecast');
+    expect(get.mock.calls[1][1].params.daily).toBe('weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum');
+    expect(weather.available).toBe(true);
+    expect(weather.forecastType).toBe('forecast');
+    expect(weather.precipitation.amountMm).toBe(6);
+  });
+  // Scenario verifies future dates use the Open-Meteo Seasonal API.
+  test('uses Open-Meteo seasonal data for future trip dates', async () => {
+    jest.resetModules();
+    const futureDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+    const get = jest
+      .fn()
+      .mockResolvedValueOnce({
+        data: {
+          results: [
+            {
+              name: 'Singapore',
+              country: 'Singapore',
+              country_code: 'SG',
+              admin1: '',
+              latitude: 1.3521,
+              longitude: 103.8198,
+              timezone: 'Asia/Singapore',
+            },
+          ],
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          daily: {
+            time: [futureDate],
+            weather_code: [3],
+            temperature_2m_max: [31],
+            temperature_2m_min: [25],
+            temperature_2m_mean: [28],
+            precipitation_sum: [2],
+            wind_speed_10m_max: [14],
+          },
+        },
+      });
+
+    jest.doMock('axios', () => ({ get }));
+    jest.doMock('../src/config/env', () => ({
+      nodeEnv: 'development',
+      openMeteoDailyLimit: 500,
+    }));
+    jest.doMock('../src/modules/apiLogs/apiLog.service', () => ({
+      recordEvent: jest.fn().mockResolvedValue({}),
+    }));
+
+    const weatherService = require('../src/modules/explore/weather.service');
+    const weather = await weatherService.getWeatherByDestination('Singapore', futureDate);
+
+    expect(get.mock.calls[1][0]).toBe('https://seasonal-api.open-meteo.com/v1/seasonal');
+    expect(weather.available).toBe(true);
+    expect(weather.source).toBe('Open-Meteo Seasonal Forecast');
+    expect(weather.forecastType).toBe('seasonal');
   });
   // Scenario verifies one expected outcome or error path.
   test('uses Open-Meteo archive data for past trip dates', async () => {
@@ -177,8 +273,6 @@ describe('Weather service Open-Meteo normalization', () => {
             temperature_2m_max: [31],
             temperature_2m_min: [25],
             temperature_2m_mean: [28],
-            precipitation_sum: [8],
-            wind_speed_10m_max: [10],
           },
         },
       });
@@ -200,7 +294,7 @@ describe('Weather service Open-Meteo normalization', () => {
     expect(weather.source).toBe('Open-Meteo Historical Weather');
     expect(weather.condition).toBe('Rain');
     expect(weather.precipitation).toEqual({
-      amountMm: 8,
+      amountMm: 0,
       probability: null,
     });
   });

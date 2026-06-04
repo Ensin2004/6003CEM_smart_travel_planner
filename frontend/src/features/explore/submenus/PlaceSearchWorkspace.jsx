@@ -5,6 +5,7 @@
 import {
   Building2,
   CalendarDays,
+  CloudLightning,
   CloudSun,
   Droplets,
   LoaderCircle,
@@ -20,7 +21,7 @@ import { getVisitedPlaces } from '../../../api/visitedPlaceApi';
 import PlaceCard from '../../../components/place/PlaceCard';
 import { buildVisitedLookup, getVisitedPlacePayload } from '../../../components/visitedPlaces/visitedPlaceUtils';
 import { attractionCategoryOptions, foodCategoryOptions, roomTypeOptions } from '../explore.constants';
-import { formatTemperature, formatWeatherDate, getDateKey, getMaxWeatherDate } from '../explore.helpers';
+import { formatPercent, formatSpeed, formatTemperature, formatWeatherDate, getDateKey, getMaxWeatherDate, getMinWeatherDate } from '../explore.helpers';
 // PlaceSearchWorkspace renders the main screen and handles nearby interactions.
 function PlaceSearchWorkspace({
   activeAi,
@@ -36,7 +37,6 @@ function PlaceSearchWorkspace({
   getConvertedPriceText,
   getOriginalPriceText,
   handleCountryChange,
-  handleGenerateAiRecommendations,
   handleLoadMoreFilteredItems,
   handleSearch,
   handleTravelDateChange,
@@ -63,6 +63,7 @@ function PlaceSearchWorkspace({
   selectedAttractionCategoryLabel,
   selectedFoodCategory,
   selectedFoodCategoryLabel,
+  selectedCurrency,
   selectedRoomLabel,
   selectedRoomType,
   stateOptions,
@@ -71,7 +72,6 @@ function PlaceSearchWorkspace({
   travelDate,
   updateDestinationQuery,
   updateFilterField,
-  weatherLocationLabel,
 }) {
   const [visitedPlaces, setVisitedPlaces] = useState([]);
   const visitedLookup = useMemo(() => buildVisitedLookup(visitedPlaces), [visitedPlaces]);
@@ -92,6 +92,19 @@ function PlaceSearchWorkspace({
     : isFoodView
       ? 'explore-search explore-search-restaurants'
       : 'explore-search explore-search-attractions';
+  const weatherTemperature = activeWeather?.available ? formatTemperature(activeWeather.temperature?.mean) : '--';
+  const weatherCondition = activeWeather?.available ? activeWeather.condition : 'Weather data unavailable';
+  const weatherRain = activeWeather?.available
+    ? Number.isFinite(Number(activeWeather.precipitation?.probability))
+      ? `${formatPercent(activeWeather.precipitation.probability)} rain`
+      : Number.isFinite(Number(activeWeather.precipitation?.amountMm))
+        ? `${Number(activeWeather.precipitation.amountMm).toFixed(1)} mm rain`
+        : '-- rain'
+    : '-- rain';
+  const weatherWind = activeWeather?.available ? formatSpeed(activeWeather.windSpeed?.max, activeWeather.windSpeed?.unit || 'km/h') : '--';
+  const weatherTip = activeWeather?.available
+    ? activeWeather.travelTip
+    : 'Live weather could not be reached. Search results are still available while the forecast refreshes.';
 
   useEffect(() => {
     let isActive = true;
@@ -152,7 +165,7 @@ function PlaceSearchWorkspace({
             <input
               type="date"
               value={travelDate}
-              min={getDateKey()}
+              min={getMinWeatherDate()}
               max={getMaxWeatherDate()}
               onChange={(event) => handleTravelDateChange(event.target.value)}
             />
@@ -228,119 +241,159 @@ function PlaceSearchWorkspace({
       {status && <p className="form-success explore-status">{status}</p>}
 
       <section className="explore-briefing" aria-label={`${activeOption.label} travel briefing`}>
-        <div className="explore-stats-row" aria-label={`${activeOption.label} result summary`}>
-          <article>
-            <Search size={17} aria-hidden="true" />
-            <div>
-              <strong>{resultCount || '--'}</strong>
-              <span>{isHotelsView ? 'Hotels loaded' : isFoodView ? 'Restaurants loaded' : 'Places loaded'}</span>
-            </div>
-          </article>
-          <article>
-            <Star size={17} aria-hidden="true" />
-            <div>
-              <strong>{ratedCount || '--'}</strong>
-              <span>Rated results</span>
-            </div>
-          </article>
-          <article>
-            {isHotelsView ? (
-              <Building2 size={17} aria-hidden="true" />
-            ) : isFoodView ? (
-              <Utensils size={17} aria-hidden="true" />
-            ) : (
-              <Sparkles size={17} aria-hidden="true" />
-            )}
-            <div>
-              <strong>{usesPriceMetric ? pricedCount || '--' : topRatedCount || '--'}</strong>
-              <span>{usesPriceMetric ? 'With prices' : 'Highly rated'}</span>
-            </div>
-          </article>
-        </div>
-
-        <div className="explore-guidance-grid">
-          <article className="explore-briefing-card explore-weather-summary">
-            <div className="explore-briefing-title">
-              <CloudSun size={17} aria-hidden="true" />
-              <div>
-                <span>Destination weather</span>
-                <strong>{isWeatherLoading ? 'Checking forecast' : activeWeather?.available ? weatherLocationLabel : 'Ready after search'}</strong>
-              </div>
-            </div>
-            {isWeatherLoading ? (
-              <p className="explore-briefing-text">
-                <LoaderCircle className="explore-spin" size={15} aria-hidden="true" />
-                Checking {formatWeatherDate(travelDate || getDateKey())}
-              </p>
-            ) : activeWeather?.available ? (
-              <>
-                <div className="explore-weather-line">
-                  <strong>{formatTemperature(activeWeather.temperature?.mean)}</strong>
-                  <span>{activeWeather.condition}</span>
+        {hasResults ? (
+          <>
+            <div className="explore-stats-row" aria-label={`${activeOption.label} result summary`}>
+              <article>
+                <Search size={17} aria-hidden="true" />
+                <div>
+                  <strong>{resultCount || '--'}</strong>
+                  <span>{isHotelsView ? 'Hotels loaded' : isFoodView ? 'Restaurants loaded' : 'Places loaded'}</span>
                 </div>
-                <div className="explore-briefing-meta">
-                  <span><Droplets size={14} aria-hidden="true" />{activeWeather.precipitation?.probability ?? '--'}% rain</span>
-                  <span><Wind size={14} aria-hidden="true" />{activeWeather.windSpeed?.max ?? '--'} {activeWeather.windSpeed?.unit || 'km/h'}</span>
+              </article>
+              <article>
+                <Star size={17} aria-hidden="true" />
+                <div>
+                  <strong>{ratedCount || '--'}</strong>
+                  <span>Rated results</span>
                 </div>
-                <p className="explore-briefing-text">{activeWeather.travelTip}</p>
-              </>
-            ) : (
-              <p className="explore-briefing-text">{activeWeather?.message || 'Weather appears after a destination search.'}</p>
-            )}
-          </article>
-
-          <article className="explore-briefing-card explore-briefing-ai">
-            <div className="explore-briefing-title">
-              <Sparkles size={17} aria-hidden="true" />
-              <div>
-                <span>AI guide</span>
-                <strong>{activeAi?.available ? 'Recommended next moves' : 'Travel guidance'}</strong>
-              </div>
-              <button
-                className="explore-ai-action"
-                type="button"
-                onClick={() => handleGenerateAiRecommendations({ manual: true })}
-                disabled={!hasResults || isAiLoading}
-              >
-                {isAiLoading ? <LoaderCircle className="explore-spin" size={15} aria-hidden="true" /> : <Sparkles size={15} aria-hidden="true" />}
-                {isAiLoading ? 'Preparing' : activeAi?.available ? 'Refresh' : activeAi ? 'Retry' : 'Prepare'}
-              </button>
-            </div>
-            {isAiLoading ? (
-              <p className="explore-briefing-text">Reviewing ratings, prices, hours, and weather.</p>
-            ) : activeAi?.available ? (
-              <>
-                <p className="explore-briefing-main">{activeAi.summary}</p>
-                {activeAi.picks?.length > 0 && (
-                  <details className="explore-ai-details">
-                    <summary>{activeAi.picks.length} recommended pick{activeAi.picks.length === 1 ? '' : 's'}</summary>
-                    <div className="explore-ai-picks">
-                      {activeAi.picks.map((pick) => (
-                        <article key={`${pick.itemName}-${pick.score}`}>
-                          <div>
-                            <strong>{pick.itemName}</strong>
-                            <span>{pick.score}/100</span>
-                          </div>
-                          <p>{pick.reason}</p>
-                          <small>{pick.bestFor}{pick.caution ? ` - ${pick.caution}` : ''}</small>
-                        </article>
-                      ))}
-                    </div>
-                  </details>
+              </article>
+              <article>
+                {isHotelsView ? (
+                  <Building2 size={17} aria-hidden="true" />
+                ) : isFoodView ? (
+                  <Utensils size={17} aria-hidden="true" />
+                ) : (
+                  <Sparkles size={17} aria-hidden="true" />
                 )}
-              </>
-            ) : (
-              <p className="explore-briefing-text">{activeAi?.message || 'Loads after results are ready.'}</p>
-            )}
-          </article>
-        </div>
+                <div>
+                  <strong>{usesPriceMetric ? pricedCount || '--' : topRatedCount || '--'}</strong>
+                  <span>{usesPriceMetric ? 'With prices' : 'Highly rated'}</span>
+                </div>
+              </article>
+            </div>
+
+            <div className="explore-guidance-grid">
+              <article className="explore-briefing-card explore-weather-summary">
+                <div className="explore-briefing-title">
+                  <CloudSun size={17} aria-hidden="true" />
+                  <div>
+                    <span>Destination weather</span>
+                    {!activeWeather?.available && <strong>{isWeatherLoading ? 'Checking forecast' : 'Current location or search area'}</strong>}
+                  </div>
+                </div>
+                {isWeatherLoading ? (
+                  <p className="explore-briefing-text">
+                    <LoaderCircle className="explore-spin" size={15} aria-hidden="true" />
+                    Checking {formatWeatherDate(travelDate || getDateKey())}
+                  </p>
+                ) : activeWeather ? (
+                  <>
+                    <div className="explore-weather-current">
+                      <CloudLightning className="explore-weather-current-icon" size={64} aria-hidden="true" />
+                      <div className="explore-weather-current-detail">
+                        <div className="explore-weather-line">
+                          <strong>{weatherTemperature}</strong>
+                          <span>{weatherCondition}</span>
+                        </div>
+                        <div className="explore-briefing-meta explore-weather-metrics">
+                          <span><Droplets size={14} aria-hidden="true" />{weatherRain}</span>
+                          <span><Wind size={14} aria-hidden="true" />{weatherWind}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <p className="explore-briefing-text">{weatherTip}</p>
+                  </>
+                ) : (
+                  <p className="explore-briefing-text">Checking weather for the current location or selected search area.</p>
+                )}
+              </article>
+
+              <article className="explore-briefing-card explore-quick-tips-card">
+                <div className="explore-briefing-title">
+                  <Sparkles size={17} aria-hidden="true" />
+                  <div>
+                    <span>Quick tips</span>
+                    <strong>{activeAi?.available ? 'Search-aware tips' : 'Planning tips'}</strong>
+                  </div>
+                </div>
+                {isAiLoading ? (
+                  <p className="explore-briefing-text">Preparing tips from ratings, prices, hours, and weather.</p>
+                ) : activeAi?.available ? (
+                  <ul className="explore-quick-tips-list">
+                    <li>{activeAi.summary}</li>
+                    {activeAi.picks?.slice(0, 2).map((pick) => (
+                      <li key={`${pick.itemName}-${pick.score}`}>{pick.bestFor || pick.reason}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <ul className="explore-quick-tips-list">
+                    <li>Check weather before selecting outdoor stops.</li>
+                    <li>Compare rating, price, and opening status before saving.</li>
+                    <li>Refresh AI insights after search results load.</li>
+                  </ul>
+                )}
+              </article>
+            </div>
+          </>
+        ) : (
+          <div className="explore-presearch-grid">
+            <article className="explore-presearch-card explore-presearch-weather">
+              <div className="explore-briefing-title">
+                <CloudSun size={17} aria-hidden="true" />
+                <div>
+                  <span>Destination weather</span>
+                </div>
+              </div>
+              <div className="explore-presearch-center">
+                {isWeatherLoading ? (
+                  <>
+                    <LoaderCircle className="explore-spin" size={32} aria-hidden="true" />
+                    <h3>Checking current location weather</h3>
+                    <p>Weather will update automatically for a selected country, state, or search area.</p>
+                  </>
+                ) : activeWeather ? (
+                  <>
+                    <CloudLightning className="explore-weather-current-icon" size={52} aria-hidden="true" />
+                    <h3>{weatherTemperature} {weatherCondition}</h3>
+                    <p>{weatherTip}</p>
+                  </>
+                ) : (
+                  <>
+                    <CloudSun size={52} aria-hidden="true" />
+                    <h3>Checking current location weather</h3>
+                    <p>Weather will update automatically for a selected country, state, or search area.</p>
+                  </>
+                )}
+              </div>
+            </article>
+
+            <article className="explore-presearch-card explore-presearch-tips">
+              <div className="explore-briefing-title">
+                <Sparkles size={17} aria-hidden="true" />
+                <div>
+                  <span>Quick tips</span>
+                </div>
+              </div>
+              <div className="explore-presearch-center">
+                <Sparkles size={52} aria-hidden="true" />
+                <h3>Planning tips ready after search</h3>
+                <ul className="explore-quick-tips-list">
+                  <li>Check weather before selecting outdoor stops.</li>
+                  <li>Compare rating, price, and opening status before saving.</li>
+                  <li>Use the right Ask AI panel for follow-up questions.</li>
+                </ul>
+              </div>
+            </article>
+          </div>
+        )}
       </section>
 
       <section className="explore-results-shell">
         <div className="explore-results-heading">
           <div>
             <span>{searchConfig.resultLabel}</span>
-            <h3>{hasResults ? `${isHotelsView ? 'Rooms' : isFoodView ? 'Food' : 'Places'} for ${destinationLabel}` : 'Ready when you are'}</h3>
+            <h3>{hasResults ? `${isHotelsView ? 'Rooms' : isFoodView ? 'Food' : 'Places'} for ${destinationLabel}` : searchConfig.resultLabel}</h3>
           </div>
           <small>{hasResults ? `${resultCount} ${searchConfig.matchesLabel}` : searchConfig.readyText}</small>
         </div>
@@ -355,7 +408,7 @@ function PlaceSearchWorkspace({
               ) : (
                 <MapPinned size={34} aria-hidden="true" />
               )}
-              <h3>{searchConfig.emptyTitle}</h3>
+              <h3>No results yet</h3>
               <p>{searchConfig.emptyText}</p>
             </div>
           ) : (
@@ -386,6 +439,7 @@ function PlaceSearchWorkspace({
                 onVisitedChange={handleVisitedChange}
                 originalPriceText={getOriginalPriceText(item)}
                 returnState={detailReturnState}
+                selectedCurrency={selectedCurrency}
                 type={cardType}
                 visitedDefaultDate={travelDate || getDateKey()}
                 visitedRecord={

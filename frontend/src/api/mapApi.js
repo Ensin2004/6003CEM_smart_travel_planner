@@ -225,6 +225,19 @@ export const getMapWeather = async ({ destination, date, latitude, longitude, lo
   return response.data.data.weather;
 };
 
+// Reverse geocode keeps provider keys on the backend while the browser supplies coordinates.
+export const getReverseGeocodeLocation = async ({ latitude, longitude }, options = {}) => {
+  const response = await axiosClient.get('/map/reverse-geocode', {
+    params: {
+      latitude,
+      longitude,
+    },
+    signal: options.signal,
+  });
+
+  return response.data.data.location;
+};
+
 const toRadians = (degrees) => degrees * (Math.PI / 180);
 
 // The haversine calculation is used when OSRM cannot provide a route for the selected travel mode.

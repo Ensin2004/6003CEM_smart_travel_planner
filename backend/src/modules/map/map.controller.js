@@ -40,5 +40,13 @@ const getMapWeather = catchAsync(async (req, res) => {
 
   sendSuccess(res, 200, { weather });
 });
+const getReverseGeocodeLocation = catchAsync(async (req, res) => {
+  const location = await mapService.getReverseGeocodeLocation({
+    latitude: req.query.latitude,
+    longitude: req.query.longitude,
+  });
 
-module.exports = { getMapPlaces, getMapPlaceDetails, getMapWeather };
+  sendSuccess(res, 200, { location });
+});
+
+module.exports = { getMapPlaces, getMapPlaceDetails, getMapWeather, getReverseGeocodeLocation };

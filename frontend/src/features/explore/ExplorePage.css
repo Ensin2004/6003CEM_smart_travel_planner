@@ -8,6 +8,19 @@
   text-align: left;
   isolation: isolate;
 }
+.explore-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  gap: 18px;
+  align-items: start;
+}
+
+.explore-main-column {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
 .explore-hero {
   position: relative;
   display: grid;
@@ -168,6 +181,10 @@
 }
 
 @media (max-width: 900px) {
+  .explore-shell {
+    grid-template-columns: 1fr;
+  }
+
   .explore-hero {
     grid-template-columns: 1fr;
   }

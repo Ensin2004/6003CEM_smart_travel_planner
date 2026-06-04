@@ -23,13 +23,16 @@ const fallbackRestaurants = (filters, message = 'Restaurants temporarily unavail
   hasMore: false,
 });
 // Normalize Restaurant prepares incoming data for consistent storage.
-const normalizeRestaurant = (item = {}, index) => ({
+const normalizeRestaurant = (item = {}, index, filters = {}) => ({
   ...normalizePlaceItem(item, index, {
     name: 'Untitled restaurant',
     category: 'Restaurant',
   }),
   price: getText(item.price || item.price_level),
-  priceDetail: getPriceDetail(item.price || item.price_level),
+  priceDetail: getPriceDetail(item.price || item.price_level, {
+    ...filters,
+    address: item.address,
+  }),
 });
 // Normalize Filters prepares incoming data for consistent storage.
 const normalizeFilters = (filters = {}) => ({
@@ -75,7 +78,7 @@ const getRestaurantsByDestination = async (filters) => {
       query: getRestaurantQuery(normalizedFilters),
       start: normalizedFilters.start,
       metadata: normalizedFilters,
-      mapItem: normalizeRestaurant,
+      mapItem: (item, index) => normalizeRestaurant(item, index, normalizedFilters),
     });
   } catch (error) {
     const { message, statusCode } = getGoogleMapsFailureMessage(error);
