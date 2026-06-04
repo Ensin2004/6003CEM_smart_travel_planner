@@ -53,7 +53,17 @@ const weatherRules = [
   optionalFilterRule('locationLabel'),
 ];
 
-const attractionRules = [destinationRule];
+const attractionRules = [
+  optionalDestinationRule,
+  optionalFilterRule('country'),
+  optionalFilterRule('state'),
+  optionalFilterRule('attractionCategory'),
+  optionalStartRule,
+  requireAnySearchValue(
+    ['destination', 'country', 'state', 'attractionCategory'],
+    'Enter an attraction name, country, location, or category first.'
+  ),
+];
 
 const attractionDetailRules = [
   optionalFilterRule('name'),

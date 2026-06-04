@@ -15,11 +15,12 @@ const {
 } = require('./googleMaps.service');
 
 const attractionsCache = new Map();
-const fallbackAttractions = (destination, message = 'Attractions temporarily unavailable') => ({
+const fallbackAttractions = (filters, message = 'Attractions temporarily unavailable') => ({
   available: false,
-  destination,
+  ...filters,
   message,
   items: [],
+  hasMore: false,
 });
 // Normalize Attraction prepares incoming data for consistent storage.
 const normalizeAttraction = (item = {}, index) => ({
@@ -30,20 +31,61 @@ const normalizeAttraction = (item = {}, index) => ({
   price: getText(item.price || item.price_level),
   priceDetail: getPriceDetail(item.price || item.price_level),
 });
-const getAttractionsByDestination = async (destination, start = 0) => {
-  const normalizedDestination = (destination || '').trim();
+const normalizeFilters = (filters = {}) => {
+  if (typeof filters === 'string') {
+    return {
+      destination: filters.trim(),
+      country: '',
+      state: '',
+      attractionCategory: '',
+      start: 0,
+    };
+  }
 
+  return {
+    destination: (filters.destination || '').trim(),
+    country: (filters.country || '').trim(),
+    state: (filters.state || '').trim(),
+    attractionCategory: (filters.attractionCategory || '').trim(),
+    start: Math.max(Number(filters.start) || 0, 0),
+  };
+};
+const hasAttractionSearchInput = ({ destination, country, state, attractionCategory }) =>
+  Boolean(destination || country || state || attractionCategory);
+const getAttractionQuery = ({ destination, country, state, attractionCategory }) => {
+  const category = attractionCategory || 'tourist attractions';
+  const location = [state, country].filter(Boolean).join(', ');
+
+  if (destination && location) {
+    return `${category} in ${destination}, ${location}`;
+  }
+
+  if (destination) {
+    return `${category} in ${destination}`;
+  }
+
+  if (location) {
+    return `${category} in ${location}`;
+  }
+
+  return category;
+};
+const getAttractionsByDestination = async (filters) => {
+  const normalizedFilters = normalizeFilters(filters);
+
+  if (!hasAttractionSearchInput(normalizedFilters)) {
+    return fallbackAttractions(normalizedFilters, 'Enter an attraction name, country, location, or category first.');
+  }
   if (!env.serpApiKey || env.nodeEnv === 'test') {
-    return fallbackAttractions(normalizedDestination, 'SerpApi key is not configured');
+    return fallbackAttractions(normalizedFilters, 'SerpApi key is not configured');
   }
   try {
-    const pageStart = Math.max(Number(start) || 0, 0);
     const attractions = await searchGoogleMaps({
       cache: attractionsCache,
-      cacheKey: `${normalizedDestination.toLowerCase()}:${pageStart}`,
-      query: `tourist attractions in ${normalizedDestination}`,
-      start: pageStart,
-      metadata: { destination: normalizedDestination },
+      cacheKey: JSON.stringify(normalizedFilters).toLowerCase(),
+      query: getAttractionQuery(normalizedFilters),
+      start: normalizedFilters.start,
+      metadata: normalizedFilters,
       mapItem: normalizeAttraction,
     });
 
@@ -51,8 +93,8 @@ const getAttractionsByDestination = async (destination, start = 0) => {
     return publicAttractions;
   } catch (error) {
     const { message, statusCode } = getGoogleMapsFailureMessage(error);
-    recordGoogleMapsFailure('attractions', message, statusCode, { destination: normalizedDestination });
-    return fallbackAttractions(normalizedDestination, message);
+    recordGoogleMapsFailure('attractions', message, statusCode, normalizedFilters);
+    return fallbackAttractions(normalizedFilters, message);
   }
 };
 const getWikipediaPageSummary = async (title) => {

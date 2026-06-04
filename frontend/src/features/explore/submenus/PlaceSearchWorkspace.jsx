@@ -19,7 +19,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { getVisitedPlaces } from '../../../api/visitedPlaceApi';
 import PlaceCard from '../../../components/place/PlaceCard';
 import { buildVisitedLookup, getVisitedPlacePayload } from '../../../components/visitedPlaces/visitedPlaceUtils';
-import { foodCategoryOptions, roomTypeOptions } from '../explore.constants';
+import { attractionCategoryOptions, foodCategoryOptions, roomTypeOptions } from '../explore.constants';
 import { formatTemperature, formatWeatherDate, getDateKey, getMaxWeatherDate } from '../explore.helpers';
 // PlaceSearchWorkspace renders the main screen and handles nearby interactions.
 function PlaceSearchWorkspace({
@@ -45,6 +45,7 @@ function PlaceSearchWorkspace({
   isItemFavorite,
   detailReturnState,
   isAiLoading,
+  isAttractionsView,
   isFilteredSearchView,
   isFoodView,
   isHotelsView,
@@ -58,6 +59,8 @@ function PlaceSearchWorkspace({
   ratedCount,
   resultCount,
   searchConfig,
+  selectedAttractionCategory,
+  selectedAttractionCategoryLabel,
   selectedFoodCategory,
   selectedFoodCategoryLabel,
   selectedRoomLabel,
@@ -75,6 +78,15 @@ function PlaceSearchWorkspace({
   const cardType = isHotelsView ? 'hotels' : isFoodView ? 'food' : 'attractions';
   const visitedType = isHotelsView ? 'hotel' : isFoodView ? 'restaurant' : 'attraction';
   const visitedSource = `explore-${cardType}`;
+  const usesPriceMetric = isHotelsView || isFoodView;
+  const categoryOptions = isHotelsView ? roomTypeOptions : isFoodView ? foodCategoryOptions : attractionCategoryOptions;
+  const categoryValue = isHotelsView
+    ? activeFilters.roomType
+    : isFoodView
+      ? activeFilters.foodCategory
+      : activeFilters.attractionCategory;
+  const categoryField = isHotelsView ? 'roomType' : isFoodView ? 'foodCategory' : 'attractionCategory';
+  const categoryLabel = isHotelsView ? 'Room type' : isFoodView ? 'Food category' : 'Attraction category';
   const searchClassName = isHotelsView
     ? 'explore-search explore-search-hotels'
     : isFoodView
@@ -122,35 +134,44 @@ function PlaceSearchWorkspace({
               type="search"
               value={destination}
               onChange={(event) => updateDestinationQuery(event.target.value)}
-              placeholder={isHotelsView ? 'Hotel, country or location' : isFoodView ? 'Restaurant, country or location' : 'Tokyo, Paris, Kuala Lumpur'}
+              placeholder={
+                isHotelsView
+                  ? 'Hotel, country or location'
+                  : isFoodView
+                    ? 'Restaurant, country or location'
+                    : 'Attraction, country or location'
+              }
             />
           </label>
         </div>
-        {!isHotelsView && (
-          <div className="explore-search-field explore-search-date">
-            <span className="explore-field-label">Travel date</span>
-            <label>
-              <span className="sr-only">Travel date</span>
-              <CalendarDays size={18} aria-hidden="true" />
-              <input
-                type="date"
-                value={travelDate}
-                min={getDateKey()}
-                max={getMaxWeatherDate()}
-                onChange={(event) => handleTravelDateChange(event.target.value)}
-              />
-            </label>
-          </div>
-        )}
+        <div className="explore-search-field explore-search-date">
+          <span className="explore-field-label">Travel date</span>
+          <label>
+            <span className="sr-only">Travel date</span>
+            <CalendarDays size={18} aria-hidden="true" />
+            <input
+              type="date"
+              value={travelDate}
+              min={getDateKey()}
+              max={getMaxWeatherDate()}
+              onChange={(event) => handleTravelDateChange(event.target.value)}
+            />
+          </label>
+        </div>
         {isFilteredSearchView && (
-          <div className="explore-filter-row explore-search-filters" aria-label={isHotelsView ? 'Hotel filters' : 'Restaurant filters'}>
+          <div
+            className="explore-filter-row explore-search-filters"
+            aria-label={isHotelsView ? 'Hotel filters' : isFoodView ? 'Restaurant filters' : 'Attraction filters'}
+          >
             <div className="explore-filter-control">
               <span className="explore-field-label">Country</span>
               <label className="explore-filter-field">
                 <span className="sr-only">Country</span>
                 <select
                   value={activeFilters.countryCode}
-                  onChange={(event) => handleCountryChange(event.target.value, isFoodView ? 'restaurant' : 'hotel')}
+                  onChange={(event) =>
+                    handleCountryChange(event.target.value, isHotelsView ? 'hotel' : isFoodView ? 'restaurant' : 'attraction')
+                  }
                 >
                   <option value="">Country</option>
                   {countryOptions.map((country) => (
@@ -180,15 +201,15 @@ function PlaceSearchWorkspace({
               </label>
             </div>
             <div className="explore-filter-control">
-              <span className="explore-field-label">{isFoodView ? 'Food category' : 'Room type'}</span>
+              <span className="explore-field-label">{categoryLabel}</span>
               <label className="explore-filter-field">
-                <span className="sr-only">{isFoodView ? 'Food category' : 'Room type'}</span>
+                <span className="sr-only">{categoryLabel}</span>
                 <select
-                  value={isFoodView ? activeFilters.foodCategory : activeFilters.roomType}
-                  onChange={(event) => updateFilterField(isFoodView ? 'foodCategory' : 'roomType', event.target.value)}
+                  value={categoryValue}
+                  onChange={(event) => updateFilterField(categoryField, event.target.value)}
                 >
-                  {(isFoodView ? foodCategoryOptions : roomTypeOptions).map((option) => (
-                    <option key={option.value || (isFoodView ? 'any-food' : 'any-room')} value={option.value}>
+                  {categoryOptions.map((option) => (
+                    <option key={option.value || `any-${cardType}`} value={option.value}>
                       {option.label}
                     </option>
                   ))}
@@ -231,8 +252,8 @@ function PlaceSearchWorkspace({
               <Sparkles size={17} aria-hidden="true" />
             )}
             <div>
-              <strong>{isFilteredSearchView ? pricedCount || '--' : topRatedCount || '--'}</strong>
-              <span>{isFilteredSearchView ? 'With prices' : 'Highly rated'}</span>
+              <strong>{usesPriceMetric ? pricedCount || '--' : topRatedCount || '--'}</strong>
+              <span>{usesPriceMetric ? 'With prices' : 'Highly rated'}</span>
             </div>
           </article>
         </div>
@@ -345,6 +366,8 @@ function PlaceSearchWorkspace({
                     ? selectedRoomLabel
                     : isFoodView && selectedFoodCategory
                       ? selectedFoodCategoryLabel
+                      : isAttractionsView && selectedAttractionCategory
+                        ? selectedAttractionCategoryLabel
                       : item.category
                 }
                 convertedPriceText={getConvertedPriceText(item)}

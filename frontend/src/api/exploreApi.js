@@ -13,8 +13,19 @@ export const searchWeather = ({ destination, date, latitude, longitude, location
       locationLabel,
     },
   });
-export const searchAttractions = (destination) =>
-  axiosClient.get('/explore/attractions', { params: { destination } });
+export const searchAttractions = (filters) => {
+  const params = typeof filters === 'string' ? { destination: filters } : filters;
+
+  return axiosClient.get('/explore/attractions', {
+    params: {
+      destination: params?.destination,
+      country: params?.country,
+      state: params?.state,
+      attractionCategory: params?.attractionCategory,
+      start: params?.start,
+    },
+  });
+};
 export const getAttractionDetails = ({ name, address, dataId, placeId }) =>
   axiosClient.get('/explore/attractions/detail', {
     params: {

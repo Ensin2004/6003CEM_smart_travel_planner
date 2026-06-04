@@ -23,7 +23,7 @@ import {
 } from '../../api/exploreApi';
 import { getFavorites } from '../../api/favoriteApi';
 import CurrencyContext from '../../context/currencyContext';
-import { foodCategoryOptions, roomTypeOptions } from './explore.constants';
+import { attractionCategoryOptions, foodCategoryOptions, roomTypeOptions } from './explore.constants';
 import { formatMoney, getDateKey, getErrorMessage, getPriceConversionKey } from './explore.helpers';
 import AttractionsSubmenu from './submenus/Attractions';
 import RestaurantSubmenu from './submenus/Restaurant';
@@ -57,11 +57,13 @@ function ExplorePage() {
   const currency = useContext(CurrencyContext);
   const activeView = searchParams.get('view') || 'attractions';
   const destination = searchParams.get('q') || '';
-  const [travelDate, setTravelDate] = useState(getDateKey());
   const restoredAttractionState = location.state?.attractionResults ? location.state : null;
-  const [attractions, setAttractions] = useState(restoredAttractionState?.attractionResults || []);
   const restoredHotelState = location.state?.hotelResults ? location.state : null;
   const restoredRestaurantState = location.state?.restaurantResults ? location.state : null;
+  const restoredTravelDate =
+    restoredAttractionState?.travelDate || restoredHotelState?.travelDate || restoredRestaurantState?.travelDate || getDateKey();
+  const [travelDate, setTravelDate] = useState(restoredTravelDate);
+  const [attractions, setAttractions] = useState(restoredAttractionState?.attractionResults || []);
   const [hotels, setHotels] = useState(restoredHotelState?.hotelResults || []);
   const [restaurants, setRestaurants] = useState(restoredRestaurantState?.restaurantResults || []);
   const [weatherByView, setWeatherByView] = useState({
@@ -80,6 +82,12 @@ function ExplorePage() {
     hotels: '',
   });
   const [priceConversions, setPriceConversions] = useState({});
+  const [attractionFilters, setAttractionFilters] = useState({
+    country: restoredAttractionState?.attractionFilters?.country || '',
+    countryCode: restoredAttractionState?.attractionFilters?.countryCode || '',
+    state: restoredAttractionState?.attractionFilters?.state || '',
+    attractionCategory: restoredAttractionState?.attractionFilters?.attractionCategory || '',
+  });
   const [hotelFilters, setHotelFilters] = useState({
     country: restoredHotelState?.hotelFilters?.country || '',
     countryCode: restoredHotelState?.hotelFilters?.countryCode || '',
@@ -92,6 +100,7 @@ function ExplorePage() {
     state: restoredRestaurantState?.restaurantFilters?.state || '',
     foodCategory: restoredRestaurantState?.restaurantFilters?.foodCategory || '',
   });
+  const [attractionSearchCriteria, setAttractionSearchCriteria] = useState(restoredAttractionState?.attractionSearchCriteria || null);
   const [hotelSearchCriteria, setHotelSearchCriteria] = useState(restoredHotelState?.hotelSearchCriteria || null);
   const [favoriteAttractionKeys, setFavoriteAttractionKeys] = useState(restoredAttractionState?.favoriteAttractionKeys || []);
   const [favoriteHotelKeys, setFavoriteHotelKeys] = useState(restoredHotelState?.favoriteHotelKeys || []);
@@ -118,8 +127,10 @@ function ExplorePage() {
     arrivalDate: restoredTrainState?.trainSearch?.arrivalDate || '',
   });
   const [trainResults, setTrainResults] = useState(restoredTrainState?.trainResults || null);
+  const [nextAttractionStart, setNextAttractionStart] = useState(restoredAttractionState?.nextAttractionStart || 0);
   const [nextHotelStart, setNextHotelStart] = useState(restoredHotelState?.nextHotelStart || 0);
   const [nextRestaurantStart, setNextRestaurantStart] = useState(restoredRestaurantState?.nextRestaurantStart || 0);
+  const [hasMoreAttractions, setHasMoreAttractions] = useState(restoredAttractionState?.hasMoreAttractions || false);
   const [hasMoreHotels, setHasMoreHotels] = useState(restoredHotelState?.hasMoreHotels || false);
   const [hasMoreRestaurants, setHasMoreRestaurants] = useState(restoredRestaurantState?.hasMoreRestaurants || false);
   const [status, setStatus] = useState(
@@ -163,10 +174,10 @@ function ExplorePage() {
   const isFoodView = activeOption.id === 'food';
   const isHotelsView = activeOption.id === 'hotels';
   const isTransportationView = activeOption.id === 'transport';
-  const isFilteredSearchView = isHotelsView || isFoodView;
+  const isFilteredSearchView = isAttractionsView || isHotelsView || isFoodView;
   const isSearchView = isAttractionsView || isFilteredSearchView;
   const activeItems = isHotelsView ? hotels : isFoodView ? restaurants : attractions;
-  const activeFilters = isFoodView ? restaurantFilters : hotelFilters;
+  const activeFilters = isHotelsView ? hotelFilters : isFoodView ? restaurantFilters : attractionFilters;
   const activeWeather = weatherByView[activeOption.id];
   const activeAi = aiByView[activeOption.id];
   const isWeatherLoading = weatherLoadingView === activeOption.id;
@@ -190,13 +201,23 @@ function ExplorePage() {
   const selectedRestaurantFoodCategory = restaurantSearchCriteria?.foodCategory ?? restaurantFilters.foodCategory;
   const selectedFoodCategoryLabel =
     foodCategoryOptions.find((option) => option.value === selectedRestaurantFoodCategory)?.label || 'Any';
-  const submittedSearchCriteria = isHotelsView ? hotelSearchCriteria : isFoodView ? restaurantSearchCriteria : null;
+  const selectedAttractionCategory = attractionSearchCriteria?.attractionCategory ?? attractionFilters.attractionCategory;
+  const selectedAttractionCategoryLabel =
+    attractionCategoryOptions.find((option) => option.value === selectedAttractionCategory)?.label || 'Any';
+  const submittedSearchCriteria = isHotelsView
+    ? hotelSearchCriteria
+    : isFoodView
+      ? restaurantSearchCriteria
+      : isAttractionsView
+        ? attractionSearchCriteria
+        : null;
   const filteredSearchLabel = [
     submittedSearchCriteria?.destination ?? destination.trim(),
     submittedSearchCriteria?.state ?? activeFilters.state.trim(),
     submittedSearchCriteria?.country ?? activeFilters.country.trim(),
     isHotelsView && selectedHotelRoomType ? selectedRoomLabel : '',
     isFoodView && selectedRestaurantFoodCategory ? selectedFoodCategoryLabel : '',
+    isAttractionsView && selectedAttractionCategory ? selectedAttractionCategoryLabel : '',
   ]
     .filter(Boolean)
     .join(', ');
@@ -248,11 +269,11 @@ function ExplorePage() {
         }
     : {
         finderLabel: 'Attraction finder',
-        searchTitle: 'Search by destination',
+        searchTitle: 'Search for attractions',
         resultLabel: 'Attraction results',
         emptyTitle: 'No attractions loaded yet',
-        emptyText: 'Search a destination to see attraction cards with photos, ratings, reviews, and addresses.',
-        readyText: 'Search a city to begin',
+        emptyText: 'Search by attraction name, country, location, or category to discover matching attraction cards.',
+        readyText: 'Search text or filters can begin',
         matchesLabel: 'curated matches',
       };
   useEffect(() => {
@@ -353,40 +374,11 @@ function ExplorePage() {
       },
     }));
   };
-  const handleAttractionsSearch = async (event) => {
-    event.preventDefault();
-
-    if (!destination.trim()) {
-      setErrorScope('attractions');
-      setError('Enter a destination first.');
-      return;
-    }
-
-    setIsSearching(true);
-    setErrorScope('attractions');
-    setError('');
-    setStatusScope('attractions');
-    setStatus('');
-
-    try {
-      const response = await searchAttractions(destination.trim());
-      const nextAttractions = response.data.data.attractions;
-      const nextItems = nextAttractions.items || [];
-      setAttractions(nextItems);
-      updateSearchSummary('attractions', nextItems);
-      setStatus(
-        nextAttractions.available
-          ? `Found ${nextItems.length} attraction${nextItems.length === 1 ? '' : 's'} for ${destination.trim()}.`
-          : nextAttractions.message
-      );
-      fetchDestinationWeather('attractions', getWeatherRequest({ destination: destination.trim() }, nextItems));
-    } catch (requestError) {
-      setErrorScope('attractions');
-      setError(getErrorMessage(requestError));
-      setAttractions([]);
-    } finally {
-      setIsSearching(false);
-    }
+  const handleAttractionFilterChange = (field, value) => {
+    setAttractionFilters((currentFilters) => ({
+      ...currentFilters,
+      [field]: value,
+    }));
   };
   const handleHotelFilterChange = (field, value) => {
     setHotelFilters((currentFilters) => ({
@@ -403,7 +395,12 @@ function ExplorePage() {
 
   const handleCountryChange = (countryCode, filterType = 'hotel') => {
     const selectedCountry = countryOptions.find((country) => country.isoCode === countryCode);
-    const updateFilters = filterType === 'restaurant' ? setRestaurantFilters : setHotelFilters;
+    const updateFilters =
+      filterType === 'restaurant'
+        ? setRestaurantFilters
+        : filterType === 'attraction'
+          ? setAttractionFilters
+          : setHotelFilters;
 
     updateFilters((currentFilters) => ({
       ...currentFilters,
@@ -479,6 +476,16 @@ function ExplorePage() {
       setWeatherLoadingView('');
     }
   };
+
+  const getAttractionCriteria = () => ({
+    destination: destination.trim(),
+    country: attractionFilters.country.trim(),
+    state: attractionFilters.state.trim(),
+    attractionCategory: attractionFilters.attractionCategory,
+  });
+
+  const hasAttractionCriteria = (criteria) =>
+    Boolean(criteria.destination || criteria.country || criteria.state || criteria.attractionCategory);
 
   const getHotelCriteria = () => ({
     destination: destination.trim(),
@@ -569,6 +576,28 @@ function ExplorePage() {
     }
   };
 
+  const fetchAttractions = async ({ criteria, start = 0, append = false }) =>
+    fetchFilteredItems({
+      criteria,
+      start,
+      append,
+      hasCriteria: hasAttractionCriteria,
+      emptyMessage: 'Enter an attraction name, country, location, or category first.',
+      search: searchAttractions,
+      responseKey: 'attractions',
+      setItems: setAttractions,
+      setSearchCriteria: setAttractionSearchCriteria,
+      setNextStart: setNextAttractionStart,
+      setHasMore: setHasMoreAttractions,
+      noun: 'attraction',
+      viewId: 'attractions',
+    });
+
+  const handleAttractionsSearch = async (event) => {
+    event.preventDefault();
+    await fetchAttractions({ criteria: getAttractionCriteria() });
+  };
+
   const fetchHotels = async ({ criteria, start = 0, append = false }) =>
     fetchFilteredItems({
       criteria,
@@ -618,14 +647,23 @@ function ExplorePage() {
     fetchHotels({ criteria: hotelSearchCriteria, start: nextHotelStart, append: true });
   };
 
+  const handleLoadMoreAttractions = () => {
+    if (!attractionSearchCriteria) return;
+    fetchAttractions({ criteria: attractionSearchCriteria, start: nextAttractionStart, append: true });
+  };
+
   const handleLoadMoreRestaurants = () => {
     if (!restaurantSearchCriteria) return;
     fetchRestaurants({ criteria: restaurantSearchCriteria, start: nextRestaurantStart, append: true });
   };
 
   const handleSearch = isHotelsView ? handleHotelsSearch : isFoodView ? handleRestaurantsSearch : handleAttractionsSearch;
-  const hasMoreFilteredItems = isHotelsView ? hasMoreHotels : hasMoreRestaurants;
-  const handleLoadMoreFilteredItems = isHotelsView ? handleLoadMoreHotels : handleLoadMoreRestaurants;
+  const hasMoreFilteredItems = isHotelsView ? hasMoreHotels : isFoodView ? hasMoreRestaurants : hasMoreAttractions;
+  const handleLoadMoreFilteredItems = isHotelsView
+    ? handleLoadMoreHotels
+    : isFoodView
+      ? handleLoadMoreRestaurants
+      : handleLoadMoreAttractions;
 
   const handleFlightSearchChange = (field, value) => {
     setFlightSearch((currentSearch) => ({
@@ -910,7 +948,11 @@ function ExplorePage() {
     isWeatherLoading,
   ]);
 
-  const updateActiveFilterField = isFoodView ? handleRestaurantFilterChange : handleHotelFilterChange;
+  const updateActiveFilterField = isHotelsView
+    ? handleHotelFilterChange
+    : isFoodView
+      ? handleRestaurantFilterChange
+      : handleAttractionFilterChange;
   useEffect(() => {
     let isActive = true;
 
@@ -1015,9 +1057,14 @@ function ExplorePage() {
 
   const attractionDetailReturnState = {
     attractionResults: attractions,
+    attractionFilters,
+    attractionSearchCriteria,
     favoriteAttractionKeys,
     attractionWeather: weatherByView.attractions,
     attractionAi: aiByView.attractions,
+    travelDate,
+    hasMoreAttractions,
+    nextAttractionStart,
     returnSearch: searchParams.toString(),
   };
   const hotelDetailReturnState = {
@@ -1027,6 +1074,7 @@ function ExplorePage() {
     favoriteHotelKeys,
     hotelWeather: weatherByView.hotels,
     hotelAi: aiByView.hotels,
+    travelDate,
     hasMoreHotels,
     nextHotelStart,
     returnSearch: searchParams.toString(),
@@ -1038,6 +1086,7 @@ function ExplorePage() {
     favoriteRestaurantKeys,
     restaurantWeather: weatherByView.food,
     restaurantAi: aiByView.food,
+    travelDate,
     hasMoreRestaurants,
     nextRestaurantStart,
     returnSearch: searchParams.toString(),
@@ -1089,6 +1138,7 @@ function ExplorePage() {
     onHotelFavoriteChange: handleHotelFavoriteChange,
     onRestaurantFavoriteChange: handleRestaurantFavoriteChange,
     isAiLoading,
+    isAttractionsView,
     isFilteredSearchView,
     isFoodView,
     isHotelsView,
@@ -1099,6 +1149,8 @@ function ExplorePage() {
     ratedCount,
     resultCount,
     searchConfig,
+    selectedAttractionCategory,
+    selectedAttractionCategoryLabel,
     selectedFoodCategoryLabel,
     selectedRoomLabel,
     selectedFoodCategory: selectedRestaurantFoodCategory,

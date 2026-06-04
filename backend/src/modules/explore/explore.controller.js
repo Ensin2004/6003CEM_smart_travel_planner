@@ -14,7 +14,13 @@ const getWeather = catchAsync(async (req, res) => {
   sendSuccess(res, 200, { weather });
 });
 const getAttractions = catchAsync(async (req, res) => {
-  const attractions = await exploreService.getAttractionsByDestination(req.query.destination);
+  const attractions = await exploreService.getAttractionsByDestination({
+    destination: req.query.destination,
+    country: req.query.country,
+    state: req.query.state,
+    attractionCategory: req.query.attractionCategory,
+    start: req.query.start,
+  });
   sendSuccess(res, 200, { attractions });
 });
 const getAttractionDetail = catchAsync(async (req, res) => {
