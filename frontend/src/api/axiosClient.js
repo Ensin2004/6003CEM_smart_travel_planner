@@ -15,6 +15,7 @@ const getBaseURL = () => {
 };
 
 const baseURL = getBaseURL();
+export const apiBaseURL = baseURL;
 
 const axiosClient = axios.create({
   baseURL,

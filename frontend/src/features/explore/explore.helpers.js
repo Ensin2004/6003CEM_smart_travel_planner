@@ -3,8 +3,13 @@
  * Small utilities keep repeated formatting and transformation logic reusable.
  */
 export const getErrorMessage = (error) =>
-  error.response?.data?.message || error.response?.data?.error || error.message || 'Unable to search right now.';
+  error.response?.data?.errors?.[0]?.message ||
+  error.response?.data?.message ||
+  error.response?.data?.error ||
+  error.message ||
+  'Unable to search right now.';
 export const getDateKey = (date = new Date()) => date.toISOString().slice(0, 10);
+export const getMinWeatherDate = () => '2015-01-01';
 export const getMaxWeatherDate = () => {
   const date = new Date();
   date.setDate(date.getDate() + 214);
@@ -20,6 +25,8 @@ export const formatWeatherDate = (date) =>
   }).format(new Date(`${date}T00:00:00`));
 // Format Temperature converts raw values into readable display text.
 export const formatTemperature = (value) => (Number.isFinite(Number(value)) ? `${Math.round(Number(value))} C` : '--');
+export const formatPercent = (value) => (Number.isFinite(Number(value)) ? `${Math.round(Number(value))}%` : '--');
+export const formatSpeed = (value, unit = 'km/h') => (Number.isFinite(Number(value)) ? `${Number(value).toFixed(1)} ${unit}` : '--');
 // Format Money converts raw values into readable display text.
 export const formatMoney = (amount, currencyCode) =>
   new Intl.NumberFormat(undefined, {

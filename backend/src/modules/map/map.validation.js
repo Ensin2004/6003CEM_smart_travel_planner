@@ -40,6 +40,17 @@ const dateRule = query('date')
   .optional({ checkFalsy: true })
   .isISO8601({ strict: true, strictSeparator: true })
   .withMessage('Travel date must use YYYY-MM-DD format');
+const requireDestinationOrCoordinates = query().custom((_, { req }) => {
+  const hasDestination = Boolean(req.query.destination?.trim());
+  const hasLatitude = req.query.latitude !== undefined && req.query.latitude !== '';
+  const hasLongitude = req.query.longitude !== undefined && req.query.longitude !== '';
+
+  if (hasDestination || (hasLatitude && hasLongitude)) {
+    return true;
+  }
+
+  throw new Error('Destination or current location coordinates are required.');
+});
 
 const mapPlacesRules = [
   categoryRule,
@@ -62,10 +73,15 @@ const mapPlaceDetailsRules = [
 ];
 
 const mapWeatherRules = [
-  query('destination').trim().isLength({ min: 2, max: 120 }).withMessage('Destination is required'),
+  destinationRule,
   dateRule,
   optionalCoordinateRule('latitude', -90, 90),
   optionalCoordinateRule('longitude', -180, 180),
   optionalTextRule('locationLabel', 160),
+  requireDestinationOrCoordinates,
 ];
-module.exports = { mapPlacesRules, mapPlaceDetailsRules, mapWeatherRules };
+const reverseGeocodeRules = [
+  coordinateRule('latitude', -90, 90),
+  coordinateRule('longitude', -180, 180),
+];
+module.exports = { mapPlacesRules, mapPlaceDetailsRules, mapWeatherRules, reverseGeocodeRules };

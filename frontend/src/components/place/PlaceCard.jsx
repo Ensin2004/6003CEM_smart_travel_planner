@@ -5,6 +5,8 @@
 import {
   Building2,
   Check,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   Heart,
   Image,
@@ -21,6 +23,7 @@ import CompareButton from '../compare/CompareButton';
 import VisitedPlaceControl from '../visitedPlaces/VisitedPlaceControl';
 import { getVisitedPlacePayload } from '../visitedPlaces/visitedPlaceUtils';
 import { buildPlaceFavoritePayload } from '../../utils/favoriteUtils';
+import { getPlaceImageSrc } from '../../utils/placeImageProxy';
 import './PlaceCard.css';
 const getOpenStatus = (openState = '') => {
   const normalizedState = openState.toLowerCase();
@@ -34,6 +37,87 @@ const getOpenStatus = (openState = '') => {
   }
 
   return { label: 'Hours unknown', tone: 'unknown' };
+};
+const missingPriceValues = new Set(['', '-', 'price unavailable', 'unavailable', 'not provided']);
+const hasPriceText = (value = '') => !missingPriceValues.has(String(value).trim().toLowerCase());
+const approximateUsdRates = {
+  USD: 1,
+  MYR: 4.7,
+  SGD: 1.35,
+  EUR: 0.92,
+  GBP: 0.79,
+  JPY: 157,
+  THB: 36,
+  IDR: 16200,
+  VND: 25400,
+};
+const getCurrencyForPlace = ({ item = {}, fallbackCurrency = 'USD' }) => {
+  if (item.priceDetail?.currency) return item.priceDetail.currency;
+  return fallbackCurrency || 'USD';
+};
+const formatEstimatedMoney = (amount, currencyCode) =>
+  new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency: currencyCode,
+    maximumFractionDigits: amount >= 1000 ? 0 : 2,
+  }).format(amount);
+const convertEstimateRange = (range, currencyCode) => {
+  const rate = approximateUsdRates[currencyCode] || approximateUsdRates.USD;
+  return range.map((amount) => amount * rate);
+};
+const getEstimatedPriceText = ({ type, category = '', currencyCode = 'USD' }) => {
+  const normalizedCategory = category.toLowerCase();
+  let usdRange = [];
+
+  if (type === 'hotels') {
+    if (normalizedCategory.includes('luxury') || normalizedCategory.includes('suite')) usdRange = [75, 140];
+    else if (normalizedCategory.includes('budget') || normalizedCategory.includes('hostel')) usdRange = [18, 40];
+    else usdRange = [35, 70];
+  }
+
+  if (type === 'food' || type === 'restaurants') {
+    if (normalizedCategory.includes('fine') || normalizedCategory.includes('steak')) usdRange = [14, 35];
+    else if (normalizedCategory.includes('cafe') || normalizedCategory.includes('dessert')) usdRange = [3, 8];
+    else usdRange = [4, 12];
+  }
+
+  if (!usdRange.length) return '';
+
+  const [minimum, maximum] = convertEstimateRange(usdRange, currencyCode);
+  return `${formatEstimatedMoney(minimum, currencyCode)} - ${formatEstimatedMoney(maximum, currencyCode)}`;
+};
+const getImageDedupeKey = (imageUrl = '') => {
+  try {
+    const parsedUrl = new URL(imageUrl);
+    return `${parsedUrl.origin}${parsedUrl.pathname.replace(/=[^/]+$/i, '')}`;
+  } catch {
+    return imageUrl.split('?')[0].replace(/=[^/]+$/i, '');
+  }
+};
+const getUniqueImages = (images = []) => {
+  const seenImageKeys = new Set();
+  const hasGoogleImage = images.some((imageUrl) => {
+    try {
+      return new URL(imageUrl).hostname === 'lh3.googleusercontent.com';
+    } catch {
+      return false;
+    }
+  });
+
+  return images.filter((imageUrl) => {
+    if (!imageUrl) return false;
+    if (hasGoogleImage) {
+      try {
+        if (new URL(imageUrl).hostname === 'serpapi.com') return false;
+      } catch {
+        // Keep non-URL values available to the existing dedupe path.
+      }
+    }
+    const key = getImageDedupeKey(imageUrl);
+    if (seenImageKeys.has(key)) return false;
+    seenImageKeys.add(key);
+    return true;
+  });
 };
 // StarRating renders the main screen and handles nearby interactions.
 function StarRating({ rating }) {
@@ -62,6 +146,7 @@ function PlaceCard({
   categoryLabel,
   originalPriceText,
   convertedPriceText = '',
+  selectedCurrency = 'USD',
   isInitiallyFavorite = false,
   favoriteRecord,
   onFavoriteChange,
@@ -73,16 +158,18 @@ function PlaceCard({
 }) {
   const navigate = useNavigate();
   const galleryImages = useMemo(() => {
-    if (item.imageUrls?.length) return item.imageUrls;
-    if (item.imageUrl) return [item.imageUrl];
-    return [];
+    const imageCandidates = item.imageUrls?.length ? [item.imageUrl, ...item.imageUrls] : [item.imageUrl];
+    return getUniqueImages(imageCandidates);
   }, [item.imageUrl, item.imageUrls]);
   const [failedImages, setFailedImages] = useState(() => new Set());
   const visibleImages = useMemo(
     () => galleryImages.filter((imageUrl) => imageUrl && !failedImages.has(imageUrl)),
     [failedImages, galleryImages]
   );
-  const primaryImage = visibleImages[0];
+  const [activeImageIndex, setActiveImageIndex] = useState(0);
+  const normalizedImageIndex = activeImageIndex % Math.max(visibleImages.length, 1);
+  const primaryImage = visibleImages[normalizedImageIndex];
+  const primaryImageSrc = getPlaceImageSrc(primaryImage);
   const openStatus = getOpenStatus(item.openState);
   const isHotelCard = type === 'hotels';
   const isFoodCard = type === 'food' || type === 'restaurants';
@@ -109,8 +196,19 @@ function PlaceCard({
       <MapPinned size={16} aria-hidden="true" />
     );
   const categoryText = categoryLabel || item.category || item.type || 'Place';
-  const originalPrice = originalPriceText || item.priceDetail?.display || item.price || 'Price unavailable';
-  const convertedPrice = convertedPriceText || 'Unavailable';
+  const providerOriginalPrice = originalPriceText || item.priceDetail?.display || item.price || '';
+  const hasProviderOriginalPrice = hasPriceText(providerOriginalPrice);
+  const estimateCurrency = getCurrencyForPlace({ item, fallbackCurrency: selectedCurrency });
+  const estimatedPrice = !isAttractionCard && !hasProviderOriginalPrice
+    ? getEstimatedPriceText({ type, category: categoryText, currencyCode: estimateCurrency })
+    : '';
+  const estimatedConvertedPrice = !isAttractionCard && !hasProviderOriginalPrice
+    ? getEstimatedPriceText({ type, category: categoryText, currencyCode: selectedCurrency })
+    : '';
+  const originalPrice = hasProviderOriginalPrice ? providerOriginalPrice : estimatedPrice || '-';
+  const convertedPrice = hasPriceText(convertedPriceText) ? convertedPriceText : estimatedConvertedPrice || '-';
+  const originalPriceLabel = estimatedPrice ? 'AI price estimate' : 'Original price';
+  const convertedPriceLabel = estimatedConvertedPrice && !hasPriceText(convertedPriceText) ? 'AI converted estimate' : 'Converted price';
   const displayHours = item.openState || 'Opening hours unavailable';
   const compareItem = {
     ...item,
@@ -141,6 +239,7 @@ function PlaceCard({
         [stateKey]: item,
         originalPriceText,
         convertedPriceText,
+        selectedCurrency,
         returnState,
       },
     });
@@ -176,6 +275,11 @@ function PlaceCard({
       setIsSavingFavorite(false);
     }
   };
+  const handleImageStep = (event, direction) => {
+    event.stopPropagation();
+    if (visibleImages.length < 2) return;
+    setActiveImageIndex((currentIndex) => (currentIndex + direction + visibleImages.length) % visibleImages.length);
+  };
   return (
     <article
       className={`explore-attraction ${canOpenDetails ? 'is-clickable' : ''}`}
@@ -193,7 +297,7 @@ function PlaceCard({
         {primaryImage ? (
           <img
             className="explore-card-image"
-            src={primaryImage}
+            src={primaryImageSrc}
             alt=""
             loading="lazy"
             onError={() => {
@@ -202,11 +306,40 @@ function PlaceCard({
                 nextImages.add(primaryImage);
                 return nextImages;
               });
+              setActiveImageIndex(0);
             }}
           />
         ) : (
           <div className="explore-attraction-image">
             <Image size={28} aria-hidden="true" />
+          </div>
+        )}
+        {visibleImages.length > 1 && (
+          <div className="explore-card-gallery-controls" aria-label={`${item.name} photos`}>
+            <button type="button" aria-label="Previous photo" onClick={(event) => handleImageStep(event, -1)}>
+              <ChevronLeft size={17} aria-hidden="true" />
+            </button>
+            <span>{normalizedImageIndex + 1} / {visibleImages.length}</span>
+            <button type="button" aria-label="Next photo" onClick={(event) => handleImageStep(event, 1)}>
+              <ChevronRight size={17} aria-hidden="true" />
+            </button>
+          </div>
+        )}
+        {visibleImages.length > 1 && (
+          <div className="explore-card-photo-dots" aria-label={`${item.name} photo position`}>
+            {visibleImages.slice(0, 8).map((imageUrl, dotIndex) => (
+              <button
+                className={normalizedImageIndex === dotIndex ? 'active' : ''}
+                key={`${imageUrl}-dot`}
+                type="button"
+                aria-label={`Show photo ${dotIndex + 1}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setActiveImageIndex(dotIndex);
+                }}
+              />
+            ))}
+            {visibleImages.length > 8 && <span>+{visibleImages.length - 8}</span>}
           </div>
         )}
         <span className="explore-card-rank">#{index + 1}</span>
@@ -242,12 +375,12 @@ function PlaceCard({
         <div className="explore-card-facts" aria-label={`${item.name} details`}>
           <div className="explore-card-price-row">
             <div title={originalPrice}>
+              <span>{originalPriceLabel}</span>
               <strong>{originalPrice}</strong>
-              <span>(Local)</span>
             </div>
             <div title={convertedPrice}>
+              <span>{convertedPriceLabel}</span>
               <strong>{convertedPrice}</strong>
-              <span>(Converted)</span>
             </div>
           </div>
 
@@ -276,7 +409,11 @@ function PlaceCard({
           </p>
         )}
 
-        <div className="explore-card-footer-actions">
+        <div
+          className="explore-card-footer-actions"
+          onClick={(event) => event.stopPropagation()}
+          onKeyDown={(event) => event.stopPropagation()}
+        >
           <VisitedPlaceControl
             payload={visitedPayload}
             visitedRecord={visitedRecord}

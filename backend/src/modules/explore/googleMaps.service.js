@@ -9,6 +9,7 @@ const apiLogService = require('../apiLogs/apiLog.service');
 
 const CACHE_TTL_MS = 30 * 60 * 1000;
 const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_PHOTO_PAGE_LIMIT = 2;
 const dailyUsage = {
   date: '',
   count: 0,
@@ -18,6 +19,11 @@ const serpApiClient = axios.create({
   baseURL: 'https://serpapi.com',
   timeout: 8000,
 });
+const allowedImageHosts = new Set([
+  'lh3.googleusercontent.com',
+  'streetviewpixels-pa.googleapis.com',
+  'serpapi.com',
+]);
 const getText = (value) => {
   if (!value) return '';
   if (typeof value === 'string' || typeof value === 'number') return String(value);
@@ -25,13 +31,13 @@ const getText = (value) => {
 };
 const pickImage = (item = {}) => {
   const image =
-    item.serpapi_thumbnail ||
     item.thumbnail ||
     item.heroImage ||
     item.primaryPhoto ||
     item.photo ||
     item.image ||
-    item.cardPhoto;
+    item.cardPhoto ||
+    item.serpapi_thumbnail;
 
   if (!image) return '';
   if (typeof image === 'string') return image;
@@ -40,7 +46,48 @@ const pickImage = (item = {}) => {
 const getImageUrl = (image) => {
   if (!image) return '';
   if (typeof image === 'string') return image;
-  return image.url || image.photoUrl || image.thumbnailUrl || image.serpapi_thumbnail || image.image || '';
+  return (
+    image.url ||
+    image.photoUrl ||
+    image.photo_url ||
+    image.thumbnailUrl ||
+    image.thumbnail ||
+    image.image ||
+    image.image_url ||
+    image.original ||
+    image.link ||
+    image.source ||
+    image.serpapi_thumbnail ||
+    ''
+  );
+};
+const getImageDedupeKey = (imageUrl) => {
+  try {
+    const parsedUrl = new URL(imageUrl);
+    return `${parsedUrl.origin}${parsedUrl.pathname.replace(/=[^/]+$/i, '')}`;
+  } catch {
+    return imageUrl.split('?')[0].replace(/=[^/]+$/i, '');
+  }
+};
+const flattenImageCandidates = (value) => {
+  if (!value) return [];
+  if (typeof value === 'string') return [value];
+  if (Array.isArray(value)) return value.flatMap(flattenImageCandidates);
+  if (typeof value === 'object') {
+    const directUrl = getImageUrl(value);
+    const nestedImages = [
+      value.images,
+      value.photos,
+      value.items,
+      value.results,
+      value.thumbnails,
+      value.sizes,
+    ].flatMap(flattenImageCandidates);
+
+    return [directUrl, ...nestedImages].filter(Boolean);
+  }
+
+  return [];
 };
 const pickImages = (item = {}) => {
   const candidates = [
@@ -53,13 +100,34 @@ const pickImages = (item = {}) => {
     item.image ? [item.image] : [],
     item.cardPhoto ? [item.cardPhoto] : [],
     item.thumbnail ? [item.thumbnail] : [],
-    item.serpapi_thumbnail ? [item.serpapi_thumbnail] : [],
+    !item.thumbnail && item.serpapi_thumbnail ? [item.serpapi_thumbnail] : [],
   ]
-    .flat()
-    .map(getImageUrl)
+    .flatMap(flattenImageCandidates)
     .filter(Boolean);
 
-  return [...new Set(candidates)];
+  const seenImageKeys = new Set();
+  return candidates.filter((imageUrl) => {
+    const key = getImageDedupeKey(imageUrl);
+    if (seenImageKeys.has(key)) return false;
+    seenImageKeys.add(key);
+    return true;
+  });
+};
+const mergePlaceImages = (place = {}, imageUrls = []) => {
+  const mergedImageUrls = pickImages({
+    ...place,
+    images: [
+      place.imageUrl,
+      place.imageUrls,
+      imageUrls,
+    ],
+  });
+
+  return {
+    ...place,
+    imageUrl: mergedImageUrls[0] || place.imageUrl || '',
+    imageUrls: mergedImageUrls,
+  };
 };
 const getOpeningHours = (item = {}) => {
   if (Array.isArray(item.hours)) return item.hours.filter(Boolean).join(' | ');
@@ -68,12 +136,66 @@ const getOpeningHours = (item = {}) => {
   if (typeof item.operating_hours === 'string') return item.operating_hours;
   return '';
 };
-const getPriceDetail = (price) => {
+const countryCurrencyHints = [
+  [/argentina/i, 'ARS'],
+  [/brazil/i, 'BRL'],
+  [/chile/i, 'CLP'],
+  [/colombia/i, 'COP'],
+  [/mexico/i, 'MXN'],
+  [/malaysia/i, 'MYR'],
+  [/singapore/i, 'SGD'],
+  [/thailand/i, 'THB'],
+  [/indonesia/i, 'IDR'],
+  [/vietnam/i, 'VND'],
+  [/philippines/i, 'PHP'],
+  [/india/i, 'INR'],
+  [/japan/i, 'JPY'],
+  [/south korea|korea/i, 'KRW'],
+  [/china/i, 'CNY'],
+  [/australia/i, 'AUD'],
+  [/canada/i, 'CAD'],
+  [/switzerland/i, 'CHF'],
+  [/united kingdom|england|scotland|wales/i, 'GBP'],
+];
+const inferCurrencyFromContext = (context = {}) => {
+  const locationText = [context.country, context.state, context.destination, context.address]
+    .filter(Boolean)
+    .join(' ');
+  const matchedHint = countryCurrencyHints.find(([pattern]) => pattern.test(locationText));
+  return matchedHint?.[1] || '';
+};
+const parsePriceNumber = (value = '') => {
+  const normalizedValue = String(value).replace(/\s/g, '');
+
+  if (normalizedValue.includes(',') && normalizedValue.includes('.')) {
+    const lastComma = normalizedValue.lastIndexOf(',');
+    const lastDot = normalizedValue.lastIndexOf('.');
+    const decimalSeparator = lastComma > lastDot ? ',' : '.';
+    const thousandsSeparator = decimalSeparator === ',' ? '.' : ',';
+    return Number(normalizedValue.replaceAll(thousandsSeparator, '').replace(decimalSeparator, '.'));
+  }
+
+  if (/^\d{1,3}(?:\.\d{3})+$/.test(normalizedValue)) {
+    return Number(normalizedValue.replaceAll('.', ''));
+  }
+
+  if (/^\d{1,3}(?:,\d{3})+$/.test(normalizedValue)) {
+    return Number(normalizedValue.replaceAll(',', ''));
+  }
+
+  if (/^\d+,\d{1,2}$/.test(normalizedValue)) {
+    return Number(normalizedValue.replace(',', '.'));
+  }
+
+  return Number(normalizedValue.replace(/,/g, ''));
+};
+const getPriceDetail = (price, context = {}) => {
   const text = getText(price);
   if (!text) {
     return null;
   }
 
+  const contextCurrency = inferCurrencyFromContext(context);
   const currencyMatchers = [
     [/RM\s*/i, 'MYR'],
     [/MYR\s*/i, 'MYR'],
@@ -81,7 +203,13 @@ const getPriceDetail = (price) => {
     [/SGD\s*/i, 'SGD'],
     [/US\$\s*/i, 'USD'],
     [/USD\s*/i, 'USD'],
-    [/\$\s*/, 'USD'],
+    [/ARS\s*/i, 'ARS'],
+    [/ARG\$\s*/i, 'ARS'],
+    [/R\$\s*/i, 'BRL'],
+    [/BRL\s*/i, 'BRL'],
+    [/CLP\s*/i, 'CLP'],
+    [/COP\s*/i, 'COP'],
+    [/MXN\s*/i, 'MXN'],
     [/\u20ac\s*/, 'EUR'],
     [/EUR\s*/i, 'EUR'],
     [/\u00a3\s*/, 'GBP'],
@@ -103,11 +231,12 @@ const getPriceDetail = (price) => {
     [/CAD\s*/i, 'CAD'],
     [/CHF\s*/i, 'CHF'],
     [/IDR\s*/i, 'IDR'],
+    [/\$\s*/, contextCurrency || 'USD'],
   ];
   const match = currencyMatchers.find(([pattern]) => pattern.test(text));
-  const amounts = [...text.matchAll(/\d+(?:,\d{3})*(?:\.\d+)?/g)].map((result) =>
-    Number(result[0].replace(/,/g, ''))
-  );
+  const amounts = [...text.matchAll(/\d+(?:[.,]\d+)*/g)]
+    .map((result) => parsePriceNumber(result[0]))
+    .filter((amount) => Number.isFinite(amount));
 
   return {
     display: text,
@@ -257,13 +386,19 @@ const searchGoogleMaps = async ({ cache, cacheKey, query, start = 0, metadata = 
 const normalizeReview = (review = {}, index = 0) => ({
   id: String(review.review_id || review.link || review.user?.link || index),
   author: getText(review.user?.name || review.user || review.author || review.name) || 'Google user',
-  avatarUrl: getText(review.user?.thumbnail || review.thumbnail),
+  authorLink: getText(review.user?.link || review.user?.profile || review.link),
+  avatarUrl: getText(review.user?.thumbnail || review.user?.image || review.user?.avatar || review.profile_photo_url || review.thumbnail),
   rating: Number(review.rating || 0) || null,
   date: getText(review.date || review.iso_date || review.relative_time_description),
   text: getText(review.snippet || review.text || review.review),
   likes: Number(review.likes || 0) || 0,
+  ownerReply: {
+    author: getText(review.response?.author || review.owner_answer?.author || review.reply?.author) || 'Owner response',
+    date: getText(review.response?.date || review.owner_answer?.date || review.reply?.date),
+    text: getText(review.response?.snippet || review.response?.text || review.owner_answer?.snippet || review.owner_answer?.text || review.reply?.text),
+  },
 });
-const searchGoogleMapsReviews = async ({ dataId, placeId, sortBy = 'qualityScore', hl = 'en' }) => {
+const searchGoogleMapsReviews = async ({ dataId, placeId, sortBy = 'qualityScore', hl = 'en', nextPageToken = '' }) => {
   if (!dataId && !placeId) {
     return { available: false, message: 'Google review identifier is unavailable', items: [] };
   }
@@ -273,16 +408,23 @@ const searchGoogleMapsReviews = async ({ dataId, placeId, sortBy = 'qualityScore
     error.isDailyLimit = true;
     throw error;
   }
-  const response = await serpApiClient.get('/search', {
-    params: {
-      engine: 'google_maps_reviews',
-      data_id: dataId,
-      place_id: placeId,
-      sort_by: sortBy,
-      hl,
-      api_key: env.serpApiKey,
-    },
-  });
+  const params = {
+    engine: 'google_maps_reviews',
+    sort_by: sortBy,
+    hl,
+    api_key: env.serpApiKey,
+  };
+  if (dataId) {
+    params.data_id = dataId;
+  } else {
+    params.place_id = placeId;
+  }
+
+  if (nextPageToken) {
+    params.next_page_token = nextPageToken;
+  }
+
+  const response = await serpApiClient.get('/search', { params });
   if (response.data?.error) {
     throw new Error(response.data.error);
   }
@@ -295,12 +437,100 @@ const searchGoogleMapsReviews = async ({ dataId, placeId, sortBy = 'qualityScore
     lastUpdated: new Date().toISOString(),
   };
 };
+const searchGoogleMapsPhotos = async ({ dataId, hl = 'en', maxPages = DEFAULT_PHOTO_PAGE_LIMIT }) => {
+  if (!dataId) {
+    return { available: false, message: 'Google photo identifier is unavailable', imageUrls: [] };
+  }
+
+  const allPhotos = [];
+  let nextPageToken = '';
+  let pageCount = 0;
+
+  do {
+    if (!consumeDailyQuota()) {
+      const error = new Error('Daily travel data API limit reached. Please try again tomorrow.');
+      error.isDailyLimit = true;
+      throw error;
+    }
+
+    const params = {
+      engine: 'google_maps_photos',
+      data_id: dataId,
+      hl,
+      api_key: env.serpApiKey,
+    };
+
+    if (nextPageToken) {
+      params.next_page_token = nextPageToken;
+    }
+
+    const response = await serpApiClient.get('/search', { params });
+    if (response.data?.error) {
+      throw new Error(response.data.error);
+    }
+
+    allPhotos.push(...(response.data?.photos || []));
+    nextPageToken = response.data?.serpapi_pagination?.next_page_token || '';
+    pageCount += 1;
+  } while (nextPageToken && pageCount < maxPages);
+
+  return {
+    available: allPhotos.length > 0,
+    imageUrls: pickImages({ photos: allPhotos }),
+    nextPageToken,
+    lastUpdated: new Date().toISOString(),
+  };
+};
+const fetchGooglePlaceImage = async (imageUrl = '') => {
+  let parsedUrl;
+
+  try {
+    parsedUrl = new URL(imageUrl);
+  } catch {
+    const error = new Error('Invalid image URL');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (parsedUrl.protocol !== 'https:' || !allowedImageHosts.has(parsedUrl.hostname)) {
+    const error = new Error('Image host is not allowed');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const response = await axios.get(parsedUrl.toString(), {
+    responseType: 'stream',
+    timeout: 15000,
+    maxRedirects: 3,
+    headers: {
+      accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+      'user-agent': 'Mozilla/5.0 SmartTravelPlanner/1.0',
+    },
+  });
+  const contentType = response.headers['content-type'] || '';
+
+  if (!contentType.startsWith('image/')) {
+    const error = new Error('Remote URL did not return an image');
+    error.statusCode = 502;
+    throw error;
+  }
+
+  return {
+    stream: response.data,
+    contentType,
+    contentLength: response.headers['content-length'] || '',
+    cacheControl: response.headers['cache-control'] || 'public, max-age=86400',
+  };
+};
 module.exports = {
+  fetchGooglePlaceImage,
   getGoogleMapsFailureMessage,
   getPriceDetail,
   getText,
+  mergePlaceImages,
   normalizePlaceItem,
   recordGoogleMapsFailure,
   searchGoogleMaps,
+  searchGoogleMapsPhotos,
   searchGoogleMapsReviews,
 };

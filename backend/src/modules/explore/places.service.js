@@ -8,51 +8,98 @@ const {
   getGoogleMapsFailureMessage,
   getPriceDetail,
   getText,
+  mergePlaceImages,
   normalizePlaceItem,
   recordGoogleMapsFailure,
   searchGoogleMaps,
+  searchGoogleMapsPhotos,
   searchGoogleMapsReviews,
 } = require('./googleMaps.service');
 
 const attractionsCache = new Map();
-const fallbackAttractions = (destination, message = 'Attractions temporarily unavailable') => ({
+const fallbackAttractions = (filters, message = 'Attractions temporarily unavailable') => ({
   available: false,
-  destination,
+  ...filters,
   message,
   items: [],
+  hasMore: false,
 });
 // Normalize Attraction prepares incoming data for consistent storage.
-const normalizeAttraction = (item = {}, index) => ({
+const normalizeAttraction = (item = {}, index, filters = {}) => ({
   ...normalizePlaceItem(item, index, {
     name: 'Untitled attraction',
     category: 'Attraction',
   }),
   price: getText(item.price || item.price_level),
-  priceDetail: getPriceDetail(item.price || item.price_level),
+  priceDetail: getPriceDetail(item.price || item.price_level, {
+    ...filters,
+    address: item.address,
+  }),
 });
-const getAttractionsByDestination = async (destination, start = 0) => {
-  const normalizedDestination = (destination || '').trim();
+const normalizeFilters = (filters = {}) => {
+  if (typeof filters === 'string') {
+    return {
+      destination: filters.trim(),
+      country: '',
+      state: '',
+      attractionCategory: '',
+      start: 0,
+    };
+  }
 
+  return {
+    destination: (filters.destination || '').trim(),
+    country: (filters.country || '').trim(),
+    state: (filters.state || '').trim(),
+    attractionCategory: (filters.attractionCategory || '').trim(),
+    start: Math.max(Number(filters.start) || 0, 0),
+  };
+};
+const hasAttractionSearchInput = ({ destination, country, state, attractionCategory }) =>
+  Boolean(destination || country || state || attractionCategory);
+const getAttractionQuery = ({ destination, country, state, attractionCategory }) => {
+  const category = attractionCategory || 'tourist attractions';
+  const location = [state, country].filter(Boolean).join(', ');
+
+  if (destination && location) {
+    return `${category} in ${destination}, ${location}`;
+  }
+
+  if (destination) {
+    return `${category} in ${destination}`;
+  }
+
+  if (location) {
+    return `${category} in ${location}`;
+  }
+
+  return category;
+};
+const getAttractionsByDestination = async (filters) => {
+  const normalizedFilters = normalizeFilters(filters);
+
+  if (!hasAttractionSearchInput(normalizedFilters)) {
+    return fallbackAttractions(normalizedFilters, 'Enter an attraction name, country, location, or category first.');
+  }
   if (!env.serpApiKey || env.nodeEnv === 'test') {
-    return fallbackAttractions(normalizedDestination, 'SerpApi key is not configured');
+    return fallbackAttractions(normalizedFilters, 'SerpApi key is not configured');
   }
   try {
-    const pageStart = Math.max(Number(start) || 0, 0);
     const attractions = await searchGoogleMaps({
       cache: attractionsCache,
-      cacheKey: `${normalizedDestination.toLowerCase()}:${pageStart}`,
-      query: `tourist attractions in ${normalizedDestination}`,
-      start: pageStart,
-      metadata: { destination: normalizedDestination },
-      mapItem: normalizeAttraction,
+      cacheKey: JSON.stringify(normalizedFilters).toLowerCase(),
+      query: getAttractionQuery(normalizedFilters),
+      start: normalizedFilters.start,
+      metadata: normalizedFilters,
+      mapItem: (item, index) => normalizeAttraction(item, index, normalizedFilters),
     });
 
     const { query, ...publicAttractions } = attractions;
     return publicAttractions;
   } catch (error) {
     const { message, statusCode } = getGoogleMapsFailureMessage(error);
-    recordGoogleMapsFailure('attractions', message, statusCode, { destination: normalizedDestination });
-    return fallbackAttractions(normalizedDestination, message);
+    recordGoogleMapsFailure('attractions', message, statusCode, normalizedFilters);
+    return fallbackAttractions(normalizedFilters, message);
   }
 };
 const getWikipediaPageSummary = async (title) => {
@@ -160,6 +207,18 @@ const getAttractionDetail = async ({ name, address, dataId, placeId }) => {
       mapItem: normalizeAttraction,
     });
     const item = details.items?.[0] || baseAttraction.item;
+    let imageEnrichedItem = item;
+
+    try {
+      const photos = await searchGoogleMapsPhotos({
+        dataId: dataId || item.dataId,
+      });
+      imageEnrichedItem = mergePlaceImages(item, photos.imageUrls);
+    } catch (photoError) {
+      const photoFailure = getGoogleMapsFailureMessage(photoError);
+      recordGoogleMapsFailure('attraction-detail-photos', photoFailure.message, photoFailure.statusCode, { name, address, dataId: dataId || item.dataId });
+    }
+
     const reviews = await searchGoogleMapsReviews({
       dataId: dataId || item.dataId,
       placeId: placeId || item.placeId,
@@ -169,7 +228,7 @@ const getAttractionDetail = async ({ name, address, dataId, placeId }) => {
       available: true,
       item: {
         ...baseAttraction.item,
-        ...item,
+        ...imageEnrichedItem,
       },
       description: baseAttraction.description,
       reviews,

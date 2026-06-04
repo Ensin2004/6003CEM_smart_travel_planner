@@ -7,32 +7,16 @@ import { convertCurrency, getCurrencies } from '../api/currencyApi';
 import CurrencyContext from './currencyContext';
 
 const DEFAULT_CURRENCY = 'USD';
-const DEFAULT_CURRENCIES = [
-  { code: 'USD', label: 'US Dollar' },
-  { code: 'EUR', label: 'Euro' },
-  { code: 'GBP', label: 'British Pound' },
-  { code: 'MYR', label: 'Malaysian Ringgit' },
-  { code: 'SGD', label: 'Singapore Dollar' },
-  { code: 'JPY', label: 'Japanese Yen' },
-  { code: 'CNY', label: 'Chinese Yuan' },
-  { code: 'KRW', label: 'South Korean Won' },
-  { code: 'THB', label: 'Thai Baht' },
-  { code: 'AUD', label: 'Australian Dollar' },
-  { code: 'CAD', label: 'Canadian Dollar' },
-  { code: 'CHF', label: 'Swiss Franc' },
-  { code: 'INR', label: 'Indian Rupee' },
-  { code: 'IDR', label: 'Indonesian Rupiah' },
-  { code: 'PHP', label: 'Philippine Peso' },
-  { code: 'VND', label: 'Vietnamese Dong' },
-];
 const getSavedCurrency = () => localStorage.getItem('preferredCurrency') || DEFAULT_CURRENCY;
 
 export function CurrencyProvider({ children }) {
   const [selectedCurrency, setSelectedCurrency] = useState(getSavedCurrency);
-  const [currencies, setCurrencies] = useState(DEFAULT_CURRENCIES);
+  const [currencies, setCurrencies] = useState([]);
+  const [isCurrencyListLoading, setIsCurrencyListLoading] = useState(true);
   const [rates, setRates] = useState({ USD: { rate: 1, date: null, cached: true } });
   const [errorMessage, setErrorMessage] = useState('');
   useEffect(() => {
+    setIsCurrencyListLoading(true);
     getCurrencies()
       .then((response) => {
         const nextCurrencies = response.data?.data?.currencies;
@@ -43,6 +27,9 @@ export function CurrencyProvider({ children }) {
       })
       .catch(() => {
         setErrorMessage('Currency list temporarily unavailable.');
+      })
+      .finally(() => {
+        setIsCurrencyListLoading(false);
       });
   }, []);
 
@@ -127,10 +114,11 @@ export function CurrencyProvider({ children }) {
       changeCurrency,
       formatAmount,
       errorMessage,
+      isCurrencyListLoading,
       baseCurrency: DEFAULT_CURRENCY,
       rateDate: rates[selectedCurrency]?.date,
     }),
-    [changeCurrency, currencies, errorMessage, formatAmount, rates, selectedCurrency]
+    [changeCurrency, currencies, errorMessage, formatAmount, isCurrencyListLoading, rates, selectedCurrency]
   );
 
   return <CurrencyContext.Provider value={value}>{children}</CurrencyContext.Provider>;

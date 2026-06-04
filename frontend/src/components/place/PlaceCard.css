@@ -54,6 +54,82 @@
   pointer-events: none;
 }
 
+.explore-card-gallery-controls {
+  position: absolute;
+  z-index: 3;
+  right: 10px;
+  bottom: 10px;
+  display: inline-flex;
+  align-items: center;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.42);
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.72);
+  color: #ffffff;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.18);
+  backdrop-filter: blur(10px);
+}
+
+.explore-card-gallery-controls button {
+  display: inline-grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.explore-card-gallery-controls button:hover {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.explore-card-gallery-controls span {
+  min-width: 48px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.explore-card-photo-dots {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  bottom: 12px;
+  display: inline-flex;
+  max-width: calc(100% - 150px);
+  gap: 5px;
+  align-items: center;
+  transform: translateX(-50%);
+}
+
+.explore-card-photo-dots button {
+  width: 7px;
+  height: 7px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.68);
+  padding: 0;
+  cursor: pointer;
+  transition: background 0.18s ease, transform 0.18s ease, width 0.18s ease;
+}
+
+.explore-card-photo-dots button.active {
+  width: 18px;
+  background: #ffffff;
+  transform: translateY(-1px);
+}
+
+.explore-card-photo-dots span {
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.72);
+  color: #ffffff;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 800;
+}
+
 .explore-attraction-image {
   display: grid;
   place-items: center;
@@ -332,7 +408,7 @@
 
 .explore-card-price-row > div {
   display: grid;
-  gap: 3px;
+  gap: 5px;
   min-width: 0;
   padding: 12px;
 }
@@ -345,8 +421,8 @@
   display: -webkit-box;
   overflow: hidden;
   color: #0f172a;
-  font-size: 14px;
-  font-weight: 650;
+  font-size: 15px;
+  font-weight: 800;
   line-height: 1.32;
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
@@ -354,10 +430,11 @@
 }
 
 .explore-card-price-row span {
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 500;
+  color: var(--teal);
+  font-size: 11px;
+  font-weight: 800;
   line-height: 1.2;
+  text-transform: uppercase;
 }
 
 .explore-address {

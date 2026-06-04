@@ -58,7 +58,7 @@ function AppLayout({ role, menuItems }) {
   const activeLanguage =
     availableLanguages.find((language) => language.value === selectedLanguage) ?? availableLanguages[0];
   const availableCurrencies = currency?.currencies ?? [];
-  const activeCurrency = currency?.activeCurrency ?? availableCurrencies[0];
+  const activeCurrency = currency?.activeCurrency ?? { code: currency?.selectedCurrency || 'USD', label: currency?.selectedCurrency || 'USD' };
 
   const mainMenuItems = menuItems.filter((item) => !item.bottom && !item.hidden && !item.header);
   const accountSettingsItem = menuItems.find((item) => item.bottom && item.children?.length && !item.hidden);
@@ -88,6 +88,10 @@ function AppLayout({ role, menuItems }) {
   );
 
   const currentUrl = `${location.pathname}${location.search}${location.hash}`;
+  const isExploreExperience =
+    location.pathname.startsWith('/explore') ||
+    location.pathname.startsWith('/transportation/trains/service-timetable');
+  const showGlobalAiAssistant = !isAdmin && !isExploreExperience;
   const isItemActive = (item, isExactMatch = false) => {
     const itemUrl = item.to;
     const [itemPath] = itemUrl.split(/[?#]/);
@@ -172,6 +176,11 @@ function AppLayout({ role, menuItems }) {
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isCurrencyPickerOpen, isLanguagePickerOpen, isProfileMenuOpen]);
+  useEffect(() => {
+    if (isExploreExperience) {
+      setIsAiChatOpen(false);
+    }
+  }, [isExploreExperience]);
   const handleLanguageChange = (language) => {
     setSelectedLanguage(language.value);
     setIsLanguagePickerOpen(false);
@@ -314,22 +323,28 @@ function AppLayout({ role, menuItems }) {
                     <p className="currency-helper" translate="no">{currency.errorMessage}</p>
                   )}
                   <div className="currency-options-scroll">
-                    <div className="currency-grid">
-                      {availableCurrencies.map((currencyOption) => (
-                        <button
-                          className={`currency-option ignore notranslate ${
-                            currency?.selectedCurrency === currencyOption.code ? 'is-active' : ''
-                          }`}
-                          type="button"
-                          key={currencyOption.code}
-                          translate="no"
-                          onClick={() => handleCurrencyChange(currencyOption)}
-                        >
-                          <strong translate="no">{currencyOption.code}</strong>
-                          <span translate="no">{currencyOption.label}</span>
-                        </button>
-                      ))}
-                    </div>
+                    {currency?.isCurrencyListLoading ? (
+                      <p className="currency-helper" translate="no">Loading currencies...</p>
+                    ) : availableCurrencies.length ? (
+                      <div className="currency-grid">
+                        {availableCurrencies.map((currencyOption) => (
+                          <button
+                            className={`currency-option ignore notranslate ${
+                              currency?.selectedCurrency === currencyOption.code ? 'is-active' : ''
+                            }`}
+                            type="button"
+                            key={currencyOption.code}
+                            translate="no"
+                            onClick={() => handleCurrencyChange(currencyOption)}
+                          >
+                            <strong translate="no">{currencyOption.code}</strong>
+                            <span translate="no">{currencyOption.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="currency-helper" translate="no">No currencies available from the API.</p>
+                    )}
                   </div>
                 </div>
               )}
@@ -551,10 +566,10 @@ function AppLayout({ role, menuItems }) {
         </main>
       </div>
 
-      {!isAdmin && (
-        <>
-          <CompareTray />
+      <CompareTray />
 
+      {showGlobalAiAssistant && (
+        <>
           <button
             className="app-ai-floating"
             type="button"

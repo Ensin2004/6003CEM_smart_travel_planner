@@ -8,9 +8,11 @@ const {
   getGoogleMapsFailureMessage,
   getPriceDetail,
   getText,
+  mergePlaceImages,
   normalizePlaceItem,
   recordGoogleMapsFailure,
   searchGoogleMaps,
+  searchGoogleMapsPhotos,
   searchGoogleMapsReviews,
 } = require('./googleMaps.service');
 
@@ -23,13 +25,16 @@ const fallbackRestaurants = (filters, message = 'Restaurants temporarily unavail
   hasMore: false,
 });
 // Normalize Restaurant prepares incoming data for consistent storage.
-const normalizeRestaurant = (item = {}, index) => ({
+const normalizeRestaurant = (item = {}, index, filters = {}) => ({
   ...normalizePlaceItem(item, index, {
     name: 'Untitled restaurant',
     category: 'Restaurant',
   }),
   price: getText(item.price || item.price_level),
-  priceDetail: getPriceDetail(item.price || item.price_level),
+  priceDetail: getPriceDetail(item.price || item.price_level, {
+    ...filters,
+    address: item.address,
+  }),
 });
 // Normalize Filters prepares incoming data for consistent storage.
 const normalizeFilters = (filters = {}) => ({
@@ -75,7 +80,7 @@ const getRestaurantsByDestination = async (filters) => {
       query: getRestaurantQuery(normalizedFilters),
       start: normalizedFilters.start,
       metadata: normalizedFilters,
-      mapItem: normalizeRestaurant,
+      mapItem: (item, index) => normalizeRestaurant(item, index, normalizedFilters),
     });
   } catch (error) {
     const { message, statusCode } = getGoogleMapsFailureMessage(error);
@@ -188,6 +193,18 @@ const getRestaurantDetail = async ({ name, address, dataId, placeId }) => {
       mapItem: normalizeRestaurant,
     });
     const item = details.items?.[0] || baseRestaurant.item;
+    let imageEnrichedItem = item;
+
+    try {
+      const photos = await searchGoogleMapsPhotos({
+        dataId: dataId || item.dataId,
+      });
+      imageEnrichedItem = mergePlaceImages(item, photos.imageUrls);
+    } catch (photoError) {
+      const photoFailure = getGoogleMapsFailureMessage(photoError);
+      recordGoogleMapsFailure('restaurant-detail-photos', photoFailure.message, photoFailure.statusCode, { name, address, dataId: dataId || item.dataId });
+    }
+
     const reviews = await searchGoogleMapsReviews({
       dataId: dataId || item.dataId,
       placeId: placeId || item.placeId,
@@ -197,7 +214,7 @@ const getRestaurantDetail = async ({ name, address, dataId, placeId }) => {
       available: true,
       item: {
         ...baseRestaurant.item,
-        ...item,
+        ...imageEnrichedItem,
       },
       description: baseRestaurant.description,
       reviews,

@@ -8,9 +8,11 @@ const {
   getGoogleMapsFailureMessage,
   getPriceDetail,
   getText,
+  mergePlaceImages,
   normalizePlaceItem,
   recordGoogleMapsFailure,
   searchGoogleMaps,
+  searchGoogleMapsPhotos,
   searchGoogleMapsReviews,
 } = require('./googleMaps.service');
 
@@ -23,13 +25,16 @@ const fallbackHotels = (filters, message = 'Hotels temporarily unavailable') => 
   hasMore: false,
 });
 // Normalize Hotel prepares incoming data for consistent storage.
-const normalizeHotel = (item = {}, index) => ({
+const normalizeHotel = (item = {}, index, filters = {}) => ({
   ...normalizePlaceItem(item, index, {
     name: 'Untitled hotel',
     category: 'Hotel',
   }),
   price: getText(item.price || item.rate_per_night?.lowest || item.extracted_price),
-  priceDetail: getPriceDetail(item.price || item.rate_per_night?.lowest || item.extracted_price),
+  priceDetail: getPriceDetail(item.price || item.rate_per_night?.lowest || item.extracted_price, {
+    ...filters,
+    address: item.address,
+  }),
   roomType: getText(item.roomType || item.room_type),
 });
 // Normalize Filters prepares incoming data for consistent storage.
@@ -76,7 +81,7 @@ const getHotelsByDestination = async (filters) => {
       query: getHotelQuery(normalizedFilters),
       start: normalizedFilters.start,
       metadata: normalizedFilters,
-      mapItem: normalizeHotel,
+      mapItem: (item, index) => normalizeHotel(item, index, normalizedFilters),
     });
   } catch (error) {
     const { message, statusCode } = getGoogleMapsFailureMessage(error);
@@ -189,6 +194,18 @@ const getHotelDetail = async ({ name, address, dataId, placeId }) => {
       mapItem: normalizeHotel,
     });
     const item = details.items?.[0] || baseHotel.item;
+    let imageEnrichedItem = item;
+
+    try {
+      const photos = await searchGoogleMapsPhotos({
+        dataId: dataId || item.dataId,
+      });
+      imageEnrichedItem = mergePlaceImages(item, photos.imageUrls);
+    } catch (photoError) {
+      const photoFailure = getGoogleMapsFailureMessage(photoError);
+      recordGoogleMapsFailure('hotel-detail-photos', photoFailure.message, photoFailure.statusCode, { name, address, dataId: dataId || item.dataId });
+    }
+
     const reviews = await searchGoogleMapsReviews({
       dataId: dataId || item.dataId,
       placeId: placeId || item.placeId,
@@ -198,7 +215,7 @@ const getHotelDetail = async ({ name, address, dataId, placeId }) => {
       available: true,
       item: {
         ...baseHotel.item,
-        ...item,
+        ...imageEnrichedItem,
       },
       description: baseHotel.description,
       reviews,

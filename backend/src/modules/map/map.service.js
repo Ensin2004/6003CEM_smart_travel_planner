@@ -2,7 +2,10 @@
  * Map module.
  * Business rules, repository access, and external integrations live in this layer.
  */
+const axios = require('axios');
 const env = require('../../config/env');
+const logger = require('../../utils/logger');
+const apiLogService = require('../apiLogs/apiLog.service');
 const weatherService = require('../explore/weather.service');
 const placesService = require('../explore/places.service');
 const hotelsService = require('../explore/hotels.service');
@@ -26,6 +29,10 @@ const {
 
 const CACHE_TTL_MS = 30 * 60 * 1000;
 const inMemoryCache = new Map();
+const geoapifyClient = axios.create({
+  baseURL: 'https://api.geoapify.com',
+  timeout: 8000,
+});
 
 const mapCategoryQueries = {
   hotels: 'hotels',
@@ -53,7 +60,37 @@ const getAddress = (location = {}) =>
   [location.address, location.locality, location.region, location.country].filter(Boolean).join(', ');
 const getCoordinate = (value) => (Number.isFinite(Number(value)) ? Number(value) : null);
 const normalizeMatchText = (value = '') => value.toLowerCase().replace(/[^a-z0-9]/g, '');
+const fallbackLocation = ({ latitude, longitude }, message = 'Current location name unavailable') => ({
+  available: false,
+  message,
+  label: 'current area',
+  state: '',
+  country: '',
+  coordinates: {
+    latitude: Number(latitude),
+    longitude: Number(longitude),
+  },
+});
+const recordMapGeocodeFailure = (message, statusCode, metadata = {}) => {
+  logger.warn(`Geoapify reverse geocode failed: ${message}`);
+  if (env.nodeEnv === 'test') {
+    return;
+  }
 
+  apiLogService
+    .recordEvent({
+      service: 'geoapify',
+      category: 'map',
+      severity: statusCode >= 500 ? 'error' : 'warning',
+      method: 'GET',
+      endpoint: '/v1/geocode/reverse',
+      status: 'fail',
+      statusCode,
+      message,
+      metadata,
+    })
+    .catch((error) => logger.error(`Failed to record map geocode event: ${error.message}`));
+};
 // Foursquare results are normalized to the existing Leaflet marker and detail-card contract.
 const normalizeMapPlace = (item = {}, index, category = 'attractions') => {
   const coordinates = item.geocodes?.main || item.geocodes?.roof || {};
@@ -424,4 +461,66 @@ const getMapWeather = ({ destination, date, latitude, longitude, locationLabel }
     longitude,
     locationLabel,
   });
-module.exports = { getMapPlaces: searchMapPlaces, getMapPlaceDetails, getMapWeather };
+const normalizeReverseGeocodeLocation = (feature = {}, coordinates = {}) => {
+  const properties = feature.properties || {};
+  const state = properties.state || properties.county || properties.city || '';
+  const country = properties.country || '';
+  const city = properties.city || properties.town || properties.village || properties.suburb || '';
+  const labelParts = [city && city !== state ? city : '', state, country].filter(Boolean);
+
+  return {
+    available: Boolean(labelParts.length),
+    message: labelParts.length ? '' : 'Current location name unavailable',
+    label: labelParts.join(', ') || 'current area',
+    city,
+    state,
+    country,
+    countryCode: properties.country_code?.toUpperCase() || '',
+    formatted: properties.formatted || labelParts.join(', '),
+    coordinates: {
+      latitude: Number(coordinates.latitude),
+      longitude: Number(coordinates.longitude),
+    },
+  };
+};
+const getReverseGeocodeLocation = async ({ latitude, longitude }) => {
+  const parsedLatitude = Number(latitude);
+  const parsedLongitude = Number(longitude);
+  const cacheKey = ['reverse-geocode', parsedLatitude.toFixed(4), parsedLongitude.toFixed(4)].join('|');
+  const cached = await getCache(cacheKey);
+
+  if (cached) {
+    return cached;
+  }
+  if (!env.geoapifyApiKey || env.nodeEnv === 'test') {
+    return fallbackLocation({ latitude: parsedLatitude, longitude: parsedLongitude }, 'Geoapify API key is not configured');
+  }
+
+  try {
+    const response = await geoapifyClient.get('/v1/geocode/reverse', {
+      params: {
+        lat: parsedLatitude,
+        lon: parsedLongitude,
+        apiKey: env.geoapifyApiKey,
+      },
+    });
+    const feature = response.data?.features?.[0];
+    const location = feature
+      ? normalizeReverseGeocodeLocation(feature, { latitude: parsedLatitude, longitude: parsedLongitude })
+      : fallbackLocation({ latitude: parsedLatitude, longitude: parsedLongitude });
+
+    await setCache(cacheKey, location);
+    return location;
+  } catch (error) {
+    const statusCode = error.response?.status || 503;
+    const message =
+      statusCode === 429
+        ? 'Location lookup rate limit reached'
+        : statusCode >= 500
+          ? 'Location lookup is temporarily unavailable'
+          : 'Unable to identify current location';
+    recordMapGeocodeFailure(message, statusCode, { latitude: parsedLatitude, longitude: parsedLongitude });
+    return fallbackLocation({ latitude: parsedLatitude, longitude: parsedLongitude }, message);
+  }
+};
+module.exports = { getMapPlaces: searchMapPlaces, getMapPlaceDetails, getMapWeather, getReverseGeocodeLocation };

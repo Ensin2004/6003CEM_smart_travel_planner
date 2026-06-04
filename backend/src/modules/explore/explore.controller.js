@@ -14,7 +14,13 @@ const getWeather = catchAsync(async (req, res) => {
   sendSuccess(res, 200, { weather });
 });
 const getAttractions = catchAsync(async (req, res) => {
-  const attractions = await exploreService.getAttractionsByDestination(req.query.destination);
+  const attractions = await exploreService.getAttractionsByDestination({
+    destination: req.query.destination,
+    country: req.query.country,
+    state: req.query.state,
+    attractionCategory: req.query.attractionCategory,
+    start: req.query.start,
+  });
   sendSuccess(res, 200, { attractions });
 });
 const getAttractionDetail = catchAsync(async (req, res) => {
@@ -64,6 +70,15 @@ const getRestaurantDetail = catchAsync(async (req, res) => {
   });
   sendSuccess(res, 200, { restaurant });
 });
+const getPlaceReviews = catchAsync(async (req, res) => {
+  const reviews = await exploreService.getPlaceReviews({
+    dataId: req.query.dataId,
+    placeId: req.query.placeId,
+    allPages: req.query.allPages !== 'false',
+  });
+
+  sendSuccess(res, 200, { reviews });
+});
 const getAiRecommendations = catchAsync(async (req, res) => {
   const recommendations = await exploreService.getAiRecommendations({
     view: req.body.view,
@@ -74,6 +89,17 @@ const getAiRecommendations = catchAsync(async (req, res) => {
   });
   sendSuccess(res, 200, { recommendations });
 });
+const getPlaceImage = catchAsync(async (req, res) => {
+  const image = await exploreService.fetchGooglePlaceImage(req.query.url);
+
+  res.setHeader('Content-Type', image.contentType);
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Cache-Control', image.cacheControl);
+  if (image.contentLength) {
+    res.setHeader('Content-Length', image.contentLength);
+  }
+  image.stream.pipe(res);
+});
 module.exports = {
   getWeather,
   getAttractionDetail,
@@ -83,5 +109,7 @@ module.exports = {
   getHotelDetail,
   getRestaurants,
   getRestaurantDetail,
+  getPlaceReviews,
+  getPlaceImage,
   getAiRecommendations,
 };

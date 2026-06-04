@@ -4,7 +4,6 @@
  */
 const { body, query } = require('express-validator');
 
-const destinationRule = query('destination').trim().isLength({ min: 2 }).withMessage('Destination is required');
 const optionalDestinationRule = query('destination').optional({ checkFalsy: true }).trim().isLength({ min: 2, max: 120 });
 const optionalFilterRule = (field) => query(field).optional({ checkFalsy: true }).trim().isLength({ max: 80 });
 const optionalCoordinateRule = (field, min, max) =>
@@ -20,13 +19,14 @@ const optionalTravelDateRule = query('date')
   .withMessage('Travel date must use YYYY-MM-DD format')
   .bail()
   .custom((value) => {
-    const today = new Date(new Date().toISOString().slice(0, 10));
     const requestedDate = new Date(value);
+    const today = new Date(new Date().toISOString().slice(0, 10));
     const maxDate = new Date(today);
+    const minDate = new Date('2015-01-01');
     maxDate.setDate(maxDate.getDate() + 214);
 
-    if (requestedDate < today) {
-      throw new Error('Travel date cannot be in the past.');
+    if (requestedDate < minDate) {
+      throw new Error('Historical weather is available from 2015-01-01 onward.');
     }
 
     if (requestedDate > maxDate) {
@@ -44,16 +44,38 @@ const requireAnySearchValue = (fields, message) =>
 
     return true;
   });
+const requireDestinationOrCoordinates = query().custom((_, { req }) => {
+  const hasDestination = Boolean(req.query.destination?.trim());
+  const hasLatitude = req.query.latitude !== undefined && req.query.latitude !== '';
+  const hasLongitude = req.query.longitude !== undefined && req.query.longitude !== '';
+
+  if (hasDestination || (hasLatitude && hasLongitude)) {
+    return true;
+  }
+
+  throw new Error('Destination or current location coordinates are required.');
+});
 
 const weatherRules = [
-  destinationRule,
+  optionalDestinationRule,
   optionalTravelDateRule,
   optionalCoordinateRule('latitude', -90, 90),
   optionalCoordinateRule('longitude', -180, 180),
   optionalFilterRule('locationLabel'),
+  requireDestinationOrCoordinates,
 ];
 
-const attractionRules = [destinationRule];
+const attractionRules = [
+  optionalDestinationRule,
+  optionalFilterRule('country'),
+  optionalFilterRule('state'),
+  optionalFilterRule('attractionCategory'),
+  optionalStartRule,
+  requireAnySearchValue(
+    ['destination', 'country', 'state', 'attractionCategory'],
+    'Enter an attraction name, country, location, or category first.'
+  ),
+];
 
 const attractionDetailRules = [
   optionalFilterRule('name'),
@@ -103,6 +125,18 @@ const restaurantDetailRules = [
   requireAnySearchValue(['name', 'dataId', 'placeId'], 'Restaurant name or Google identifier is required.'),
 ];
 
+const placeReviewRules = [
+  query('dataId').optional({ checkFalsy: true }).trim().isLength({ max: 2000 }),
+  query('placeId').optional({ checkFalsy: true }).trim().isLength({ max: 2000 }),
+  query('allPages').optional({ checkFalsy: true }).isBoolean().withMessage('allPages must be true or false'),
+];
+const placeImageRules = [
+  query('url')
+    .trim()
+    .isURL({ protocols: ['https'], require_protocol: true })
+    .withMessage('A valid HTTPS image URL is required'),
+];
+
 const aiRecommendationRules = [
   body('view').isIn(['attractions', 'food', 'hotels']).withMessage('Explore view is required'),
   body('destination').trim().isLength({ min: 2, max: 120 }).withMessage('Destination is required'),
@@ -122,6 +156,8 @@ module.exports = {
   attractionRules,
   hotelDetailRules,
   hotelRules,
+  placeImageRules,
+  placeReviewRules,
   restaurantDetailRules,
   restaurantRules,
   weatherRules,

@@ -348,9 +348,36 @@ describe('Transportation train service', () => {
     jest.clearAllMocks();
   });
   // Scenario verifies one expected outcome or error path.
-  test('adds route-based fallback distance and price estimates to station timetable trains', async () => {
+  test('adds AI distance and price estimates to station timetable trains', async () => {
     jest.resetModules();
 
+    const post = jest.fn().mockResolvedValue({
+      data: {
+        candidates: [
+          {
+            content: {
+              parts: [
+                {
+                  text: JSON.stringify({
+                    estimates: [
+                      {
+                        id: '1A23:W12345:09:00:Manchester Piccadilly',
+                        kilometers: 296,
+                        miles: 184,
+                        priceMin: 190,
+                        priceMax: 360,
+                        confidence: 'medium',
+                        note: 'AI rail geography and fare estimate.',
+                      },
+                    ],
+                  }),
+                },
+              ],
+            },
+          },
+        ],
+      },
+    });
     const get = jest
       .fn()
       .mockResolvedValueOnce({
@@ -409,6 +436,7 @@ describe('Transportation train service', () => {
       });
 
     jest.doMock('axios', () => ({
+      post,
       create: jest.fn(() => ({ get })),
     }));
     jest.doMock('../src/config/env', () => ({
@@ -416,7 +444,8 @@ describe('Transportation train service', () => {
       airlabsDailyLimit: 100,
       transportApiAppId: 'test-app',
       transportApiAppKey: 'test-key',
-      geminiApiKey: '',
+      geminiApiKey: 'test-gemini-key',
+      geminiModel: 'gemini-test',
       geminiDailyLimit: 100,
     }));
     jest.doMock('../src/modules/apiLogs/apiLog.service', () => ({
@@ -435,10 +464,10 @@ describe('Transportation train service', () => {
 
     expect(result.available).toBe(true);
     expect(result.items[0].distanceEstimate.available).toBe(true);
-    expect(result.items[0].distanceEstimate.isFallback).toBe(true);
-    expect(result.items[0].distanceEstimate.display).toMatch(/km$/);
+    expect(result.items[0].distanceEstimate.isFallback).toBe(false);
+    expect(result.items[0].distanceEstimate.display).toBe('296 km');
     expect(result.items[0].priceEstimate.available).toBe(true);
-    expect(result.items[0].priceEstimate.isFallback).toBe(true);
-    expect(result.items[0].priceEstimate.display).toMatch(/^MYR [\d,]+ - [\d,]+$/);
+    expect(result.items[0].priceEstimate.isFallback).toBe(false);
+    expect(result.items[0].priceEstimate.display).toBe('MYR 190 - 360');
   });
 });
