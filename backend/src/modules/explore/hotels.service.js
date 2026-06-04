@@ -8,9 +8,11 @@ const {
   getGoogleMapsFailureMessage,
   getPriceDetail,
   getText,
+  mergePlaceImages,
   normalizePlaceItem,
   recordGoogleMapsFailure,
   searchGoogleMaps,
+  searchGoogleMapsPhotos,
   searchGoogleMapsReviews,
 } = require('./googleMaps.service');
 
@@ -192,6 +194,18 @@ const getHotelDetail = async ({ name, address, dataId, placeId }) => {
       mapItem: normalizeHotel,
     });
     const item = details.items?.[0] || baseHotel.item;
+    let imageEnrichedItem = item;
+
+    try {
+      const photos = await searchGoogleMapsPhotos({
+        dataId: dataId || item.dataId,
+      });
+      imageEnrichedItem = mergePlaceImages(item, photos.imageUrls);
+    } catch (photoError) {
+      const photoFailure = getGoogleMapsFailureMessage(photoError);
+      recordGoogleMapsFailure('hotel-detail-photos', photoFailure.message, photoFailure.statusCode, { name, address, dataId: dataId || item.dataId });
+    }
+
     const reviews = await searchGoogleMapsReviews({
       dataId: dataId || item.dataId,
       placeId: placeId || item.placeId,
@@ -201,7 +215,7 @@ const getHotelDetail = async ({ name, address, dataId, placeId }) => {
       available: true,
       item: {
         ...baseHotel.item,
-        ...item,
+        ...imageEnrichedItem,
       },
       description: baseHotel.description,
       reviews,

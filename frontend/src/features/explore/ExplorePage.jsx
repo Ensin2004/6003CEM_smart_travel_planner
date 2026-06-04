@@ -124,9 +124,9 @@ function ExplorePage() {
   const [flightResults, setFlightResults] = useState(null);
   const [trainSearch, setTrainSearch] = useState({
     stationQuery: restoredTrainState?.trainSearch?.stationQuery || '',
+    destinationQuery: restoredTrainState?.trainSearch?.destinationQuery || '',
     operatorName: restoredTrainState?.trainSearch?.operatorName || '',
     departureDate: restoredTrainState?.trainSearch?.departureDate || '',
-    arrivalDate: restoredTrainState?.trainSearch?.arrivalDate || '',
   });
   const [trainResults, setTrainResults] = useState(restoredTrainState?.trainResults || null);
   const [nextAttractionStart, setNextAttractionStart] = useState(restoredAttractionState?.nextAttractionStart || 0);
@@ -898,21 +898,28 @@ function ExplorePage() {
       const response = await searchTrainStationTimetable({
         stationQuery: trainSearch.stationQuery.trim(),
         departureDate: trainSearch.departureDate,
-        arrivalDate: trainSearch.arrivalDate,
+        arrivalDate: '',
         operatorName: trainSearch.operatorName,
       });
       const nextTrains = response.data.data.trains;
       const operatorQuery = trainSearch.operatorName.trim().toLowerCase();
-      const nextItems = operatorQuery
-        ? (nextTrains.items || []).filter((train) =>
-            [train.operatorName, train.operator].filter(Boolean).some((name) => name.toLowerCase().includes(operatorQuery))
-          )
-        : nextTrains.items || [];
-      const filteredTrains = operatorQuery
+      const destinationQuery = trainSearch.destinationQuery.trim().toLowerCase();
+      const nextItems = (nextTrains.items || []).filter((train) => {
+        const matchesOperator = operatorQuery
+          ? [train.operatorName, train.operator].filter(Boolean).some((name) => name.toLowerCase().includes(operatorQuery))
+          : true;
+        const matchesDestination = destinationQuery ? (train.destinationName || '').toLowerCase().includes(destinationQuery) : true;
+
+        return matchesOperator && matchesDestination;
+      });
+      const filteredTrains = operatorQuery || destinationQuery
         ? {
             ...nextTrains,
             available: nextItems.length > 0,
-            message: nextItems.length > 0 ? nextTrains.message : `No trains found for operator ${trainSearch.operatorName.trim()}.`,
+            message:
+              nextItems.length > 0
+                ? nextTrains.message
+                : `No trains found for ${[trainSearch.operatorName.trim(), trainSearch.destinationQuery.trim()].filter(Boolean).join(' to ')}.`,
             departures: nextItems,
             items: nextItems,
           }

@@ -130,6 +130,12 @@ const placeReviewRules = [
   query('placeId').optional({ checkFalsy: true }).trim().isLength({ max: 2000 }),
   query('allPages').optional({ checkFalsy: true }).isBoolean().withMessage('allPages must be true or false'),
 ];
+const placeImageRules = [
+  query('url')
+    .trim()
+    .isURL({ protocols: ['https'], require_protocol: true })
+    .withMessage('A valid HTTPS image URL is required'),
+];
 
 const aiRecommendationRules = [
   body('view').isIn(['attractions', 'food', 'hotels']).withMessage('Explore view is required'),
@@ -150,6 +156,7 @@ module.exports = {
   attractionRules,
   hotelDetailRules,
   hotelRules,
+  placeImageRules,
   placeReviewRules,
   restaurantDetailRules,
   restaurantRules,

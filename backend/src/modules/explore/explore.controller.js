@@ -89,6 +89,17 @@ const getAiRecommendations = catchAsync(async (req, res) => {
   });
   sendSuccess(res, 200, { recommendations });
 });
+const getPlaceImage = catchAsync(async (req, res) => {
+  const image = await exploreService.fetchGooglePlaceImage(req.query.url);
+
+  res.setHeader('Content-Type', image.contentType);
+  res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  res.setHeader('Cache-Control', image.cacheControl);
+  if (image.contentLength) {
+    res.setHeader('Content-Length', image.contentLength);
+  }
+  image.stream.pipe(res);
+});
 module.exports = {
   getWeather,
   getAttractionDetail,
@@ -99,5 +110,6 @@ module.exports = {
   getRestaurants,
   getRestaurantDetail,
   getPlaceReviews,
+  getPlaceImage,
   getAiRecommendations,
 };

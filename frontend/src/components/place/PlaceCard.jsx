@@ -23,6 +23,7 @@ import CompareButton from '../compare/CompareButton';
 import VisitedPlaceControl from '../visitedPlaces/VisitedPlaceControl';
 import { getVisitedPlacePayload } from '../visitedPlaces/visitedPlaceUtils';
 import { buildPlaceFavoritePayload } from '../../utils/favoriteUtils';
+import { getPlaceImageSrc } from '../../utils/placeImageProxy';
 import './PlaceCard.css';
 const getOpenStatus = (openState = '') => {
   const normalizedState = openState.toLowerCase();
@@ -88,16 +89,30 @@ const getEstimatedPriceText = ({ type, category = '', currencyCode = 'USD' }) =>
 const getImageDedupeKey = (imageUrl = '') => {
   try {
     const parsedUrl = new URL(imageUrl);
-    return `${parsedUrl.origin}${parsedUrl.pathname.replace(/=(?:w|h|s|rw|rj).+$/i, '')}`;
+    return `${parsedUrl.origin}${parsedUrl.pathname.replace(/=[^/]+$/i, '')}`;
   } catch {
-    return imageUrl.split('?')[0].replace(/=(?:w|h|s|rw|rj).+$/i, '');
+    return imageUrl.split('?')[0].replace(/=[^/]+$/i, '');
   }
 };
 const getUniqueImages = (images = []) => {
   const seenImageKeys = new Set();
+  const hasGoogleImage = images.some((imageUrl) => {
+    try {
+      return new URL(imageUrl).hostname === 'lh3.googleusercontent.com';
+    } catch {
+      return false;
+    }
+  });
 
   return images.filter((imageUrl) => {
     if (!imageUrl) return false;
+    if (hasGoogleImage) {
+      try {
+        if (new URL(imageUrl).hostname === 'serpapi.com') return false;
+      } catch {
+        // Keep non-URL values available to the existing dedupe path.
+      }
+    }
     const key = getImageDedupeKey(imageUrl);
     if (seenImageKeys.has(key)) return false;
     seenImageKeys.add(key);
@@ -154,6 +169,7 @@ function PlaceCard({
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const normalizedImageIndex = activeImageIndex % Math.max(visibleImages.length, 1);
   const primaryImage = visibleImages[normalizedImageIndex];
+  const primaryImageSrc = getPlaceImageSrc(primaryImage);
   const openStatus = getOpenStatus(item.openState);
   const isHotelCard = type === 'hotels';
   const isFoodCard = type === 'food' || type === 'restaurants';
@@ -281,7 +297,7 @@ function PlaceCard({
         {primaryImage ? (
           <img
             className="explore-card-image"
-            src={primaryImage}
+            src={primaryImageSrc}
             alt=""
             loading="lazy"
             onError={() => {
@@ -307,6 +323,23 @@ function PlaceCard({
             <button type="button" aria-label="Next photo" onClick={(event) => handleImageStep(event, 1)}>
               <ChevronRight size={17} aria-hidden="true" />
             </button>
+          </div>
+        )}
+        {visibleImages.length > 1 && (
+          <div className="explore-card-photo-dots" aria-label={`${item.name} photo position`}>
+            {visibleImages.slice(0, 8).map((imageUrl, dotIndex) => (
+              <button
+                className={normalizedImageIndex === dotIndex ? 'active' : ''}
+                key={`${imageUrl}-dot`}
+                type="button"
+                aria-label={`Show photo ${dotIndex + 1}`}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  setActiveImageIndex(dotIndex);
+                }}
+              />
+            ))}
+            {visibleImages.length > 8 && <span>+{visibleImages.length - 8}</span>}
           </div>
         )}
         <span className="explore-card-rank">#{index + 1}</span>

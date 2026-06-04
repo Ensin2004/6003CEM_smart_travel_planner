@@ -92,6 +92,44 @@
   font-weight: 700;
 }
 
+.explore-card-photo-dots {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  bottom: 12px;
+  display: inline-flex;
+  max-width: calc(100% - 150px);
+  gap: 5px;
+  align-items: center;
+  transform: translateX(-50%);
+}
+
+.explore-card-photo-dots button {
+  width: 7px;
+  height: 7px;
+  border: 0;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.68);
+  padding: 0;
+  cursor: pointer;
+  transition: background 0.18s ease, transform 0.18s ease, width 0.18s ease;
+}
+
+.explore-card-photo-dots button.active {
+  width: 18px;
+  background: #ffffff;
+  transform: translateY(-1px);
+}
+
+.explore-card-photo-dots span {
+  border-radius: 999px;
+  background: rgba(15, 23, 42, 0.72);
+  color: #ffffff;
+  padding: 2px 6px;
+  font-size: 10px;
+  font-weight: 800;
+}
+
 .explore-attraction-image {
   display: grid;
   place-items: center;

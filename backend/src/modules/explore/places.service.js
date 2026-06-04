@@ -8,9 +8,11 @@ const {
   getGoogleMapsFailureMessage,
   getPriceDetail,
   getText,
+  mergePlaceImages,
   normalizePlaceItem,
   recordGoogleMapsFailure,
   searchGoogleMaps,
+  searchGoogleMapsPhotos,
   searchGoogleMapsReviews,
 } = require('./googleMaps.service');
 
@@ -205,6 +207,18 @@ const getAttractionDetail = async ({ name, address, dataId, placeId }) => {
       mapItem: normalizeAttraction,
     });
     const item = details.items?.[0] || baseAttraction.item;
+    let imageEnrichedItem = item;
+
+    try {
+      const photos = await searchGoogleMapsPhotos({
+        dataId: dataId || item.dataId,
+      });
+      imageEnrichedItem = mergePlaceImages(item, photos.imageUrls);
+    } catch (photoError) {
+      const photoFailure = getGoogleMapsFailureMessage(photoError);
+      recordGoogleMapsFailure('attraction-detail-photos', photoFailure.message, photoFailure.statusCode, { name, address, dataId: dataId || item.dataId });
+    }
+
     const reviews = await searchGoogleMapsReviews({
       dataId: dataId || item.dataId,
       placeId: placeId || item.placeId,
@@ -214,7 +228,7 @@ const getAttractionDetail = async ({ name, address, dataId, placeId }) => {
       available: true,
       item: {
         ...baseAttraction.item,
-        ...item,
+        ...imageEnrichedItem,
       },
       description: baseAttraction.description,
       reviews,

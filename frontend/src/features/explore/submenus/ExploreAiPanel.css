@@ -36,9 +36,9 @@
   gap: 7px;
   align-items: center;
   color: var(--navy);
-  font-size: 18px;
-  font-weight: 800;
-  line-height: 1.2;
+  font-size: 17px;
+  font-weight: 650;
+  line-height: 1.35;
 }
 
 .explore-ai-panel-heading span svg,
@@ -57,7 +57,7 @@
   margin: 0;
   color: var(--muted);
   font-size: 14px;
-  line-height: 1.55;
+  line-height: 1.65;
 }
 
 .explore-ai-heading-actions {
@@ -79,7 +79,7 @@
   color: var(--teal);
   padding: 0;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 650;
   cursor: pointer;
 }
 
@@ -116,8 +116,8 @@
   margin: 0;
   color: var(--navy);
   font-size: 15px;
-  font-weight: 800;
-  line-height: 1.25;
+  font-weight: 650;
+  line-height: 1.4;
 }
 
 .explore-ai-recommendation-list {
@@ -153,23 +153,21 @@
   background: var(--teal);
   color: #ffffff;
   font-size: 12px;
-  font-weight: 850;
+  font-weight: 650;
 }
 
 .explore-ai-recommendation div {
   display: grid;
-  gap: 5px;
+  gap: 6px;
   min-width: 0;
 }
 
 .explore-ai-recommendation strong {
-  overflow: hidden;
   color: var(--navy);
   font-size: 14px;
-  font-weight: 800;
-  line-height: 1.3;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-weight: 650;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .explore-ai-recommendation small {
@@ -178,8 +176,8 @@
   align-items: center;
   color: var(--sun);
   font-size: 12px;
-  font-weight: 750;
-  line-height: 1.25;
+  font-weight: 600;
+  line-height: 1.35;
 }
 
 .explore-ai-recommendation img {
@@ -199,7 +197,7 @@
   min-height: 38px;
   border-radius: 6px;
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 650;
   cursor: pointer;
 }
 
@@ -237,8 +235,8 @@
   margin: 0;
   color: var(--navy);
   font-size: 17px;
-  font-weight: 800;
-  line-height: 1.3;
+  font-weight: 650;
+  line-height: 1.4;
 }
 
 .explore-ai-ready-card p {
@@ -265,7 +263,7 @@
 .explore-ai-question-list strong {
   color: var(--navy);
   font-size: 13px;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .explore-ai-question-list button {
@@ -361,7 +359,8 @@
   align-items: center;
   color: var(--navy);
   font-size: 14px;
-  font-weight: 800;
+  font-weight: 650;
+  line-height: 1.4;
 }
 
 .explore-ai-chat-preview strong svg {
@@ -388,10 +387,9 @@
 .explore-ai-chat-preview button span {
   flex: 1;
   min-width: 0;
-  overflow: hidden;
   color: var(--muted);
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 
 .explore-ai-chat-preview button svg {
@@ -438,7 +436,7 @@
   align-items: center;
   color: var(--teal);
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 650;
 }
 
 .explore-ai-chat-message p {
@@ -467,7 +465,8 @@
 .explore-ai-chat-empty strong {
   color: var(--navy);
   font-size: 15px;
-  font-weight: 800;
+  font-weight: 650;
+  line-height: 1.4;
 }
 
 @media (max-width: 1180px) {

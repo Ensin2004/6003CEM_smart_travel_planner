@@ -9,6 +9,7 @@ const apiLogService = require('../apiLogs/apiLog.service');
 
 const CACHE_TTL_MS = 30 * 60 * 1000;
 const DEFAULT_PAGE_SIZE = 20;
+const DEFAULT_PHOTO_PAGE_LIMIT = 2;
 const dailyUsage = {
   date: '',
   count: 0,
@@ -18,6 +19,11 @@ const serpApiClient = axios.create({
   baseURL: 'https://serpapi.com',
   timeout: 8000,
 });
+const allowedImageHosts = new Set([
+  'lh3.googleusercontent.com',
+  'streetviewpixels-pa.googleapis.com',
+  'serpapi.com',
+]);
 const getText = (value) => {
   if (!value) return '';
   if (typeof value === 'string' || typeof value === 'number') return String(value);
@@ -25,13 +31,13 @@ const getText = (value) => {
 };
 const pickImage = (item = {}) => {
   const image =
-    item.serpapi_thumbnail ||
     item.thumbnail ||
     item.heroImage ||
     item.primaryPhoto ||
     item.photo ||
     item.image ||
-    item.cardPhoto;
+    item.cardPhoto ||
+    item.serpapi_thumbnail;
 
   if (!image) return '';
   if (typeof image === 'string') return image;
@@ -46,21 +52,21 @@ const getImageUrl = (image) => {
     image.photo_url ||
     image.thumbnailUrl ||
     image.thumbnail ||
-    image.serpapi_thumbnail ||
     image.image ||
     image.image_url ||
     image.original ||
     image.link ||
     image.source ||
+    image.serpapi_thumbnail ||
     ''
   );
 };
 const getImageDedupeKey = (imageUrl) => {
   try {
     const parsedUrl = new URL(imageUrl);
-    return `${parsedUrl.origin}${parsedUrl.pathname.replace(/=(?:w|h|s|rw|rj).+$/i, '')}`;
+    return `${parsedUrl.origin}${parsedUrl.pathname.replace(/=[^/]+$/i, '')}`;
   } catch {
-    return imageUrl.split('?')[0].replace(/=(?:w|h|s|rw|rj).+$/i, '');
+    return imageUrl.split('?')[0].replace(/=[^/]+$/i, '');
   }
 };
 const flattenImageCandidates = (value) => {
@@ -94,7 +100,7 @@ const pickImages = (item = {}) => {
     item.image ? [item.image] : [],
     item.cardPhoto ? [item.cardPhoto] : [],
     item.thumbnail ? [item.thumbnail] : [],
-    item.serpapi_thumbnail ? [item.serpapi_thumbnail] : [],
+    !item.thumbnail && item.serpapi_thumbnail ? [item.serpapi_thumbnail] : [],
   ]
     .flatMap(flattenImageCandidates)
     .filter(Boolean);
@@ -106,6 +112,22 @@ const pickImages = (item = {}) => {
     seenImageKeys.add(key);
     return true;
   });
+};
+const mergePlaceImages = (place = {}, imageUrls = []) => {
+  const mergedImageUrls = pickImages({
+    ...place,
+    images: [
+      place.imageUrl,
+      place.imageUrls,
+      imageUrls,
+    ],
+  });
+
+  return {
+    ...place,
+    imageUrl: mergedImageUrls[0] || place.imageUrl || '',
+    imageUrls: mergedImageUrls,
+  };
 };
 const getOpeningHours = (item = {}) => {
   if (Array.isArray(item.hours)) return item.hours.filter(Boolean).join(' | ');
@@ -388,12 +410,15 @@ const searchGoogleMapsReviews = async ({ dataId, placeId, sortBy = 'qualityScore
   }
   const params = {
     engine: 'google_maps_reviews',
-    data_id: dataId,
-    place_id: placeId,
     sort_by: sortBy,
     hl,
     api_key: env.serpApiKey,
   };
+  if (dataId) {
+    params.data_id = dataId;
+  } else {
+    params.place_id = placeId;
+  }
 
   if (nextPageToken) {
     params.next_page_token = nextPageToken;
@@ -412,12 +437,100 @@ const searchGoogleMapsReviews = async ({ dataId, placeId, sortBy = 'qualityScore
     lastUpdated: new Date().toISOString(),
   };
 };
+const searchGoogleMapsPhotos = async ({ dataId, hl = 'en', maxPages = DEFAULT_PHOTO_PAGE_LIMIT }) => {
+  if (!dataId) {
+    return { available: false, message: 'Google photo identifier is unavailable', imageUrls: [] };
+  }
+
+  const allPhotos = [];
+  let nextPageToken = '';
+  let pageCount = 0;
+
+  do {
+    if (!consumeDailyQuota()) {
+      const error = new Error('Daily travel data API limit reached. Please try again tomorrow.');
+      error.isDailyLimit = true;
+      throw error;
+    }
+
+    const params = {
+      engine: 'google_maps_photos',
+      data_id: dataId,
+      hl,
+      api_key: env.serpApiKey,
+    };
+
+    if (nextPageToken) {
+      params.next_page_token = nextPageToken;
+    }
+
+    const response = await serpApiClient.get('/search', { params });
+    if (response.data?.error) {
+      throw new Error(response.data.error);
+    }
+
+    allPhotos.push(...(response.data?.photos || []));
+    nextPageToken = response.data?.serpapi_pagination?.next_page_token || '';
+    pageCount += 1;
+  } while (nextPageToken && pageCount < maxPages);
+
+  return {
+    available: allPhotos.length > 0,
+    imageUrls: pickImages({ photos: allPhotos }),
+    nextPageToken,
+    lastUpdated: new Date().toISOString(),
+  };
+};
+const fetchGooglePlaceImage = async (imageUrl = '') => {
+  let parsedUrl;
+
+  try {
+    parsedUrl = new URL(imageUrl);
+  } catch {
+    const error = new Error('Invalid image URL');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (parsedUrl.protocol !== 'https:' || !allowedImageHosts.has(parsedUrl.hostname)) {
+    const error = new Error('Image host is not allowed');
+    error.statusCode = 400;
+    throw error;
+  }
+
+  const response = await axios.get(parsedUrl.toString(), {
+    responseType: 'stream',
+    timeout: 15000,
+    maxRedirects: 3,
+    headers: {
+      accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
+      'user-agent': 'Mozilla/5.0 SmartTravelPlanner/1.0',
+    },
+  });
+  const contentType = response.headers['content-type'] || '';
+
+  if (!contentType.startsWith('image/')) {
+    const error = new Error('Remote URL did not return an image');
+    error.statusCode = 502;
+    throw error;
+  }
+
+  return {
+    stream: response.data,
+    contentType,
+    contentLength: response.headers['content-length'] || '',
+    cacheControl: response.headers['cache-control'] || 'public, max-age=86400',
+  };
+};
 module.exports = {
+  fetchGooglePlaceImage,
   getGoogleMapsFailureMessage,
   getPriceDetail,
   getText,
+  mergePlaceImages,
   normalizePlaceItem,
   recordGoogleMapsFailure,
   searchGoogleMaps,
+  searchGoogleMapsPhotos,
   searchGoogleMapsReviews,
 };

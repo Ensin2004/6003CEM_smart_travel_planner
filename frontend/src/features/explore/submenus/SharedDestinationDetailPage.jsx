@@ -3,10 +3,10 @@
  * Shared destination detail screen for attractions, hotels, and restaurants.
  */
 import { ArrowLeft, Clock, ExternalLink, Heart, Info, LoaderCircle, MapPin, Phone, Search, Star } from 'lucide-react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { getPlaceReviews } from '../../../api/exploreApi';
 import { addFavorite } from '../../../api/favoriteApi';
+import { getPlaceImageSrc } from '../../../utils/placeImageProxy';
 import { getErrorMessage } from '../explore.helpers';
 import './SharedDetailPage.css';
 
@@ -32,16 +32,30 @@ const formatEstimatedMoney = (amount, currencyCode) =>
 const getImageDedupeKey = (imageUrl = '') => {
   try {
     const parsedUrl = new URL(imageUrl);
-    return `${parsedUrl.origin}${parsedUrl.pathname.replace(/=(?:w|h|s|rw|rj).+$/i, '')}`;
+    return `${parsedUrl.origin}${parsedUrl.pathname.replace(/=[^/]+$/i, '')}`;
   } catch {
-    return imageUrl.split('?')[0].replace(/=(?:w|h|s|rw|rj).+$/i, '');
+    return imageUrl.split('?')[0].replace(/=[^/]+$/i, '');
   }
 };
 const getUniqueImages = (images = []) => {
   const seenImageKeys = new Set();
+  const hasGoogleImage = images.some((imageUrl) => {
+    try {
+      return new URL(imageUrl).hostname === 'lh3.googleusercontent.com';
+    } catch {
+      return false;
+    }
+  });
 
   return images.filter((imageUrl) => {
     if (!imageUrl) return false;
+    if (hasGoogleImage) {
+      try {
+        if (new URL(imageUrl).hostname === 'serpapi.com') return false;
+      } catch {
+        // Keep non-URL values available to the existing dedupe path.
+      }
+    }
     const key = getImageDedupeKey(imageUrl);
     if (seenImageKeys.has(key)) return false;
     seenImageKeys.add(key);
@@ -51,6 +65,14 @@ const getUniqueImages = (images = []) => {
 const getPrimaryImage = (place = {}) => place.imageUrl || place.imageUrls?.[0] || '';
 const getGalleryImages = (place = {}) =>
   getUniqueImages([place.imageUrl, ...(place.imageUrls || [])]);
+const reviewPageSize = 30;
+const ratingChartColors = {
+  5: '#14b8a6',
+  4: '#22c55e',
+  3: '#f59e0b',
+  2: '#fb923c',
+  1: '#ef4444',
+};
 const getCurrencyForPlace = ({ place = {}, fallbackCurrency = 'USD' }) => {
   if (place.priceDetail?.currency) return place.priceDetail.currency;
   return fallbackCurrency || 'USD';
@@ -154,6 +176,19 @@ const getEstimatedPriceText = ({ config, place = {}, currencyCode = 'USD' }) => 
   const [minimum, maximum] = usdRange.map((amount) => amount * rate);
   return `${formatEstimatedMoney(minimum, currencyCode)} - ${formatEstimatedMoney(maximum, currencyCode)}`;
 };
+const getRatingPieBackground = (distribution = {}, totalReviews = 0) => {
+  if (!totalReviews) return '#e2e8f0';
+
+  let previousPercent = 0;
+  const segments = [5, 4, 3, 2, 1].map((rating) => {
+    const nextPercent = previousPercent + ((distribution[rating] || 0) / totalReviews) * 100;
+    const segment = `${ratingChartColors[rating]} ${previousPercent}% ${nextPercent}%`;
+    previousPercent = nextPercent;
+    return segment;
+  });
+
+  return `conic-gradient(${segments.join(', ')})`;
+};
 function ReviewAvatar({ review }) {
   const [hasImageError, setHasImageError] = useState(false);
   const initial = String(review.author || 'G').slice(0, 1).toUpperCase();
@@ -178,15 +213,14 @@ function SharedDestinationDetailPage({
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
-  const [isReviewLoading, setIsReviewLoading] = useState(false);
   const [favoriteKeys, setFavoriteKeys] = useState(location.state?.returnState?.[config.favoriteKeysState] || []);
   const [isFavorite, setIsFavorite] = useState(
     Boolean(initialFavoriteKey && location.state?.returnState?.[config.favoriteKeysState]?.includes(initialFavoriteKey))
   );
   const [reviewSearch, setReviewSearch] = useState('');
   const [minRating, setMinRating] = useState('all');
+  const [visibleReviewCount, setVisibleReviewCount] = useState(reviewPageSize);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const [hasRequestedReviews, setHasRequestedReviews] = useState(false);
 
   useEffect(() => {
     let isActive = true;
@@ -199,8 +233,6 @@ function SharedDestinationDetailPage({
         setDescription(getSearchResultDescription(statePlace, config.singularLower));
         setReviews([]);
         setStatus('');
-        setIsLoading(false);
-        return;
       }
 
       try {
@@ -277,50 +309,13 @@ function SharedDestinationDetailPage({
       setError(getErrorMessage(requestError));
     }
   };
-  const handleLoadReviews = useCallback(async () => {
-    if (!place || isReviewLoading) return;
-    const reviewIdentifiers = getReviewIdentifiers(place);
-
-    if (!reviewIdentifiers.dataId && !reviewIdentifiers.placeId) {
-      setStatus('Google review snippets need a Google place identifier. Open the Google listing to read reviews for this place.');
-      return;
-    }
-
-    setIsReviewLoading(true);
-    setError('');
-    try {
-      const response = await getPlaceReviews({
-        dataId: reviewIdentifiers.dataId,
-        placeId: reviewIdentifiers.dataId ? '' : reviewIdentifiers.placeId,
-        allPages: true,
-      });
-      const nextReviews = response.data.data.reviews;
-
-      setReviews(nextReviews.items || []);
-      setStatus(nextReviews.message || '');
-    } catch (requestError) {
-      setStatus(`${getErrorMessage(requestError)}. Open the Google listing to read all reviews for this place.`);
-    } finally {
-      setIsReviewLoading(false);
-    }
-  }, [isReviewLoading, place]);
-
-  useEffect(() => {
-    if (!place || isLoading || reviews.length || hasRequestedReviews) return;
-    const reviewIdentifiers = getReviewIdentifiers(place);
-
-    if (!reviewIdentifiers.dataId && !reviewIdentifiers.placeId) return;
-
-    setHasRequestedReviews(true);
-    handleLoadReviews();
-  }, [handleLoadReviews, hasRequestedReviews, isLoading, place, reviews.length]);
-
   useEffect(() => {
     setSelectedImageIndex(0);
   }, [place?.id, place?.dataId, place?.placeId]);
 
   const galleryImages = getGalleryImages(place);
   const primaryImage = galleryImages[selectedImageIndex] || getPrimaryImage(place);
+  const primaryImageSrc = getPlaceImageSrc(primaryImage);
   const openedFromSearchResult = description?.source === 'search-result';
   const highlightItems = getHighlightItems({
     place,
@@ -381,14 +376,16 @@ function SharedDestinationDetailPage({
     },
   ];
   const photoHighlights = galleryImages.length ? galleryImages : primaryImage ? [primaryImage] : [];
-  const reviewIdentifiers = getReviewIdentifiers(place);
-  const canLoadReviews =
-    Boolean(reviewIdentifiers.dataId || reviewIdentifiers.placeId) &&
-    !/identifier is unavailable/i.test(status);
-  const reviewEmptyTitle = isReviewLoading ? 'Loading Google reviews' : openedFromSearchResult ? 'Review snippets unavailable' : 'No review snippets loaded';
+  const displayedReviews = filteredReviews.slice(0, visibleReviewCount);
+  const hiddenReviewCount = Math.max(filteredReviews.length - displayedReviews.length, 0);
+  const reviewAverage = reviews.length
+    ? reviews.reduce((total, review) => total + Number(review.rating || 0), 0) / reviews.length
+    : Number(place?.rating || 0);
+  const ratingPieBackground = getRatingPieBackground(ratingDistribution, reviews.length);
+  const reviewEmptyTitle = openedFromSearchResult ? 'Review snippets unavailable' : 'No review snippets loaded';
   const reviewEmptyText = status || (
-    openedFromSearchResult && canLoadReviews
-      ? 'Review snippets are being requested from Google Maps when available.'
+    openedFromSearchResult
+      ? 'The detail response did not include review snippets. Open the Google listing to read reviews for this place.'
       : 'Google review snippets need a Google place identifier. Use the Google listing link when review text is needed.'
   );
   const returnSearch = location.state?.returnState?.returnSearch || config.returnSearch;
@@ -423,7 +420,7 @@ function SharedDestinationDetailPage({
             <div className="shared-detail-media">
               <div className="shared-detail-main-image">
                 {primaryImage ? (
-                  <img src={primaryImage} alt="" />
+                  <img src={primaryImageSrc} alt="" />
                 ) : (
                   <div className="shared-detail-image-placeholder">
                     <PlaceholderIcon size={42} aria-hidden="true" />
@@ -440,7 +437,7 @@ function SharedDestinationDetailPage({
                       type="button"
                       onClick={() => setSelectedImageIndex(index)}
                     >
-                      <img src={imageUrl} alt="" loading="lazy" />
+                      <img src={getPlaceImageSrc(imageUrl)} alt="" loading="lazy" />
                     </button>
                   ))}
                 </div>
@@ -519,28 +516,6 @@ function SharedDestinationDetailPage({
             </article>
           </section>
 
-          {photoHighlights.length > 0 && (
-            <section className="shared-detail-photo-section">
-              <div className="shared-detail-section-heading">
-                <div>
-                  <span className="explore-category">Photos</span>
-                  <h3>Place highlights</h3>
-                </div>
-              </div>
-              <div className="shared-detail-photo-card-row">
-                {photoHighlights.map((imageUrl, index) => (
-                  <article key={`${imageUrl}-card-${index}`}>
-                    <img src={imageUrl} alt="" loading="lazy" />
-                    <div>
-                      <strong>{index === 0 ? place.name : `${config.singularLabel} photo ${index + 1}`}</strong>
-                      <p>{place.category || config.singularLabel}</p>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            </section>
-          )}
-
           <section className="shared-detail-reviews">
             <div className="shared-detail-reviews-heading">
               <div>
@@ -554,11 +529,20 @@ function SharedDestinationDetailPage({
                     <input
                       type="search"
                       value={reviewSearch}
-                      onChange={(event) => setReviewSearch(event.target.value)}
+                      onChange={(event) => {
+                        setReviewSearch(event.target.value);
+                        setVisibleReviewCount(reviewPageSize);
+                      }}
                       placeholder="Filter reviews"
                     />
                   </label>
-                  <select value={minRating} onChange={(event) => setMinRating(event.target.value)}>
+                  <select
+                    value={minRating}
+                    onChange={(event) => {
+                      setMinRating(event.target.value);
+                      setVisibleReviewCount(reviewPageSize);
+                    }}
+                  >
                     <option value="all">All ratings</option>
                     <option value="5">5 stars</option>
                     <option value="4">4 stars</option>
@@ -571,31 +555,78 @@ function SharedDestinationDetailPage({
             </div>
 
             {reviews.length > 0 && (
-              <div className="shared-detail-rating-chart" aria-label="Google review rating distribution">
-                {[5, 4, 3, 2, 1].map((rating) => {
-                  const count = ratingDistribution[rating] || 0;
-                  const percentage = reviews.length ? Math.round((count / reviews.length) * 100) : 0;
+              <div className="shared-detail-rating-summary" aria-label="Google review rating distribution">
+                <div className="shared-detail-rating-score">
+                  <span>Average rating</span>
+                  <strong>{reviewAverage ? reviewAverage.toFixed(1) : '0.0'}</strong>
+                  <div aria-hidden="true">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star
+                        key={star}
+                        size={16}
+                        fill={reviewAverage >= star - 0.25 ? 'currentColor' : 'none'}
+                      />
+                    ))}
+                  </div>
+                  <small>{reviews.length.toLocaleString()} loaded review{reviews.length === 1 ? '' : 's'}</small>
+                </div>
 
-                  return (
-                    <button
-                      className={minRating === String(rating) ? 'active' : ''}
-                      key={rating}
-                      type="button"
-                      onClick={() => setMinRating((currentRating) => (currentRating === String(rating) ? 'all' : String(rating)))}
-                    >
-                      <span>{rating} star</span>
-                      <div>
-                        <i style={{ width: `${percentage}%` }} />
-                      </div>
-                      <strong>{count}</strong>
-                    </button>
-                  );
-                })}
+                <div className="shared-detail-rating-pie-wrap">
+                  <div
+                    className="shared-detail-rating-pie"
+                    style={{ background: ratingPieBackground }}
+                    aria-hidden="true"
+                  >
+                    <span>{reviews.length}</span>
+                  </div>
+                  <div className="shared-detail-rating-legend">
+                    {[5, 4, 3, 2, 1].map((rating) => (
+                      <button
+                        className={minRating === String(rating) ? 'active' : ''}
+                        key={rating}
+                        type="button"
+                        onClick={() => {
+                          setMinRating((currentRating) => (currentRating === String(rating) ? 'all' : String(rating)));
+                          setVisibleReviewCount(reviewPageSize);
+                        }}
+                      >
+                        <i style={{ background: ratingChartColors[rating] }} />
+                        <span>{rating} star</span>
+                        <strong>{ratingDistribution[rating] || 0}</strong>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="shared-detail-rating-chart">
+                  {[5, 4, 3, 2, 1].map((rating) => {
+                    const count = ratingDistribution[rating] || 0;
+                    const percentage = reviews.length ? Math.round((count / reviews.length) * 100) : 0;
+
+                    return (
+                      <button
+                        className={minRating === String(rating) ? 'active' : ''}
+                        key={rating}
+                        type="button"
+                        onClick={() => {
+                          setMinRating((currentRating) => (currentRating === String(rating) ? 'all' : String(rating)));
+                          setVisibleReviewCount(reviewPageSize);
+                        }}
+                      >
+                        <span>{rating} star</span>
+                        <div>
+                          <i style={{ width: `${percentage}%`, background: ratingChartColors[rating] }} />
+                        </div>
+                        <strong>{percentage}%</strong>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
             <div className="shared-detail-review-list">
-              {filteredReviews.map((review) => (
+              {displayedReviews.map((review) => (
                 <article className="shared-detail-review" key={review.id}>
                   <div className="shared-detail-review-author">
                     <ReviewAvatar review={review} />
@@ -625,7 +656,7 @@ function SharedDestinationDetailPage({
               ))}
               {!filteredReviews.length && (
                 <article className="shared-detail-review-empty">
-                  {isReviewLoading ? <LoaderCircle className="explore-spin" size={22} aria-hidden="true" /> : <Info size={22} aria-hidden="true" />}
+                  <Info size={22} aria-hidden="true" />
                   <div>
                     <strong>{reviewEmptyTitle}</strong>
                     <p>{reviewEmptyText}</p>
@@ -633,6 +664,16 @@ function SharedDestinationDetailPage({
                 </article>
               )}
             </div>
+            {hiddenReviewCount > 0 && (
+              <button
+                className="shared-detail-load-more"
+                type="button"
+                onClick={() => setVisibleReviewCount((currentCount) => currentCount + reviewPageSize)}
+              >
+                Load {Math.min(reviewPageSize, hiddenReviewCount)} more review{Math.min(reviewPageSize, hiddenReviewCount) === 1 ? '' : 's'}
+                <span>{displayedReviews.length} of {filteredReviews.length} shown</span>
+              </button>
+            )}
           </section>
         </>
       )}

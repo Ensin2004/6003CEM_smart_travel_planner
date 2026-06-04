@@ -10,6 +10,7 @@ const {
   attractionRules,
   hotelDetailRules,
   hotelRules,
+  placeImageRules,
   placeReviewRules,
   restaurantDetailRules,
   restaurantRules,
@@ -20,6 +21,8 @@ const validate = require('../../middleware/validate.middleware');
 const { thirdPartyApiRateLimit } = require('../../middleware/rateLimit.middleware');
 
 const router = express.Router();
+
+router.get('/image', placeImageRules, validate, exploreController.getPlaceImage);
 
 // Route section connects URL patterns with validation, authentication, and controller actions.
 router.get(

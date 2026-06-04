@@ -9,6 +9,7 @@ const restaurantService = require('./restaurant.service');
 const exploreAiService = require('./exploreAi.service');
 const env = require('../../config/env');
 const {
+  fetchGooglePlaceImage,
   getGoogleMapsFailureMessage,
   recordGoogleMapsFailure,
   searchGoogleMapsReviews,
@@ -76,6 +77,7 @@ const getPlaceReviews = async ({ dataId, placeId, allPages = true }) => {
   }
 };
 module.exports = {
+  fetchGooglePlaceImage,
   getWeatherByDestination: weatherService.getWeatherByDestination,
   getAttractionDetail: placesService.getAttractionDetail,
   getAttractionsByDestination: placesService.getAttractionsByDestination,
