@@ -21,6 +21,10 @@ const getMapPlaces = catchAsync(async (req, res) => {
 const getMapPlaceDetails = catchAsync(async (req, res) => {
   const details = await mapService.getMapPlaceDetails({
     category: req.query.category,
+    placeId: req.query.placeId,
+    foursquarePlaceId: req.query.foursquarePlaceId,
+    googlePlaceId: req.query.googlePlaceId,
+    dataId: req.query.dataId,
     name: req.query.name,
     address: req.query.address,
     latitude: req.query.latitude,

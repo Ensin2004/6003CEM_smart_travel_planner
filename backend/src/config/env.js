@@ -35,6 +35,7 @@ module.exports = {
   // External API keys remain empty by default so services can decide when to use fallbacks.
   placesApiKey: process.env.PLACES_API_KEY || '',
   geoapifyApiKey: process.env.GEOAPIFY_API_KEY || process.env.GEOAPIFY_KEY || '',
+  foursquareApiKey: process.env.FOURSQUARE_API_KEY || '',
   serpApiKey: process.env.SERPAPI_KEY || process.env.SERPAPI_API_KEY || '',
   airlabsApiKey: process.env.AIRLABS_API_KEY || '',
   transportApiAppId: process.env.TRANSPORTAPI_APP_ID || process.env.TAPI_APP_ID || '',

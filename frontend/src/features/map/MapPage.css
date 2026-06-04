@@ -767,6 +767,53 @@
   gap: 8px 10px;
 }
 
+.map-review-list {
+  display: grid;
+  gap: 10px;
+}
+
+.map-detail-provider-warning {
+  margin: 0;
+  padding: 9px 10px;
+  border: 1px solid #fed7aa;
+  border-radius: 7px;
+  background: #fff7ed;
+  color: #9a3412;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.map-review-list h3 {
+  margin: 0;
+  font-size: 14px;
+}
+
+.map-review-list article {
+  display: grid;
+  gap: 5px;
+  padding: 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.map-review-list article div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 12px;
+}
+
+.map-review-list article span {
+  color: #64748b;
+}
+
+.map-review-list article p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
 .map-detail-rating strong {
   color: #111827;
   font-size: 14px;

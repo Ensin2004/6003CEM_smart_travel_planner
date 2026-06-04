@@ -51,6 +51,10 @@ const mapPlacesRules = [
 
 const mapPlaceDetailsRules = [
   categoryRule,
+  optionalTextRule('placeId', 120),
+  optionalTextRule('foursquarePlaceId', 120),
+  optionalTextRule('googlePlaceId', 240),
+  optionalTextRule('dataId', 240),
   placeNameRule,
   optionalTextRule('address'),
   optionalCoordinateRule('latitude', -90, 90),

@@ -98,6 +98,27 @@ const categoryPanelPlace = {
   panelMode: 'category',
 };
 const getPlaceAddress = (place) => place.address || place.displayName || 'Location details unavailable';
+const hasRichPlaceDetails = (place = {}) =>
+  place.detailSource === 'serpapi' ||
+  Boolean(
+    place.imageUrl ||
+    Number(place.rating) ||
+    Number(place.reviews || place.reviewCount) ||
+    place.openState ||
+    (place.hours && place.hours !== 'Hours unavailable') ||
+    place.priceDetail
+  );
+const mergePreservingRichPlace = (basePlace = {}, nextPlace = {}) => {
+  if (!hasRichPlaceDetails(basePlace)) return { ...basePlace, ...nextPlace };
+
+  return {
+    ...nextPlace,
+    ...basePlace,
+    lat: nextPlace.lat ?? basePlace.lat,
+    lng: nextPlace.lng ?? basePlace.lng,
+    categoryId: nextPlace.categoryId || basePlace.categoryId,
+  };
+};
 // Format Category Place converts raw values into readable display text.
 const formatCategoryPlace = (place, categoryId) => ({
   ...place,
@@ -107,6 +128,7 @@ const formatCategoryPlace = (place, categoryId) => ({
   address: getPlaceAddress(place),
   imageUrl: place.imageUrl || place.imageUrls?.[0] || '',
   imageUrls: place.imageUrls || (place.imageUrl ? [place.imageUrl] : []),
+  reviewItems: place.reviewItems || [],
   hours: place.hours || place.hoursSummary || place.openState || 'Hours unavailable',
   rating: place.rating || 'N/A',
   reviews: place.reviews || place.reviewCount || 'No reviews yet',
@@ -429,6 +451,9 @@ function PlaceDetails({
           Loading richer place details...
         </p>
       ) : null}
+      {details.enrichmentMessage ? (
+        <p className="map-detail-provider-warning" role="status">{details.enrichmentMessage}</p>
+      ) : null}
 
       <div className="map-detail-rating">
         <StarRating rating={details.rating} size={17} />
@@ -439,6 +464,21 @@ function PlaceDetails({
       </div>
 
       <p>{details.summary}</p>
+
+      {details.reviewItems.length ? (
+        <section className="map-review-list" aria-label="Google review highlights">
+          <h3>Google review highlights</h3>
+          {details.reviewItems.slice(0, 3).map((review) => (
+            <article key={review.id}>
+              <div>
+                <strong>{review.author}</strong>
+                <span>{review.rating ? `${Number(review.rating).toFixed(1)} stars` : review.date}</span>
+              </div>
+              <p>{review.text || 'No written review provided.'}</p>
+            </article>
+          ))}
+        </section>
+      ) : null}
 
       <div className="map-detail-facts">
         <span>
@@ -608,6 +648,7 @@ function MapPage() {
   const loadedPlaceDetailsRef = useRef(new Set());
   const placeWeatherCacheRef = useRef(new Map());
   const [query, setQuery] = useState('Penang');
+  const [mapDestination, setMapDestination] = useState('Penang');
   const [activeCategories, setActiveCategories] = useState([]);
   const [categoryResults, setCategoryResults] = useState({});
   const [suggestions, setSuggestions] = useState([]);
@@ -674,12 +715,16 @@ function MapPage() {
   const selectedCurrency = currency?.selectedCurrency || 'USD';
   const supportedCurrencyCodes = useMemo(() => currency?.currencies?.map((option) => option.code) || [], [currency?.currencies]);
   const selectedPlaceId = selectedPlace?.id;
+  const selectedPlaceFoursquareId = selectedPlace?.foursquarePlaceId;
+  const selectedPlaceGoogleId = selectedPlace?.placeId;
+  const selectedPlaceDataId = selectedPlace?.dataId;
   const selectedPlaceName = selectedPlace?.name;
   const selectedPlaceCategoryId = selectedPlace?.categoryId;
   const selectedPlaceAddress = selectedPlace?.address || selectedPlace?.displayName;
   const selectedPlaceLat = selectedPlace?.lat;
   const selectedPlaceLng = selectedPlace?.lng;
   const selectedPlaceIsCustom = selectedPlace?.custom;
+  const selectedPlaceHasRichDetails = hasRichPlaceDetails(selectedPlace);
 
   const handleViewportChange = useCallback((viewport) => {
     setMapCenter(viewport.center);
@@ -752,17 +797,22 @@ function MapPage() {
           searchableCategories.map(async (categoryId) => {
             const resultLimit = categoryId === 'attractions' || categoryId === 'shopping' ? 60 : 30;
             let places = [];
+            let providerMessage = '';
 
             try {
               const mapPlaces = await searchMapCategoryPlaces(categoryId, mapCenter, {
+                destination: mapDestination,
                 limit: resultLimit,
                 signal: controller.signal,
               });
               places = mapPlaces.available ? mapPlaces.items || [] : [];
+              providerMessage = mapPlaces.message || '';
             } catch (error) {
               if (isCanceledRequest(error)) {
                 throw error;
               }
+
+              providerMessage = error.message || '';
             }
 
             if (!places.length) {
@@ -781,7 +831,7 @@ function MapPage() {
               }
             }
 
-            return [categoryId, places.map((place) => formatCategoryPlace(place, categoryId))];
+            return [categoryId, places.map((place) => formatCategoryPlace(place, categoryId)), providerMessage];
           })
         );
 
@@ -808,7 +858,12 @@ function MapPage() {
             const refreshedPlaces = resultEntries[categoryId];
             const existingPlaces = currentResults[categoryId] || [];
 
-            nextResults[categoryId] = refreshedPlaces?.length ? refreshedPlaces : existingPlaces;
+            nextResults[categoryId] = refreshedPlaces?.length
+              ? refreshedPlaces.map((place) => {
+                  const existingPlace = existingPlaces.find((candidate) => candidate.id === place.id);
+                  return existingPlace ? mergePreservingRichPlace(existingPlace, place) : place;
+                })
+              : existingPlaces;
           });
 
           return nextResults;
@@ -824,7 +879,8 @@ function MapPage() {
           setMessage('');
         } else {
           setStatus('empty');
-          setMessage('Map markers are temporarily unavailable. Try again shortly.');
+          const providerMessage = completedResults.map((result) => result.value[2]).find(Boolean);
+          setMessage(providerMessage || 'Map markers are temporarily unavailable. Try again shortly.');
         }
       } catch (error) {
         if (!isCanceledRequest(error)) {
@@ -838,7 +894,7 @@ function MapPage() {
       window.clearTimeout(timerId);
       controller.abort();
     };
-  }, [activeCategories, mapBounds, mapCenter]);
+  }, [activeCategories, mapBounds, mapCenter, mapDestination]);
 
   useEffect(() => {
     saveUserMarkers(customMarkers);
@@ -921,13 +977,16 @@ function MapPage() {
 
     const detailsKey = getPlaceRequestKey(selectedPlaceId, selectedPlaceLat, selectedPlaceLng);
 
-    if (loadedPlaceDetailsRef.current.has(detailsKey)) {
+    if (loadedPlaceDetailsRef.current.has(detailsKey) && selectedPlaceHasRichDetails) {
       return undefined;
     }
 
     const controller = new AbortController();
     const detailsRequest = {
       id: selectedPlaceId,
+      foursquarePlaceId: selectedPlaceFoursquareId,
+      placeId: selectedPlaceGoogleId,
+      dataId: selectedPlaceDataId,
       name: selectedPlaceName,
       categoryId: selectedPlaceCategoryId,
       address: selectedPlaceAddress,
@@ -942,21 +1001,34 @@ function MapPage() {
         const details = await getMapPlaceDetails(detailsRequest, { signal: controller.signal });
 
         if (!controller.signal.aborted && details.available && details.item) {
-          loadedPlaceDetailsRef.current.add(detailsKey);
+          const formattedDetails = formatCategoryPlace(
+            details.item,
+            selectedPlaceCategoryId || detailsRequest.categoryId
+          );
+          if (hasRichPlaceDetails(formattedDetails)) {
+            loadedPlaceDetailsRef.current.add(detailsKey);
+          }
           setSelectedPlace((currentPlace) => (
             currentPlace?.id === detailsRequest.id
               ? {
                   ...currentPlace,
-                  ...formatCategoryPlace(details.item, currentPlace.categoryId || detailsRequest.categoryId),
+                  ...formattedDetails,
                   id: currentPlace.id,
                   panelMode: 'place',
                   zoom: currentPlace.zoom,
                 }
               : currentPlace
           ));
+          setCategoryResults((currentResults) => ({
+            ...currentResults,
+            [detailsRequest.categoryId]: (currentResults[detailsRequest.categoryId] || []).map((place) => (
+              place.id === detailsRequest.id
+                ? mergePreservingRichPlace(place, formattedDetails)
+                : place
+            )),
+          }));
         }
-        loadedPlaceDetailsRef.current.add(detailsKey);
-        setPlaceDetailStatus('success');
+        setPlaceDetailStatus(details.item?.detailSource === 'serpapi' ? 'success' : 'error');
       } catch (error) {
         if (error.name !== 'AbortError' && error.name !== 'CanceledError') {
           setPlaceDetailStatus('error');
@@ -971,11 +1043,15 @@ function MapPage() {
     panelMode,
     selectedPlaceAddress,
     selectedPlaceCategoryId,
+    selectedPlaceDataId,
+    selectedPlaceFoursquareId,
+    selectedPlaceGoogleId,
     selectedPlaceId,
     selectedPlaceIsCustom,
     selectedPlaceLat,
     selectedPlaceLng,
     selectedPlaceName,
+    selectedPlaceHasRichDetails,
   ]);
 
   useEffect(() => {
@@ -1079,6 +1155,7 @@ function MapPage() {
         panelMode: 'place',
       });
       setMapCenter([place.lat, place.lng]);
+      setMapDestination(place.name);
       setStatus('success');
       setMessage('');
       setSuggestions([]);
@@ -1116,11 +1193,15 @@ function MapPage() {
   };
 
   const handleSelectMarker = (marker) => {
-    setSelectedPlace({
-      ...marker,
+    setSelectedPlace((currentPlace) => ({
+      ...(
+        currentPlace?.id === marker.id
+          ? mergePreservingRichPlace(currentPlace, marker)
+          : marker
+      ),
       panelMode: 'place',
       zoom: 14,
-    });
+    }));
     setMapCenter([marker.lat, marker.lng]);
     setQuery(marker.name);
     setStatus('success');
@@ -1302,6 +1383,7 @@ function MapPage() {
       panelMode: 'place',
     });
     setMapCenter([place.lat, place.lng]);
+    setMapDestination(place.name);
     setQuery(place.name);
     setSuggestions([]);
     setIsSuggestionOpen(false);
@@ -1539,7 +1621,7 @@ function MapPage() {
           <>
             <div className="map-panel-section">
               <h3>Places on the map</h3>
-              <p>Results are loaded from OpenStreetMap for the visible area.</p>
+              <p>Nearby places use Foursquare and OpenStreetMap coordinates, enriched with SerpApi Google Maps details.</p>
             </div>
 
             <div className="map-city-list">
