@@ -1,0 +1,233 @@
+/**
+ * Notification business rules for reminders, Socket.IO, and email delivery.
+ */
+const env = require('../../config/env');
+const logger = require('../../utils/logger');
+const AppError = require('../../utils/AppError');
+const { sendNotificationEmail } = require('../../utils/email.service');
+const userRepository = require('../users/user.repository');
+const notificationRepository = require('./notification.repository');
+const { emitNotification, emitUnreadCount } = require('./notification.socket');
+
+const getClientBaseUrl = () => env.clientOrigin.split(',')[0]?.trim() || 'http://localhost:5173';
+const toPlainNotification = (notification) =>
+  typeof notification.toJSON === 'function' ? notification.toJSON() : notification;
+
+const getNotificationActionUrl = (notification) => {
+  if (notification.metadata?.url) return `${getClientBaseUrl()}${notification.metadata.url}`;
+  return `${getClientBaseUrl()}/notifications`;
+};
+
+const isNotificationAllowed = (user, type) => {
+  const preferences = user.notificationPreferences || {};
+  if (preferences.notificationsOff) return false;
+  if (type === 'trip-reminder' && preferences.tripAlerts === false) return false;
+  if (type === 'packing-list' && preferences.packingReminder === false) return false;
+  if (['admin-rate-limit', 'admin-error-log', 'admin-login-lock'].includes(type) && preferences.errorLogs === false) return false;
+  if (type === 'admin-signup' && preferences.systemAlerts === false) return false;
+  return true;
+};
+
+const dispatchNotification = async (notification) => {
+  const user = await userRepository.findById(notification.userId);
+  if (!user) return notification;
+
+  if (!isNotificationAllowed(user, notification.type)) {
+    notification.sentAt = new Date();
+    await notificationRepository.save(notification);
+    return notification;
+  }
+
+  notification.sentAt = new Date();
+  await notificationRepository.save(notification);
+
+  const unreadCount = await notificationRepository.countUnreadByUserId(notification.userId);
+  emitNotification(notification.userId.toString(), toPlainNotification(notification), unreadCount);
+
+  try {
+    await sendNotificationEmail({
+      to: user.email,
+      name: user.name,
+      title: notification.title,
+      message: notification.message,
+      actionUrl: getNotificationActionUrl(notification),
+    });
+  } catch (error) {
+    logger.warn(`Notification email failed for ${user.email}: ${error.message}`);
+  }
+
+  return notification;
+};
+
+const createNotification = async ({ userId, tripId, type = 'system', title, message, scheduledAt, metadata = {} }) => {
+  const user = await userRepository.findById(userId);
+  if (!user || !isNotificationAllowed(user, type)) return null;
+
+  const notification = await notificationRepository.create({
+    userId,
+    tripId,
+    type,
+    title,
+    message,
+    scheduledAt: scheduledAt || new Date(),
+    metadata,
+  });
+
+  if (!scheduledAt || new Date(scheduledAt) <= new Date()) {
+    await dispatchNotification(notification);
+  }
+
+  return notification;
+};
+
+const notifyAdmins = async ({ type = 'system', title, message, metadata = {} }) => {
+  const admins = await userRepository.findActiveAdmins();
+  const createdNotifications = await Promise.all(
+    admins.map((admin) =>
+      createNotification({
+        userId: admin._id,
+        type,
+        title,
+        message,
+        metadata,
+      })
+    )
+  );
+
+  return createdNotifications.filter(Boolean);
+};
+
+const getLockedAccountLabel = async (log) => {
+  if (log.metadata?.attemptedEmailMasked) return log.metadata.attemptedEmailMasked;
+  if (!log.userId) return 'unknown account';
+
+  const lockedUser = await userRepository.findById(log.userId);
+  return lockedUser?.name || lockedUser?.email || log.userId.toString();
+};
+
+const notifyAdminsOfApiLog = async (log) => {
+  const isRateLimit = log.category === 'rate-limit';
+  const isLoginLock =
+    log.category === 'auth' &&
+    log.statusCode === 429 &&
+    log.message === 'Account locked after repeated failed login attempts';
+  const isError = log.status === 'error' || ['error', 'critical'].includes(log.severity);
+
+  if (!isRateLimit && !isLoginLock && !isError) return Promise.resolve([]);
+
+  const title = isLoginLock ? 'Account Lockout Alert' : isRateLimit ? 'Rate limit alert' : 'System error logged';
+  const statusText = log.statusCode ? ` (${log.statusCode})` : '';
+  const endpointText = log.endpoint ? ` on ${log.endpoint}` : '';
+  const lockedAccount = isLoginLock ? await getLockedAccountLabel(log) : null;
+  const message = isLoginLock
+    ? `A user account (${lockedAccount}) was locked after repeated failed login attempts. Review the authentication logs for possible brute-force activity.`
+    : `${log.service || 'System'}${endpointText} recorded ${log.category || 'api'} ${log.status || 'event'}${statusText}: ${log.message}`;
+
+  return notifyAdmins({
+    type: isLoginLock ? 'admin-login-lock' : isRateLimit ? 'admin-rate-limit' : 'admin-error-log',
+    title,
+    message,
+    metadata: {
+      url: '/admin/logging-monitoring',
+      apiLogId: log._id,
+      category: log.category,
+      severity: log.severity,
+      status: log.status,
+      statusCode: log.statusCode,
+      service: log.service,
+      endpoint: log.endpoint,
+    },
+  });
+};
+
+const notifyAdminsOfNewSignup = (user) =>
+  notifyAdmins({
+    type: 'admin-signup',
+    title: 'New user signup',
+    message: `${user.name} (${user.email}) created a traveller account.`,
+    metadata: {
+      url: '/admin/users',
+      userId: user._id,
+      email: user.email,
+    },
+  });
+
+const scheduleTripReminder = async (trip) => {
+  if (!trip?.startDate || !trip?.userId) return null;
+
+  const scheduledAt = new Date(trip.startDate);
+  scheduledAt.setDate(scheduledAt.getDate() - 1);
+
+  await notificationRepository.deletePendingByTripAndType(trip._id, trip.userId, 'trip-reminder');
+
+  return createNotification({
+    userId: trip.userId,
+    tripId: trip._id,
+    type: 'trip-reminder',
+    title: 'Trip Reminder',
+    message: `Your trip ${trip.title || trip.destination} starts on ${new Date(trip.startDate).toLocaleDateString('en-MY')}. Review your itinerary and final details before you go.`,
+    scheduledAt,
+    metadata: { url: `/trips/${trip._id}` },
+  });
+};
+
+const notifyPackingList = (packingList) => {
+  const unpackedCount = packingList.items?.filter((item) => !item.isPacked).length || 0;
+  if (!unpackedCount) return null;
+
+  const tripDestination = packingList.destination || 'your destination';
+
+  return createNotification({
+    userId: packingList.userId,
+    tripId: packingList.tripId,
+    type: 'packing-list',
+    title: 'Packing List Reminder',
+    message: `There are still unpacked items in your packing list ${packingList.title}, please check your items before the trip to ${tripDestination}.`,
+    metadata: { url: '/packing-lists', packingListId: packingList._id },
+  });
+};
+
+const listNotifications = async (userId, sort = 'desc') => {
+  const notifications = await notificationRepository.findByUserId(userId, sort === 'asc' ? 'asc' : 'desc');
+  const unreadCount = await notificationRepository.countUnreadByUserId(userId);
+  return { notifications, unreadCount };
+};
+
+const markNotificationRead = async (notificationId, userId) => {
+  const notification = await notificationRepository.markReadByIdAndUserId(notificationId, userId);
+  if (!notification) throw new AppError('Notification not found', 404);
+
+  const unreadCount = await notificationRepository.countUnreadByUserId(userId);
+  emitUnreadCount(userId, unreadCount);
+  return { notification, unreadCount };
+};
+
+const markAllNotificationsRead = async (userId) => {
+  await notificationRepository.markAllReadByUserId(userId);
+  emitUnreadCount(userId, 0);
+  return { unreadCount: 0 };
+};
+
+const processDueNotifications = async () => {
+  const notifications = await notificationRepository.findDueUnsent();
+  await Promise.all(notifications.map((notification) => dispatchNotification(notification)));
+};
+
+const startNotificationWorker = () => {
+  processDueNotifications().catch((error) => logger.warn(`Notification worker failed: ${error.message}`));
+  return setInterval(() => {
+    processDueNotifications().catch((error) => logger.warn(`Notification worker failed: ${error.message}`));
+  }, 60 * 1000);
+};
+
+module.exports = {
+  createNotification,
+  listNotifications,
+  markAllNotificationsRead,
+  markNotificationRead,
+  notifyAdminsOfApiLog,
+  notifyAdminsOfNewSignup,
+  notifyPackingList,
+  scheduleTripReminder,
+  startNotificationWorker,
+};

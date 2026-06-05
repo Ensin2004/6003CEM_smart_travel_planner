@@ -6,3 +6,45 @@
 @import './gradients.css';
 @import './forms.css';
 @import './responsive.css';
+
+.Toastify__toast-container {
+  position: fixed;
+  z-index: 9999;
+  width: min(360px, calc(100vw - 24px));
+  color: #1f2937;
+}
+
+.Toastify__toast-container--top-right {
+  top: 16px;
+  right: 16px;
+}
+
+.Toastify__toast {
+  min-height: 54px;
+  margin-bottom: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line, #e5e7eb);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 16px 45px rgba(16, 42, 67, 0.16);
+  font: inherit;
+}
+
+.Toastify__toast-body {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+}
+
+.Toastify__close-button {
+  border: 0;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+}
+
+.Toastify__progress-bar {
+  background: var(--teal, #0f766e);
+}

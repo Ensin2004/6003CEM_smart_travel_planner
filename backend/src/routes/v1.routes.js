@@ -8,6 +8,7 @@ const authRoutes = require('../modules/auth/auth.routes');
 const aiAssistantRoutes = require('../modules/aiAssistant/aiAssistant.routes');
 const userRoutes = require('../modules/users/user.routes');
 const tripRoutes = require('../modules/trips/trip.routes');
+const notificationRoutes = require('../modules/notifications/notification.routes');
 const exploreRoutes = require('../modules/explore/explore.routes');
 const adminRoutes = require('../modules/admin/admin.routes');
 const apiLogRoutes = require('../modules/apiLogs/apiLog.routes');
@@ -36,6 +37,7 @@ router.get('/', (req, res) => {
       '/users',
       '/trips',
       '/packing-lists',
+      '/notifications',
       '/travel-guide',
       '/explore',
       '/admin',
@@ -61,6 +63,8 @@ router.use('/users', userRoutes);
 
 // Route section connects URL patterns with validation, authentication, and controller actions.
 router.use('/trips', tripRoutes);
+
+router.use('/notifications', notificationRoutes);
 
 // Route section connects URL patterns with validation, authentication, and controller actions.
 router.use('/packing-lists', travelToolsRoutes);

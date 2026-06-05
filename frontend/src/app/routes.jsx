@@ -23,6 +23,7 @@ import TravelGuidePage from '../features/travelGuide/TravelGuidePage';
 import TravelToolsPage from '../features/travelTools/TravelToolsPage';
 import LanguageHelperPage from '../features/languageHelper/LanguageHelperPage';
 import UserSettingsPage from '../features/settings/user/UserSettingsPage';
+import NotificationsPage from '../features/notifications/NotificationsPage';
 import AdminDashboard from '../features/admin/AdminDashboard';
 import ApiLogsPage from '../features/admin/ApiLogsPage';
 import ManageUsersPage from '../features/admin/ManageUsersPage';
@@ -45,6 +46,7 @@ function AppRoutes() {
         <Route element={<UserLayout />}>
           <Route path="/dashboard" element={<UserDashboard />} />
           <Route path="/favorites" element={<FavoritesPage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/trips" element={<TripsPage />} />
           <Route path="/trips/:id" element={<TripDetailsPage />} />
           <Route path="/explore" element={<ExplorePage />} />
@@ -68,6 +70,7 @@ function AppRoutes() {
           <Route path="users" element={<ManageUsersPage />} />
           <Route path="api-logs" element={<ApiLogsPage />} />
           <Route path="logging-monitoring" element={<SystemErrorsPage />} />
+          <Route path="notifications" element={<NotificationsPage />} />
           <Route path="system-errors" element={<SystemErrorsPage />} />
           <Route path="settings" element={<AdminSettingsPage />} />
         </Route>

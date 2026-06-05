@@ -64,4 +64,35 @@ const sendVerificationEmail = async ({ to, name, verificationUrl, expiresAt }) =
 
   return info;
 };
-module.exports = { sendVerificationEmail };
+
+const sendNotificationEmail = async ({ to, name, title, message, actionUrl }) => {
+  const transporter = createTransporter();
+  const htmlAction = actionUrl
+    ? `<p><a href="${escapeHtml(actionUrl)}" style="display: inline-block; padding: 12px 18px; background: #0f766e; color: #ffffff; text-decoration: none; border-radius: 8px;">Open notification</a></p>`
+    : '';
+
+  const email = {
+    from: env.emailFrom,
+    to,
+    subject: title,
+    html: `
+      <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #1f2937;">
+        <h2>${escapeHtml(title)}</h2>
+        <p>Hi ${escapeHtml(name || 'there')},</p>
+        <p>${escapeHtml(message)}</p>
+        ${htmlAction}
+      </div>
+    `,
+    text: `Hi ${name || 'there'},\n\n${title}\n\n${message}${actionUrl ? `\n\nOpen: ${actionUrl}` : ''}`,
+  };
+
+  const info = await transporter.sendMail(email);
+
+  if (!hasSmtpConfig()) {
+    logger.info(`Notification email for ${to}: ${title}`);
+  }
+
+  return info;
+};
+
+module.exports = { sendNotificationEmail, sendVerificationEmail };

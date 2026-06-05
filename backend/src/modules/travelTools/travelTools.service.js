@@ -4,6 +4,7 @@
  */
 const AppError = require('../../utils/AppError');
 const tripRepository = require('../trips/trip.repository');
+const notificationService = require('../notifications/notification.service');
 const {
   documentTemplateRepository,
   packingListRepository,
@@ -188,7 +189,7 @@ const createPackingList = async (userId, data) => {
   await assertUniquePackingListTitle(userId, title);
   await assertUniquePackingTrip(userId, tripFields.tripId);
 
-  return packingListRepository.create({
+  const packingList = await packingListRepository.create({
     userId,
     ...tripFields,
     title,
@@ -202,6 +203,8 @@ const createPackingList = async (userId, data) => {
       daysBeforeTrip: data.reminder?.daysBeforeTrip ?? 2,
     },
   });
+  await notificationService.notifyPackingList(packingList, 'created');
+  return packingList;
 };
 // Update Packing List applies allowed changes to an existing record.
 const updatePackingList = async (listId, userId, data) => {
@@ -222,6 +225,7 @@ const updatePackingList = async (listId, userId, data) => {
 
   const packingList = await packingListRepository.updateByIdAndUserId(listId, userId, updateData);
   if (!packingList) throw new AppError('Packing list not found', 404);
+  await notificationService.notifyPackingList(packingList, 'updated');
   return packingList;
 };
 // Delete Packing List removes a record after ownership checks.
@@ -243,7 +247,9 @@ const addItem = async (listId, userId, data) => {
     quantity: data.quantity || 1,
     isPacked: Boolean(data.isPacked),
   });
-  return packingListRepository.save(packingList);
+  const savedPackingList = await packingListRepository.save(packingList);
+  await notificationService.notifyPackingList(savedPackingList, 'updated');
+  return savedPackingList;
 };
 
 // Update Item applies allowed changes to an existing record.
@@ -260,7 +266,9 @@ const updateItem = async (listId, itemId, userId, data) => {
     if (value !== undefined) item[key] = key === 'priority' ? normalizePriorityLevel(value) : value;
   });
 
-  return packingListRepository.save(packingList);
+  const savedPackingList = await packingListRepository.save(packingList);
+  await notificationService.notifyPackingList(savedPackingList, 'updated');
+  return savedPackingList;
 };
 
 const deleteItem = async (listId, itemId, userId) => {
@@ -280,7 +288,7 @@ const duplicatePackingList = async (listId, userId, data) => {
   await assertUniquePackingListTitle(userId, title);
   await assertUniquePackingTrip(userId, tripFields.tripId);
 
-  return packingListRepository.create({
+  const packingList = await packingListRepository.create({
     userId,
     ...tripFields,
     title,
@@ -300,6 +308,8 @@ const duplicatePackingList = async (listId, userId, data) => {
       daysBeforeTrip: source.reminder?.daysBeforeTrip ?? 2,
     },
   });
+  await notificationService.notifyPackingList(packingList, 'created');
+  return packingList;
 };
 
 const createTemplate = async (userId, data) => {

@@ -393,7 +393,8 @@ function TripsPage() {
 
       navigate(`/trips/${trip._id}`);
     } catch (error) {
-      setFormError(error.response?.data?.message || 'Unable to create trip.');
+      const validationMessages = error.response?.data?.errors?.map((item) => item.message).filter(Boolean);
+      setFormError(validationMessages?.[0] || error.response?.data?.message || 'Unable to create trip.');
     } finally {
       setIsSaving(false);
     }
