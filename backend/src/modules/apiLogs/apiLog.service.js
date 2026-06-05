@@ -3,6 +3,8 @@
  * Business rules, repository access, and external integrations live in this layer.
  */
 const apiLogRepository = require('./apiLog.repository');
+const logger = require('../../utils/logger');
+const notificationService = require('../notifications/notification.service');
 
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 100;
@@ -88,7 +90,7 @@ const recordEvent = async (data) => {
     ...(data.attemptedEmail && { attemptedEmailMasked: maskEmail(data.attemptedEmail) }),
   });
 
-  return apiLogRepository.create({
+  const log = await apiLogRepository.create({
     service: data.service,
     category: data.category || 'api',
     severity: data.severity || 'info',
@@ -100,6 +102,12 @@ const recordEvent = async (data) => {
     userId: data.userId,
     ...(Object.keys(metadata).length && { metadata }),
   });
+
+  notificationService
+    .notifyAdminsOfApiLog(log)
+    .catch((error) => logger.error(`Failed to notify admins about API log: ${error.message}`));
+
+  return log;
 };
 const getRecentLogs = async (query = {}) => {
   const filter = buildFilter(query);

@@ -32,6 +32,7 @@ import CompareTray from '../components/compare/CompareTray';
 import SubmenuPanel from '../components/SubmenuPanel';
 import AuthContext from '../context/authContext';
 import CurrencyContext from '../context/currencyContext';
+import useNotifications from '../hooks/useNotifications';
 import './AppLayout.css';
 // AppLayout renders the main screen and handles nearby interactions.
 function AppLayout({ role, menuItems }) {
@@ -40,6 +41,7 @@ function AppLayout({ role, menuItems }) {
   const navigate = useNavigate();
   const { logout, user } = useContext(AuthContext);
   const currency = useContext(CurrencyContext);
+  const { unreadCount } = useNotifications();
   const [collapsedSubmenuTo, setCollapsedSubmenuTo] = useState(null);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState(() => getSavedTranslateLanguage());
@@ -425,9 +427,18 @@ function AppLayout({ role, menuItems }) {
             </Link>
           )}
 
-          <button className="header-icon-button" type="button" aria-label="Notifications">
+          <Link
+            className="header-icon-button notification-bell-button"
+            to={isAdmin ? '/admin/notifications' : '/notifications'}
+            aria-label="Notifications"
+          >
             <Bell size={18} aria-hidden="true" />
-          </button>
+            {unreadCount > 0 && (
+              <span className="notification-badge" aria-label={`${unreadCount} unread notifications`}>
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
+          </Link>
 
           <div className="profile-menu" ref={profileMenuRef}>
             <button

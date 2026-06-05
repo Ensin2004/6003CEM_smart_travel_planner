@@ -13,6 +13,7 @@ const findByEmail = (email, includePassword = false) => {
     : query;
 };
 const findById = (id) => User.findById(id);
+const findActiveAdmins = () => User.find({ role: 'admin', status: 'active' });
 const findByIdWithPassword = (id) => User.findById(id).select('+password');
 const findByIdWithRefreshToken = (id) => User.findById(id).select('+refreshToken +refreshTokenExpiresAt');
 const findByEmailVerificationToken = (token) =>
@@ -30,6 +31,7 @@ module.exports = {
   create,
   findByEmail,
   findById,
+  findActiveAdmins,
   findByIdWithPassword,
   findByIdWithRefreshToken,
   findByEmailVerificationToken,

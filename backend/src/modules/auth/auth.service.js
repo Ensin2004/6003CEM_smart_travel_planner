@@ -11,6 +11,7 @@ const env = require('../../config/env');
 const logger = require('../../utils/logger');
 const authRepository = require('./auth.repository');
 const apiLogService = require('../apiLogs/apiLog.service');
+const notificationService = require('../notifications/notification.service');
 const { normalizePreferences } = require('../users/user.service');
 const { sendVerificationEmail } = require('../../utils/email.service');
 
@@ -126,6 +127,9 @@ const register = async (data) => {
     isEmailVerified: false,
   });
   const verificationExpiresAt = await sendUserVerificationEmail(user);
+  notificationService
+    .notifyAdminsOfNewSignup(user)
+    .catch((error) => logger.error(`Failed to notify admins about signup: ${error.message}`));
 
   sanitizeUser(user);
 

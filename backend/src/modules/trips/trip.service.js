@@ -6,6 +6,7 @@
 const AppError = require('../../utils/AppError');
 const tripRepository = require('./trip.repository');
 const exploreService = require('../explore/explore.service');
+const notificationService = require('../notifications/notification.service');
 
 // Request bodies can arrive from manual trip forms, AI-assisted forms, or older payload shapes.
 // This mapper folds those variants into the schema shape expected by the repository.
@@ -141,10 +142,12 @@ const getWeatherGuidance = (weather) => {
   };
 };
 
-const createTrip = (userId, data) => {
+const createTrip = async (userId, data) => {
   const payload = normalizeTripPayload(data);
   validateTripPayload(payload);
-  return tripRepository.create({ ...payload, userId });
+  const trip = await tripRepository.create({ ...payload, userId });
+  await notificationService.scheduleTripReminder(trip);
+  return trip;
 };
 
 const getMyTrips = (userId) => tripRepository.findByUserId(userId);
@@ -163,6 +166,7 @@ const updateTrip = async (tripId, userId, data) => {
 
   const trip = await tripRepository.updateByIdAndUserId(tripId, userId, payload);
   if (!trip) throw new AppError('Trip not found', 404);
+  await notificationService.scheduleTripReminder(trip);
   return trip;
 };
 

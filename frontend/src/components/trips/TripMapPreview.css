@@ -3,12 +3,15 @@
  * Layout, spacing, and interaction rules support the matching React view.
  */
 .shared-trip-map {
+  position: relative;
+  z-index: 0;
   width: 100%;
   min-height: 260px;
   overflow: hidden;
   background: #cfe8f7;
 }
 .shared-trip-leaflet-map {
+  z-index: 0;
   width: 100%;
   height: 100%;
   min-height: inherit;
