@@ -1083,7 +1083,29 @@
   padding: 10px;
 }
 
-.map-route-point-list span {
+.map-route-point {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) 28px;
+  gap: 8px;
+  align-items: center;
+  border-radius: 6px;
+  background: #ffffff;
+  padding: 6px;
+}
+
+.map-route-point > span {
+  display: grid;
+  width: 24px;
+  height: 24px;
+  place-items: center;
+  border-radius: 999px;
+  background: #2563eb;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.map-route-point strong {
   min-width: 0;
   overflow: hidden;
   color: #4b5563;
@@ -1091,6 +1113,29 @@
   font-weight: var(--font-weight-semibold);
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.map-route-point button {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: #94a3b8;
+}
+
+.map-route-point button:hover {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.map-route-point-list > p {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: var(--font-weight-semibold);
 }
 
 .map-route-mode-grid {

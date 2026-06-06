@@ -301,4 +301,54 @@ describe('Map route planning', () => {
       })
     );
   });
+
+  test('uses Dijkstra to optimize intermediate waypoint order', async () => {
+    const post = jest.fn().mockResolvedValue({
+      data: {
+        features: [{
+          properties: { summary: { distance: 300000, duration: 14000 } },
+          geometry: {
+            coordinates: [
+              [100, 0],
+              [101, 0],
+              [102, 0],
+              [103, 0],
+            ],
+          },
+        }],
+      },
+    });
+
+    jest.doMock('axios', () => ({
+      create: jest.fn(() => ({ post })),
+    }));
+    jest.doMock('../src/config/env', () => ({
+      nodeEnv: 'development',
+      openRouteServiceApiKey: 'test-ors-key',
+    }));
+
+    const mapService = require('../src/modules/map/map.service');
+    const result = await mapService.getMapRoutes({
+      mode: 'car',
+      points: [
+        { lat: 0, lng: 100 },
+        { lat: 0, lng: 102 },
+        { lat: 0, lng: 101 },
+        { lat: 0, lng: 103 },
+      ],
+    });
+
+    expect(result.optimization).toEqual(expect.objectContaining({
+      algorithm: 'dijkstra',
+      pointOrder: [0, 2, 1, 3],
+    }));
+    expect(result.optimization.savedDistanceMeters).toBeGreaterThan(0);
+    expect(post).toHaveBeenCalledWith(
+      '/v2/directions/driving-car/geojson',
+      expect.objectContaining({
+        coordinates: [[100, 0], [101, 0], [102, 0], [103, 0]],
+      }),
+      expect.any(Object)
+    );
+  });
 });

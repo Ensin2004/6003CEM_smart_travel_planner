@@ -317,6 +317,10 @@ export const getRouteBetweenPlaces = async (pointsOrOrigin, destination, options
       estimated: routeResult.estimated,
       provider: routeResult.provider,
       message: routeResult.message,
+      optimization: routeResult.optimization,
+      optimizedPoints: routeResult.optimization?.pointOrder
+        ?.map((pointIndex) => validPoints[pointIndex])
+        .filter(Boolean) || validPoints,
       mode,
     };
   } catch (error) {
