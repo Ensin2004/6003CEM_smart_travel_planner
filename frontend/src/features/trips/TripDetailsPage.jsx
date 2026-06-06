@@ -5,6 +5,7 @@
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { Country, State } from 'country-state-city';
+import { toast } from 'react-toastify';
 import {
   ArrowLeft,
   AlertTriangle,
@@ -56,7 +57,7 @@ import {
   getTravelDocuments,
   updatePackingItem,
 } from '../../api/travelToolsApi';
-import { searchOpenStreetMapCategoryPlaces, searchOpenStreetMapPlaces } from '../../api/mapApi';
+import { getGeocodeLocation, searchOpenStreetMapCategoryPlaces, searchOpenStreetMapPlaces } from '../../api/mapApi';
 import { getVisitedPlaces } from '../../api/visitedPlaceApi';
 import TripMapPreview from '../../components/trips/TripMapPreview';
 import { getTripMapPoint } from '../../components/trips/tripMapUtils';
@@ -88,6 +89,11 @@ const defaultDocumentItems = [
   { name: 'Insurance', documentType: 'Insurance' },
 ];
 const settingsStyleOptions = ['Food', 'Culture', 'Shopping'];
+const emptyLocationLabels = new Set(['not added yet']);
+const getEditableLocationName = (value) => {
+  const locationName = String(value || '').trim();
+  return emptyLocationLabels.has(locationName.toLowerCase()) ? '' : locationName;
+};
 
 const itineraryGroups = [
   { id: 'food', title: 'What to eat', addLabel: 'Food', categoryId: 'food', types: ['restaurant'], icon: Utensils },
@@ -217,18 +223,19 @@ const getItemPoint = (item) => ({
   lng: item.location?.coordinates?.coordinates?.[0],
 });
 const getRecommendationLocation = (trip, day) => {
-  if (day?.location?.name) {
-    return [day.location.name, day.location.country].filter(Boolean).join(', ');
+  const dayLocationName = getEditableLocationName(day?.location?.name);
+  if (dayLocationName) {
+    return [dayLocationName, day.location.country].filter(Boolean).join(', ');
   }
 
   const primaryDestination = trip?.destinationSegments?.[0];
   return [
-    primaryDestination?.city || trip?.destination,
+    getEditableLocationName(primaryDestination?.city || trip?.destination),
     primaryDestination?.country || trip?.country,
   ].filter(Boolean).join(', ');
 };
 const getDayLocationQuery = (day, trip) => {
-  const locationName = day?.location?.name || '';
+  const locationName = getEditableLocationName(day?.location?.name);
   const isCountryName = Country.getAllCountries().some((country) => country.name.toLowerCase() === locationName.toLowerCase());
   const dayLocation = isCountryName
     ? locationName
@@ -373,7 +380,6 @@ function TripDetailsPage() {
   const [message, setMessage] = useState('');
   const [panelWidth, setPanelWidth] = useState(460);
   const [isAddingIdea, setIsAddingIdea] = useState(false);
-  const [actionMessage, setActionMessage] = useState('');
   const [selectedIdeaSchedule, setSelectedIdeaSchedule] = useState({ startTime: '09:00', endTime: '10:00' });
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [checklistModal, setChecklistModal] = useState(null);
@@ -386,9 +392,15 @@ function TripDetailsPage() {
   const [isDayMenuOpen, setIsDayMenuOpen] = useState(false);
   const [locationSearchText, setLocationSearchText] = useState('');
   const [locationSearchSuggestions, setLocationSearchSuggestions] = useState([]);
+  const [editedLocationMapCenter, setEditedLocationMapCenter] = useState(null);
   const [dayGroupIdeaPreviews, setDayGroupIdeaPreviews] = useState({});
   const [dayGroupIdeaStatus, setDayGroupIdeaStatus] = useState('idle');
   const [dayGroupIdeaSource, setDayGroupIdeaSource] = useState('');
+  const updateDayLocal = (dayNumber, patch) => {
+    setDays((currentDays) =>
+      currentDays.map((day) => (day.dayNumber === dayNumber ? { ...day, ...patch } : day))
+    );
+  };
   useEffect(() => {
     let isMounted = true;
 
@@ -453,6 +465,10 @@ function TripDetailsPage() {
       isMounted = false;
     };
   }, [id]);
+  const activeDay = useMemo(
+    () => days.find((day) => day.dayNumber === activeDayNumber) || days[0],
+    [activeDayNumber, days]
+  );
   useEffect(() => {
     if (!isEditingDayLocation || locationSearchText.trim().length < 2) {
       return undefined;
@@ -460,28 +476,31 @@ function TripDetailsPage() {
 
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => {
-      const scopedQuery = [locationSearchText, trip?.country].filter(Boolean).join(', ');
+      getGeocodeLocation(locationSearchText.trim(), { signal: controller.signal })
+        .then((place) => {
+          if (!place?.available || !activeDay?.dayNumber) {
+            setLocationSearchSuggestions([]);
+            return;
+          }
 
-      searchOpenStreetMapPlaces(scopedQuery, { limit: 5, signal: controller.signal })
-        .then((places) => {
-          setLocationSearchSuggestions(places.map((place) => place.name).filter(Boolean));
+          setLocationSearchSuggestions([place.name || locationSearchText.trim()].filter(Boolean));
+          setEditedLocationMapCenter({
+            dayNumber: activeDay.dayNumber,
+            center: [place.latitude, place.longitude],
+          });
         })
         .catch(() => {
           if (!controller.signal.aborted) setLocationSearchSuggestions([]);
         });
-    }, 250);
+    }, 500);
 
     return () => {
       window.clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [isEditingDayLocation, locationSearchText, trip?.country]);
-  const activeDay = useMemo(
-    () => days.find((day) => day.dayNumber === activeDayNumber) || days[0],
-    [activeDayNumber, days]
-  );
+  }, [activeDay, isEditingDayLocation, locationSearchText]);
   const activeDayLocationLabel = [
-    activeDay?.location?.name,
+    getEditableLocationName(activeDay?.location?.name),
     activeDay?.location?.country,
   ].filter(Boolean).join(', ') || 'Set a day location';
   const tripCountry = useMemo(() => {
@@ -492,8 +511,8 @@ function TripDetailsPage() {
     ? State.getStatesOfCountry(tripCountry.isoCode).map((stateItem) => stateItem.name)
     : [];
   const popularLocationSuggestions = [
-    activeDay?.location?.name,
-    trip?.destination,
+    getEditableLocationName(activeDay?.location?.name),
+    getEditableLocationName(trip?.destination),
     ...(trip?.destinationSegments || []).map((segment) => segment.city || segment.name),
     'Georgetown',
   ].filter(Boolean);
@@ -561,21 +580,24 @@ function TripDetailsPage() {
     ? `${Math.round(weather.temperature.max || weather.temperature.mean)}${weather.temperature.unit || 'C'}`
     : '';
   const WeatherModeIcon = weatherModeIcons[weatherGuidance?.mode] || CloudSun;
-  const destinationPlaces = trip?.destinationSegments?.length
-    ? trip.destinationSegments
-    : trip
-      ? [{ city: trip.destination, country: trip.country }]
-      : [];
-  const mapPlaces = [
-    ...destinationPlaces,
-    ...items.map((item) => ({
+  const activeDayMapCenter = activeDayNumber !== 'summary'
+    ? editedLocationMapCenter?.dayNumber === activeDay?.dayNumber
+      ? editedLocationMapCenter.center
+      : getDayLocationCenter(activeDay)
+    : null;
+  const mapPlaces = items
+    .map((item) => {
+      const itemDay = days.find((day) => formatInputDate(day.date) === formatInputDate(item.scheduledDate));
+
+      return {
       title: item.title,
       city: item.location?.address,
       lat: item.location?.coordinates?.coordinates?.[1],
       lng: item.location?.coordinates?.coordinates?.[0],
-    })),
-  ];
-  const ideaMapPlaces = selectedIdea ? [selectedIdea, ...ideas.filter((idea) => idea.id !== selectedIdea.id)] : ideas;
+        dayNumber: itemDay?.dayNumber,
+      };
+    })
+    .filter((place) => Number.isFinite(Number(place.lat)) && Number.isFinite(Number(place.lng)));
   const routeSummary = useMemo(() => getRouteSummary(days), [days]);
   const routeCountries = useMemo(() => getRouteCountries(days), [days]);
   const packingProgress = getChecklistProgress(packingList?.items || [], (item) => item.isPacked);
@@ -703,12 +725,6 @@ function TripDetailsPage() {
     itineraryItemId: item?._id,
   });
 
-  const updateDayLocal = (dayNumber, patch) => {
-    setDays((currentDays) =>
-      currentDays.map((day) => (day.dayNumber === dayNumber ? { ...day, ...patch } : day))
-    );
-  };
-
   const saveDay = async (day) => {
     const response = await updateItineraryDay(id, day.dayNumber, {
       date: day.date,
@@ -749,6 +765,10 @@ function TripDetailsPage() {
       };
 
       if (day?.dayNumber) {
+        setEditedLocationMapCenter({
+          dayNumber: day.dayNumber,
+          center: [place.lat, place.lng],
+        });
         updateDayLocal(day.dayNumber, { location: resolvedLocation });
         await saveDay({ ...day, location: resolvedLocation });
       }
@@ -757,6 +777,47 @@ function TripDetailsPage() {
     } catch {
       setLocationStatus('idle');
       return day?.location || {};
+    }
+  };
+
+  const commitDayLocation = async (day, locationName) => {
+    const typedName = String(locationName || '').trim();
+    if (!day?.dayNumber || typedName.length < 2) return;
+
+    setLocationStatus('loading');
+    try {
+      const place = await getGeocodeLocation(typedName);
+      if (!place?.available) {
+        setLocationStatus('idle');
+        toast.error(place?.message || 'Unable to find that location. Try a city, state, or country name.');
+        return;
+      }
+
+      const resolvedLocation = {
+        name: typedName,
+        country: place.country || '',
+        address: place.address || typedName,
+        coordinates: {
+          latitude: place.latitude,
+          longitude: place.longitude,
+        },
+      };
+      const nextDay = { ...day, location: resolvedLocation };
+
+      setEditedLocationMapCenter({
+        dayNumber: day.dayNumber,
+        center: [place.latitude, place.longitude],
+      });
+      updateDayLocal(day.dayNumber, { location: resolvedLocation });
+      await saveDay(nextDay);
+      setLocationSearchText(typedName);
+      setLocationSearchSuggestions([]);
+      setIsEditingDayLocation(false);
+      setLocationStatus('success');
+      toast.success(`Day ${day.dayNumber} location saved as ${typedName}.`);
+    } catch (error) {
+      setLocationStatus('idle');
+      toast.error(error.response?.data?.message || error.message || 'Unable to save this location.');
     }
   };
 
@@ -907,7 +968,10 @@ function TripDetailsPage() {
       } else {
         const resolvedLocation = await resolveDayLocation(ideaAnchorDay || {});
         center = getDayLocationCenter({ location: resolvedLocation })
-          || getTripMapPoint(destinationPlaces[0] || {});
+          || getTripMapPoint(trip.destinationSegments?.[0] || {
+            city: getEditableLocationName(trip.destination),
+            country: trip.country,
+          });
         locationQuery = getDayLocationQuery({ ...ideaAnchorDay, location: resolvedLocation }, trip)
           || recommendationLocation
           || trip.destination;
@@ -963,7 +1027,6 @@ function TripDetailsPage() {
     if (!idea || isAddingIdea) return;
 
     setIsAddingIdea(true);
-    setActionMessage('');
     const hasCoordinates = Number.isFinite(Number(idea.lng)) && Number.isFinite(Number(idea.lat));
 
     try {
@@ -995,10 +1058,10 @@ function TripDetailsPage() {
         setActiveTab('itinerary');
         setAddMode(null);
         setSelectedIdea(null);
-        setActionMessage(`Added ${savedItem.title} to Day ${activeDay?.dayNumber || 1}.`);
+        toast.success(`Added ${savedItem.title} to Day ${activeDay?.dayNumber || 1}.`);
       }
     } catch (error) {
-      setActionMessage(error.response?.data?.message || 'Unable to add this place to the itinerary.');
+      toast.error(error.response?.data?.message || 'Unable to add this place to the itinerary.');
     } finally {
       setIsAddingIdea(false);
     }
@@ -1312,8 +1375,6 @@ function TripDetailsPage() {
                 </div>
               </div>
 
-              {actionMessage ? <p className="trip-action-message" role="status">{actionMessage}</p> : null}
-
               {activeTab === 'itinerary' ? (
               <div className="trip-itinerary-workspace">
               {activeDayNumber === 'summary' ? (
@@ -1410,7 +1471,24 @@ function TripDetailsPage() {
                     <MapPin size={17} aria-hidden="true" />
                     <strong>{activeDayLocationLabel}</strong>
                   </div>
-                  <button type="button" onClick={() => setIsEditingDayLocation((current) => !current)}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const editableName = getEditableLocationName(activeDay.location?.name);
+                      if (!editableName && activeDay.location?.name) {
+                        updateDayLocal(activeDay.dayNumber, {
+                          location: {
+                            ...activeDay.location,
+                            name: '',
+                            address: '',
+                            coordinates: undefined,
+                          },
+                        });
+                      }
+                      setLocationSearchText(editableName);
+                      setIsEditingDayLocation((current) => !current);
+                    }}
+                  >
                     <Pencil size={15} aria-hidden="true" />
                     Edit location
                   </button>
@@ -1421,10 +1499,13 @@ function TripDetailsPage() {
                 <section className="trip-day-location-edit">
                   <span>Day location</span>
                   <input
-                    value={activeDay.location?.name || ''}
-                    onFocus={() => setLocationSearchText(activeDay.location?.name || '')}
+                    value={getEditableLocationName(activeDay.location?.name)}
+                    onFocus={() => setLocationSearchText(getEditableLocationName(activeDay.location?.name))}
                     onChange={(event) => {
                       setLocationSearchText(event.target.value);
+                      if (event.target.value.trim().length < 2) {
+                        setLocationSearchSuggestions([]);
+                      }
                       updateDayLocal(activeDay.dayNumber, {
                         location: {
                           name: event.target.value,
@@ -1433,7 +1514,11 @@ function TripDetailsPage() {
                         },
                       });
                     }}
-                    onBlur={() => resolveDayLocation(activeDay)}
+                    onKeyDown={(event) => {
+                      if (event.key !== 'Enter') return;
+                      event.preventDefault();
+                      commitDayLocation(activeDay, event.currentTarget.value);
+                    }}
                     placeholder="State, city, or popular area"
                   />
                   {visibleLocationSuggestions.length ? (
@@ -1478,8 +1563,8 @@ function TripDetailsPage() {
                   <div className="trip-stat-card-head">
                     <span>Budget</span>
                     {activeDay ? (
-                      <label title="Daily budget for this itinerary day. Item estimates below count against this amount.">
-                        <Pencil size={14} aria-hidden="true" />
+                      <label className="trip-budget-input" title="Daily budget for this itinerary day. Item estimates below count against this amount.">
+                        <span>{tripCurrency}</span>
                         <input
                           aria-label="Daily budget"
                           type="number"
@@ -1503,10 +1588,10 @@ function TripDetailsPage() {
                   <span className="trip-budget-bar"><em style={{ width: `${plannedBudgetPercent}%` }} /></span>
                   <small>{currency?.formatAmount ? currency.formatAmount(remainingBudget, tripCurrency) : remainingBudget} left</small>
                 </div>
-                <div>
+                <div className="trip-weather-budget-card">
                   <span>Weather</span>
                   <div className="trip-weather-stat">
-                    <WeatherModeIcon size={28} aria-hidden="true" />
+                    <WeatherModeIcon size={22} aria-hidden="true" />
                     <strong>{weather?.available ? `${weather.condition}${weatherTemperature ? `, ${weatherTemperature}` : ''}` : 'Weather unavailable'}</strong>
                   </div>
                   <small>{weatherGuidance?.packingTips?.[0] || weather?.message || 'Plan with flexible indoor and outdoor options.'}</small>
@@ -1754,9 +1839,11 @@ function TripDetailsPage() {
             </div>
               )}
 
-              <div className="trip-assistant-bar">
-                <Sparkles size={16} aria-hidden="true" />
-                Ask anything about this trip
+              <div className="trip-panel-footer">
+                <div className="trip-assistant-bar">
+                  <Sparkles size={16} aria-hidden="true" />
+                  Ask anything about this trip
+                </div>
               </div>
             </>
           )}
@@ -1786,7 +1873,14 @@ function TripDetailsPage() {
               );
             })}
           </div>
-          <TripMapPreview className="trip-details-map" places={(addMode || activeTab === 'ideas') && ideaMapPlaces.length ? ideaMapPlaces : mapPlaces} zoom={(addMode || activeTab === 'ideas') ? 8 : undefined} />
+          <TripMapPreview
+            center={activeTab === 'itinerary' ? activeDayMapCenter : undefined}
+            className="trip-details-map"
+            places={mapPlaces}
+            scrollWheelZoom
+            showZoomControl
+            zoom={activeDayNumber !== 'summary' ? 10 : undefined}
+          />
           {(addMode || activeTab === 'ideas') && selectedIdea ? (
             <aside className="trip-place-detail-panel" aria-label={`${selectedIdea.name} details`}>
               {visitedLookup[getIdeaVisitedPayload(selectedIdea).placeKey] ? <span className="visited-place-watermark">Visited</span> : null}

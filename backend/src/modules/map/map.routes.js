@@ -7,7 +7,7 @@ const mapController = require('./map.controller');
 const validate = require('../../middleware/validate.middleware');
 const { protect } = require('../../middleware/auth.middleware');
 const { mapWeatherRateLimit, thirdPartyApiRateLimit } = require('../../middleware/rateLimit.middleware');
-const { mapPlaceDetailsRules, mapPlacesRules, mapWeatherRules, reverseGeocodeRules } = require('./map.validation');
+const { geocodeRules, mapPlaceDetailsRules, mapPlacesRules, mapWeatherRules, reverseGeocodeRules } = require('./map.validation');
 
 const router = express.Router();
 //  route wires  to validation, access checks, and controller logic.
@@ -16,6 +16,7 @@ router.get('/places', protect, thirdPartyApiRateLimit, mapPlacesRules, validate,
 router.get('/place-details', protect, thirdPartyApiRateLimit, mapPlaceDetailsRules, validate, mapController.getMapPlaceDetails);
 //  route wires  to validation, access checks, and controller logic.
 router.get('/weather', protect, mapWeatherRateLimit, mapWeatherRules, validate, mapController.getMapWeather);
+router.get('/geocode', protect, thirdPartyApiRateLimit, geocodeRules, validate, mapController.getGeocodeLocation);
 //  route wires  to validation, access checks, and controller logic.
 router.get('/reverse-geocode', protect, thirdPartyApiRateLimit, reverseGeocodeRules, validate, mapController.getReverseGeocodeLocation);
 module.exports = router;

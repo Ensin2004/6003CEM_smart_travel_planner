@@ -523,4 +523,54 @@ const getReverseGeocodeLocation = async ({ latitude, longitude }) => {
     return fallbackLocation({ latitude: parsedLatitude, longitude: parsedLongitude }, message);
   }
 };
-module.exports = { getMapPlaces: searchMapPlaces, getMapPlaceDetails, getMapWeather, getReverseGeocodeLocation };
+const getGeocodeLocation = async (query) => {
+  const normalizedQuery = String(query || '').trim();
+  const cacheKey = ['geocode', normalizedQuery.toLowerCase()].join('|');
+  const cached = await getCache(cacheKey);
+
+  if (cached) return cached;
+  if (!env.geoapifyApiKey || env.nodeEnv === 'test') {
+    return { available: false, message: 'Location search is not configured' };
+  }
+
+  try {
+    const response = await geoapifyClient.get('/v1/geocode/search', {
+      params: {
+        text: normalizedQuery,
+        format: 'geojson',
+        limit: 1,
+        apiKey: env.geoapifyApiKey,
+      },
+    });
+    const feature = response.data?.features?.[0];
+    const properties = feature?.properties || {};
+    const [longitude, latitude] = feature?.geometry?.coordinates || [];
+    const location = Number.isFinite(Number(latitude)) && Number.isFinite(Number(longitude))
+      ? {
+        available: true,
+        name: properties.name || properties.city || properties.state || normalizedQuery,
+        country: properties.country || '',
+        address: properties.formatted || normalizedQuery,
+        latitude: Number(latitude),
+        longitude: Number(longitude),
+      }
+      : { available: false, message: 'Location not found' };
+
+    await setCache(cacheKey, location);
+    return location;
+  } catch (error) {
+    const statusCode = error.response?.status || 503;
+    const message = statusCode === 429
+      ? 'Location search is busy. Please try again shortly.'
+      : 'Location search is temporarily unavailable.';
+    recordMapGeocodeFailure(message, statusCode, { query: normalizedQuery });
+    return { available: false, message };
+  }
+};
+module.exports = {
+  getGeocodeLocation,
+  getMapPlaces: searchMapPlaces,
+  getMapPlaceDetails,
+  getMapWeather,
+  getReverseGeocodeLocation,
+};

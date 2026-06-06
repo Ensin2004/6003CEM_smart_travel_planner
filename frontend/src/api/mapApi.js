@@ -244,6 +244,15 @@ export const getReverseGeocodeLocation = async ({ latitude, longitude }, options
   return response.data.data.location;
 };
 
+export const getGeocodeLocation = async (query, options = {}) => {
+  const response = await axiosClient.get('/map/geocode', {
+    params: { query },
+    signal: options.signal,
+  });
+
+  return response.data.data.location;
+};
+
 const toRadians = (degrees) => degrees * (Math.PI / 180);
 
 // The haversine calculation is used when OSRM cannot provide a route for the selected travel mode.
