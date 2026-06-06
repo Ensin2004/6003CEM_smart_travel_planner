@@ -88,6 +88,106 @@ const getDistanceMeters = (firstPoint, secondPoint) => {
 
   return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(haversineValue), Math.sqrt(1 - haversineValue));
 };
+const getPathDistanceMeters = (points) => points.slice(1).reduce(
+  (totalDistance, point, index) => totalDistance + getDistanceMeters(points[index], point),
+  0
+);
+const getDijkstraOptimizedOrder = (points) => {
+  if (points.length <= 3) {
+    return points.map((_, index) => index);
+  }
+
+  const destinationIndex = points.length - 1;
+  const intermediateIndexes = points.slice(1, destinationIndex).map((_, index) => index + 1);
+  const allVisitedMask = (1 << intermediateIndexes.length) - 1;
+  const distances = new Map();
+  const previousStates = new Map();
+  const queue = [{ mask: 0, currentIndex: 0, distance: 0 }];
+  const getStateKey = (mask, currentIndex) => `${mask}:${currentIndex}`;
+
+  distances.set(getStateKey(0, 0), 0);
+
+  while (queue.length) {
+    queue.sort((firstState, secondState) => firstState.distance - secondState.distance);
+    const currentState = queue.shift();
+    const currentKey = getStateKey(currentState.mask, currentState.currentIndex);
+
+    if (currentState.distance !== distances.get(currentKey)) {
+      continue;
+    }
+    if (currentState.mask === allVisitedMask) {
+      break;
+    }
+
+    intermediateIndexes.forEach((pointIndex, bitIndex) => {
+      const bit = 1 << bitIndex;
+
+      if (currentState.mask & bit) {
+        return;
+      }
+
+      const nextMask = currentState.mask | bit;
+      const nextDistance = currentState.distance + getDistanceMeters(
+        points[currentState.currentIndex],
+        points[pointIndex]
+      );
+      const nextKey = getStateKey(nextMask, pointIndex);
+
+      if (nextDistance < (distances.get(nextKey) ?? Number.POSITIVE_INFINITY)) {
+        distances.set(nextKey, nextDistance);
+        previousStates.set(nextKey, currentKey);
+        queue.push({ mask: nextMask, currentIndex: pointIndex, distance: nextDistance });
+      }
+    });
+  }
+
+  let bestFinalState = null;
+  intermediateIndexes.forEach((pointIndex) => {
+    const stateKey = getStateKey(allVisitedMask, pointIndex);
+    const routeDistance = distances.get(stateKey);
+
+    if (routeDistance === undefined) {
+      return;
+    }
+
+    const totalDistance = routeDistance + getDistanceMeters(points[pointIndex], points[destinationIndex]);
+    if (!bestFinalState || totalDistance < bestFinalState.distance) {
+      bestFinalState = { stateKey, distance: totalDistance };
+    }
+  });
+
+  if (!bestFinalState) {
+    return points.map((_, index) => index);
+  }
+
+  const reversedIntermediateOrder = [];
+  let stateKey = bestFinalState.stateKey;
+
+  while (stateKey !== getStateKey(0, 0)) {
+    const [, currentIndex] = stateKey.split(':').map(Number);
+    reversedIntermediateOrder.push(currentIndex);
+    stateKey = previousStates.get(stateKey);
+  }
+
+  return [0, ...reversedIntermediateOrder.reverse(), destinationIndex];
+};
+const optimizeMapPoints = (points) => {
+  const pointOrder = getDijkstraOptimizedOrder(points);
+  const optimizedPoints = pointOrder.map((pointIndex) => points[pointIndex]);
+  const originalDistanceMeters = getPathDistanceMeters(points);
+  const optimizedDistanceMeters = getPathDistanceMeters(optimizedPoints);
+
+  return {
+    points: optimizedPoints,
+    optimization: {
+      algorithm: 'dijkstra',
+      pointOrder,
+      originalDistanceMeters,
+      optimizedDistanceMeters,
+      savedDistanceMeters: Math.max(0, originalDistanceMeters - optimizedDistanceMeters),
+    },
+  };
+};
 const rankRoutes = (routes) => {
   const distances = routes.map((route) => route.distanceMeters);
   const durations = routes.map((route) => route.durationSeconds);
@@ -112,11 +212,8 @@ const rankRoutes = (routes) => {
       isBest: index === 0,
     }));
 };
-const getEstimatedMapRoutes = (points, mode, message) => {
-  const distanceMeters = points.slice(1).reduce(
-    (totalDistance, point, index) => totalDistance + getDistanceMeters(points[index], point),
-    0
-  );
+const getEstimatedMapRoutes = (points, mode, message, optimization) => {
+  const distanceMeters = getPathDistanceMeters(points);
   const speedKph = estimatedModeSpeedsKph[mode] || estimatedModeSpeedsKph.car;
   const routes = rankRoutes([{
     id: `${mode}-estimate-1`,
@@ -132,6 +229,7 @@ const getEstimatedMapRoutes = (points, mode, message) => {
     message,
     bestRouteId: routes[0].id,
     routes,
+    optimization,
   };
 };
 const normalizeOpenRouteServiceRoute = (feature, index) => ({
@@ -145,30 +243,34 @@ const getMapRoutes = async ({ points = [], mode = 'car' }) => {
     lat: Number(point.lat),
     lng: Number(point.lng),
   }));
+  const optimizedRoute = optimizeMapPoints(normalizedPoints);
+  const optimizedPoints = optimizedRoute.points;
   const profile = openRouteServiceProfiles[mode];
 
   if (!profile) {
     return getEstimatedMapRoutes(
-      normalizedPoints,
+      optimizedPoints,
       mode,
-      `${mode === 'train' ? 'Train' : 'Plane'} times are estimates and do not include live schedules.`
+      `${mode === 'train' ? 'Train' : 'Plane'} times are estimates and do not include live schedules.`,
+      optimizedRoute.optimization
     );
   }
   if (!env.openRouteServiceApiKey) {
     return getEstimatedMapRoutes(
-      normalizedPoints,
+      optimizedPoints,
       mode,
-      'OpenRouteService API key is not configured, so this route is estimated.'
+      'OpenRouteService API key is not configured, so this route is estimated.',
+      optimizedRoute.optimization
     );
   }
 
   try {
     const requestBody = {
-      coordinates: normalizedPoints.map((point) => [point.lng, point.lat]),
+      coordinates: optimizedPoints.map((point) => [point.lng, point.lat]),
       instructions: false,
     };
 
-    if (normalizedPoints.length === 2) {
+    if (optimizedPoints.length === 2) {
       requestBody.alternative_routes = {
         target_count: 2,
         share_factor: 0.6,
@@ -194,7 +296,12 @@ const getMapRoutes = async ({ points = [], mode = 'car' }) => {
     );
 
     if (!routes.length) {
-      return getEstimatedMapRoutes(normalizedPoints, mode, 'No mapped route was returned, so this route is estimated.');
+      return getEstimatedMapRoutes(
+        optimizedPoints,
+        mode,
+        'No mapped route was returned, so this route is estimated.',
+        optimizedRoute.optimization
+      );
     }
 
     return {
@@ -204,13 +311,15 @@ const getMapRoutes = async ({ points = [], mode = 'car' }) => {
       message: '',
       bestRouteId: routes[0].id,
       routes,
+      optimization: optimizedRoute.optimization,
     };
   } catch (error) {
     logger.warn(`OpenRouteService route lookup failed: ${error.message}`);
     return getEstimatedMapRoutes(
-      normalizedPoints,
+      optimizedPoints,
       mode,
-      'OpenRouteService is temporarily unavailable, so this route is estimated.'
+      'OpenRouteService is temporarily unavailable, so this route is estimated.',
+      optimizedRoute.optimization
     );
   }
 };

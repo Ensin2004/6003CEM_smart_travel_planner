@@ -60,6 +60,7 @@ import {
 import { getGeocodeLocation, searchOpenStreetMapCategoryPlaces, searchOpenStreetMapPlaces } from '../../api/mapApi';
 import { getVisitedPlaces } from '../../api/visitedPlaceApi';
 import TripMapPreview from '../../components/trips/TripMapPreview';
+import TripRoutePlanner from '../../components/trips/TripRoutePlanner';
 import { getTripMapPoint } from '../../components/trips/tripMapUtils';
 import VisitedPlaceControl from '../../components/visitedPlaces/VisitedPlaceControl';
 import { buildVisitedLookup, getVisitedPlacePayload } from '../../components/visitedPlaces/visitedPlaceUtils';
@@ -370,6 +371,14 @@ function TripDetailsPage() {
   const [weatherGuidance, setWeatherGuidance] = useState(null);
   const [showWeatherHelp, setShowWeatherHelp] = useState(true);
   const [ideas, setIdeas] = useState([]);
+  const [tripRoutePlan, setTripRoutePlan] = useState({
+    points: [],
+    results: {},
+    selectedMode: 'car',
+    selectedRouteId: '',
+    status: 'idle',
+    message: '',
+  });
   const [ideaCategory, setIdeaCategory] = useState('attractions');
   const [status, setStatus] = useState('loading');
   const [ideaStatus, setIdeaStatus] = useState('idle');
@@ -598,6 +607,19 @@ function TripDetailsPage() {
       };
     })
     .filter((place) => Number.isFinite(Number(place.lat)) && Number.isFinite(Number(place.lng)));
+  const activeTripRouteResult = tripRoutePlan.results[tripRoutePlan.selectedMode];
+  const selectedTripRouteOption = activeTripRouteResult?.alternatives?.find(
+    (routeOption) => routeOption.id === tripRoutePlan.selectedRouteId
+  ) || activeTripRouteResult;
+  const selectedTripRoute = selectedTripRouteOption && activeTripRouteResult
+    ? {
+      ...activeTripRouteResult,
+      ...selectedTripRouteOption,
+      alternatives: activeTripRouteResult.alternatives || [],
+      optimizedPoints: activeTripRouteResult.optimizedPoints || tripRoutePlan.points,
+    }
+    : null;
+  const tripRouteMapPlaces = selectedTripRoute?.optimizedPoints || tripRoutePlan.points;
   const routeSummary = useMemo(() => getRouteSummary(days), [days]);
   const routeCountries = useMemo(() => getRouteCountries(days), [days]);
   const packingProgress = getChecklistProgress(packingList?.items || [], (item) => item.isPacked);
@@ -1295,9 +1317,12 @@ function TripDetailsPage() {
                 }}>
                   Ideas
                 </button>
+                <button className={activeTab === 'route' ? 'active' : ''} type="button" onClick={() => setActiveTab('route')}>
+                  Route
+                </button>
               </nav>
 
-              <div className="trip-day-tabs" aria-label="Itinerary days">
+              {activeTab !== 'route' ? <div className="trip-day-tabs" aria-label="Itinerary days">
                 <div className="trip-day-selector">
                   <div className="trip-day-quick-list">
                     <button
@@ -1373,7 +1398,7 @@ function TripDetailsPage() {
                     </div>
                   ) : null}
                 </div>
-              </div>
+              </div> : null}
 
               {activeTab === 'itinerary' ? (
               <div className="trip-itinerary-workspace">
@@ -1763,6 +1788,12 @@ function TripDetailsPage() {
               </>
               )}
             </div>
+              ) : activeTab === 'route' ? (
+                <TripRoutePlanner
+                  itineraryPlaces={mapPlaces}
+                  plan={tripRoutePlan}
+                  onPlanChange={setTripRoutePlan}
+                />
               ) : (
             <div className="trip-ideas-workspace">
               <form className="trip-idea-search" onSubmit={handleIdeaSearch}>
@@ -1858,7 +1889,7 @@ function TripDetailsPage() {
         />
 
         <main className="trip-details-map-area">
-          <div className="trip-details-map-toolbar">
+          {activeTab !== 'route' ? <div className="trip-details-map-toolbar">
             {ideaCategories.map((category) => {
               const CategoryIcon = category.icon;
 
@@ -1872,11 +1903,16 @@ function TripDetailsPage() {
                 </button>
               );
             })}
-          </div>
+          </div> : (
+            <div className="trip-details-map-toolbar trip-route-map-toolbar">
+              <span><Sparkles size={15} aria-hidden="true" /> Best route highlighted · alternatives dashed</span>
+            </div>
+          )}
           <TripMapPreview
             center={activeTab === 'itinerary' ? activeDayMapCenter : undefined}
             className="trip-details-map"
-            places={mapPlaces}
+            places={activeTab === 'route' ? tripRouteMapPlaces : mapPlaces}
+            route={activeTab === 'route' ? selectedTripRoute : null}
             scrollWheelZoom
             showZoomControl
             zoom={activeDayNumber !== 'summary' ? 10 : undefined}

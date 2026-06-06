@@ -17,13 +17,18 @@ const createTripMarker = (index, tone = 'primary', label = index + 1) =>
     iconAnchor: [17, 17],
   });
 
-function MapViewUpdater({ center, zoom }) {
+function MapViewUpdater({ center, routeCoordinates, zoom }) {
   const map = useMap();
   const [latitude, longitude] = center;
 
   useEffect(() => {
+    if (routeCoordinates?.length > 1) {
+      map.fitBounds(routeCoordinates, { animate: true, padding: [42, 42] });
+      return;
+    }
+
     map.setView([latitude, longitude], zoom, { animate: true });
-  }, [latitude, longitude, map, zoom]);
+  }, [latitude, longitude, map, routeCoordinates, zoom]);
 
   return null;
 }
@@ -33,6 +38,7 @@ function TripMapPreview({
   center,
   className = '',
   places = [],
+  route,
   scrollWheelZoom = false,
   showZoomControl = false,
   zoom,
@@ -46,6 +52,7 @@ function TripMapPreview({
     : null;
   const mapCenter = requestedCenter || mapPoints[0] || defaultMapCenter;
   const mapZoom = zoom || (visiblePlaces.length > 1 ? 5 : 6);
+  const routeCoordinates = route?.coordinates || [];
   return (
     <div className={`shared-trip-map ${className}`.trim()}>
       <MapContainer
@@ -56,12 +63,26 @@ function TripMapPreview({
         attributionControl={false}
         className="shared-trip-leaflet-map"
       >
-        <MapViewUpdater center={mapCenter} zoom={mapZoom} />
+        <MapViewUpdater center={mapCenter} routeCoordinates={routeCoordinates} zoom={mapZoom} />
         <TileLayer
           attribution=""
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
-        {mapPoints.length > 1 && <Polyline positions={mapPoints} pathOptions={{ color: '#0f766e', weight: 4 }} />}
+        {!routeCoordinates.length && mapPoints.length > 1
+          ? <Polyline positions={mapPoints} pathOptions={{ color: '#0f766e', weight: 4 }} />
+          : null}
+        {(route?.alternatives || [])
+          .filter((alternative) => alternative.id !== route.id)
+          .map((alternative) => (
+            <Polyline
+              key={alternative.id}
+              positions={alternative.coordinates}
+              pathOptions={{ color: '#64748b', dashArray: '8 8', opacity: 0.5, weight: 4 }}
+            />
+          ))}
+        {routeCoordinates.length ? (
+          <Polyline positions={routeCoordinates} pathOptions={{ color: '#2563eb', opacity: 0.92, weight: 5 }} />
+        ) : null}
         {visiblePlaces.map((place, index) => (
           <Marker
             key={`${place.city || place.title || place.name}-${index}`}

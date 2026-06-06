@@ -406,6 +406,7 @@ function PlaceDetails({
   onCalculateRoute,
   onRenameCustomMarker,
   onRemove,
+  onRemoveRoutePoint,
   place,
   route,
   routeMode,
@@ -580,12 +581,20 @@ function PlaceDetails({
 
         <div className="map-route-point-list">
           {routePoints.map((point, index) => (
-            <span key={`${point.id}-${index}`}>
-              {index + 1}. {point.name}
-            </span>
+            <div className="map-route-point" key={`${point.id}-${index}`}>
+              <span>{index + 1}</span>
+              <strong>{point.name}</strong>
+              <button
+                type="button"
+                onClick={() => onRemoveRoutePoint(index)}
+                aria-label={`Remove ${point.name} from route`}
+              >
+                <Trash2 size={14} aria-hidden="true" />
+              </button>
+            </div>
           ))}
           {!routePoints.length ? (
-            <span>No route stops selected yet.</span>
+            <p>No route stops selected yet.</p>
           ) : null}
         </div>
 
@@ -1323,6 +1332,14 @@ function MapPage() {
     setRouteStatus('idle');
   };
 
+  const handleRemoveRoutePoint = (pointIndex) => {
+    setRoutePoints((points) => points.filter((_, index) => index !== pointIndex));
+    setRoute(null);
+    setRouteResults({});
+    setRouteStatus('idle');
+    setMessage('');
+  };
+
   const handleRouteModeChange = (nextMode) => {
     setRouteMode(nextMode);
     setRoute(routeResults[nextMode] || route);
@@ -1769,6 +1786,7 @@ function MapPage() {
             onClearRoute={handleClearRoute}
             onRenameCustomMarker={handleRenameCustomMarker}
             onRemove={handleRemoveCustomMarker}
+            onRemoveRoutePoint={handleRemoveRoutePoint}
             onRouteAlternativeChange={handleRouteAlternativeChange}
             onRouteModeChange={handleRouteModeChange}
           />

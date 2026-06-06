@@ -299,6 +299,19 @@
   padding: 14px 18px 0;
 }
 
+.trip-route-map-toolbar {
+  justify-content: flex-start;
+}
+
+.trip-route-map-toolbar span {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 700;
+}
+
 .trip-details-tabs button {
   position: relative;
   min-height: 38px;
