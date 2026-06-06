@@ -47,7 +47,7 @@ import CurrencyContext from '../../context/currencyContext';
 import './MapPage.css';
 
 const defaultCenter = [5.4141, 100.3288];
-const defaultZoom = 8;
+const defaultZoom = 11;
 
 const categoryConfig = {
   hotels: { label: 'Hotels', icon: BedDouble, color: '#2563eb' },
@@ -414,6 +414,7 @@ function PlaceDetails({
   routeStatus,
   weather,
   weatherStatus,
+  onRouteAlternativeChange,
   onRouteModeChange,
 }) {
   const category = categoryConfig[categoryId] || categoryConfig.attractions;
@@ -608,6 +609,30 @@ function PlaceDetails({
             );
           })}
         </div>
+        {route?.alternatives?.length ? (
+          <div className="map-route-alternatives" aria-label={`${routeMode} route alternatives`}>
+            <strong>Possible {routeMode} routes</strong>
+            {route.alternatives.map((alternative) => (
+              <button
+                className={route.id === alternative.id ? 'is-active' : ''}
+                key={alternative.id}
+                type="button"
+                onClick={() => onRouteAlternativeChange(alternative)}
+              >
+                <span>Route {alternative.rank}</span>
+                <small>{formatDistance(alternative.distanceMeters)} · {formatDuration(alternative.durationSeconds)}</small>
+                <em>
+                  {[
+                    alternative.isBest ? 'Best balance' : '',
+                    alternative.isShortest ? 'Shortest' : '',
+                    alternative.isFastest ? 'Fastest' : '',
+                  ].filter(Boolean).join(' · ') || 'Alternative'}
+                </em>
+              </button>
+            ))}
+            {route.message ? <p>{route.message}</p> : null}
+          </div>
+        ) : null}
       </section>
 
       <dl>
@@ -797,7 +822,7 @@ function MapPage() {
           searchableCategories.map(async (categoryId) => {
             const resultLimit = categoryId === 'attractions' || categoryId === 'shopping' ? 60 : 30;
             let places = [];
-            let providerMessage = '';
+            let providerMessage;
 
             try {
               const mapPlaces = await searchMapCategoryPlaces(categoryId, mapCenter, {
@@ -1302,6 +1327,19 @@ function MapPage() {
     setRouteMode(nextMode);
     setRoute(routeResults[nextMode] || route);
   };
+  const handleRouteAlternativeChange = (alternative) => {
+    const modeRoute = routeResults[routeMode];
+
+    setRoute({
+      ...alternative,
+      alternatives: modeRoute?.alternatives || [],
+      estimated: modeRoute?.estimated,
+      message: modeRoute?.message,
+      mode: routeMode,
+      points: modeRoute?.points || routePoints,
+      provider: modeRoute?.provider,
+    });
+  };
 
   const handleAddCustomMarker = (latlng) => {
     const markerNumber = customMarkers.length + 1;
@@ -1552,10 +1590,21 @@ function MapPage() {
             </Marker>
           ) : null}
           {route?.coordinates?.length ? (
-            <Polyline
-              positions={route.coordinates}
-              pathOptions={{ color: '#2563eb', opacity: 0.9, weight: 5 }}
-            />
+            <>
+              {(route.alternatives || [])
+                .filter((alternative) => alternative.id !== route.id)
+                .map((alternative) => (
+                  <Polyline
+                    key={alternative.id}
+                    positions={alternative.coordinates}
+                    pathOptions={{ color: '#64748b', dashArray: '8 8', opacity: 0.45, weight: 4 }}
+                  />
+                ))}
+              <Polyline
+                positions={route.coordinates}
+                pathOptions={{ color: '#2563eb', opacity: 0.9, weight: 5 }}
+              />
+            </>
           ) : null}
           {visibleMarkers.map((pin) => (
             <Marker
@@ -1720,6 +1769,7 @@ function MapPage() {
             onClearRoute={handleClearRoute}
             onRenameCustomMarker={handleRenameCustomMarker}
             onRemove={handleRemoveCustomMarker}
+            onRouteAlternativeChange={handleRouteAlternativeChange}
             onRouteModeChange={handleRouteModeChange}
           />
         )}

@@ -2,7 +2,7 @@
  * Map module.
  * Validation schemas reject unsafe or incomplete request payloads.
  */
-const { query } = require('express-validator');
+const { body, query } = require('express-validator');
 
 const mapCategories = ['hotels', 'airports', 'train', 'food', 'attractions', 'shopping'];
 
@@ -90,4 +90,25 @@ const geocodeRules = [
     .isLength({ min: 2, max: 160 })
     .withMessage('Location must be between 2 and 160 characters'),
 ];
-module.exports = { geocodeRules, mapPlacesRules, mapPlaceDetailsRules, mapWeatherRules, reverseGeocodeRules };
+const mapRouteRules = [
+  body('mode')
+    .isIn(['car', 'walking', 'bike', 'train', 'plane'])
+    .withMessage('Travel mode is invalid'),
+  body('points')
+    .isArray({ min: 2, max: 10 })
+    .withMessage('Route must contain between 2 and 10 points'),
+  body('points.*.lat')
+    .isFloat({ min: -90, max: 90 })
+    .withMessage('Route latitude must be a valid coordinate'),
+  body('points.*.lng')
+    .isFloat({ min: -180, max: 180 })
+    .withMessage('Route longitude must be a valid coordinate'),
+];
+module.exports = {
+  geocodeRules,
+  mapPlacesRules,
+  mapPlaceDetailsRules,
+  mapRouteRules,
+  mapWeatherRules,
+  reverseGeocodeRules,
+};
