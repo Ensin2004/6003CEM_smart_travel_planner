@@ -1,17 +1,11 @@
 /**
  * Frontend map API helpers.
- * This file combines backend map endpoints with direct OpenStreetMap and OSRM
- * calls used for client-side search and route previews.
+ * This file combines backend map endpoints with direct OpenStreetMap search
+ * calls used for client-side place lookup.
  */
 import axiosClient from './axiosClient';
 
 const NOMINATIM_SEARCH_URL = 'https://nominatim.openstreetmap.org/search';
-const OSRM_ROUTE_URL = 'https://router.project-osrm.org/route/v1';
-const routeModeProfiles = {
-  car: 'driving',
-  bike: 'cycling',
-  walking: 'foot',
-};
 const estimatedModeSpeedsKph = {
   walking: 5,
   car: 45,
@@ -255,7 +249,7 @@ export const getGeocodeLocation = async (query, options = {}) => {
 
 const toRadians = (degrees) => degrees * (Math.PI / 180);
 
-// The haversine calculation is used when OSRM cannot provide a route for the selected travel mode.
+// The haversine calculation keeps route estimates available if the backend cannot be reached.
 const getDistanceMeters = (firstPoint, secondPoint) => {
   const earthRadiusMeters = 6371000;
   const firstLat = toRadians(Number(firstPoint.lat));
@@ -302,49 +296,35 @@ export const getRouteBetweenPlaces = async (pointsOrOrigin, destination, options
     throw new Error('Route needs at least two points.');
   }
 
-  if (!routeModeProfiles[mode]) {
-    return getEstimatedRoute(validPoints, mode);
-  }
-
-  // OSRM supports driving, cycling, and walking; unsupported modes use estimated speed instead.
-  const coordinates = validPoints.map((point) => `${point.lng},${point.lat}`).join(';');
-  const params = new URLSearchParams({
-    overview: 'full',
-    geometries: 'geojson',
-    steps: 'false',
-  });
   try {
-    const response = await fetch(`${OSRM_ROUTE_URL}/${routeModeProfiles[mode]}/${coordinates}?${params.toString()}`, {
-      headers: {
-        Accept: 'application/json',
-      },
+    const response = await axiosClient.post('/map/routes', {
+      mode,
+      points: validPoints.map((point) => ({ lat: point.lat, lng: point.lng })),
+    }, {
       signal: options.signal,
     });
+    const routeResult = response.data.data.routes;
+    const alternatives = routeResult.routes || [];
+    const selectedRoute = alternatives.find((route) => route.id === routeResult.bestRouteId) || alternatives[0];
 
-    if (!response.ok) {
-      return getEstimatedRoute(validPoints, mode);
-    }
-
-    const routeData = await response.json();
-    const route = routeData.routes?.[0];
-
-    if (!route) {
+    if (!selectedRoute) {
       return getEstimatedRoute(validPoints, mode);
     }
 
     return {
-      distanceMeters: route.distance,
-      durationSeconds: route.duration,
-      coordinates: route.geometry.coordinates.map(([lng, lat]) => [lat, lng]),
-      estimated: false,
+      ...selectedRoute,
+      alternatives,
+      estimated: routeResult.estimated,
+      provider: routeResult.provider,
+      message: routeResult.message,
       mode,
     };
   } catch (error) {
-    if (error.name === 'AbortError') {
+    if (isAbortError(error)) {
       throw error;
     }
 
-    // Network or provider failures fall back to distance-based estimates instead of blanking the route.
+    // Network failures fall back to distance-based estimates instead of blanking the route.
     return getEstimatedRoute(validPoints, mode);
   }
 };

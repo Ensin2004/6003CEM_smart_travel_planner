@@ -225,7 +225,80 @@ describe('Map service normalization', () => {
         reviewItems: [expect.objectContaining({ author: 'Jamie', text: 'Beautiful temple.' })],
       })
     );
-    expect(serpGet).toHaveBeenCalledTimes(2);
+    expect(serpGet).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        params: expect.objectContaining({ engine: 'google_maps' }),
+      })
+    );
+    expect(serpGet).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        params: expect.objectContaining({ engine: 'google_maps_reviews' }),
+      })
+    );
   });
 
+});
+
+describe('Map route planning', () => {
+  afterEach(() => {
+    jest.resetModules();
+    jest.clearAllMocks();
+  });
+
+  test('normalizes and ranks OpenRouteService alternatives', async () => {
+    const post = jest.fn().mockResolvedValue({
+      data: {
+        features: [
+          {
+            properties: { summary: { distance: 12000, duration: 900 } },
+            geometry: { coordinates: [[100.3, 5.4], [100.4, 5.5]] },
+          },
+          {
+            properties: { summary: { distance: 10000, duration: 1100 } },
+            geometry: { coordinates: [[100.3, 5.4], [100.35, 5.45], [100.4, 5.5]] },
+          },
+          {
+            properties: { summary: { distance: 11000, duration: 950 } },
+            geometry: { coordinates: [[100.3, 5.4], [100.38, 5.48], [100.4, 5.5]] },
+          },
+        ],
+      },
+    });
+
+    jest.doMock('axios', () => ({
+      create: jest.fn(() => ({ post })),
+    }));
+    jest.doMock('../src/config/env', () => ({
+      nodeEnv: 'development',
+      openRouteServiceApiKey: 'test-ors-key',
+    }));
+
+    const mapService = require('../src/modules/map/map.service');
+    const result = await mapService.getMapRoutes({
+      mode: 'car',
+      points: [{ lat: 5.4, lng: 100.3 }, { lat: 5.5, lng: 100.4 }],
+    });
+
+    expect(result.provider).toBe('openrouteservice');
+    expect(result.routes).toHaveLength(3);
+    expect(result.routes[0]).toEqual(expect.objectContaining({
+      id: 'ors-route-3',
+      isBest: true,
+      distanceMeters: 11000,
+      durationSeconds: 950,
+    }));
+    expect(result.routes.find((route) => route.isShortest).distanceMeters).toBe(10000);
+    expect(result.routes.find((route) => route.isFastest).durationSeconds).toBe(900);
+    expect(post).toHaveBeenCalledWith(
+      '/v2/directions/driving-car/geojson',
+      expect.objectContaining({
+        alternative_routes: expect.objectContaining({ target_count: 2 }),
+      }),
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: 'test-ors-key' }),
+      })
+    );
+  });
 });

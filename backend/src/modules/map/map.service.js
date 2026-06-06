@@ -33,6 +33,22 @@ const geoapifyClient = axios.create({
   baseURL: 'https://api.geoapify.com',
   timeout: 8000,
 });
+const openRouteServiceClient = axios.create({
+  baseURL: 'https://api.openrouteservice.org',
+  timeout: 12000,
+});
+const openRouteServiceProfiles = {
+  car: 'driving-car',
+  walking: 'foot-walking',
+  bike: 'cycling-regular',
+};
+const estimatedModeSpeedsKph = {
+  walking: 5,
+  car: 45,
+  bike: 16,
+  train: 80,
+  plane: 700,
+};
 
 const mapCategoryQueries = {
   hotels: 'hotels',
@@ -60,6 +76,144 @@ const getAddress = (location = {}) =>
   [location.address, location.locality, location.region, location.country].filter(Boolean).join(', ');
 const getCoordinate = (value) => (Number.isFinite(Number(value)) ? Number(value) : null);
 const normalizeMatchText = (value = '') => value.toLowerCase().replace(/[^a-z0-9]/g, '');
+const toRadians = (degrees) => degrees * (Math.PI / 180);
+const getDistanceMeters = (firstPoint, secondPoint) => {
+  const earthRadiusMeters = 6371000;
+  const firstLat = toRadians(Number(firstPoint.lat));
+  const secondLat = toRadians(Number(secondPoint.lat));
+  const latDifference = toRadians(Number(secondPoint.lat) - Number(firstPoint.lat));
+  const lngDifference = toRadians(Number(secondPoint.lng) - Number(firstPoint.lng));
+  const haversineValue = Math.sin(latDifference / 2) ** 2
+    + Math.cos(firstLat) * Math.cos(secondLat) * Math.sin(lngDifference / 2) ** 2;
+
+  return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(haversineValue), Math.sqrt(1 - haversineValue));
+};
+const rankRoutes = (routes) => {
+  const distances = routes.map((route) => route.distanceMeters);
+  const durations = routes.map((route) => route.durationSeconds);
+  const shortestDistance = Math.min(...distances);
+  const shortestDuration = Math.min(...durations);
+  const distanceRange = Math.max(...distances) - shortestDistance || 1;
+  const durationRange = Math.max(...durations) - shortestDuration || 1;
+
+  return routes
+    .map((route) => ({
+      ...route,
+      isShortest: route.distanceMeters === shortestDistance,
+      isFastest: route.durationSeconds === shortestDuration,
+      score:
+        ((route.distanceMeters - shortestDistance) / distanceRange)
+        + ((route.durationSeconds - shortestDuration) / durationRange),
+    }))
+    .sort((firstRoute, secondRoute) => firstRoute.score - secondRoute.score)
+    .map((route, index) => ({
+      ...route,
+      rank: index + 1,
+      isBest: index === 0,
+    }));
+};
+const getEstimatedMapRoutes = (points, mode, message) => {
+  const distanceMeters = points.slice(1).reduce(
+    (totalDistance, point, index) => totalDistance + getDistanceMeters(points[index], point),
+    0
+  );
+  const speedKph = estimatedModeSpeedsKph[mode] || estimatedModeSpeedsKph.car;
+  const routes = rankRoutes([{
+    id: `${mode}-estimate-1`,
+    distanceMeters,
+    durationSeconds: distanceMeters / ((speedKph * 1000) / 3600),
+    coordinates: points.map((point) => [Number(point.lat), Number(point.lng)]),
+  }]);
+
+  return {
+    mode,
+    provider: 'estimate',
+    estimated: true,
+    message,
+    bestRouteId: routes[0].id,
+    routes,
+  };
+};
+const normalizeOpenRouteServiceRoute = (feature, index) => ({
+  id: `ors-route-${index + 1}`,
+  distanceMeters: Number(feature.properties?.summary?.distance || 0),
+  durationSeconds: Number(feature.properties?.summary?.duration || 0),
+  coordinates: (feature.geometry?.coordinates || []).map(([longitude, latitude]) => [latitude, longitude]),
+});
+const getMapRoutes = async ({ points = [], mode = 'car' }) => {
+  const normalizedPoints = points.map((point) => ({
+    lat: Number(point.lat),
+    lng: Number(point.lng),
+  }));
+  const profile = openRouteServiceProfiles[mode];
+
+  if (!profile) {
+    return getEstimatedMapRoutes(
+      normalizedPoints,
+      mode,
+      `${mode === 'train' ? 'Train' : 'Plane'} times are estimates and do not include live schedules.`
+    );
+  }
+  if (!env.openRouteServiceApiKey) {
+    return getEstimatedMapRoutes(
+      normalizedPoints,
+      mode,
+      'OpenRouteService API key is not configured, so this route is estimated.'
+    );
+  }
+
+  try {
+    const requestBody = {
+      coordinates: normalizedPoints.map((point) => [point.lng, point.lat]),
+      instructions: false,
+    };
+
+    if (normalizedPoints.length === 2) {
+      requestBody.alternative_routes = {
+        target_count: 2,
+        share_factor: 0.6,
+        weight_factor: 1.4,
+      };
+    }
+
+    const response = await openRouteServiceClient.post(
+      `/v2/directions/${profile}/geojson`,
+      requestBody,
+      {
+        headers: {
+          Accept: 'application/geo+json, application/json',
+          Authorization: env.openRouteServiceApiKey,
+          'Content-Type': 'application/json',
+        },
+      }
+    );
+    const routes = rankRoutes(
+      (response.data?.features || [])
+        .map(normalizeOpenRouteServiceRoute)
+        .filter((route) => route.coordinates.length && route.distanceMeters > 0 && route.durationSeconds > 0)
+    );
+
+    if (!routes.length) {
+      return getEstimatedMapRoutes(normalizedPoints, mode, 'No mapped route was returned, so this route is estimated.');
+    }
+
+    return {
+      mode,
+      provider: 'openrouteservice',
+      estimated: false,
+      message: '',
+      bestRouteId: routes[0].id,
+      routes,
+    };
+  } catch (error) {
+    logger.warn(`OpenRouteService route lookup failed: ${error.message}`);
+    return getEstimatedMapRoutes(
+      normalizedPoints,
+      mode,
+      'OpenRouteService is temporarily unavailable, so this route is estimated.'
+    );
+  }
+};
 const fallbackLocation = ({ latitude, longitude }, message = 'Current location name unavailable') => ({
   available: false,
   message,
@@ -571,6 +725,7 @@ module.exports = {
   getGeocodeLocation,
   getMapPlaces: searchMapPlaces,
   getMapPlaceDetails,
+  getMapRoutes,
   getMapWeather,
   getReverseGeocodeLocation,
 };
