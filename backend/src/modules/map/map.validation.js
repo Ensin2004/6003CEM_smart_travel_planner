@@ -84,4 +84,10 @@ const reverseGeocodeRules = [
   coordinateRule('latitude', -90, 90),
   coordinateRule('longitude', -180, 180),
 ];
-module.exports = { mapPlacesRules, mapPlaceDetailsRules, mapWeatherRules, reverseGeocodeRules };
+const geocodeRules = [
+  query('query')
+    .trim()
+    .isLength({ min: 2, max: 160 })
+    .withMessage('Location must be between 2 and 160 characters'),
+];
+module.exports = { geocodeRules, mapPlacesRules, mapPlaceDetailsRules, mapWeatherRules, reverseGeocodeRules };
