@@ -9,3 +9,11 @@ export const sendAiChatPrompt = ({ prompt, page }) =>
     prompt,
     page,
   });
+
+export const getTripAiRecommendations = ({ prompt, trip, plannedPlaces, history }) =>
+  axiosClient.post('/ai/trip-recommendations', {
+    prompt,
+    trip,
+    plannedPlaces,
+    history,
+  });

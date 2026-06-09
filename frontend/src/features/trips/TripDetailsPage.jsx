@@ -46,6 +46,7 @@ import {
   updateItineraryDay,
   updateItineraryItem,
 } from '../../api/itineraryApi';
+import { getTripAiRecommendations } from '../../api/aiAssistantApi';
 import { searchAttractions, searchHotels, searchRestaurants } from '../../api/exploreApi';
 import { getTripSummary, updateTrip } from '../../api/tripApi';
 import {
@@ -62,6 +63,7 @@ import { getVisitedPlaces } from '../../api/visitedPlaceApi';
 import TripMapPreview from '../../components/trips/TripMapPreview';
 import TripRoutePlanner from '../../components/trips/TripRoutePlanner';
 import { getTripMapPoint } from '../../components/trips/tripMapUtils';
+import TripAiAssistantPanel from './components/TripAiAssistantPanel';
 import VisitedPlaceControl from '../../components/visitedPlaces/VisitedPlaceControl';
 import { buildVisitedLookup, getVisitedPlacePayload } from '../../components/visitedPlaces/visitedPlaceUtils';
 import CurrencyContext from '../../context/currencyContext';
@@ -405,6 +407,11 @@ function TripDetailsPage() {
   const [dayGroupIdeaPreviews, setDayGroupIdeaPreviews] = useState({});
   const [dayGroupIdeaStatus, setDayGroupIdeaStatus] = useState('idle');
   const [dayGroupIdeaSource, setDayGroupIdeaSource] = useState('');
+  const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
+  const [aiInput, setAiInput] = useState('');
+  const [aiMessages, setAiMessages] = useState([]);
+  const [aiStatus, setAiStatus] = useState('idle');
+  const [aiError, setAiError] = useState('');
   const updateDayLocal = (dayNumber, patch) => {
     setDays((currentDays) =>
       currentDays.map((day) => (day.dayNumber === dayNumber ? { ...day, ...patch } : day))
@@ -607,6 +614,18 @@ function TripDetailsPage() {
       };
     })
     .filter((place) => Number.isFinite(Number(place.lat)) && Number.isFinite(Number(place.lng)));
+  const aiMapPlaces = isAiAssistantOpen && selectedIdea
+    && Number.isFinite(Number(selectedIdea.lat)) && Number.isFinite(Number(selectedIdea.lng))
+    ? [
+      ...mapPlaces,
+      {
+        title: selectedIdea.name,
+        city: selectedIdea.address,
+        lat: selectedIdea.lat,
+        lng: selectedIdea.lng,
+      },
+    ]
+    : mapPlaces;
   const activeTripRouteResult = tripRoutePlan.results[tripRoutePlan.selectedMode];
   const selectedTripRouteOption = activeTripRouteResult?.alternatives?.find(
     (routeOption) => routeOption.id === tripRoutePlan.selectedRouteId
@@ -1045,6 +1064,73 @@ function TripDetailsPage() {
     setIdeaDetailStatus('success');
   };
 
+  const askTripAiAssistant = async () => {
+    const prompt = aiInput.trim();
+    if (!prompt || !trip || aiStatus === 'loading') return;
+
+    const history = aiMessages.map((message) => ({ role: message.role, text: message.text }));
+    const userMessage = { id: `user-${Date.now()}`, role: 'user', text: prompt };
+    setAiMessages((currentMessages) => [...currentMessages, userMessage]);
+    setAiInput('');
+    setAiStatus('loading');
+    setAiError('');
+    setSelectedIdea(null);
+
+    try {
+      const response = await getTripAiRecommendations({
+        prompt,
+        trip: {
+          title: trip.title,
+          destination: trip.destination,
+          country: trip.country,
+          startDate: trip.startDate,
+          endDate: trip.endDate,
+          budget: trip.budget,
+        },
+        plannedPlaces: items.map((item) => item.title).filter(Boolean),
+        history,
+      });
+      const recommendation = response.data?.data?.recommendations || {};
+
+      const resolvedResults = await Promise.allSettled(
+        (recommendation.places || []).map(async (suggestion) => {
+          const [place] = await searchOpenStreetMapPlaces(suggestion.searchQuery, { limit: 1 });
+          if (!place) return null;
+          return formatIdeaPlace({
+            ...place,
+            summary: suggestion.reason || place.displayName,
+            aiReason: suggestion.reason,
+          }, suggestion.category);
+        })
+      );
+      const nextPlaces = resolvedResults
+        .filter((result) => result.status === 'fulfilled' && result.value)
+        .map((result) => result.value);
+
+      setAiMessages((currentMessages) => [
+        ...currentMessages,
+        {
+          id: `assistant-${Date.now()}`,
+          role: 'assistant',
+          text: recommendation.answer || 'Here are some suggestions for this trip.',
+          places: nextPlaces,
+        },
+      ]);
+      if (!recommendation.available && !nextPlaces.length) {
+        setAiError(recommendation.answer || 'AI recommendations are temporarily unavailable.');
+      }
+      setAiStatus('success');
+    } catch (error) {
+      setAiError(error.response?.data?.message || 'Unable to ask Gemini right now.');
+      setAiStatus('error');
+    }
+  };
+
+  const selectAiPlace = (place) => {
+    setSelectedIdea(place);
+    setIdeaDetailStatus('success');
+  };
+
   const addIdeaToDay = async (idea, modeOverride = addMode) => {
     if (!idea || isAddingIdea) return;
 
@@ -1212,7 +1298,26 @@ function TripDetailsPage() {
         </div>
       ) : null}
 
-      <div className="trip-details-shell" style={{ '--trip-left-panel-width': `${panelWidth}px` }}>
+      <div
+        className={`trip-details-shell ${isAiAssistantOpen ? 'has-ai-assistant' : ''}`}
+        style={{ '--trip-left-panel-width': `${panelWidth}px` }}
+      >
+        {isAiAssistantOpen ? (
+          <TripAiAssistantPanel
+            error={aiError}
+            input={aiInput}
+            isLoading={aiStatus === 'loading'}
+            messages={aiMessages}
+            onClose={() => {
+              setIsAiAssistantOpen(false);
+              setSelectedIdea(null);
+            }}
+            onSelectPlace={selectAiPlace}
+            onSend={askTripAiAssistant}
+            selectedPlaceId={selectedIdea?.id}
+            setInput={setAiInput}
+          />
+        ) : null}
         <aside className="trip-details-panel">
           {addMode ? (
             <div className="trip-add-search-panel">
@@ -1871,10 +1976,10 @@ function TripDetailsPage() {
               )}
 
               <div className="trip-panel-footer">
-                <div className="trip-assistant-bar">
+                <button className="trip-assistant-bar" type="button" onClick={() => setIsAiAssistantOpen(true)}>
                   <Sparkles size={16} aria-hidden="true" />
-                  Ask anything about this trip
-                </div>
+                  Ask AI Assistance
+                </button>
               </div>
             </>
           )}
@@ -1909,15 +2014,18 @@ function TripDetailsPage() {
             </div>
           )}
           <TripMapPreview
-            center={activeTab === 'itinerary' ? activeDayMapCenter : undefined}
+            center={isAiAssistantOpen && selectedIdea ? [selectedIdea.lat, selectedIdea.lng] : activeTab === 'itinerary' ? activeDayMapCenter : undefined}
             className="trip-details-map"
-            places={activeTab === 'route' ? tripRouteMapPlaces : mapPlaces}
+            focusCenter={Boolean(isAiAssistantOpen && selectedIdea)}
+            focusOffset={isAiAssistantOpen && selectedIdea ? [170, 0] : [0, 0]}
+            highlightedPlace={isAiAssistantOpen ? selectedIdea : null}
+            places={isAiAssistantOpen && selectedIdea ? aiMapPlaces : activeTab === 'route' ? tripRouteMapPlaces : aiMapPlaces}
             route={activeTab === 'route' ? selectedTripRoute : null}
             scrollWheelZoom
             showZoomControl
-            zoom={activeDayNumber !== 'summary' ? 10 : undefined}
+            zoom={isAiAssistantOpen && selectedIdea ? 17 : activeDayNumber !== 'summary' ? 10 : undefined}
           />
-          {(addMode || activeTab === 'ideas') && selectedIdea ? (
+          {(addMode || activeTab === 'ideas' || isAiAssistantOpen) && selectedIdea ? (
             <aside className="trip-place-detail-panel" aria-label={`${selectedIdea.name} details`}>
               {visitedLookup[getIdeaVisitedPayload(selectedIdea).placeKey] ? <span className="visited-place-watermark">Visited</span> : null}
               <button className="trip-place-detail-close" type="button" onClick={() => setSelectedIdea(null)} aria-label="Close place details">

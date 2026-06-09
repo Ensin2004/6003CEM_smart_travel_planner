@@ -85,6 +85,52 @@ const extractAnswer = (response) => {
   return text;
 };
 
+const tripRecommendationCategories = new Set(['attractions', 'food', 'hotels', 'train', 'shopping']);
+const extractJson = (response) => {
+  const text = extractAnswer(response).replace(/^```json\s*/i, '').replace(/```$/i, '').trim();
+  return JSON.parse(text);
+};
+const normalizeTripRecommendations = (result = {}) => ({
+  available: true,
+  answer: String(result.answer || 'Here are some places that fit this trip.').trim(),
+  places: (Array.isArray(result.places) ? result.places : [])
+    .slice(0, 8)
+    .map((place) => ({
+      name: String(place.name || '').trim(),
+      category: tripRecommendationCategories.has(place.category) ? place.category : 'attractions',
+      reason: String(place.reason || '').trim(),
+      searchQuery: String(place.searchQuery || place.name || '').trim(),
+    }))
+    .filter((place) => place.name && place.searchQuery),
+  lastUpdated: new Date().toISOString(),
+});
+const buildTripRecommendationPrompt = ({ prompt, trip, plannedPlaces, history }) => `
+You are Triply's travel planning assistant. Recommend real, searchable places for the user's trip.
+Use the conversation history to understand follow-up questions and maintain context.
+Return JSON only with this exact shape:
+{
+  "answer": "A concise helpful response to the user",
+  "places": [
+    {
+      "name": "Exact real place name",
+      "category": "attractions|food|hotels|train|shopping",
+      "reason": "One concise reason this fits the request",
+      "searchQuery": "Exact place name, city, country"
+    }
+  ]
+}
+Return at most 6 places. Do not invent places. Avoid duplicating planned places.
+
+Trip title: ${trip.title || 'Untitled trip'}
+Destination: ${trip.destination || 'Not specified'}, ${trip.country || ''}
+Dates: ${trip.startDate || 'Not specified'} to ${trip.endDate || 'Not specified'}
+Budget: ${trip.budget?.currency || ''} ${trip.budget?.totalAmount || 'Not specified'}
+Already planned: ${plannedPlaces.join(', ') || 'None'}
+Conversation history:
+${history.map((message) => `${message.role}: ${message.text}`).join('\n') || 'No previous messages'}
+User request: ${prompt}
+`;
+
 const chat = async ({ prompt, page }) => {
   if (!env.geminiApiKey || env.nodeEnv === 'test') {
     return {
@@ -145,4 +191,56 @@ const chat = async ({ prompt, page }) => {
   }
 };
 
-module.exports = { chat };
+const getTripRecommendations = async ({ prompt, trip, plannedPlaces, history = [] }) => {
+  if (!env.geminiApiKey || env.nodeEnv === 'test') {
+    return {
+      available: false,
+      answer: 'Gemini trip recommendations are not configured yet.',
+      places: [],
+      lastUpdated: new Date().toISOString(),
+    };
+  }
+
+  if (!consumeDailyQuota()) {
+    return {
+      available: false,
+      answer: 'Daily AI chat limit reached. Please try again tomorrow.',
+      places: [],
+      lastUpdated: new Date().toISOString(),
+    };
+  }
+
+  try {
+    const response = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/${env.geminiModel}:generateContent`,
+      {
+        contents: [{ parts: [{ text: buildTripRecommendationPrompt({ prompt, trip, plannedPlaces, history }) }] }],
+        generationConfig: {
+          temperature: 0.35,
+          maxOutputTokens: 1400,
+          responseMimeType: 'application/json',
+        },
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': env.geminiApiKey,
+        },
+        timeout: 25000,
+      }
+    );
+
+    return normalizeTripRecommendations(extractJson(response));
+  } catch (error) {
+    const { message, statusCode } = classifyGeminiError(error);
+    recordAiChatFailure(message, statusCode, { page: 'trip-details' });
+    return {
+      available: false,
+      answer: message,
+      places: [],
+      lastUpdated: new Date().toISOString(),
+    };
+  }
+};
+
+module.exports = { chat, getTripRecommendations };
