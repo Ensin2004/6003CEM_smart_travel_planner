@@ -4,6 +4,7 @@
  */
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { useLocation } from 'react-router-dom';
 import {
   BedDouble,
   ChevronRight,
@@ -34,6 +35,7 @@ import { MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip, useMap, useM
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { convertCurrency } from '../../api/currencyApi';
+import { addFavorite, getFavorites, removeFavorite } from '../../api/favoriteApi';
 import {
   getMapPlaceDetails,
   getMapWeather,
@@ -44,6 +46,7 @@ import {
 } from '../../api/mapApi';
 import CompareButton from '../../components/compare/CompareButton';
 import CurrencyContext from '../../context/currencyContext';
+import { buildFavoriteLookup, buildPlaceFavoritePayload, getFavoriteKey } from '../../utils/favoriteUtils';
 import './MapPage.css';
 
 const defaultCenter = [5.4141, 100.3288];
@@ -231,22 +234,52 @@ const inferCategoryFromSearch = (query, place) => {
   return 'attractions';
 };
 
+// Favorite records use GeoJSON coordinates, so map navigation converts longitude and latitude into Leaflet fields.
+const favoriteToMapPlace = (favorite = {}) => {
+  const coordinates = favorite.location?.coordinates?.coordinates || [];
+  const categoryId = {
+    attraction: 'attractions',
+    hotel: 'hotels',
+    location: 'custom',
+    restaurant: 'food',
+  }[favorite.type] || 'attractions';
+
+  return {
+    id: `favorite-${favorite._id || favorite.externalId || favorite.title}`,
+    dataId: favorite.externalId,
+    name: favorite.title || 'Saved place',
+    address: favorite.location?.address || favorite.description || 'Saved favourite',
+    summary: favorite.description || favorite.location?.address || 'Saved favourite place.',
+    rating: favorite.rating,
+    price: favorite.priceLevel,
+    lat: Number(coordinates[1]),
+    lng: Number(coordinates[0]),
+    categoryId,
+    favoriteOrigin: true,
+    panelMode: 'place',
+    zoom: 17,
+  };
+};
+
+const hasMapCoordinates = (place) => Number.isFinite(place?.lat) && Number.isFinite(place?.lng);
+
 // Create Map Icon builds a new record from validated input.
 const createMapIcon = (pin, categoryId) => {
   const category = categoryConfig[categoryId] || categoryConfig.attractions;
   const PinIcon = category.icon;
   const iconMarkup = renderToStaticMarkup(<PinIcon size={17} strokeWidth={2.4} />);
+  const isFavoriteOrigin = Boolean(pin.favoriteOrigin);
 
   return L.divIcon({
     className: '',
     html: `
-      <span class="travel-map-pin" style="--pin-color: ${category.color}">
+      <span class="travel-map-pin${isFavoriteOrigin ? ' travel-map-pin-favorite-origin' : ''}" style="--pin-color: ${category.color}">
         <span class="travel-map-pin-icon">${iconMarkup}</span>
       </span>
     `,
-    iconSize: [42, 50],
-    iconAnchor: [21, 48],
-    popupAnchor: [0, -44],
+    iconSize: isFavoriteOrigin ? [52, 60] : [42, 50],
+    iconAnchor: isFavoriteOrigin ? [26, 58] : [21, 48],
+    popupAnchor: isFavoriteOrigin ? [0, -54] : [0, -44],
   });
 };
 
@@ -267,6 +300,18 @@ function MapFocus({ place }) {
       map.flyTo([place.lat, place.lng], place.zoom || 12, { duration: 0.75 });
     }
   }, [map, place]);
+
+  return null;
+}
+
+// Favorite-origin reset restores the default viewport without changing normal map focus behavior.
+function FavoriteMapReset({ resetCount }) {
+  const map = useMap();
+  useEffect(() => {
+    if (resetCount > 0) {
+      map.flyTo(defaultCenter, defaultZoom, { duration: 0.75 });
+    }
+  }, [map, resetCount]);
 
   return null;
 }
@@ -401,9 +446,12 @@ function PlaceDetails({
   categoryId,
   detailStatus,
   getConvertedPriceText,
+  isFavorite,
+  isSavingFavorite,
   onAddRoutePoint,
   onClearRoute,
   onCalculateRoute,
+  onFavoriteToggle,
   onRenameCustomMarker,
   onRemove,
   onRemoveRoutePoint,
@@ -434,13 +482,28 @@ function PlaceDetails({
   };
   return (
     <div className="map-place-details">
-      {details.imageUrl ? (
-        <img className="map-detail-image" src={details.imageUrl} alt="" loading="lazy" />
-      ) : (
-        <div className="map-detail-image map-detail-image-empty">
-          <Image size={28} aria-hidden="true" />
-        </div>
-      )}
+      <div className="map-detail-image-wrap">
+        {details.imageUrl ? (
+          <img className="map-detail-image" src={details.imageUrl} alt="" loading="lazy" />
+        ) : (
+          <div className="map-detail-image map-detail-image-empty">
+            <Image size={28} aria-hidden="true" />
+          </div>
+        )}
+        <button
+          className={`map-detail-favorite-button ${isFavorite ? 'active' : ''}`}
+          type="button"
+          aria-label={isFavorite ? `Remove ${details.name} from favourites` : `Add ${details.name} to favourites`}
+          disabled={isSavingFavorite}
+          onClick={() => onFavoriteToggle(details)}
+        >
+          {isSavingFavorite ? (
+            <LoaderCircle className="map-spin" size={18} aria-hidden="true" />
+          ) : (
+            <Heart size={19} fill={isFavorite ? 'currentColor' : 'none'} aria-hidden="true" />
+          )}
+        </button>
+      </div>
 
       <div className="map-detail-category" style={{ '--detail-color': category.color }}>
         <CategoryIcon size={17} aria-hidden="true" />
@@ -679,11 +742,17 @@ function PlaceDetails({
 
 function MapPage() {
   const currency = useContext(CurrencyContext);
+  const location = useLocation();
+  const selectedFavorite = location.state?.selectedFavorite;
+  const initialFavoritePlace = useMemo(
+    () => (selectedFavorite ? favoriteToMapPlace(selectedFavorite) : null),
+    [selectedFavorite]
+  );
   const loadedPlaceDetailsRef = useRef(new Set());
   const placeWeatherCacheRef = useRef(new Map());
-  const [query, setQuery] = useState('Penang');
-  const [mapDestination, setMapDestination] = useState('Penang');
-  const [activeCategories, setActiveCategories] = useState([]);
+  const [query, setQuery] = useState(selectedFavorite?.title || selectedFavorite?.location?.address || 'Penang');
+  const [mapDestination, setMapDestination] = useState(selectedFavorite?.location?.address || selectedFavorite?.title || 'Penang');
+  const [activeCategories, setActiveCategories] = useState(initialFavoritePlace ? [initialFavoritePlace.categoryId] : []);
   const [categoryResults, setCategoryResults] = useState({});
   const [suggestions, setSuggestions] = useState([]);
   const [isSuggestionOpen, setIsSuggestionOpen] = useState(false);
@@ -694,7 +763,9 @@ function MapPage() {
   const [mapType, setMapType] = useState('default');
   const [mapCenter, setMapCenter] = useState(defaultCenter);
   const [mapBounds, setMapBounds] = useState(null);
-  const [selectedPlace, setSelectedPlace] = useState(categoryPanelPlace);
+  const [selectedPlace, setSelectedPlace] = useState(
+    hasMapCoordinates(initialFavoritePlace) ? initialFavoritePlace : categoryPanelPlace
+  );
   const [userLocation, setUserLocation] = useState(fallbackUserLocation);
   const [route, setRoute] = useState(null);
   const [routeMode, setRouteMode] = useState('car');
@@ -707,6 +778,10 @@ function MapPage() {
   const [placeWeatherStatus, setPlaceWeatherStatus] = useState('idle');
   const [status, setStatus] = useState('idle');
   const [message, setMessage] = useState('');
+  const [isFavoriteMarkerLabelVisible, setIsFavoriteMarkerLabelVisible] = useState(Boolean(selectedFavorite));
+  const [favorites, setFavorites] = useState(() => (selectedFavorite?._id ? [selectedFavorite] : []));
+  const [savingFavoriteKey, setSavingFavoriteKey] = useState('');
+  const [favoriteMapResetCount, setFavoriteMapResetCount] = useState(0);
 
   const panelMode = selectedPlace?.panelMode || 'category';
   const selectedCategory = selectedPlace?.categoryId || activeCategories[0] || 'attractions';
@@ -759,11 +834,86 @@ function MapPage() {
   const selectedPlaceLng = selectedPlace?.lng;
   const selectedPlaceIsCustom = selectedPlace?.custom;
   const selectedPlaceHasRichDetails = hasRichPlaceDetails(selectedPlace);
+  const favoriteLookup = useMemo(() => buildFavoriteLookup(favorites), [favorites]);
+  const selectedPlaceFavoritePayload = useMemo(() => {
+    if (panelMode !== 'place' || !selectedPlace?.name) return null;
+
+    const favoriteType = selectedPlace.categoryId === 'custom' ? 'location' : selectedPlace.categoryId;
+    return buildPlaceFavoritePayload({
+      item: {
+        ...selectedPlace,
+        coordinates: {
+          latitude: selectedPlace.lat,
+          longitude: selectedPlace.lng,
+        },
+      },
+      type: favoriteType,
+      originalPriceText: getOriginalPriceText(selectedPlace),
+      visitedSource: 'map',
+    });
+  }, [panelMode, selectedPlace]);
+  const selectedPlaceFavoriteKey = selectedPlaceFavoritePayload ? getFavoriteKey(selectedPlaceFavoritePayload) : '';
+  const selectedPlaceFavoriteRecord = selectedPlaceFavoriteKey ? favoriteLookup[selectedPlaceFavoriteKey] : null;
+
+  useEffect(() => {
+    let isActive = true;
+
+    getFavorites()
+      .then((response) => {
+        if (isActive) setFavorites(response.data?.data?.favorites || []);
+      })
+      .catch(() => {
+        if (isActive && !selectedFavorite?._id) setFavorites([]);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [selectedFavorite?._id]);
+
+  useEffect(() => {
+    if (!selectedFavorite || hasMapCoordinates(initialFavoritePlace)) return undefined;
+
+    const favoritePlace = initialFavoritePlace;
+
+    const controller = new AbortController();
+    const resolveFavoriteLocation = async () => {
+      try {
+        const searchText = selectedFavorite.location?.address || selectedFavorite.title;
+        const places = await searchOpenStreetMapPlaces(searchText, { limit: 1, signal: controller.signal });
+        const resolvedPlace = places[0];
+
+        if (resolvedPlace) {
+          setSelectedPlace(formatCategoryPlace({
+            ...resolvedPlace,
+            name: selectedFavorite.title || resolvedPlace.name,
+            summary: selectedFavorite.description || resolvedPlace.summary,
+            rating: selectedFavorite.rating || resolvedPlace.rating,
+            price: selectedFavorite.priceLevel || resolvedPlace.price,
+            favoriteOrigin: true,
+            zoom: 17,
+          }, favoritePlace.categoryId));
+          return;
+        }
+
+        setMessage('This saved favourite does not have enough location information to show on the map.');
+        setStatus('error');
+      } catch (error) {
+        if (!isCanceledRequest(error)) {
+          setMessage('Unable to locate this saved favourite on the map right now.');
+          setStatus('error');
+        }
+      }
+    };
+
+    resolveFavoriteLocation();
+    return () => controller.abort();
+  }, [initialFavoritePlace, selectedFavorite]);
 
   const handleViewportChange = useCallback((viewport) => {
     setMapCenter(viewport.center);
     setMapBounds(viewport.bounds);
-  }, []);
+  }, [setMapBounds, setMapCenter]);
 
   useEffect(() => {
     const trimmedQuery = query.trim();
@@ -1247,6 +1397,71 @@ function MapPage() {
     setPlaceDetailStatus('idle');
   };
 
+  // Closing a favourite-origin detail returns only that navigation path to the normal default map view.
+  const handleCloseDestinationPanel = () => {
+    if (selectedPlace?.favoriteOrigin) {
+      setIsFavoriteMarkerLabelVisible(false);
+      setSelectedPlace(categoryPanelPlace);
+      setActiveCategories([]);
+      setQuery('Penang');
+      setMapDestination('Penang');
+      setStatus('idle');
+      setMessage('');
+      setFavoriteMapResetCount((currentCount) => currentCount + 1);
+    }
+
+    setIsPanelOpen(false);
+  };
+
+  // Map favourites use the shared favourites API and remain separate from local custom marker storage.
+  const handleFavoriteToggle = async (place) => {
+    const favoriteType = place.categoryId === 'custom' ? 'location' : place.categoryId;
+    const payload = buildPlaceFavoritePayload({
+      item: {
+        ...place,
+        coordinates: {
+          latitude: place.lat,
+          longitude: place.lng,
+        },
+      },
+      type: favoriteType,
+      originalPriceText: getOriginalPriceText(place),
+      visitedSource: 'map',
+    });
+    const favoriteKey = getFavoriteKey(payload);
+    const existingFavorite = favoriteLookup[favoriteKey];
+
+    if (!favoriteKey || savingFavoriteKey) return;
+
+    setSavingFavoriteKey(favoriteKey);
+    setMessage('');
+    try {
+      if (existingFavorite?._id) {
+        await removeFavorite(existingFavorite._id);
+        setFavorites((currentFavorites) => currentFavorites.filter((favorite) => favorite._id !== existingFavorite._id));
+        setStatus('success');
+        setMessage(`${place.name} was removed from favourites.`);
+        return;
+      }
+
+      const response = await addFavorite(payload);
+      const savedFavorite = response.data?.data?.favorite;
+      if (savedFavorite) {
+        setFavorites((currentFavorites) => [
+          savedFavorite,
+          ...currentFavorites.filter((favorite) => favorite._id !== savedFavorite._id),
+        ]);
+      }
+      setStatus('success');
+      setMessage(`${place.name} was saved to favourites.`);
+    } catch (error) {
+      setStatus('error');
+      setMessage(error.response?.data?.message || 'Unable to update this favourite right now.');
+    } finally {
+      setSavingFavoriteKey('');
+    }
+  };
+
   const calculateRoute = async (points = routePoints) => {
     if (points.length < 2) {
       setStatus('error');
@@ -1581,6 +1796,7 @@ function MapPage() {
             url={activeTileLayer.url}
           />
           <MapFocus place={selectedPlace} />
+          <FavoriteMapReset resetCount={favoriteMapResetCount} />
           <MapClickHandler isAddingMarker={isAddingMarker} onAddMarker={handleAddCustomMarker} />
           <MapViewportTracker onViewportChange={handleViewportChange} />
           <MapToolControls
@@ -1653,6 +1869,21 @@ function MapPage() {
                   </button>
                 ) : null}
               </Popup>
+              {pin.favoriteOrigin && isFavoriteMarkerLabelVisible ? (
+                <Tooltip
+                  className="map-favorite-origin-label"
+                  direction="top"
+                  offset={[0, -54]}
+                  opacity={1}
+                  permanent
+                  interactive
+                >
+                  <span>
+                    <strong>HERE!</strong>
+                    <small>{pin.name}</small>
+                  </span>
+                </Tooltip>
+              ) : null}
             </Marker>
           ))}
         </MapContainer>
@@ -1667,7 +1898,7 @@ function MapPage() {
       {isPanelOpen ? (
       <aside className="map-destination-panel" aria-label="Map results">
         <div className="map-panel-header">
-          <button type="button" aria-label="Close destination panel" onClick={() => setIsPanelOpen(false)}>
+          <button type="button" aria-label="Close destination panel" onClick={handleCloseDestinationPanel}>
             <X size={22} aria-hidden="true" />
           </button>
           <h2 id="map-page-title">
@@ -1774,6 +2005,8 @@ function MapPage() {
             categoryId={selectedCategory}
             detailStatus={placeDetailStatus}
             getConvertedPriceText={getConvertedPriceText}
+            isFavorite={Boolean(selectedPlaceFavoriteRecord?._id)}
+            isSavingFavorite={savingFavoriteKey === selectedPlaceFavoriteKey}
             route={route}
             routeMode={routeMode}
             routePoints={routePoints}
@@ -1784,6 +2017,7 @@ function MapPage() {
             onAddRoutePoint={handleAddRoutePoint}
             onCalculateRoute={handleCalculateRoute}
             onClearRoute={handleClearRoute}
+            onFavoriteToggle={handleFavoriteToggle}
             onRenameCustomMarker={handleRenameCustomMarker}
             onRemove={handleRemoveCustomMarker}
             onRemoveRoutePoint={handleRemoveRoutePoint}

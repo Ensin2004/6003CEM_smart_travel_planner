@@ -18,18 +18,23 @@ const normalizeCoordinates = (coordinates = {}) => {
     coordinates: [longitude, latitude],
   };
 };
+// Build Favorite Location omits invalid GeoJSON entirely so address-only favourites remain valid.
+const buildFavoriteLocation = (data) => {
+  const coordinates = normalizeCoordinates(data.coordinates);
+  if (!data.address && !coordinates) return undefined;
+
+  return {
+    address: data.address,
+    ...(coordinates ? { coordinates } : {}),
+  };
+};
 // Build Favorite Payload transforms source data into the shape required nearby.
 const buildFavoritePayload = (userId, data) => ({
   userId,
   type: data.type,
   title: data.title,
   description: data.description,
-  location: data.address || data.coordinates
-    ? {
-        address: data.address,
-        coordinates: normalizeCoordinates(data.coordinates),
-      }
-    : undefined,
+  location: buildFavoriteLocation(data),
   priceLevel: data.priceLevel,
   rating: data.rating,
   externalId: data.externalId,
@@ -38,12 +43,19 @@ const buildFavoritePayload = (userId, data) => ({
 const listFavorites = (userId) => favoriteRepository.findByUserId(userId);
 // Add Favorite builds a new record from validated input.
 const addFavorite = async (userId, data) => {
-  const existing = await favoriteRepository.findExisting({
-    userId,
-    type: data.type,
-    externalId: data.externalId || data.title,
-    title: data.title,
-  });
+  const isTripFavorite = data.source === 'trips' && String(data.externalId || '').startsWith('trip-');
+  const existing = isTripFavorite
+    ? await favoriteRepository.findByUserIdTypeAndExternalId({
+      userId,
+      type: data.type,
+      externalId: data.externalId,
+    })
+    : await favoriteRepository.findExisting({
+      userId,
+      type: data.type,
+      externalId: data.externalId || data.title,
+      title: data.title,
+    });
 
   if (existing) return existing;
 
