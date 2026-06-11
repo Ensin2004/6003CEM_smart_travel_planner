@@ -15,4 +15,15 @@ const chat = catchAsync(async (req, res) => {
   sendSuccess(res, 200, { reply });
 });
 
-module.exports = { chat };
+const getTripRecommendations = catchAsync(async (req, res) => {
+  const recommendations = await aiAssistantService.getTripRecommendations({
+    prompt: req.body.prompt,
+    trip: req.body.trip || {},
+    plannedPlaces: req.body.plannedPlaces || [],
+    history: req.body.history || [],
+  });
+
+  sendSuccess(res, 200, { recommendations });
+});
+
+module.exports = { chat, getTripRecommendations };

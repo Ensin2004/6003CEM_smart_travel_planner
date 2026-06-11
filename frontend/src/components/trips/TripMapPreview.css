@@ -34,6 +34,70 @@
   background: #7c3aed;
 }
 
+.shared-trip-map-pin-highlighted {
+  width: 48px;
+  height: 48px;
+  border-width: 4px;
+  background: #dc2626;
+  box-shadow:
+    0 0 0 7px rgba(239, 68, 68, 0.2),
+    0 14px 28px rgba(16, 42, 67, 0.32);
+  animation: shared-trip-map-highlight-pulse 1.8s ease-in-out infinite;
+}
+
+.shared-trip-map-highlight-label.leaflet-tooltip {
+  width: max-content;
+  min-width: 220px;
+  max-width: min(360px, calc(100vw - 40px));
+  padding: 10px 14px;
+  border: 1px solid rgba(15, 118, 110, 0.25);
+  border-radius: 7px;
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(16, 42, 67, 0.24);
+  color: var(--color-heading);
+}
+
+.shared-trip-map-highlight-label.leaflet-tooltip::before {
+  border-top-color: #ffffff;
+}
+
+.shared-trip-map-highlight-label span {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  text-align: center;
+}
+
+.shared-trip-map-highlight-label strong {
+  color: #dc2626;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+}
+
+.shared-trip-map-highlight-label small {
+  color: var(--color-heading);
+  font-size: 12px;
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+@keyframes shared-trip-map-highlight-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 7px rgba(239, 68, 68, 0.16),
+      0 14px 28px rgba(16, 42, 67, 0.32);
+  }
+
+  50% {
+    box-shadow:
+      0 0 0 12px rgba(239, 68, 68, 0.05),
+      0 16px 32px rgba(16, 42, 67, 0.38);
+  }
+}
+
 .shared-trip-map-pin-day-1 {
   background: #0f766e;
 }
