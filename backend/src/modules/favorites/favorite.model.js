@@ -3,26 +3,32 @@
  * Schema fields define stored document structure, defaults, and indexes.
  */
 const mongoose = require('mongoose');
+// Favorite Coordinates Schema remains absent for address-only favourites and validates complete GeoJSON points.
+const favoriteCoordinatesSchema = new mongoose.Schema(
+  {
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point',
+    },
+    coordinates: {
+      type: [Number],
+      required: true,
+      validate: {
+        validator(value) {
+          return value.length === 2;
+        },
+        message: 'Coordinates must contain longitude and latitude',
+      },
+    },
+  },
+  { _id: false }
+);
 // Favorite Location Schema groups database fields before model registration.
 const favoriteLocationSchema = new mongoose.Schema(
   {
     address: { type: String, trim: true },
-    coordinates: {
-      type: {
-        type: String,
-        enum: ['Point'],
-        default: 'Point',
-      },
-      coordinates: {
-        type: [Number],
-        validate: {
-          validator(value) {
-            return !value || value.length === 2;
-          },
-          message: 'Coordinates must contain longitude and latitude',
-        },
-      },
-    },
+    coordinates: { type: favoriteCoordinatesSchema, default: undefined },
   },
   { _id: false }
 );

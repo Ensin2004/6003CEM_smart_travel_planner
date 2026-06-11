@@ -698,6 +698,59 @@
   filter: drop-shadow(0 1px 1px rgba(16, 42, 67, 0.16));
 }
 
+.travel-map-pin-favorite-origin {
+  width: 52px;
+  height: 52px;
+  border-width: 4px;
+  box-shadow:
+    0 0 0 7px rgba(239, 68, 68, 0.2),
+    0 14px 28px rgba(16, 42, 67, 0.32);
+  animation: map-favorite-origin-pulse 1.8s ease-in-out infinite;
+}
+
+.map-favorite-origin-label.leaflet-tooltip {
+  position: relative;
+  display: block;
+  width: max-content;
+  min-width: 220px;
+  max-width: min(360px, calc(100vw - 40px));
+  border: 1px solid rgba(15, 118, 110, 0.25);
+  border-radius: 7px;
+  background: #ffffff;
+  padding: 10px 14px;
+  box-shadow: 0 12px 28px rgba(16, 42, 67, 0.24);
+  color: var(--color-heading);
+}
+
+.map-favorite-origin-label.leaflet-tooltip::before {
+  border-top-color: #ffffff;
+}
+
+.map-favorite-origin-label span {
+  display: grid;
+  gap: 5px;
+  min-width: 0;
+  text-align: center;
+}
+
+.map-favorite-origin-label strong {
+  color: #dc2626;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-align: center;
+}
+
+.map-favorite-origin-label small {
+  display: block;
+  color: var(--color-heading);
+  font-size: 12px;
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+  text-align: center;
+  white-space: normal;
+}
+
 .travel-user-location-pin {
   display: block;
   width: 22px;
@@ -708,6 +761,21 @@
   box-shadow:
     0 0 0 4px rgba(239, 68, 68, 0.2),
     0 8px 18px rgba(16, 42, 67, 0.28);
+}
+
+@keyframes map-favorite-origin-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 7px rgba(239, 68, 68, 0.16),
+      0 14px 28px rgba(16, 42, 67, 0.32);
+  }
+
+  50% {
+    box-shadow:
+      0 0 0 12px rgba(239, 68, 68, 0.05),
+      0 16px 32px rgba(16, 42, 67, 0.38);
+  }
 }
 
 .map-place-details {
@@ -724,6 +792,36 @@
   border-radius: 6px;
   background: #dbeafe;
   object-fit: cover;
+}
+
+.map-detail-image-wrap {
+  position: relative;
+}
+
+.map-detail-favorite-button {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: inline-grid;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #64748b;
+  cursor: pointer;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.14);
+}
+
+.map-detail-favorite-button:hover,
+.map-detail-favorite-button.active {
+  color: #dc2626;
+}
+
+.map-detail-favorite-button:disabled {
+  cursor: wait;
+  opacity: 0.75;
 }
 
 .map-detail-image-empty {

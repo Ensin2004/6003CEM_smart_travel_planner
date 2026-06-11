@@ -31,7 +31,7 @@ import { createTrip, getTrips } from '../../api/tripApi';
 import CompareButton from '../../components/compare/CompareButton';
 import TripMapPreview from '../../components/trips/TripMapPreview';
 import CurrencyContext from '../../context/currencyContext';
-import { buildFavoriteLookup, buildTripFavoritePayload, getFavoriteKey } from '../../utils/favoriteUtils';
+import { buildTripFavoritePayload } from '../../utils/favoriteUtils';
 import './TripsPage.css';
 
 const today = new Date().toISOString().slice(0, 10);
@@ -40,7 +40,7 @@ const defaultPreviewPlaces = [
   { city: 'Penang', country: 'Malaysia' },
   { city: 'Singapore', country: 'Singapore' },
 ];
-const tripFilters = ['All Trips', 'Active', 'Upcoming', 'Past', 'Drafts'];
+const tripFilters = ['All Trips', 'Active', 'Upcoming', 'Past', 'Drafts', 'Favorites'];
 
 // Date helpers keep exact-date and flexible-date planning consistent before the payload is built.
 
@@ -234,7 +234,19 @@ function TripsPage() {
     };
   }, [trips]);
 
-  const favoriteLookup = useMemo(() => buildFavoriteLookup(favorites), [favorites]);
+  // Trip favourites are identified by their trip external id so saved place coordinates cannot collide with trip cards.
+  const tripFavorites = useMemo(
+    () => favorites.filter((favorite) => (
+      favorite.type === 'location'
+      && favorite.source === 'trips'
+      && String(favorite.externalId || '').startsWith('trip-')
+    )),
+    [favorites]
+  );
+  const tripFavoriteLookup = useMemo(
+    () => Object.fromEntries(tripFavorites.map((favorite) => [favorite.externalId, favorite])),
+    [tripFavorites]
+  );
   const tripStatusCounts = trips.reduce((counts, trip) => {
     const statusName = getTripStatus(trip, tripItineraryDays[trip._id] || []).toLowerCase();
     return { ...counts, [statusName]: (counts[statusName] || 0) + 1 };
@@ -243,7 +255,9 @@ function TripsPage() {
     const query = searchQuery.trim().toLowerCase();
     const filteredTrips = trips.filter((trip) => {
       const itineraryDays = tripItineraryDays[trip._id] || [];
-      const matchesFilter = tripFilter === 'All Trips' || getTripStatus(trip, itineraryDays) === tripFilter.replace(/s$/, '');
+      const matchesFilter = tripFilter === 'All Trips'
+        || (tripFilter === 'Favorites' && Boolean(tripFavoriteLookup[`trip-${trip._id}`]))
+        || getTripStatus(trip, itineraryDays) === tripFilter.replace(/s$/, '');
       const destinationLabel = getTripDestinationLabel(trip, itineraryDays);
       const matchesSearch = !query || [trip.title, trip.destination, trip.country, destinationLabel]
         .filter(Boolean)
@@ -255,7 +269,7 @@ function TripsPage() {
       if (tripSort === 'startDate') return new Date(leftTrip.startDate) - new Date(rightTrip.startDate);
       return new Date(rightTrip.updatedAt || rightTrip.createdAt || rightTrip.startDate) - new Date(leftTrip.updatedAt || leftTrip.createdAt || leftTrip.startDate);
     });
-  }, [searchQuery, tripFilter, tripItineraryDays, tripSort, trips]);
+  }, [searchQuery, tripFavoriteLookup, tripFilter, tripItineraryDays, tripSort, trips]);
 
   const previewSegments = form.destinationSegments.filter((segment) => getSegmentDestinationName(segment));
   const totalBudget = Number(form.budgetAmount || 0);
@@ -283,9 +297,7 @@ function TripsPage() {
   }, []);
 
   const getTripFavoriteRecord = (trip) => {
-    const payload = buildTripFavoritePayload(trip);
-    const favoriteKey = getFavoriteKey(payload);
-    return favoriteLookup[favoriteKey];
+    return tripFavoriteLookup[`trip-${trip._id}`];
   };
 
   const handleTripFavoriteToggle = async (event, trip) => {
@@ -486,9 +498,9 @@ function TripsPage() {
             </span>
             <span>
               <i><Heart size={19} aria-hidden="true" /></i>
-              <small>Saved Places</small>
-              <strong>{favorites.length}</strong>
-              <em>Favourite records</em>
+              <small>Saved Trips</small>
+              <strong>{tripFavorites.length}</strong>
+              <em>Trip favourites</em>
             </span>
           </div>
 

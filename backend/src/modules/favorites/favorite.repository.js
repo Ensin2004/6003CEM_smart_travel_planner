@@ -11,6 +11,9 @@ const findExisting = ({ userId, type, externalId, title }) =>
     type,
     $or: [{ externalId }, { title }],
   });
+// Trip favourites use a stable external id so ordinary saved locations with the same title remain separate.
+const findByUserIdTypeAndExternalId = ({ userId, type, externalId }) =>
+  Favorite.findOne({ userId, type, externalId });
 // Delete By Id And User Id removes a record after ownership checks.
 const deleteByIdAndUserId = (id, userId) => Favorite.findOneAndDelete({ _id: id, userId });
-module.exports = { create, deleteByIdAndUserId, findByUserId, findExisting };
+module.exports = { create, deleteByIdAndUserId, findByUserId, findByUserIdTypeAndExternalId, findExisting };
