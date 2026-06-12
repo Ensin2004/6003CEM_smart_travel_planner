@@ -5,7 +5,6 @@
 import {
   ArrowLeftRight,
   CalendarDays,
-  ChevronDown,
   Clock,
   DollarSign,
   LoaderCircle,
@@ -16,7 +15,7 @@ import {
   TrainFront,
   X,
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { getDateKey } from '../explore.helpers';
 import './Transportation.css';
 
@@ -25,20 +24,9 @@ const transportationTabs = [
   { id: 'trains', label: 'Trains', icon: TrainFront },
 ];
 
-const getCountryFlag = (countryCode) => {
-  if (!countryCode || countryCode.length !== 2) return '';
-
-  return countryCode
-    .toUpperCase()
-    .split('')
-    .map((letter) => String.fromCodePoint(127397 + letter.charCodeAt(0)))
-    .join('');
-};
-
 // TransportationSubmenu renders the main screen and handles nearby interactions.
 function TransportationSubmenu({
   activeTransportTab,
-  clearFlightCountry,
   clearFlightSearchField,
   clearTrainSearchField,
   countryOptions,
@@ -63,11 +51,7 @@ function TransportationSubmenu({
   trainSearch,
 }) {
   const [flightSort, setFlightSort] = useState('departure');
-  const [openCountryMenu, setOpenCountryMenu] = useState('');
-  const [fromCountryQuery, setFromCountryQuery] = useState('');
-  const [toCountryQuery, setToCountryQuery] = useState('');
   const [selectedFlight, setSelectedFlight] = useState(null);
-  const countryMenuRef = useRef(null);
   // Format Train Date converts raw values into readable display text.
   const formatTrainDate = (value) => value || 'Date unavailable';
   const getTrainDistanceLabel = (train = {}) => {
@@ -210,24 +194,6 @@ function TransportationSubmenu({
   const activeItems = activeTransportTab === 'flights' ? sortedFlightItems : trainResults?.items || [];
   const activeResultCount = activeItems.length;
   const hasActiveTransportSearch = activeTransportTab === 'flights' ? Boolean(flightResults) : Boolean(trainResults);
-  const selectedFromCountry = countryOptions.find((country) => country.isoCode === flightSearch.fromCountryCode);
-  const selectedToCountry = countryOptions.find((country) => country.isoCode === flightSearch.toCountryCode);
-  useEffect(() => {
-    setFromCountryQuery(selectedFromCountry?.name || '');
-  }, [selectedFromCountry?.name]);
-  useEffect(() => {
-    setToCountryQuery(selectedToCountry?.name || '');
-  }, [selectedToCountry?.name]);
-  useEffect(() => {
-    const closeCountryMenu = (event) => {
-      if (!countryMenuRef.current?.contains(event.target)) {
-        setOpenCountryMenu('');
-      }
-    };
-
-    document.addEventListener('mousedown', closeCountryMenu);
-    return () => document.removeEventListener('mousedown', closeCountryMenu);
-  }, []);
   useEffect(() => {
     const closeFlightDialog = (event) => {
       if (event.key === 'Escape') {
@@ -238,105 +204,25 @@ function TransportationSubmenu({
     document.addEventListener('keydown', closeFlightDialog);
     return () => document.removeEventListener('keydown', closeFlightDialog);
   }, []);
-  const getCountryMatches = (query) => {
-    const normalizedQuery = query.trim().toLowerCase();
-    const matches = normalizedQuery
-      ? countryOptions.filter((country) =>
-          [country.name, country.isoCode, country.phonecode].filter(Boolean).some((value) => String(value).toLowerCase().includes(normalizedQuery))
-        )
-      : countryOptions;
-
-    return matches.slice(0, 10);
-  };
-  const handleCountryQueryChange = (fieldPrefix, value) => {
-    const setQuery = fieldPrefix === 'from' ? setFromCountryQuery : setToCountryQuery;
-    setQuery(value);
-    setOpenCountryMenu(fieldPrefix);
-
-    const exactMatch = countryOptions.find(
-      (country) => country.name.toLowerCase() === value.trim().toLowerCase() || country.isoCode.toLowerCase() === value.trim().toLowerCase()
-    );
-
-    if (exactMatch) {
-      handleFlightCountryChange(fieldPrefix, exactMatch.isoCode);
-    } else if (!value.trim()) {
-      clearFlightCountry(fieldPrefix);
-    }
-  };
-  const selectCountry = (fieldPrefix, country) => {
-    handleFlightCountryChange(fieldPrefix, country.isoCode);
-    setOpenCountryMenu('');
-  };
-  const clearCountryCombobox = (fieldPrefix) => {
-    if (fieldPrefix === 'from') {
-      setFromCountryQuery('');
-    } else {
-      setToCountryQuery('');
-    }
-    clearFlightCountry(fieldPrefix);
-    setOpenCountryMenu('');
-  };
-  const renderCountryCombobox = ({ fieldPrefix, label, placeholder, selectedCountry, query }) => {
-    const options = getCountryMatches(query);
-
-    return (
-      <label className="explore-transport-form-field">
-        <span>{label}</span>
-        <div className="explore-country-combobox">
-          <div className="explore-transport-input-shell">
-            <span className="explore-transport-flag" aria-hidden="true">
-              {selectedCountry ? getCountryFlag(selectedCountry.isoCode) : ''}
-            </span>
-            <input
-              type="text"
-              value={query}
-              onChange={(event) => handleCountryQueryChange(fieldPrefix, event.target.value)}
-              onFocus={() => setOpenCountryMenu(fieldPrefix)}
-              placeholder={placeholder}
-              role="combobox"
-              aria-expanded={openCountryMenu === fieldPrefix}
-              aria-controls={`explore-${fieldPrefix}-country-options`}
-              autoComplete="off"
-            />
-            <button
-              className="explore-country-chevron"
-              type="button"
-              aria-label={`Show ${label.toLowerCase()} options`}
-              onClick={() => setOpenCountryMenu(openCountryMenu === fieldPrefix ? '' : fieldPrefix)}
-            >
-              <ChevronDown size={18} aria-hidden="true" />
-            </button>
-            {(selectedCountry || query) && (
-              <button type="button" aria-label={`Clear ${label.toLowerCase()}`} onClick={() => clearCountryCombobox(fieldPrefix)}>
-                <X size={13} aria-hidden="true" />
-              </button>
-            )}
-          </div>
-          {openCountryMenu === fieldPrefix && (
-            <div className="explore-country-menu" id={`explore-${fieldPrefix}-country-options`} role="listbox">
-              {options.length ? (
-                options.map((country) => (
-                  <button
-                    type="button"
-                    role="option"
-                    aria-selected={country.isoCode === selectedCountry?.isoCode}
-                    key={country.isoCode}
-                    onClick={() => selectCountry(fieldPrefix, country)}
-                  >
-                    <span aria-hidden="true">{getCountryFlag(country.isoCode)}</span>
-                    <strong>{country.name}</strong>
-                    <small>{country.isoCode}</small>
-                  </button>
-                ))
-              ) : (
-                <p>No country found</p>
-              )}
-            </div>
-          )}
-        </div>
-      </label>
-    );
-  };
+  const renderCountrySelect = ({ fieldPrefix, label, value }) => (
+    <label className="explore-transport-form-field">
+      <span>{label}</span>
+      <div className="explore-transport-country-field">
+        <span className="sr-only">{label}</span>
+        <select
+          value={value}
+          onChange={(event) => handleFlightCountryChange(fieldPrefix, event.target.value)}
+        >
+          <option value="">Country</option>
+          {countryOptions.map((country) => (
+            <option key={country.isoCode} value={country.isoCode}>
+              {country.name}
+            </option>
+          ))}
+        </select>
+      </div>
+    </label>
+  );
   const transportTips =
     activeTransportTab === 'flights'
       ? [
@@ -429,23 +315,19 @@ function TransportationSubmenu({
                 You can search by route, airline, or both.
               </p>
             </div>
-            <div className="explore-transport-route-row" ref={countryMenuRef}>
-              {renderCountryCombobox({
+            <div className="explore-transport-route-row">
+              {renderCountrySelect({
                 fieldPrefix: 'from',
                 label: 'From country',
-                placeholder: 'Any origin',
-                selectedCountry: selectedFromCountry,
-                query: fromCountryQuery,
+                value: flightSearch.fromCountryCode,
               })}
               <div className="explore-transport-swap" aria-hidden="true">
                 <ArrowLeftRight size={19} />
               </div>
-              {renderCountryCombobox({
+              {renderCountrySelect({
                 fieldPrefix: 'to',
                 label: 'To country',
-                placeholder: 'Any destination',
-                selectedCountry: selectedToCountry,
-                query: toCountryQuery,
+                value: flightSearch.toCountryCode,
               })}
             </div>
             <div className="explore-transport-secondary-row">

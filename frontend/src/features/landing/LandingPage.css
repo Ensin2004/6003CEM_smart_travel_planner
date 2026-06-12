@@ -656,8 +656,7 @@
 }
 
 .section-heading h2,
-.split-section h2,
-.landing-cta h2 {
+.split-section h2 {
   margin: 0;
   color: var(--navy);
   font-size: 48px;
@@ -666,8 +665,7 @@
 }
 
 .section-heading p:not(.eyebrow):not(.section-kicker),
-.split-section p:not(.section-kicker),
-.landing-cta p:not(.section-kicker) {
+.split-section p:not(.section-kicker) {
   color: var(--muted);
   line-height: var(--line-height-relaxed);
   font-size: var(--font-size-md);
@@ -1137,46 +1135,6 @@
   margin: 0;
   color: #cde7f4;
   line-height: 1.6;
-}
-
-.landing-cta {
-  position: relative;
-  overflow: hidden;
-  display: flex;
-  justify-content: space-between;
-  gap: 32px;
-  align-items: center;
-  padding: 72px clamp(20px, 5vw, 72px);
-  background:
-    linear-gradient(135deg, #ecfdf5, #ffffff 48%, #fffbeb);
-  border-top: 1px solid #ccfbf1;
-  border-bottom: 1px solid #ccfbf1;
-  scroll-margin-top: 96px;
-  isolation: isolate;
-}
-
-.landing-cta::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background:
-    radial-gradient(circle at 16% 28%, rgba(15, 118, 110, 0.12), transparent 26%),
-    radial-gradient(circle at 86% 40%, rgba(245, 158, 11, 0.12), transparent 24%);
-}
-
-.landing-cta > div:first-child {
-  max-width: 720px;
-}
-
-.landing-cta h2 {
-  font-size: 38px;
-}
-
-.cta-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
 }
 
 .landing-footer {

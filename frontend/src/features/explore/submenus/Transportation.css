@@ -218,88 +218,42 @@
   color: var(--color-primary-hover);
 }
 
-.explore-country-combobox {
-  position: relative;
+.explore-transport-country-field {
+  display: flex;
+  align-items: center;
   min-width: 0;
-}
-
-.explore-country-combobox .explore-transport-input-shell input {
-  min-height: 40px;
-}
-
-.explore-country-combobox .explore-country-chevron {
-  border-color: transparent;
-  background: transparent;
-  color: #8aa0b6;
-}
-
-.explore-country-combobox .explore-country-chevron:hover {
-  border-color: transparent;
-  background: transparent;
-  color: var(--teal);
-}
-
-.explore-country-menu {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  left: 0;
-  z-index: 20;
-  overflow: hidden;
-  border: 1px solid rgba(217, 226, 236, 0.95);
+  min-height: 46px;
+  border: 1px solid var(--line);
   border-radius: 8px;
   background: #ffffff;
-  box-shadow: 0 14px 28px rgba(16, 42, 67, 0.14);
+  padding: 0 10px;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
 
-.explore-country-menu button {
-  display: grid;
-  grid-template-columns: 26px minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: center;
-  width: 100%;
-  border: 0;
+.explore-transport-country-field:focus-within {
+  border-color: rgba(15, 118, 110, 0.48);
   background: #ffffff;
-  color: #0f172a;
-  padding: 10px 12px;
-  text-align: left;
+  box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.1);
+}
+
+.explore-transport-country-field select {
+  width: 100%;
+  min-width: 0;
+  max-height: 42vh;
+  overflow: hidden;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  padding-right: 6px;
+  font-size: 15px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   cursor: pointer;
 }
 
-.explore-country-menu button:hover,
-.explore-country-menu button[aria-selected='true'] {
-  background: rgba(15, 118, 110, 0.08);
-}
-
-.explore-country-menu strong {
-  overflow: hidden;
-  font-size: 13px;
-  font-weight: 600;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.explore-country-menu small {
-  color: #64748b;
-  font-size: 12px;
-  font-weight: 500;
-}
-
-.explore-country-menu p {
-  margin: 0;
-  color: #64748b;
-  padding: 11px 12px;
-  font-size: 13px;
-}
-
-.explore-transport-flag {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 24px;
-  overflow: hidden;
-  font-size: 19px;
-  line-height: 1;
+.explore-transport-country-field select:focus {
+  outline: none;
 }
 
 .explore-transport-swap {
