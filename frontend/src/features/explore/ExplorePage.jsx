@@ -942,8 +942,14 @@ function ExplorePage() {
   };
 
   const handleTrainSelect = async (train) => {
+    const trainUid = train.trainUid || train.train_uid || '';
+    const serviceIdentifier =
+      train.serviceIdentifier ||
+      train.service_identifier ||
+      train.serviceTimetableId ||
+      (trainUid ? `train_uid:${trainUid}` : '');
     const params = new URLSearchParams({
-      serviceDate: train.serviceDate || trainResults?.date || '',
+      serviceDate: train.serviceDate || train.service_date || trainResults?.date || '',
       destinationName: train.destinationName || '',
       originName: train.originName || trainResults?.stationName || '',
       operatorName: train.operatorName || '',
@@ -951,9 +957,9 @@ function ExplorePage() {
       stationCode: trainResults?.stationCode || '',
     });
 
-    if (train.serviceIdentifier) params.set('serviceIdentifier', train.serviceIdentifier);
-    if (train.trainUid) params.set('trainUid', train.trainUid);
-    if (train.actualRid) params.set('actualRid', train.actualRid);
+    if (serviceIdentifier) params.set('serviceIdentifier', serviceIdentifier);
+    if (trainUid) params.set('trainUid', trainUid);
+    if (train.actualRid || train.actual_rid) params.set('actualRid', train.actualRid || train.actual_rid);
 
     navigate(`/transportation/trains/service-timetable?${params.toString()}`, {
       state: {
