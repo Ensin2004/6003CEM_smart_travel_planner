@@ -71,10 +71,8 @@ function TransportationSubmenu({
     train.priceEstimate?.available && train.priceEstimate?.display
       ? train.priceEstimate.display
       : train.priceEstimate?.display || 'AI estimate unavailable';
-  const getTrainRunLabel = (train = {}) =>
-    [train.trainUid || train.service || trainResults?.stationCode, train.platform ? `Platform ${train.platform}` : '']
-      .filter(Boolean)
-      .join(' - ') || 'Train service';
+  const getTrainRunLabel = (train = {}) => train.trainUid || train.service || trainResults?.stationCode || 'Train service';
+  const getTrainPlatformLabel = (train = {}) => (train.platform ? `Platform ${train.platform}` : 'Platform not provided');
   const getTrainDepartureTime = (train = {}) =>
     train.expectedDepartureTime || train.actualDepartureTime || train.aimedDepartureTime || '--:--';
   const getTrainArrivalTime = (train = {}) => train.expectedArrivalTime || train.actualArrivalTime || train.aimedArrivalTime || '--:--';
@@ -82,7 +80,6 @@ function TransportationSubmenu({
     kind === 'arrival'
       ? formatTrainDate(train.expectedArrivalDate || train.arrivalDate || train.serviceDate || trainResults?.date)
       : formatTrainDate(train.expectedDepartureDate || train.departureDate || train.serviceDate || trainResults?.date);
-  const getTrainRouteLabel = (train = {}) => train.status || 'Scheduled';
   const formatTransportDate = (value) => {
     if (!value) return 'Date unavailable';
 
@@ -116,11 +113,6 @@ function TransportationSubmenu({
     }
 
     return locationLabel;
-  };
-  const getAirportCodeHelper = (airport = {}) => {
-    const airportCode = getAirportCodeLabel(airport);
-
-    return airportCode ? `Airport code ${airportCode}` : '';
   };
   const formatFullTransportDateTime = (value) => {
     if (!value) return 'Unavailable';
@@ -503,19 +495,18 @@ function TransportationSubmenu({
                     return (
                       <article className="explore-transport-result-card explore-transport-result-card--flight" key={`${flight.id}-${index}`}>
                         <div className="explore-transport-carrier">
-                          <span className="explore-flight-carrier-mark" aria-hidden="true">
-                            {getCarrierBadgeLabel(flight)}
+                          <span className="explore-flight-carrier-mark explore-flight-carrier-mark--result" aria-hidden="true">
+                            <Plane size={20} />
                           </span>
                           <div>
                             <span>{getFlightCodeLabel(flight)}</span>
                             <strong>{getAirlineDisplayName(flight)}</strong>
-                            <small>Direct</small>
                           </div>
                         </div>
                         <div className="explore-transport-time">
                           <strong>{formatFlightTime(departureTimeValue)}</strong>
                           <span>{getFlightPlaceLabel(flight.departure.airport)}</span>
-                          <small>{[formatTransportDate(departureTimeValue), getAirportCodeHelper(flight.departure.airport)].filter(Boolean).join(' - ')}</small>
+                          <small>{formatTransportDate(departureTimeValue)}</small>
                         </div>
                         <div className="explore-transport-path explore-transport-path--flight">
                           <span>{formatFlightDuration(flight.durationMinutes)}</span>
@@ -527,7 +518,7 @@ function TransportationSubmenu({
                         <div className="explore-transport-time">
                           <strong>{formatFlightTime(arrivalTimeValue)}</strong>
                           <span>{getFlightPlaceLabel(flight.arrival.airport)}</span>
-                          <small>{[formatTransportDate(arrivalTimeValue), getAirportCodeHelper(flight.arrival.airport)].filter(Boolean).join(' - ')}</small>
+                          <small>{formatTransportDate(arrivalTimeValue)}</small>
                         </div>
                         <div className="explore-transport-action">
                           <div className="explore-flight-price" tabIndex="0" aria-label="AI estimated ticket price">
@@ -576,6 +567,18 @@ function TransportationSubmenu({
                     <article
                       className="explore-transport-result-card explore-transport-result-card--train"
                       key={`${train.id}-${index}`}
+                      role="link"
+                      tabIndex={isSearching ? -1 : 0}
+                      onClick={() => {
+                        if (!isSearching) handleTrainSelect(train);
+                      }}
+                      onKeyDown={(event) => {
+                        if (!isSearching && (event.key === 'Enter' || event.key === ' ')) {
+                          event.preventDefault();
+                          handleTrainSelect(train);
+                        }
+                      }}
+                      aria-label={`View all stops for ${getTrainRunLabel(train)} to ${train.destinationName || 'destination'}`}
                     >
                       <div className="explore-transport-carrier">
                         <span className="explore-train-carrier-mark" aria-hidden="true">
@@ -584,7 +587,7 @@ function TransportationSubmenu({
                         <div>
                           <span>{getTrainRunLabel(train)}</span>
                           <strong>{train.operatorName || train.operator || 'Operator unavailable'}</strong>
-                          <small>{getTrainRouteLabel(train)}</small>
+                          <small className="explore-train-platform">{getTrainPlatformLabel(train)}</small>
                         </div>
                       </div>
                       <div className="explore-transport-time">
@@ -609,7 +612,14 @@ function TransportationSubmenu({
                           <span>AI estimate</span>
                           <strong>{getTrainPriceLabel(train)}</strong>
                         </div>
-                        <button type="button" onClick={() => handleTrainSelect(train)} disabled={isSearching}>
+                        <button
+                          type="button"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            handleTrainSelect(train);
+                          }}
+                          disabled={isSearching}
+                        >
                           View stops
                         </button>
                       </div>

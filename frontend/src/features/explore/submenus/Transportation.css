@@ -431,7 +431,17 @@
 
 .explore-transport-result-card--train {
   column-gap: 22px;
+  cursor: pointer;
   row-gap: 12px;
+}
+
+.explore-transport-result-card--train:hover {
+  background: rgba(15, 118, 110, 0.035);
+}
+
+.explore-transport-result-card--train:focus-visible {
+  outline: 3px solid rgba(15, 118, 110, 0.28);
+  outline-offset: -3px;
 }
 
 .explore-transport-result-card--train.active {
@@ -469,6 +479,12 @@
   font-weight: 700;
   line-height: 1;
   text-transform: uppercase;
+}
+
+.explore-flight-carrier-mark--result {
+  border-color: rgba(15, 118, 110, 0.18);
+  background: rgba(15, 118, 110, 0.1);
+  color: var(--teal);
 }
 
 .explore-train-carrier-mark {
@@ -528,6 +544,13 @@
   padding: 3px 7px;
   font-size: 12px;
   font-weight: 500;
+}
+
+.explore-transport-carrier .explore-train-platform {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  padding: 0;
 }
 
 .explore-transport-time strong {
