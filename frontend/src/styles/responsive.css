@@ -93,14 +93,9 @@
     font-size: 34px;
   }
 
-  .landing-cta,
   .landing-footer {
     flex-direction: column;
     align-items: flex-start;
-  }
-
-  .landing-cta h2 {
-    font-size: 32px;
   }
 
   .preview-grid {

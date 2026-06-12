@@ -90,10 +90,10 @@ function AppLayout({ role, menuItems }) {
   );
 
   const currentUrl = `${location.pathname}${location.search}${location.hash}`;
-  const isExploreExperience =
-    location.pathname.startsWith('/explore') ||
-    location.pathname.startsWith('/transportation/trains/service-timetable');
-  const showGlobalAiAssistant = !isAdmin && !isExploreExperience;
+  const isTravelToolsExperience =
+    location.pathname === '/packing-lists' ||
+    location.pathname === '/travel-documents';
+  const showGlobalAiAssistant = !isAdmin && isTravelToolsExperience;
   const isItemActive = (item, isExactMatch = false) => {
     const itemUrl = item.to;
     const [itemPath] = itemUrl.split(/[?#]/);
@@ -178,11 +178,6 @@ function AppLayout({ role, menuItems }) {
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isCurrencyPickerOpen, isLanguagePickerOpen, isProfileMenuOpen]);
-  useEffect(() => {
-    if (isExploreExperience) {
-      setIsAiChatOpen(false);
-    }
-  }, [isExploreExperience]);
   const handleLanguageChange = (language) => {
     setSelectedLanguage(language.value);
     setIsLanguagePickerOpen(false);
