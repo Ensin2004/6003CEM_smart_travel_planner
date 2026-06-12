@@ -4,7 +4,6 @@
  */
 import {
   Bell,
-  Check,
   ChevronLeft,
   ChevronRight,
   CheckCircle2,
@@ -1121,12 +1120,12 @@ function TravelDocumentTools() {
 
   const [documents, setDocuments] = useState([]);
   const [documentTemplates, setDocumentTemplates] = useState([]);
+  const [documentView, setDocumentView] = useState('create');
+  const [previousDocumentView, setPreviousDocumentView] = useState('create');
   const [selectedDocumentId, setSelectedDocumentId] = useState('');
-  const [documentTemplateSearch, setDocumentTemplateSearch] = useState('');
   const [trips, setTrips] = useState([]);
   const [filters, setFilters] = useState({ search: '' });
   const [documentItemFilters, setDocumentItemFilters] = useState({ search: '', type: '' });
-  const [documentTemplateItemFilters, setDocumentTemplateItemFilters] = useState({ search: '', type: '' });
   const [createMode, setCreateMode] = useState('manual');
   const [createForm, setCreateForm] = useState({ name: '', tripId: '', templateKey: '' });
   const [itemForm, setItemForm] = useState({ name: '', documentType: 'Passport', uploadLabel: '' });
@@ -1141,17 +1140,15 @@ function TravelDocumentTools() {
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
   const [isDocumentItemModalOpen, setIsDocumentItemModalOpen] = useState(false);
   const [expandedFile, setExpandedFile] = useState(null);
-  const [templatePage, setTemplatePage] = useState(0);
   const [isEditingDocumentName, setIsEditingDocumentName] = useState(false);
   const [documentNameDraft, setDocumentNameDraft] = useState('');
+  const [documentTripDraft, setDocumentTripDraft] = useState('');
   const [openTemplateMenuId, setOpenTemplateMenuId] = useState('');
   const [editingDocumentTemplate, setEditingDocumentTemplate] = useState(null);
   const [templateEditDraft, setTemplateEditDraft] = useState({ name: '', description: '', items: [] });
   const [templateEditBaseline, setTemplateEditBaseline] = useState('');
   const [previousDocumentId, setPreviousDocumentId] = useState('');
-  const [isEditingDocumentTemplateTitle, setIsEditingDocumentTemplateTitle] = useState(false);
-  const [isEditingDocumentTemplateDescription, setIsEditingDocumentTemplateDescription] = useState(false);
-  const [editingDocumentTemplateItemIndex, setEditingDocumentTemplateItemIndex] = useState(-1);
+  const [templateEditStep, setTemplateEditStep] = useState('details');
 
   useEffect(() => {
     let isMounted = true;
@@ -1204,23 +1201,9 @@ function TravelDocumentTools() {
         (!excludedDocumentId || String(document.id) !== String(excludedDocumentId))
     );
 
-  const fileCount = documents.reduce(
-    (total, document) =>
-      total + document.files.length + (document.items || []).reduce((itemTotal, item) => itemTotal + item.files.length, 0),
-    0
-  );
-  const linkedCount = documents.filter((document) => document.tripId).length;
   const filteredDocuments = documents.filter((document) => {
     const matchesSearch = document.name.toLowerCase().includes(filters.search.toLowerCase().trim());
     return matchesSearch;
-  });
-  const customDocumentTemplates = documentTemplates.filter((template) => template.source === 'custom');
-  const filteredCustomDocumentTemplates = customDocumentTemplates.filter((template) => {
-    const normalizedSearch = documentTemplateSearch.toLowerCase().trim();
-    if (!normalizedSearch) return true;
-    return [template.name, template.title, template.description].some((value) =>
-      value?.toLowerCase().includes(normalizedSearch)
-    );
   });
   const filteredDocumentItems = (selectedDocument?.items || []).filter((item) => {
     const normalizedSearch = documentItemFilters.search.toLowerCase().trim();
@@ -1230,20 +1213,6 @@ function TravelDocumentTools() {
     const matchesType = !documentItemFilters.type || item.documentType === documentItemFilters.type;
     return matchesSearch && matchesType;
   });
-  const filteredDocumentTemplateItems = (templateEditDraft.items || [])
-    .map((item, index) => ({ ...item, index }))
-    .filter((item) => {
-      const normalizedSearch = documentTemplateItemFilters.search.toLowerCase().trim();
-      const matchesSearch =
-        item.name.toLowerCase().includes(normalizedSearch) ||
-        item.uploadLabel.toLowerCase().includes(normalizedSearch);
-      const matchesType = !documentTemplateItemFilters.type || item.documentType === documentTemplateItemFilters.type;
-      return matchesSearch && matchesType;
-    });
-  const visibleDocumentTemplates = useMemo(() => {
-    if (documentTemplates.length <= 3) return documentTemplates;
-    return Array.from({ length: 3 }, (_, index) => documentTemplates[(templatePage + index) % documentTemplates.length]);
-  }, [documentTemplates, templatePage]);
   const isEditingTemplateDirty = JSON.stringify(templateEditDraft) !== templateEditBaseline;
 
   const hasDuplicateDocumentName = (name) => {
@@ -1418,6 +1387,7 @@ function TravelDocumentTools() {
   const handleStartDocumentNameEdit = () => {
     if (!selectedDocument) return;
     setDocumentNameDraft(selectedDocument.name);
+    setDocumentTripDraft(selectedDocument.tripId || '');
     setIsEditingDocumentName(true);
     setFormError('');
     setSuccessMessage('');
@@ -1426,6 +1396,7 @@ function TravelDocumentTools() {
   const handleCancelDocumentNameEdit = () => {
     setIsEditingDocumentName(false);
     setDocumentNameDraft('');
+    setDocumentTripDraft('');
   };
 
   const handleSaveDocumentName = async (event) => {
@@ -1450,42 +1421,20 @@ function TravelDocumentTools() {
     setSuccessMessage('');
 
     try {
-      const response = await updateTravelDocument(selectedDocument.id, { name: documentNameDraft.trim() });
+      const response = await updateTravelDocument(selectedDocument.id, {
+        name: documentNameDraft.trim(),
+        tripId: documentTripDraft || null,
+      });
       replaceDocument(response.data.data.document);
       setIsEditingDocumentName(false);
       setDocumentNameDraft('');
-      setSuccessMessage('Document list name updated.');
+      setDocumentTripDraft('');
+      setSuccessMessage('Document list details updated.');
     } catch (requestError) {
       setFormError(getErrorMessage(requestError));
     } finally {
       setIsSaving(false);
     }
-  };
-
-  const handleDocumentTripChange = async (event) => {
-    if (!selectedDocument) return;
-    const tripId = event.target.value;
-    setIsSaving(true);
-    setFormError('');
-    setSuccessMessage('');
-
-    try {
-      const response = await updateTravelDocument(selectedDocument.id, { tripId: tripId || null });
-      replaceDocument(response.data.data.document);
-      setSuccessMessage(tripId ? 'Travel document linked to trip.' : 'Travel document unlinked from trip.');
-    } catch (requestError) {
-      setFormError(getErrorMessage(requestError));
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleTemplatePageChange = (direction) => {
-    if (documentTemplates.length <= 3) return;
-    setTemplatePage((current) => {
-      if (direction === 'previous') return current === 0 ? documentTemplates.length - 1 : current - 1;
-      return current === documentTemplates.length - 1 ? 0 : current + 1;
-    });
   };
 
   const mapTemplateForWorkspaceEdit = (template) => ({
@@ -1501,14 +1450,13 @@ function TravelDocumentTools() {
 
   const handleStartDocumentTemplateEdit = (template) => {
     const draft = mapTemplateForWorkspaceEdit(template);
+    setPreviousDocumentView(documentView);
+    setDocumentView('all');
     setPreviousDocumentId(selectedDocumentId);
     setEditingDocumentTemplate(template);
     setTemplateEditDraft(draft);
     setTemplateEditBaseline(JSON.stringify(draft));
-    setDocumentTemplateItemFilters({ search: '', type: '' });
-    setIsEditingDocumentTemplateTitle(false);
-    setIsEditingDocumentTemplateDescription(false);
-    setEditingDocumentTemplateItemIndex(-1);
+    setTemplateEditStep('details');
     setOpenTemplateMenuId('');
     setFormError('');
     setSuccessMessage('');
@@ -1518,39 +1466,10 @@ function TravelDocumentTools() {
     setEditingDocumentTemplate(null);
     setTemplateEditDraft({ name: '', description: '', items: [] });
     setTemplateEditBaseline('');
-    setIsEditingDocumentTemplateTitle(false);
-    setIsEditingDocumentTemplateDescription(false);
-    setEditingDocumentTemplateItemIndex(-1);
+    setTemplateEditStep('details');
     setSelectedDocumentId(previousDocumentId || selectedDocumentId);
     setPreviousDocumentId('');
-  };
-
-  const handleStartDocumentTemplateTitleEdit = () => {
-    setIsEditingDocumentTemplateTitle(true);
-    setFormError('');
-    setSuccessMessage('');
-  };
-
-  const handleCancelDocumentTemplateTitleEdit = () => {
-    setIsEditingDocumentTemplateTitle(false);
-    setTemplateEditDraft((current) => ({
-      ...current,
-      name: editingDocumentTemplate?.name || editingDocumentTemplate?.title || '',
-    }));
-  };
-
-  const handleStartDocumentTemplateDescriptionEdit = () => {
-    setIsEditingDocumentTemplateDescription(true);
-    setFormError('');
-    setSuccessMessage('');
-  };
-
-  const handleCancelDocumentTemplateDescriptionEdit = () => {
-    setIsEditingDocumentTemplateDescription(false);
-    setTemplateEditDraft((current) => ({
-      ...current,
-      description: editingDocumentTemplate?.description || '',
-    }));
+    setDocumentView(previousDocumentView);
   };
 
   const handleTemplateDraftItemChange = (itemIndex, field, value) => {
@@ -1561,7 +1480,6 @@ function TravelDocumentTools() {
   };
 
   const handleAddTemplateDraftItem = () => {
-    setDocumentTemplateItemFilters({ search: '', type: '' });
     setTemplateEditDraft((current) => ({
       ...current,
       items: [
@@ -1569,7 +1487,6 @@ function TravelDocumentTools() {
         { id: `new-${Date.now()}`, name: '', documentType: 'Custom', uploadLabel: '' },
       ],
     }));
-    setEditingDocumentTemplateItemIndex(templateEditDraft.items.length);
   };
 
   const handleRemoveTemplateDraftItem = (itemIndex) => {
@@ -1581,6 +1498,13 @@ function TravelDocumentTools() {
 
   const handleSaveDocumentTemplateEdit = async () => {
     if (!editingDocumentTemplate || !isEditingTemplateDirty) return;
+
+    const incompleteItemIndex = templateEditDraft.items.findIndex((item) => !item.name.trim());
+    if (incompleteItemIndex >= 0) {
+      setTemplateEditStep('items');
+      setFormError(`Complete or delete document item ${incompleteItemIndex + 1} before saving.`);
+      return;
+    }
 
     const items = templateEditDraft.items
       .map((item) => ({
@@ -1617,18 +1541,12 @@ function TravelDocumentTools() {
         key: template._id || template.id || editingDocumentTemplate.key,
         source: 'custom',
       };
-      const nextDraft = mapTemplateForWorkspaceEdit(nextTemplate);
 
       setDocumentTemplates((current) =>
         current.map((candidate) => (candidate.key === editingDocumentTemplate.key ? nextTemplate : candidate))
       );
-      setEditingDocumentTemplate(nextTemplate);
-      setTemplateEditDraft(nextDraft);
-      setTemplateEditBaseline(JSON.stringify(nextDraft));
-      setIsEditingDocumentTemplateTitle(false);
-      setIsEditingDocumentTemplateDescription(false);
-      setEditingDocumentTemplateItemIndex(-1);
       setSuccessMessage('Document template updated.');
+      handleBackFromDocumentTemplateEdit();
     } catch (requestError) {
       setFormError(getErrorMessage(requestError));
     } finally {
@@ -1776,106 +1694,150 @@ function TravelDocumentTools() {
     );
   };
 
+  if (isLoading) {
+    return (
+      <TravelToolsPageFrame labelledBy="travel-document-loading-title" className="travel-tools-enhanced-page travel-documents-redesign">
+        <section className="document-loading-page" role="status" aria-live="polite">
+          <span className="document-loading-mark" aria-hidden="true">
+            <FileText size={28} />
+            <span className="travel-tools-spinner" />
+          </span>
+          <div>
+            <p>Trip file control</p>
+            <h2 id="travel-document-loading-title">Preparing travel documents</h2>
+            <span>Loading document lists and templates...</span>
+          </div>
+          <div className="document-loading-lines" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </div>
+        </section>
+      </TravelToolsPageFrame>
+    );
+  }
+
   return (
-    <TravelToolsPageFrame labelledBy="travel-document-title" className="travel-tools-enhanced-page">
+    <TravelToolsPageFrame labelledBy="travel-document-title" className="travel-tools-enhanced-page travel-documents-redesign">
       {isSaving && (
         <div className="travel-tools-busy-overlay" role="status" aria-live="polite">
           <span className="travel-tools-spinner" aria-hidden="true" />
           <strong>Processing...</strong>
         </div>
       )}
-      <TravelToolsHero
-        labelledBy="travel-document-title"
-        eyebrow="Trip files"
-        title="Travel Document"
-        description="Store copies of passports, visas, tickets, bookings, and images for each trip."
-        metaLabel="Travel document summary"
-        meta={
-          <>
-            <span>
-              <FileText size={15} aria-hidden="true" />
-              {documents.length} document{documents.length === 1 ? '' : 's'}
-            </span>
-            <span>
-              <Upload size={15} aria-hidden="true" />
-              {fileCount} file{fileCount === 1 ? '' : 's'}
-            </span>
-            <span className={linkedCount ? 'travel-tools-hero-health-ready' : 'travel-tools-hero-health-warning'}>
-              <CircleAlert size={15} aria-hidden="true" />
-              {linkedCount} linked
-            </span>
-          </>
-        }
-        liveCard={
-          <div className="travel-tools-live-card">
-            <span>Document Workspace</span>
-            <strong>{selectedDocument?.items.length || 0}</strong>
-            <small>{selectedDocument?.name || 'No document selected'}</small>
+      <header className="document-command-header">
+        <div className="document-command-title">
+          <span className="document-command-icon" aria-hidden="true">
+            <FileText size={23} />
+          </span>
+          <div>
+            <p>Trip file control</p>
+            <h2 id="travel-document-title">Travel Documents</h2>
+            <span>Organize required records and keep every uploaded file close to its trip.</span>
           </div>
-        }
-      />
+        </div>
+        <div className="document-view-actions" role="group" aria-label="Document view">
+          <button className={documentView === 'create' ? 'active' : ''} type="button" onClick={() => setDocumentView('create')}>
+            <Plus size={15} aria-hidden="true" />
+            Create Document
+          </button>
+          <button className={documentView === 'all' ? 'active' : ''} type="button" onClick={() => setDocumentView('all')}>
+            <FileText size={15} aria-hidden="true" />
+            All Documents
+            <span>{documents.length}</span>
+          </button>
+        </div>
+      </header>
 
-      <form className="travel-tools-create-panel packing-create-panel" onSubmit={handleCreateDocument}>
+      {documentView === 'create' && (
+      <form className="travel-tools-create-panel packing-create-panel document-create-deck" onSubmit={handleCreateDocument}>
         <div className="travel-tools-panel-heading">
           <div>
             <span>Create document list</span>
             <h3>Create a list manually or start from a document template.</h3>
           </div>
-          <button className="secondary-action" type="submit" disabled={isSaving}>
+          <div className="document-create-mode-actions" role="group" aria-label="Create document list type">
+            <button
+              className={createMode === 'manual' ? 'active' : ''}
+              type="button"
+              onClick={() => {
+                setCreateMode('manual');
+                setCreateForm((current) => ({ ...current, templateKey: '' }));
+                setDocumentCreateError('');
+              }}
+            >
+              <Edit3 size={15} aria-hidden="true" />
+              Create manually
+            </button>
+            <button
+              className={createMode === 'template' ? 'active' : ''}
+              type="button"
+              onClick={() => {
+                setCreateMode('template');
+                setDocumentCreateError('');
+              }}
+            >
+              <FileText size={15} aria-hidden="true" />
+              Use template
+            </button>
+          </div>
+        </div>
+
+        <div className="document-create-fields-row">
+          <div className="travel-tools-form-grid travel-tools-form-grid-compact">
+            <div className="travel-tools-create-field">
+              <label>
+                <span className="travel-tools-field-label">
+                  Document list name
+                  {renderTip('Use a trip-ready name such as "Europe Vacation" or "Japan family documents".')}
+                </span>
+                <input
+                  value={createForm.name}
+                  onChange={(event) => {
+                    setDocumentCreateError('');
+                    setCreateForm((current) => ({ ...current, name: event.target.value }));
+                  }}
+                  placeholder="Europe Vacation"
+                />
+              </label>
+            </div>
+            <div className="travel-tools-create-field">
+              <label>
+                <span className="travel-tools-field-label">
+                  Link trip
+                  {renderTip('Optionally attach this document to one of your trips.')}
+                </span>
+                <select
+                  value={createForm.tripId}
+                  onChange={(event) => setCreateForm((current) => ({ ...current, tripId: event.target.value }))}
+                >
+                  <option value="">None</option>
+                  {trips.map((trip) => {
+                    const isUnavailable = isTripLinkedToOtherDocument(trip._id);
+                    return (
+                      <option key={trip._id} value={trip._id} disabled={isUnavailable}>
+                        {getTripOptionLabel(trip)}{isUnavailable ? ' (Already linked)' : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+              </label>
+            </div>
+          </div>
+          <button
+            className="secondary-action document-create-submit"
+            type="submit"
+            disabled={isSaving || !createForm.name.trim() || (createMode === 'template' && !createForm.templateKey)}
+          >
             <Plus size={17} aria-hidden="true" />
             Create
           </button>
         </div>
 
-        <div className="packing-create-mode packing-create-card-mode" role="group" aria-label="Create document list type">
-          <button
-            className={createMode === 'manual' ? 'active' : ''}
-            type="button"
-            onClick={() => {
-              setCreateMode('manual');
-              setCreateForm((current) => ({ ...current, templateKey: '' }));
-              setDocumentCreateError('');
-            }}
-          >
-            <span className="packing-create-option-icon">
-              <Edit3 size={24} aria-hidden="true" />
-            </span>
-            <span>
-              <strong>Create manually</strong>
-              <small>Start with a blank list</small>
-            </span>
-          </button>
-          <button
-            className={createMode === 'template' ? 'active' : ''}
-            type="button"
-            onClick={() => {
-              setCreateMode('template');
-              setDocumentCreateError('');
-            }}
-          >
-            <span className="packing-create-option-icon packing-create-option-icon-blue">
-              <FileText size={24} aria-hidden="true" />
-            </span>
-            <span>
-              <strong>Use template</strong>
-              <small>Choose from saved templates</small>
-            </span>
-          </button>
-        </div>
-
         {createMode === 'template' && (
-          <div className="travel-tools-template-carousel document-template-carousel">
-            <button
-              className="travel-tools-template-arrow"
-              type="button"
-              onClick={() => handleTemplatePageChange('previous')}
-              aria-label="Previous document templates"
-              disabled={documentTemplates.length <= 3}
-            >
-              <ChevronLeft size={18} aria-hidden="true" />
-            </button>
+          <div className="document-template-library">
             <div className="document-template-picker" aria-label="Document list templates">
-              {visibleDocumentTemplates.map((template) => {
+              {documentTemplates.map((template) => {
                 const isSelectedTemplate = createForm.templateKey === template.key;
                 return (
                   <article className={`document-template-card ${isSelectedTemplate ? 'active' : ''}`} key={template.key || template.id}>
@@ -1895,7 +1857,7 @@ function TravelDocumentTools() {
                       <strong>{template.name || template.title}</strong>
                       <small>{template.description || 'Reusable document list template.'}</small>
                       <div>
-                        {getVisibleTemplateItems(template.items || []).map((item, index) => (
+                        {(template.items || []).map((item, index) => (
                           <em key={`${template.key}-${item.name}-${index}`}>{item.name}</em>
                         ))}
                       </div>
@@ -1933,62 +1895,16 @@ function TravelDocumentTools() {
                 );
               })}
             </div>
-            <button
-              className="travel-tools-template-arrow"
-              type="button"
-              onClick={() => handleTemplatePageChange('next')}
-              aria-label="Next document templates"
-              disabled={documentTemplates.length <= 3}
-            >
-              <ChevronRight size={18} aria-hidden="true" />
-            </button>
           </div>
         )}
 
-        <div className="travel-tools-form-grid travel-tools-form-grid-compact">
-          <div className="travel-tools-create-field">
-            <label>
-              <span className="travel-tools-field-label">
-                Document list name
-                {renderTip('Use a trip-ready name such as "Europe Vacation" or "Japan family documents".')}
-              </span>
-              <input
-                value={createForm.name}
-                onChange={(event) => {
-                  setDocumentCreateError('');
-                  setCreateForm((current) => ({ ...current, name: event.target.value }));
-                }}
-                placeholder="Europe Vacation"
-              />
-            </label>
-          </div>
-          <div className="travel-tools-create-field">
-            <label>
-              <span className="travel-tools-field-label">
-                Link trip
-                {renderTip('Optionally attach this document to one of your trips.')}
-              </span>
-              <select
-                value={createForm.tripId}
-                onChange={(event) => setCreateForm((current) => ({ ...current, tripId: event.target.value }))}
-              >
-                <option value="">None</option>
-                {trips.map((trip) => {
-                  const isUnavailable = isTripLinkedToOtherDocument(trip._id);
-                  return (
-                    <option key={trip._id} value={trip._id} disabled={isUnavailable}>
-                      {getTripOptionLabel(trip)}{isUnavailable ? ' (Already linked)' : ''}
-                    </option>
-                  );
-                })}
-              </select>
-            </label>
-          </div>
-        </div>
         {documentCreateError && <p className="form-error travel-tools-status">{documentCreateError}</p>}
+        {successMessage && <p className="form-success travel-tools-status">{successMessage}</p>}
       </form>
+      )}
 
-      <div className="travel-tools-layout packing-dashboard-layout">
+      {documentView === 'all' && (
+      <div className="travel-tools-layout packing-dashboard-layout document-workbench">
         <aside className="travel-tools-list-panel packing-side-panel">
           <div className="travel-tools-side-section packing-list-side-section">
             <div className="travel-tools-panel-heading">
@@ -2042,291 +1958,160 @@ function TravelDocumentTools() {
             )}
           </div>
 
-          <div className="travel-tools-side-section">
-            <div className="travel-tools-panel-heading">
-              <div>
-                <span>View Templates</span>
-                <h3>My Templates</h3>
-              </div>
-              <strong>{customDocumentTemplates.length}</strong>
-            </div>
-            <div className="travel-tools-filters travel-tools-template-filters packing-side-search">
-              <span className="travel-tools-search-field">
-                <Search size={16} aria-hidden="true" />
-                <input
-                  value={documentTemplateSearch}
-                  onChange={(event) => setDocumentTemplateSearch(event.target.value)}
-                  placeholder="Search templates"
-                />
-              </span>
-            </div>
-            {customDocumentTemplates.length === 0 ? (
-              <div className="packing-side-empty">
-                <p>No saved templates yet.</p>
-                <span aria-hidden="true">
-                  <FileText size={28} />
-                </span>
-              </div>
-            ) : filteredCustomDocumentTemplates.length === 0 ? (
-              <p className="settings-empty">No templates match the current search.</p>
-            ) : (
-              <div className="travel-tools-list-stack">
-                {filteredCustomDocumentTemplates.map((template) => (
-                  <button
-                    className={`travel-tools-list-card travel-tools-template-card ${editingDocumentTemplate?.key === template.key ? 'active' : ''}`}
-                    type="button"
-                    key={template.key}
-                    onClick={() => handleStartDocumentTemplateEdit(template)}
-                  >
-                    <span>{template.name || template.title}</span>
-                    <small>
-                      {(template.items || []).length} item{(template.items || []).length === 1 ? '' : 's'}
-                    </small>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
         </aside>
 
         <div className="travel-tools-main">
           {editingDocumentTemplate ? (
-            <section className="travel-tools-detail packing-workspace-detail template-workspace-detail travel-document-template-workspace">
+            <div className="travel-tools-modal-backdrop document-template-edit-backdrop" role="presentation">
+            <section className="travel-tools-modal travel-document-template-workspace" role="dialog" aria-modal="true" aria-labelledby="document-template-edit-title">
               <div className="travel-tools-detail-header">
                 <div>
-                  <span className="travel-tools-workspace-label">Template workspace</span>
+                  <span className="travel-tools-workspace-label">Edit template · Step {templateEditStep === 'details' ? '1' : '2'} of 2</span>
                   <div className="travel-tools-title-row">
-                    <h3>{templateEditDraft.name || 'Untitled template'}</h3>
+                    <h3 id="document-template-edit-title">{templateEditDraft.name || 'Untitled template'}</h3>
                   </div>
-                  <p>{templateEditDraft.items.length} document item{templateEditDraft.items.length === 1 ? '' : 's'}</p>
+                  <p>{templateEditStep === 'details' ? 'Update the reusable template details.' : 'Edit every document item before saving.'}</p>
                 </div>
-                <div className="travel-tools-actions">
-                  <button type="button" onClick={handleBackFromDocumentTemplateEdit} disabled={isSaving}>
-                    <ChevronLeft size={16} aria-hidden="true" />
-                    Back
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setConfirmAction({ type: 'delete-document-template', template: editingDocumentTemplate })}
-                    disabled={isSaving}
-                  >
-                    <Trash2 size={16} aria-hidden="true" />
-                    Delete
-                  </button>
-                  <button
-                    className="primary-action"
-                    type="button"
-                    onClick={handleSaveDocumentTemplateEdit}
-                    disabled={isSaving || !isEditingTemplateDirty}
-                  >
-                    Save
-                  </button>
-                </div>
+                <button className="document-template-close" type="button" onClick={handleBackFromDocumentTemplateEdit} aria-label="Close template editor">
+                  <X size={18} aria-hidden="true" />
+                </button>
               </div>
+              {(formError || successMessage) && (
+                <div className="document-template-modal-status" aria-live="polite">
+                  {formError && <p className="form-error travel-tools-status">{formError}</p>}
+                  {successMessage && <p className="form-success travel-tools-status">{successMessage}</p>}
+                </div>
+              )}
 
-              <div className="packing-template-description document-template-fields">
-                <div className="packing-title-field">
-                  <span className="packing-template-description-heading">Template title</span>
-                  <span className="packing-title-input">
+              {templateEditStep === 'details' ? (
+                <div className="document-template-step document-template-details-step">
+                  <label>
+                    <span>Template name</span>
                     <input
                       value={templateEditDraft.name}
                       onChange={(event) => {
-                        if (!isEditingDocumentTemplateTitle) return;
                         setFormError('');
                         setTemplateEditDraft((current) => ({ ...current, name: event.target.value }));
                       }}
-                      readOnly={!isEditingDocumentTemplateTitle}
                       placeholder="Europe Vacation"
-                      aria-label="Document template title"
-                      autoFocus={isEditingDocumentTemplateTitle}
+                      autoFocus
                     />
-                    {!isEditingDocumentTemplateTitle && (
-                      <button type="button" onClick={handleStartDocumentTemplateTitleEdit} aria-label="Edit document template title">
-                        <Edit3 size={16} aria-hidden="true" />
-                      </button>
-                    )}
-                  </span>
-                  {isEditingDocumentTemplateTitle && (
-                    <div className="packing-template-description-actions">
-                      <button className="secondary-action" type="button" onClick={handleCancelDocumentTemplateTitleEdit}>
-                        Cancel
-                      </button>
-                      <button className="primary-action" type="button" onClick={() => setIsEditingDocumentTemplateTitle(false)}>
-                        Done
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                <div className="packing-template-description-summary">
-                  <span className="packing-template-description-heading">Template description</span>
-                  <div className="packing-template-description-box">
+                  </label>
+                  <label>
+                    <span>Linked trip</span>
+                    <select
+                      value={createForm.tripId}
+                      onChange={(event) => setCreateForm((current) => ({ ...current, tripId: event.target.value }))}
+                    >
+                      <option value="">None</option>
+                      {trips.map((trip) => {
+                        const isUnavailable = isTripLinkedToOtherDocument(trip._id);
+                        return (
+                          <option key={trip._id} value={trip._id} disabled={isUnavailable}>
+                            {getTripOptionLabel(trip)}{isUnavailable ? ' (Already linked)' : ''}
+                          </option>
+                        );
+                      })}
+                    </select>
+                    <small>This trip will be selected when creating a document list from the template.</small>
+                  </label>
+                  <label>
+                    <span>Description</span>
                     <textarea
                       value={templateEditDraft.description}
                       onChange={(event) => {
-                        if (!isEditingDocumentTemplateDescription) return;
                         setFormError('');
                         setTemplateEditDraft((current) => ({ ...current, description: event.target.value }));
                       }}
                       placeholder="Reusable document list template"
-                      rows="4"
-                      readOnly={!isEditingDocumentTemplateDescription}
-                      aria-label="Document template description"
-                      autoFocus={isEditingDocumentTemplateDescription}
+                      rows="5"
                     />
-                    {!isEditingDocumentTemplateDescription && (
-                      <button
-                        type="button"
-                        onClick={handleStartDocumentTemplateDescriptionEdit}
-                        aria-label="Edit document template description"
-                      >
-                        <Edit3 size={16} aria-hidden="true" />
-                      </button>
-                    )}
-                  </div>
+                  </label>
                 </div>
-                {isEditingDocumentTemplateDescription && (
-                  <div className="packing-template-description-actions">
-                    <button className="secondary-action" type="button" onClick={handleCancelDocumentTemplateDescriptionEdit}>
-                      Cancel
-                    </button>
-                    <button className="primary-action" type="button" onClick={() => setIsEditingDocumentTemplateDescription(false)}>
-                      Done
+              ) : (
+                <div className="document-template-step document-template-items-step">
+                  <div className="document-template-items-heading">
+                    <div>
+                      <span>Document items</span>
+                      <strong>{templateEditDraft.items.length} item{templateEditDraft.items.length === 1 ? '' : 's'}</strong>
+                    </div>
+                    <button className="secondary-action" type="button" onClick={handleAddTemplateDraftItem} disabled={isSaving}>
+                      <Plus size={16} aria-hidden="true" />
+                      Add item
                     </button>
                   </div>
-                )}
-              </div>
+                  {templateEditDraft.items.length === 0 ? (
+                    <p className="settings-empty document-items-empty">No template items yet. Add a document item before saving.</p>
+                  ) : (
+                    <div className="document-template-edit-list">
+                      {templateEditDraft.items.map((item, index) => (
+                        <article className="document-template-edit-item" key={item.id}>
+                          <label>
+                            <span>Type</span>
+                            <select
+                              value={item.documentType}
+                              onChange={(event) => handleTemplateDraftItemChange(index, 'documentType', event.target.value)}
+                            >
+                              {documentItemTypes.map((type) => (
+                                <option key={type} value={type}>{type}</option>
+                              ))}
+                            </select>
+                          </label>
+                          <label>
+                            <span>Name</span>
+                            <input
+                              value={item.name}
+                              onChange={(event) => handleTemplateDraftItemChange(index, 'name', event.target.value)}
+                              placeholder="Passport"
+                            />
+                          </label>
+                          <label>
+                            <span>Description</span>
+                            <input
+                              value={item.uploadLabel}
+                              onChange={(event) => handleTemplateDraftItemChange(index, 'uploadLabel', event.target.value)}
+                              placeholder="Upload scan"
+                            />
+                          </label>
+                          <button type="button" onClick={() => handleRemoveTemplateDraftItem(index)} aria-label={`Delete ${item.name || 'template item'}`}>
+                            <Trash2 size={16} aria-hidden="true" />
+                          </button>
+                        </article>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
 
-              <div className="packing-workspace-controls document-workspace-controls document-template-item-controls">
-                <div className="travel-tools-filters travel-document-item-filters">
-                  <span className="travel-tools-search-field">
-                    <Search size={16} aria-hidden="true" />
-                    <input
-                      value={documentTemplateItemFilters.search}
-                      onChange={(event) => setDocumentTemplateItemFilters((current) => ({ ...current, search: event.target.value }))}
-                      placeholder="Search template items"
-                    />
-                  </span>
-                  <select
-                    value={documentTemplateItemFilters.type}
-                    onChange={(event) => setDocumentTemplateItemFilters((current) => ({ ...current, type: event.target.value }))}
-                    aria-label="Filter template document type"
-                  >
-                    <option value="">All types</option>
-                    {documentItemTypes.map((type) => (
-                      <option key={type} value={type}>{type}</option>
-                    ))}
-                  </select>
-                  <button className="secondary-action travel-tools-filter-action" type="button" onClick={handleAddTemplateDraftItem} disabled={isSaving}>
-                    <Plus size={16} aria-hidden="true" />
-                    Add item
+              <div className="document-template-step-actions">
+                <button className="secondary-action" type="button" onClick={handleBackFromDocumentTemplateEdit}>Cancel</button>
+                {templateEditStep === 'details' ? (
+                  <button className="primary-action" type="button" onClick={() => setTemplateEditStep('items')} disabled={!templateEditDraft.name.trim()}>
+                    Next
+                    <ChevronRight size={16} aria-hidden="true" />
                   </button>
-                </div>
-
-                {filteredDocumentTemplateItems.length === 0 ? (
-                  <p className="settings-empty document-items-empty">
-                    {templateEditDraft.items.length === 0
-                      ? 'No template items yet. Add a document file name and type.'
-                      : 'No template items match the current filters.'}
-                  </p>
                 ) : (
-                  <div className="travel-tools-item-list travel-tools-document-file-list">
-                    {filteredDocumentTemplateItems.map((item) => (
-                      <article className="travel-document-list-item" key={item.id}>
-                        {editingDocumentTemplateItemIndex === item.index ? (
-                          <>
-                            <div className="document-template-item-edit">
-                              <input
-                                value={item.name}
-                                onChange={(event) => handleTemplateDraftItemChange(item.index, 'name', event.target.value)}
-                                placeholder="Passport"
-                              />
-                              <select
-                                value={item.documentType}
-                                onChange={(event) => handleTemplateDraftItemChange(item.index, 'documentType', event.target.value)}
-                              >
-                                {documentItemTypes.map((type) => (
-                                  <option key={type} value={type}>{type}</option>
-                                ))}
-                              </select>
-                              <input
-                                value={item.uploadLabel}
-                                onChange={(event) => handleTemplateDraftItemChange(item.index, 'uploadLabel', event.target.value)}
-                                placeholder="Upload scan"
-                              />
-                            </div>
-                            <div className="travel-tools-item-meta" aria-label="Template item status">
-                              <span className="travel-tools-quantity">Editing</span>
-                            </div>
-                            <button type="button" onClick={() => setEditingDocumentTemplateItemIndex(-1)} aria-label="Finish editing template item">
-                              <Check size={16} aria-hidden="true" />
-                            </button>
-                            <button type="button" onClick={() => handleRemoveTemplateDraftItem(item.index)} aria-label={`Remove ${item.name || 'template item'}`}>
-                              <Trash2 size={16} aria-hidden="true" />
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <div>
-                              <div className="travel-tools-item-title-row">
-                                <strong>{item.name || 'Untitled document'}</strong>
-                                <span className="priority-low">{item.documentType}</span>
-                              </div>
-                              <span className="travel-tools-item-category">
-                                <Upload size={14} aria-hidden="true" />
-                                {item.uploadLabel || `Upload ${item.name || 'document'}`}
-                              </span>
-                            </div>
-                            <div className="travel-tools-item-meta" aria-label="Template item details">
-                              <span className="travel-tools-quantity">0 files</span>
-                            </div>
-                            <details className="travel-tools-item-actions-menu">
-                              <summary aria-label={`Open actions for ${item.name || 'template item'}`}>
-                                <MoreVertical size={17} aria-hidden="true" />
-                              </summary>
-                              <div>
-                                <button type="button" onClick={() => setEditingDocumentTemplateItemIndex(item.index)}>
-                                  <Upload size={15} aria-hidden="true" />
-                                  Upload
-                                </button>
-                                <button type="button" onClick={() => handleRemoveTemplateDraftItem(item.index)}>
-                                  <Trash2 size={15} aria-hidden="true" />
-                                  Delete
-                                </button>
-                              </div>
-                            </details>
-                          </>
-                        )}
-                      </article>
-                    ))}
-                  </div>
+                  <>
+                    <button className="secondary-action" type="button" onClick={() => setTemplateEditStep('details')}>
+                      <ChevronLeft size={16} aria-hidden="true" />
+                      Back
+                    </button>
+                    <button className="primary-action" type="button" onClick={handleSaveDocumentTemplateEdit} disabled={isSaving || !isEditingTemplateDirty}>
+                      Save
+                    </button>
+                  </>
                 )}
               </div>
-
-              {formError && <p className="form-error travel-tools-status">{formError}</p>}
-              {successMessage && <p className="form-success travel-tools-status">{successMessage}</p>}
             </section>
+            </div>
           ) : selectedDocument ? (
             <section className="travel-tools-detail packing-workspace-detail">
               <div className="travel-tools-detail-header">
                 <div>
                   <span className="travel-tools-workspace-label">Document workspace</span>
-                  {isEditingDocumentName ? (
-                    <form className="travel-tools-title-edit" onSubmit={handleSaveDocumentName}>
-                      <input
-                        value={documentNameDraft}
-                        onChange={(event) => setDocumentNameDraft(event.target.value)}
-                        aria-label="Document list name"
-                        autoFocus
-                      />
-                      <button type="submit" disabled={isSaving}>Save</button>
-                      <button type="button" onClick={handleCancelDocumentNameEdit}>Cancel</button>
-                    </form>
-                  ) : (
-                    <div className="travel-tools-title-row">
-                      <h3>{selectedDocument.name}</h3>
-                    </div>
-                  )}
+                  <div className="travel-tools-title-row">
+                    <h3>{selectedDocument.name}</h3>
+                  </div>
                   <p>{selectedDocument.items.length} document item{selectedDocument.items.length === 1 ? '' : 's'}</p>
                   <div className="travel-tools-workspace-meta" aria-label="Travel document details">
                     <span>{selectedDocument.items.reduce((total, item) => total + item.files.length, selectedDocument.files.length)} uploaded file{selectedDocument.items.reduce((total, item) => total + item.files.length, selectedDocument.files.length) === 1 ? '' : 's'}</span>
@@ -2339,6 +2124,10 @@ function TravelDocumentTools() {
                     More
                   </summary>
                   <div>
+                    <button type="button" onClick={handleStartDocumentNameEdit} disabled={isSaving}>
+                      <Edit3 size={16} aria-hidden="true" />
+                      Edit
+                    </button>
                     <button type="button" onClick={handleOpenSaveDocumentTemplate} disabled={isSaving}>
                       <Sparkles size={16} aria-hidden="true" />
                       Save as template
@@ -2362,37 +2151,12 @@ function TravelDocumentTools() {
                   </div>
                 </details>
               </div>
-
-              <div className="packing-workspace-fields">
-                <label className="packing-title-field">
-                  <span>List title</span>
-                  <span className="packing-title-input">
-                    <input value={selectedDocument.name} readOnly aria-label="Current document list title" />
-                    <button type="button" onClick={handleStartDocumentNameEdit} aria-label="Edit document list name">
-                      <Edit3 size={16} aria-hidden="true" />
-                    </button>
-                  </span>
-                </label>
-                <div className="packing-trip-link-panel">
-                  <label>
-                    <span className="travel-tools-field-label">
-                      Link trip (optional)
-                      {renderTip('Choose a trip to link this document list or select "None" to unlink it.')}
-                    </span>
-                    <select value={selectedDocument.tripId || ''} onChange={handleDocumentTripChange} disabled={isSaving}>
-                      <option value="">None</option>
-                      {trips.map((trip) => {
-                        const isUnavailable = isTripLinkedToOtherDocument(trip._id, selectedDocument.id);
-                        return (
-                          <option key={trip._id} value={trip._id} disabled={isUnavailable}>
-                            {getTripOptionLabel(trip)}{isUnavailable ? ' (Already linked)' : ''}
-                          </option>
-                        );
-                      })}
-                    </select>
-                  </label>
+              {(formError || successMessage) && (
+                <div className="document-workspace-status" aria-live="polite">
+                  {formError && <p className="form-error travel-tools-status">{formError}</p>}
+                  {successMessage && <p className="form-success travel-tools-status">{successMessage}</p>}
                 </div>
-              </div>
+              )}
 
               <div className="packing-workspace-controls document-workspace-controls">
                 <div className="travel-tools-filters travel-document-item-filters">
@@ -2436,7 +2200,6 @@ function TravelDocumentTools() {
                             <span className="priority-low">{item.documentType}</span>
                           </div>
                           <span className="travel-tools-item-category">
-                            <Upload size={14} aria-hidden="true" />
                             {item.uploadLabel}
                           </span>
                           {item.files.length > 0 && (
@@ -2458,34 +2221,29 @@ function TravelDocumentTools() {
                         <div className="travel-tools-item-meta" aria-label="Uploaded files">
                           <span className="travel-tools-quantity">{item.files.length} file{item.files.length === 1 ? '' : 's'}</span>
                         </div>
-                        <details className="travel-tools-item-actions-menu">
-                          <summary aria-label={`Open actions for ${item.name}`}>
-                            <MoreVertical size={17} aria-hidden="true" />
-                          </summary>
-                          <div>
-                            <label className="travel-document-menu-upload">
-                              <Upload size={15} aria-hidden="true" />
-                              Upload
-                              <input type="file" multiple accept={acceptedTravelDocumentInput} onChange={(event) => handleFileUpload(event, item.id)} disabled={isSaving} />
-                            </label>
-                            <button
-                              type="button"
-                              onClick={() => setConfirmAction({ type: 'delete-document-item', document: selectedDocument, item })}
-                              disabled={isSaving}
-                            >
-                              <Trash2 size={15} aria-hidden="true" />
-                              Delete
-                            </button>
-                          </div>
-                        </details>
+                        <div className="document-item-direct-actions">
+                          <label className="document-item-icon-action" title={`Upload files for ${item.name}`}>
+                            <Upload size={16} aria-hidden="true" />
+                            <span className="sr-only">Upload files for {item.name}</span>
+                            <input type="file" multiple accept={acceptedTravelDocumentInput} onChange={(event) => handleFileUpload(event, item.id)} disabled={isSaving} />
+                          </label>
+                          <button
+                            className="document-item-icon-action document-item-delete-action"
+                            type="button"
+                            onClick={() => setConfirmAction({ type: 'delete-document-item', document: selectedDocument, item })}
+                            aria-label={`Delete ${item.name}`}
+                            title={`Delete ${item.name}`}
+                            disabled={isSaving}
+                          >
+                            <Trash2 size={16} aria-hidden="true" />
+                          </button>
+                        </div>
                       </article>
                     ))}
                   </div>
                 )}
               </div>
 
-              {formError && <p className="form-error travel-tools-status">{formError}</p>}
-              {successMessage && <p className="form-success travel-tools-status">{successMessage}</p>}
             </section>
           ) : (
             <section className="travel-tools-detail travel-tools-empty-detail">
@@ -2498,6 +2256,56 @@ function TravelDocumentTools() {
           )}
         </div>
       </div>
+      )}
+
+      {isEditingDocumentName && selectedDocument && (
+        <div className="travel-tools-modal-backdrop document-edit-backdrop" role="presentation">
+          <form className="travel-tools-modal document-details-edit-modal" onSubmit={handleSaveDocumentName} aria-labelledby="document-details-edit-title">
+            <div className="travel-tools-modal-header">
+              <div>
+                <span className="travel-tools-workspace-label">Document settings</span>
+                <h3 id="document-details-edit-title">Edit document list</h3>
+              </div>
+              <button type="button" onClick={handleCancelDocumentNameEdit} aria-label="Close document edit form">
+                <X size={18} aria-hidden="true" />
+              </button>
+            </div>
+            {formError && <p className="form-error travel-tools-modal-status">{formError}</p>}
+            <label>
+              Document list name
+              <input
+                value={documentNameDraft}
+                onChange={(event) => {
+                  setFormError('');
+                  setDocumentNameDraft(event.target.value);
+                }}
+                placeholder="Europe Vacation"
+                autoFocus
+              />
+            </label>
+            <label>
+              Linked trip
+              <select value={documentTripDraft} onChange={(event) => setDocumentTripDraft(event.target.value)}>
+                <option value="">None</option>
+                {trips.map((trip) => {
+                  const isUnavailable = isTripLinkedToOtherDocument(trip._id, selectedDocument.id);
+                  return (
+                    <option key={trip._id} value={trip._id} disabled={isUnavailable}>
+                      {getTripOptionLabel(trip)}{isUnavailable ? ' (Already linked)' : ''}
+                    </option>
+                  );
+                })}
+              </select>
+            </label>
+            <div className="travel-tools-modal-actions">
+              <button className="secondary-action" type="button" onClick={handleCancelDocumentNameEdit}>Cancel</button>
+              <button className="primary-action" type="submit" disabled={isSaving || !documentNameDraft.trim()}>
+                Save changes
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {expandedFile && (
         <div className="travel-tools-modal-backdrop" role="presentation">

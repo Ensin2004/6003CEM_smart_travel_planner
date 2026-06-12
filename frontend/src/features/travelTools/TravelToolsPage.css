@@ -2720,3 +2720,1197 @@
   }
 
 }
+
+/* Document workspace uses a dense file-management layout without changing shared packing-list behavior. */
+.travel-documents-redesign {
+  gap: 14px;
+  color: #17212b;
+}
+
+.travel-documents-redesign .document-command-header {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(520px, 1.35fr);
+  gap: 24px;
+  padding: 22px 24px;
+  border: 1px solid rgba(15, 118, 110, 0.16);
+  border-radius: 8px;
+  background: var(--gradient-bright-surface);
+  color: var(--ink);
+  box-shadow: 0 10px 24px rgba(16, 42, 67, 0.045);
+}
+
+.travel-documents-redesign .document-command-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.travel-documents-redesign .document-command-icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid rgba(15, 118, 110, 0.16);
+  border-radius: 8px;
+  background: #dff8ef;
+  color: #0f766e;
+}
+
+.travel-documents-redesign .document-command-title p,
+.travel-documents-redesign .document-command-title span {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.travel-documents-redesign .document-command-title p {
+  margin-bottom: 3px;
+  color: #0f766e;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.travel-documents-redesign .document-command-title h2 {
+  margin: 0 0 4px;
+  color: var(--navy);
+  font-size: 25px;
+  font-weight: 650;
+  line-height: 1.15;
+}
+
+.travel-documents-redesign .document-view-actions {
+  display: inline-flex;
+  align-self: center;
+  justify-self: end;
+  gap: 5px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 5px 12px rgba(16, 42, 67, 0.045);
+}
+
+.travel-documents-redesign .document-view-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #64748b;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.travel-documents-redesign .document-view-actions button.active {
+  background: #0f766e;
+  color: #ffffff;
+}
+
+.travel-documents-redesign .document-view-actions button span {
+  display: grid;
+  min-width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  font-size: 11px;
+}
+
+.travel-documents-redesign .document-command-summary {
+  display: grid;
+  grid-template-columns: minmax(110px, 0.5fr) minmax(220px, 1.5fr);
+  align-items: stretch;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.travel-documents-redesign .document-command-summary > div {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-content: center;
+  gap: 2px 7px;
+  min-width: 0;
+  padding: 11px 13px;
+  border-right: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.travel-documents-redesign .document-command-summary svg {
+  grid-row: 1 / 3;
+  align-self: center;
+  color: #5eead4;
+}
+
+.travel-documents-redesign .document-command-summary span,
+.travel-documents-redesign .document-command-summary small {
+  overflow: hidden;
+  color: #aebbc7;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.travel-documents-redesign .document-command-summary strong {
+  overflow: hidden;
+  color: #ffffff;
+  font-size: 17px;
+  font-weight: 650;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.travel-documents-redesign .document-command-summary .document-command-current {
+  display: grid;
+  grid-template-columns: 1fr;
+  border-right: 0;
+  background: rgba(255, 255, 255, 0.045);
+}
+
+.travel-documents-redesign .document-loading-page {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-content: center;
+  align-items: center;
+  gap: 18px 20px;
+  min-height: min(620px, calc(100vh - 180px));
+  padding: 36px;
+  border: 1px solid #d9e2ec;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(23, 33, 43, 0.08);
+}
+
+.travel-documents-redesign .document-loading-mark {
+  position: relative;
+  display: grid;
+  width: 64px;
+  height: 64px;
+  place-items: center;
+  grid-row: 1 / 3;
+  border-radius: 8px;
+  background: #17212b;
+  color: #5eead4;
+}
+
+.travel-documents-redesign .document-loading-mark .travel-tools-spinner {
+  position: absolute;
+  right: -7px;
+  bottom: -7px;
+  width: 25px;
+  height: 25px;
+  border-width: 3px;
+  border-color: #b7ddd8;
+  border-top-color: #0f766e;
+  background: #ffffff;
+}
+
+.travel-documents-redesign .document-loading-page p,
+.travel-documents-redesign .document-loading-page h2,
+.travel-documents-redesign .document-loading-page span {
+  margin: 0;
+}
+
+.travel-documents-redesign .document-loading-page p {
+  margin-bottom: 4px;
+  color: #0f766e;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.travel-documents-redesign .document-loading-page h2 {
+  margin-bottom: 5px;
+  color: #17212b;
+  font-size: 25px;
+  font-weight: 650;
+}
+
+.travel-documents-redesign .document-loading-page div > span {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.travel-documents-redesign .document-loading-lines {
+  display: grid;
+  grid-column: 2;
+  gap: 7px;
+  width: min(100%, 390px);
+}
+
+.travel-documents-redesign .document-loading-lines span {
+  height: 7px;
+  border-radius: 4px;
+  background: #e7edf3;
+  animation: document-loading-pulse 1.2s ease-in-out infinite alternate;
+}
+
+.travel-documents-redesign .document-loading-lines span:nth-child(2) {
+  width: 78%;
+  animation-delay: 0.18s;
+}
+
+.travel-documents-redesign .document-loading-lines span:nth-child(3) {
+  width: 56%;
+  animation-delay: 0.36s;
+}
+
+@keyframes document-loading-pulse {
+  to {
+    background: #b7ddd8;
+  }
+}
+
+.travel-documents-redesign .document-create-deck {
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid #d9e2ec;
+  border-left: 4px solid #0f766e;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.travel-documents-redesign .document-template-library {
+  display: grid;
+  gap: 12px;
+  padding-top: 2px;
+}
+
+.travel-documents-redesign .document-template-library .document-template-picker {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  overflow: visible;
+}
+
+.travel-documents-redesign .document-template-library .document-template-card {
+  min-height: 210px;
+}
+
+.travel-documents-redesign .document-template-library .document-template-select div {
+  max-height: none;
+}
+
+.travel-documents-redesign .document-template-library .document-template-menu-panel {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(23, 33, 43, 0.84);
+  box-shadow: 0 16px 38px rgba(23, 33, 43, 0.26);
+  backdrop-filter: blur(14px);
+}
+
+.travel-documents-redesign .document-template-library .document-template-menu-panel button {
+  color: #f8fafc;
+}
+
+.travel-documents-redesign .document-template-library .document-template-menu-panel button:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #5eead4;
+}
+
+.travel-documents-redesign .document-template-library .document-template-menu-panel button:last-child:hover {
+  background: rgba(127, 29, 29, 0.5);
+  color: #fecaca;
+}
+
+.travel-documents-redesign .document-create-deck .travel-tools-panel-heading {
+  align-items: center;
+  padding-bottom: 13px;
+  border-bottom: 1px solid #e7edf3;
+}
+
+.travel-documents-redesign .document-create-mode-actions {
+  display: inline-flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 0;
+  background: transparent;
+}
+
+.travel-documents-redesign .document-create-mode-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid #d9e2ec;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #52606d;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: 0 4px 10px rgba(23, 33, 43, 0.04);
+}
+
+.travel-documents-redesign .document-create-mode-actions button.active {
+  border-color: #0f766e;
+  background: #0f766e;
+  color: #ffffff;
+  box-shadow: 0 6px 14px rgba(15, 118, 110, 0.16);
+}
+
+.travel-documents-redesign .document-create-mode-actions button:not(.active):hover {
+  border-color: #b7ddd8;
+  background: #f0fdfa;
+  color: #0f766e;
+}
+
+.travel-documents-redesign .document-create-fields-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 14px;
+}
+
+.travel-documents-redesign .document-create-fields-row .travel-tools-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 0;
+}
+
+.travel-documents-redesign .document-create-submit {
+  min-width: 132px;
+  min-height: 42px;
+}
+
+.travel-documents-redesign .document-create-deck .travel-tools-panel-heading span {
+  color: #17212b;
+  font-size: 17px;
+  font-weight: 650;
+  text-transform: none;
+}
+
+.travel-documents-redesign .document-create-deck .travel-tools-panel-heading h3 {
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.travel-documents-redesign .document-create-deck .packing-create-card-mode {
+  grid-template-columns: repeat(2, minmax(0, 230px));
+  justify-content: start;
+  gap: 8px;
+}
+
+.travel-documents-redesign .document-create-deck .packing-create-mode button {
+  min-height: 66px;
+  border: 1px solid #d9e2ec;
+  border-radius: 6px;
+  background: #f8fafc;
+  box-shadow: none;
+}
+
+.travel-documents-redesign .document-create-deck .packing-create-mode button.active {
+  border-color: #0f766e;
+  background: #ecfdf5;
+  box-shadow: inset 3px 0 #0f766e;
+}
+
+.travel-documents-redesign .document-template-carousel {
+  padding: 0 44px;
+}
+
+.travel-documents-redesign .document-template-card {
+  min-height: 178px;
+  border-color: #d9e2ec;
+  border-radius: 6px;
+  background: #f8fafc;
+  box-shadow: none;
+}
+
+.travel-documents-redesign .document-template-card.active,
+.travel-documents-redesign .document-template-card:hover {
+  border-color: #0f766e;
+  background: #ffffff;
+  box-shadow: inset 0 3px #0f766e;
+}
+
+.travel-documents-redesign .document-template-card span {
+  color: #0f766e;
+}
+
+.travel-documents-redesign .document-template-select em {
+  border: 1px solid #d9e2ec;
+  border-radius: 4px;
+  background: #ffffff;
+}
+
+.travel-documents-redesign .document-template-menu-panel {
+  border-radius: 6px;
+  box-shadow: 0 14px 30px rgba(23, 33, 43, 0.16);
+}
+
+.travel-documents-redesign .document-template-menu-panel button {
+  border-radius: 4px;
+}
+
+.travel-documents-redesign .document-workbench {
+  grid-template-columns: minmax(250px, 286px) minmax(0, 1fr);
+  gap: 14px;
+}
+
+.travel-documents-redesign .document-workbench .travel-tools-list-panel {
+  gap: 0;
+  padding: 0;
+  overflow: visible;
+  border: 1px solid #d9e2ec;
+  border-radius: 6px;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.travel-documents-redesign .document-workbench .travel-tools-side-section {
+  padding: 16px;
+}
+
+.travel-documents-redesign .document-workbench .travel-tools-side-section + .travel-tools-side-section {
+  border-top: 1px solid #d9e2ec;
+}
+
+.travel-documents-redesign .document-workbench .travel-tools-panel-heading span {
+  color: #17212b;
+  font-size: 14px;
+  font-weight: 650;
+  text-transform: none;
+}
+
+.travel-documents-redesign .document-workbench .travel-tools-panel-heading h3 {
+  color: #7b8794;
+  font-size: 11px;
+}
+
+.travel-documents-redesign .document-workbench .travel-tools-panel-heading > strong {
+  width: 30px;
+  height: 30px;
+  border-radius: 5px;
+  background: #e7edf3;
+  color: #334e68;
+  font-size: 12px;
+}
+
+.travel-documents-redesign .document-workbench .travel-tools-filters {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.travel-documents-redesign .document-workbench .travel-tools-search-field {
+  border-color: #d9e2ec;
+  border-radius: 5px;
+  background: #f8fafc;
+}
+
+.travel-documents-redesign .document-workbench .travel-tools-list-stack {
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.travel-documents-redesign .document-workbench .travel-tools-list-card {
+  position: relative;
+  min-height: 54px;
+  padding: 9px 10px 9px 14px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.travel-documents-redesign .document-workbench .travel-tools-list-card::before {
+  content: "";
+  position: absolute;
+  top: 9px;
+  bottom: 9px;
+  left: 5px;
+  width: 3px;
+  border-radius: 2px;
+  background: #cbd5e1;
+}
+
+.travel-documents-redesign .document-workbench .travel-tools-list-card:hover {
+  border-color: #d9e2ec;
+  background: #f8fafc;
+  box-shadow: none;
+}
+
+.travel-documents-redesign .document-workbench .travel-tools-list-card.active {
+  border-color: #b7ddd8;
+  background: #ecfdf5;
+  box-shadow: none;
+}
+
+.travel-documents-redesign .document-workbench .travel-tools-list-card.active::before {
+  background: #0f766e;
+}
+
+.travel-documents-redesign .document-workbench .travel-tools-list-card span {
+  color: #25313d;
+  font-size: 13px;
+}
+
+.travel-documents-redesign .document-workbench .travel-tools-list-card small {
+  font-size: 11px;
+}
+
+.travel-documents-redesign .document-workbench .travel-tools-detail {
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #d9e2ec;
+  border-radius: 6px;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.travel-documents-redesign .document-workspace-status,
+.travel-documents-redesign .document-template-modal-status {
+  display: grid;
+  gap: 6px;
+  margin: 12px 20px 0;
+}
+
+.travel-documents-redesign .document-workspace-status .travel-tools-status,
+.travel-documents-redesign .document-template-modal-status .travel-tools-status {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 5px;
+}
+
+.travel-documents-redesign .document-workbench .travel-tools-detail-header {
+  padding: 18px 20px;
+  border-bottom: 1px solid #d9e2ec;
+  background: #f8fafc;
+}
+
+.travel-documents-redesign .document-workbench .travel-tools-detail-header h3 {
+  margin-bottom: 4px;
+  color: #17212b;
+  font-size: 24px;
+}
+
+.travel-documents-redesign .document-workbench .travel-tools-workspace-label {
+  color: #0f766e;
+  font-size: 11px;
+}
+
+.travel-documents-redesign .document-workbench .travel-tools-detail-header p {
+  margin: 0;
+  font-size: 12px;
+}
+
+.travel-documents-redesign .document-workbench .travel-tools-workspace-meta span {
+  border: 1px solid #d9e2ec;
+  border-radius: 4px;
+  background: #ffffff;
+  color: #52606d;
+}
+
+.travel-documents-redesign .document-workbench .travel-tools-actions-menu > div {
+  gap: 5px;
+  padding: 7px;
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(23, 33, 43, 0.84);
+  box-shadow: 0 16px 38px rgba(23, 33, 43, 0.26);
+  backdrop-filter: blur(14px);
+}
+
+.travel-documents-redesign .document-workbench .travel-tools-actions-menu button {
+  color: #f8fafc;
+}
+
+.travel-documents-redesign .document-workbench .travel-tools-actions-menu button:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #5eead4;
+}
+
+.travel-documents-redesign .document-workbench .travel-tools-actions-menu button:last-child:hover {
+  background: rgba(127, 29, 29, 0.5);
+  color: #fecaca;
+}
+
+.travel-documents-redesign .document-workbench .packing-workspace-fields {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e7edf3;
+  background: #ffffff;
+}
+
+.travel-documents-redesign .document-workbench .packing-title-input,
+.travel-documents-redesign .document-workbench input,
+.travel-documents-redesign .document-workbench select,
+.travel-documents-redesign .document-workbench textarea {
+  border-radius: 5px;
+}
+
+.travel-documents-redesign .document-workbench .document-workspace-controls {
+  gap: 12px;
+  padding: 16px 20px 20px;
+  border: 0;
+  border-radius: 0;
+  background: #ffffff;
+}
+
+.travel-documents-redesign .document-workbench .travel-document-item-filters {
+  padding: 10px;
+  border: 1px solid #d9e2ec;
+  border-radius: 5px;
+  background: #f8fafc;
+}
+
+.travel-documents-redesign .document-workbench .travel-tools-document-file-list {
+  gap: 0;
+  max-height: 390px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  border: 1px solid #d9e2ec;
+  border-radius: 6px;
+  scrollbar-gutter: stable;
+}
+
+.travel-documents-redesign .document-workbench .travel-document-list-item {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: start;
+  min-height: 76px;
+  gap: 14px;
+  padding: 14px;
+  border: 0;
+  border-bottom: 1px solid #e7edf3;
+  border-radius: 0;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.travel-documents-redesign .document-workbench .travel-document-list-item:last-child {
+  border-bottom: 0;
+}
+
+.travel-documents-redesign .document-workbench .travel-document-list-item::before {
+  display: none;
+}
+
+.travel-documents-redesign .document-workbench .travel-document-list-item:hover {
+  border-color: transparent;
+  border-bottom-color: #e7edf3;
+  background: #ffffff;
+  box-shadow: none;
+  transform: none;
+}
+
+.travel-documents-redesign .document-workbench .travel-document-list-item > div:first-child {
+  display: grid;
+  align-content: start;
+  gap: 0;
+  min-width: 0;
+}
+
+.travel-documents-redesign .document-workbench .travel-document-list-item:first-child {
+  border-top-left-radius: 5px;
+  border-top-right-radius: 5px;
+}
+
+.travel-documents-redesign .document-workbench .travel-document-list-item:last-child {
+  border-bottom-right-radius: 5px;
+  border-bottom-left-radius: 5px;
+}
+
+.travel-documents-redesign .document-workbench .travel-document-attached-files {
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  margin-top: 10px;
+}
+
+.travel-documents-redesign .document-item-direct-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-top: 1px;
+}
+
+.travel-documents-redesign .document-item-icon-action {
+  position: relative;
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid #d9e2ec;
+  border-radius: 5px;
+  background: #ffffff;
+  color: #0f766e;
+  cursor: pointer;
+}
+
+.travel-documents-redesign .document-item-icon-action:hover {
+  border-color: #b7ddd8;
+  background: #ecfdf5;
+}
+
+.travel-documents-redesign .document-item-delete-action {
+  color: var(--color-danger);
+}
+
+.travel-documents-redesign .document-item-delete-action:hover {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+.travel-documents-redesign .document-item-icon-action input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+
+.travel-documents-redesign .document-workbench .travel-tools-item-title-row strong {
+  color: #25313d;
+  font-size: 14px;
+}
+
+.travel-documents-redesign .document-workbench .priority-low,
+.travel-documents-redesign .document-workbench .travel-tools-quantity {
+  border-radius: 4px;
+}
+
+.travel-documents-redesign .document-workbench .travel-tools-item-meta {
+  align-self: start;
+  min-width: 0;
+  padding-top: 7px;
+}
+
+.travel-documents-redesign .document-workbench .travel-document-attached-files span {
+  min-width: 0;
+  max-width: min(100%, 360px);
+  padding: 5px 7px;
+  border: 1px solid #d9e2ec;
+  border-radius: 4px;
+  background: #f0fdfa;
+}
+
+.travel-documents-redesign .document-workbench .travel-document-attached-files button:first-child {
+  display: block;
+  min-width: 0;
+  max-width: 260px;
+  overflow: hidden;
+  padding: 0 3px;
+  color: #25313d;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.travel-documents-redesign .document-workbench .travel-document-attached-files a,
+.travel-documents-redesign .document-workbench .travel-document-attached-files button:last-child {
+  display: grid;
+  width: 26px;
+  height: 26px;
+  min-height: 26px;
+  place-items: center;
+  flex: 0 0 auto;
+  padding: 0;
+}
+
+.travel-documents-redesign .document-workbench .document-template-fields {
+  margin: 16px 20px 0;
+  border-radius: 6px;
+}
+
+.travel-documents-redesign .travel-tools-modal {
+  border-radius: 6px;
+  box-shadow: 0 22px 50px rgba(23, 33, 43, 0.22);
+}
+
+.travel-documents-redesign .travel-tools-modal-backdrop {
+  background: rgba(23, 33, 43, 0.58);
+  backdrop-filter: blur(6px);
+}
+
+.travel-documents-redesign .travel-tools-modal {
+  border: 1px solid rgba(255, 255, 255, 0.64);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 24px 60px rgba(23, 33, 43, 0.3);
+}
+
+.travel-documents-redesign .travel-tools-modal-header {
+  align-items: flex-start;
+  padding-bottom: 13px;
+  border-bottom: 1px solid #d9e2ec;
+}
+
+.travel-documents-redesign .travel-tools-modal-header h3 {
+  color: #0f766e;
+}
+
+.travel-documents-redesign .travel-tools-modal-header button {
+  border-radius: 5px;
+}
+
+.travel-documents-redesign .travel-tools-modal-actions {
+  padding-top: 13px;
+  border-top: 1px solid #d9e2ec;
+}
+
+.travel-documents-redesign .document-edit-backdrop {
+  z-index: 85;
+  background: rgba(23, 33, 43, 0.58);
+  backdrop-filter: blur(5px);
+}
+
+.travel-documents-redesign .document-details-edit-modal {
+  width: min(540px, 100%);
+}
+
+.travel-documents-redesign .document-details-edit-modal .travel-tools-modal-header {
+  align-items: flex-start;
+  padding-bottom: 13px;
+  border-bottom: 1px solid #e7edf3;
+}
+
+.travel-documents-redesign .document-details-edit-modal .travel-tools-workspace-label {
+  margin-bottom: 4px;
+  color: #0f766e;
+  font-size: 11px;
+}
+
+.travel-documents-redesign .travel-document-template-workspace {
+  display: grid;
+  gap: 0;
+  width: min(1040px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  padding: 0;
+  background: rgba(255, 255, 255, 0.96);
+}
+
+.travel-documents-redesign .travel-document-template-workspace .travel-tools-detail-header {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  padding: 18px 20px;
+  border-bottom: 1px solid #d9e2ec;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(14px);
+}
+
+.travel-documents-redesign .document-template-close {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid #d9e2ec;
+  border-radius: 5px;
+  background: #ffffff;
+  color: #64748b;
+}
+
+.travel-documents-redesign .travel-document-template-workspace .travel-tools-detail-header h3 {
+  color: #0f766e;
+  font-size: 20px;
+}
+
+.travel-documents-redesign .travel-document-template-workspace .travel-tools-detail-header p {
+  color: #64748b;
+}
+
+.travel-documents-redesign .travel-document-template-workspace .travel-tools-workspace-label {
+  color: #0f766e;
+}
+
+.travel-documents-redesign .document-template-step {
+  display: grid;
+  gap: 14px;
+  margin: 18px;
+  padding: 18px;
+  border: 1px solid #d9e2ec;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.travel-documents-redesign .document-template-details-step {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+}
+
+.travel-documents-redesign .document-template-step label {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  color: #334e68;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.travel-documents-redesign .document-template-step label > span,
+.travel-documents-redesign .document-template-items-heading span {
+  color: #0f766e;
+  font-size: 11px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.travel-documents-redesign .document-template-step input,
+.travel-documents-redesign .document-template-step select,
+.travel-documents-redesign .document-template-step textarea {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid #d9e2ec;
+  border-radius: 5px;
+  padding: 0 12px;
+  background: #ffffff;
+  color: #334e68;
+  font: inherit;
+  outline: none;
+}
+
+.travel-documents-redesign .document-template-step textarea {
+  min-height: 112px;
+  padding: 11px 12px;
+  resize: vertical;
+}
+
+.travel-documents-redesign .document-template-step input:focus,
+.travel-documents-redesign .document-template-step select:focus,
+.travel-documents-redesign .document-template-step textarea:focus {
+  border-color: #0f766e;
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.13);
+}
+
+.travel-documents-redesign .document-template-step label small {
+  color: #7b8794;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.travel-documents-redesign .document-template-items-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 13px;
+  border-bottom: 1px solid #e7edf3;
+}
+
+.travel-documents-redesign .document-template-items-heading > div {
+  display: grid;
+  gap: 4px;
+}
+
+.travel-documents-redesign .document-template-items-heading strong {
+  color: #25313d;
+  font-size: 16px;
+}
+
+.travel-documents-redesign .document-template-edit-list {
+  display: grid;
+  gap: 10px;
+  max-height: 286px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 6px;
+  scrollbar-gutter: stable;
+}
+
+.travel-documents-redesign .document-template-edit-item {
+  display: grid;
+  grid-template-columns: minmax(130px, 0.45fr) minmax(180px, 0.8fr) minmax(220px, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #d9e2ec;
+  border-radius: 6px;
+  background: #f8fafc;
+}
+
+.travel-documents-redesign .document-template-edit-item > button {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid #fecaca;
+  border-radius: 5px;
+  background: #ffffff;
+  color: var(--color-danger);
+}
+
+.travel-documents-redesign .document-template-step-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 0;
+  padding: 16px 18px 18px;
+  border-top: 1px solid #d9e2ec;
+  background: rgba(248, 250, 252, 0.92);
+}
+
+.travel-documents-redesign .document-template-step-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.travel-documents-redesign .travel-tools-modal input,
+.travel-documents-redesign .travel-tools-modal select,
+.travel-documents-redesign .travel-tools-modal textarea {
+  border-radius: 5px;
+}
+
+.travel-documents-redesign .travel-tools-empty-detail {
+  min-height: 360px;
+  border-style: dashed;
+}
+
+@media (max-width: 1180px) {
+  .travel-documents-redesign .document-command-header {
+    grid-template-columns: 1fr;
+  }
+
+  .travel-documents-redesign .document-workbench {
+    grid-template-columns: 1fr;
+  }
+
+  .travel-documents-redesign .document-workbench .travel-tools-list-panel {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .travel-documents-redesign .document-workbench .travel-tools-side-section + .travel-tools-side-section {
+    border-top: 0;
+    border-left: 1px solid #d9e2ec;
+  }
+
+  .travel-documents-redesign .document-template-library .document-template-picker {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .travel-documents-redesign .document-create-fields-row {
+    grid-template-columns: 1fr;
+  }
+
+  .travel-documents-redesign .document-create-submit {
+    justify-self: end;
+  }
+}
+
+@media (max-width: 760px) {
+  .travel-documents-redesign .document-command-header {
+    gap: 16px;
+    padding: 17px;
+  }
+
+  .travel-documents-redesign .document-view-actions {
+    display: grid;
+    width: 100%;
+    justify-self: stretch;
+    border-radius: 8px;
+  }
+
+  .travel-documents-redesign .document-view-actions button {
+    justify-content: center;
+    border-radius: 6px;
+  }
+
+  .travel-documents-redesign .document-create-deck .packing-create-card-mode,
+  .travel-documents-redesign .document-workbench .travel-tools-list-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .travel-documents-redesign .document-create-deck .travel-tools-panel-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .travel-documents-redesign .document-create-mode-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .travel-documents-redesign .document-create-mode-actions button {
+    flex: 1 1 170px;
+    justify-content: center;
+  }
+
+  .travel-documents-redesign .document-create-fields-row .travel-tools-form-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .travel-documents-redesign .document-create-submit {
+    width: 100%;
+  }
+
+  .travel-documents-redesign .document-workbench .travel-tools-side-section + .travel-tools-side-section {
+    border-top: 1px solid #d9e2ec;
+    border-left: 0;
+  }
+
+  .travel-documents-redesign .document-workbench .travel-tools-detail-header,
+  .travel-documents-redesign .document-workbench .packing-workspace-fields,
+  .travel-documents-redesign .document-workbench .document-workspace-controls {
+    padding-right: 14px;
+    padding-left: 14px;
+  }
+
+  .travel-documents-redesign .document-workbench .travel-document-list-item {
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .travel-documents-redesign .document-workbench .travel-tools-item-meta {
+    display: none;
+  }
+
+  .travel-documents-redesign .document-workbench .travel-document-attached-files button:first-child {
+    max-width: min(190px, 48vw);
+  }
+
+  .travel-documents-redesign .document-loading-page {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    min-height: calc(100vh - 150px);
+    padding: 28px 18px;
+    text-align: center;
+  }
+
+  .travel-documents-redesign .document-loading-mark {
+    grid-row: auto;
+  }
+
+  .travel-documents-redesign .document-loading-lines {
+    grid-column: auto;
+    justify-items: center;
+  }
+
+  .travel-documents-redesign .document-template-library .document-template-picker {
+    grid-template-columns: 1fr;
+  }
+
+  .travel-documents-redesign .travel-document-template-workspace {
+    max-height: calc(100vh - 28px);
+  }
+
+  .travel-documents-redesign .document-template-step {
+    margin: 14px;
+    padding: 14px;
+  }
+
+  .travel-documents-redesign .document-template-details-step {
+    grid-template-columns: 1fr;
+  }
+
+  .travel-documents-redesign .document-template-edit-item {
+    grid-template-columns: 1fr;
+  }
+
+  .travel-documents-redesign .document-template-edit-item > button {
+    justify-self: end;
+  }
+
+  .travel-documents-redesign .document-template-step-actions {
+    flex-wrap: wrap;
+    padding: 14px;
+  }
+}
