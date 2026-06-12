@@ -1121,7 +1121,7 @@ function TripDetailsPage() {
       }
       setAiStatus('success');
     } catch (error) {
-      setAiError(error.response?.data?.message || 'Unable to ask Gemini right now.');
+      setAiError(error.response?.data?.message || 'Unable to ask Llama 3.1 right now.');
       setAiStatus('error');
     }
   };

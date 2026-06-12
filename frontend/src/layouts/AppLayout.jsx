@@ -245,7 +245,7 @@ function AppLayout({ role, menuItems }) {
 
       setAiMessages((currentMessages) => [...currentMessages, assistantMessage]);
     } catch (requestError) {
-      const message = requestError.response?.data?.message || 'Unable to reach Gemini chat right now.';
+      const message = requestError.response?.data?.message || 'Unable to reach Groq chat right now.';
       const assistantMessage = { role: 'assistant', text: message, available: false };
 
       setAiError(message);
@@ -593,10 +593,10 @@ function AppLayout({ role, menuItems }) {
           </button>
 
           {isAiChatOpen && (
-            <section className="app-ai-chat" aria-label="Gemini chat prompt">
+            <section className="app-ai-chat" aria-label="Groq Llama chat prompt">
               <div className="app-ai-chat-header">
                 <div>
-                  <span>Gemini chat</span>
+                  <span>Groq Llama 3.1</span>
                   <strong>Ask AI</strong>
                 </div>
                 <button type="button" onClick={() => setIsAiChatOpen(false)} aria-label="Close AI chat">
@@ -613,14 +613,14 @@ function AppLayout({ role, menuItems }) {
                       className={`app-ai-message ${message.role === 'user' ? 'is-user' : 'is-assistant'} ${message.available === false ? 'is-muted' : ''}`}
                       key={`${message.role}-${index}`}
                     >
-                      <span>{message.role === 'user' ? 'You' : 'Gemini'}</span>
+                      <span>{message.role === 'user' ? 'You' : 'Llama 3.1'}</span>
                       <p>{message.text}</p>
                     </article>
                   ))
                 )}
                 {isAiSubmitting && (
                   <article className="app-ai-message is-assistant">
-                    <span>Gemini</span>
+                    <span>Llama 3.1</span>
                     <p><LoaderCircle className="app-ai-spin" size={15} aria-hidden="true" /> Thinking...</p>
                   </article>
                 )}
@@ -634,7 +634,7 @@ function AppLayout({ role, menuItems }) {
                     value={aiPrompt}
                     rows="3"
                     maxLength={2000}
-                    placeholder="Ask Gemini about your trip..."
+                    placeholder="Ask Llama 3.1 about your trip..."
                     onChange={(event) => setAiPrompt(event.target.value)}
                   />
                 </label>

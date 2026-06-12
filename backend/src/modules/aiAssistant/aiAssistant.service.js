@@ -1,6 +1,6 @@
 /**
  * AI Assistant module.
- * Business rules and Gemini integration live in this layer.
+ * Business rules and Groq integration live in this layer.
  */
 const axios = require('axios');
 const env = require('../../config/env');
@@ -15,7 +15,7 @@ const dailyUsage = {
 const getTodayKey = () => new Date().toISOString().slice(0, 10);
 const consumeDailyQuota = () => {
   const today = getTodayKey();
-  const dailyLimit = Math.max(Number(env.geminiDailyLimit) || 100, 0);
+  const dailyLimit = Math.max(Number(env.groqDailyLimit) || 100, 0);
   if (dailyUsage.date !== today) {
     dailyUsage.date = today;
     dailyUsage.count = 0;
@@ -34,7 +34,7 @@ const recordAiChatFailure = (message, statusCode, metadata = {}) =>
     ? Promise.resolve()
     : apiLogService
         .recordEvent({
-          service: 'gemini-chat',
+          service: 'groq-chat',
           category: 'api',
           severity: statusCode === 429 ? 'warning' : 'error',
           endpoint: 'ai/chat',
@@ -45,24 +45,24 @@ const recordAiChatFailure = (message, statusCode, metadata = {}) =>
         })
         .catch((error) => logger.error(`Failed to record AI chat event: ${error.message}`));
 
-const classifyGeminiError = (error) => {
+const classifyGroqError = (error) => {
   if (error.isDailyLimit) {
     return { message: 'Daily AI chat limit reached. Please try again tomorrow.', statusCode: 429 };
   }
   if (error.response?.status === 401 || error.response?.status === 403) {
-    return { message: 'Gemini chat is temporarily unavailable.', statusCode: 502 };
+    return { message: 'Groq chat is temporarily unavailable.', statusCode: 502 };
   }
   if (error.response?.status === 429) {
-    return { message: 'Gemini chat is busy right now. Please try again later.', statusCode: 429 };
+    return { message: 'Groq chat is busy right now. Please try again later.', statusCode: 429 };
   }
   if (error.code === 'ECONNABORTED') {
-    return { message: 'Gemini chat took too long. Please try again.', statusCode: 503 };
+    return { message: 'Groq chat took too long. Please try again.', statusCode: 503 };
   }
   if (!error.response) {
-    return { message: 'Gemini chat could not be reached. Please try again.', statusCode: 503 };
+    return { message: 'Groq chat could not be reached. Please try again.', statusCode: 503 };
   }
 
-  return { message: 'Gemini chat is temporarily unavailable.', statusCode: error.response.status || 503 };
+  return { message: 'Groq chat is temporarily unavailable.', statusCode: error.response.status || 503 };
 };
 
 const buildPrompt = ({ prompt, page }) => `
@@ -76,10 +76,10 @@ ${prompt}
 `;
 
 const extractAnswer = (response) => {
-  const text = response.data?.candidates?.[0]?.content?.parts?.map((part) => part.text || '').join('\n').trim();
+  const text = response.data?.choices?.[0]?.message?.content?.trim();
 
   if (!text) {
-    throw new Error('Gemini returned an empty response');
+    throw new Error('Groq returned an empty response');
   }
 
   return text;
@@ -132,10 +132,10 @@ User request: ${prompt}
 `;
 
 const chat = async ({ prompt, page }) => {
-  if (!env.geminiApiKey || env.nodeEnv === 'test') {
+  if (!env.groqApiKey || env.nodeEnv === 'test') {
     return {
       available: false,
-      answer: 'Gemini chat is not configured yet. Add GEMINI_API_KEY to the backend environment to enable AI answers.',
+      answer: 'Groq chat is not configured yet. Add GROQ_API_KEY to the backend environment to enable AI answers.',
       lastUpdated: new Date().toISOString(),
     };
   }
@@ -143,7 +143,7 @@ const chat = async ({ prompt, page }) => {
   if (!consumeDailyQuota()) {
     const error = new Error('Daily AI chat limit reached. Please try again tomorrow.');
     error.isDailyLimit = true;
-    const { message, statusCode } = classifyGeminiError(error);
+    const { message, statusCode } = classifyGroqError(error);
     recordAiChatFailure(message, statusCode, { page });
     return {
       available: false,
@@ -154,22 +154,22 @@ const chat = async ({ prompt, page }) => {
 
   try {
     const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/${env.geminiModel}:generateContent`,
+      'https://api.groq.com/openai/v1/chat/completions',
       {
-        contents: [
+        model: env.groqModel,
+        messages: [
           {
-            parts: [{ text: buildPrompt({ prompt, page }) }],
+            role: 'user',
+            content: buildPrompt({ prompt, page }),
           },
         ],
-        generationConfig: {
-          temperature: 0.45,
-          maxOutputTokens: 900,
-        },
+        temperature: 0.45,
+        max_completion_tokens: 900,
       },
       {
         headers: {
           'Content-Type': 'application/json',
-          'x-goog-api-key': env.geminiApiKey,
+          Authorization: `Bearer ${env.groqApiKey}`,
         },
         timeout: 25000,
       }
@@ -181,7 +181,7 @@ const chat = async ({ prompt, page }) => {
       lastUpdated: new Date().toISOString(),
     };
   } catch (error) {
-    const { message, statusCode } = classifyGeminiError(error);
+    const { message, statusCode } = classifyGroqError(error);
     recordAiChatFailure(message, statusCode, { page });
     return {
       available: false,
@@ -192,10 +192,10 @@ const chat = async ({ prompt, page }) => {
 };
 
 const getTripRecommendations = async ({ prompt, trip, plannedPlaces, history = [] }) => {
-  if (!env.geminiApiKey || env.nodeEnv === 'test') {
+  if (!env.groqApiKey || env.nodeEnv === 'test') {
     return {
       available: false,
-      answer: 'Gemini trip recommendations are not configured yet.',
+      answer: 'Groq trip recommendations are not configured yet.',
       places: [],
       lastUpdated: new Date().toISOString(),
     };
@@ -212,19 +212,23 @@ const getTripRecommendations = async ({ prompt, trip, plannedPlaces, history = [
 
   try {
     const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/${env.geminiModel}:generateContent`,
+      'https://api.groq.com/openai/v1/chat/completions',
       {
-        contents: [{ parts: [{ text: buildTripRecommendationPrompt({ prompt, trip, plannedPlaces, history }) }] }],
-        generationConfig: {
-          temperature: 0.35,
-          maxOutputTokens: 1400,
-          responseMimeType: 'application/json',
-        },
+        model: env.groqModel,
+        messages: [
+          {
+            role: 'user',
+            content: buildTripRecommendationPrompt({ prompt, trip, plannedPlaces, history }),
+          },
+        ],
+        temperature: 0.35,
+        max_completion_tokens: 1400,
+        response_format: { type: 'json_object' },
       },
       {
         headers: {
           'Content-Type': 'application/json',
-          'x-goog-api-key': env.geminiApiKey,
+          Authorization: `Bearer ${env.groqApiKey}`,
         },
         timeout: 25000,
       }
@@ -232,7 +236,7 @@ const getTripRecommendations = async ({ prompt, trip, plannedPlaces, history = [
 
     return normalizeTripRecommendations(extractJson(response));
   } catch (error) {
-    const { message, statusCode } = classifyGeminiError(error);
+    const { message, statusCode } = classifyGroqError(error);
     recordAiChatFailure(message, statusCode, { page: 'trip-details' });
     return {
       available: false,

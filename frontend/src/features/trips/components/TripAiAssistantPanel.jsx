@@ -1,5 +1,5 @@
 /**
- * Trip AI Assistant panel displays a contextual Gemini conversation and map-ready place cards.
+ * Trip AI Assistant panel displays a contextual Groq Llama conversation and map-ready place cards.
  */
 import { MapPin, Send, Sparkles, Star, X } from 'lucide-react';
 import { useEffect, useRef } from 'react';
@@ -31,7 +31,7 @@ function TripAiAssistantPanel({
     <section className="trip-ai-assistant" aria-label="Trip AI Assistant">
       <header className="trip-ai-assistant-header">
         <div>
-          <span><Sparkles size={15} aria-hidden="true" /> Gemini</span>
+          <span><Sparkles size={15} aria-hidden="true" /> Llama 3.1</span>
           <strong>AI Assistance</strong>
         </div>
         <button type="button" onClick={onClose} aria-label="Close AI Assistance">
@@ -50,7 +50,7 @@ function TripAiAssistantPanel({
 
         {messages.map((message) => (
           <article className={`trip-ai-message is-${message.role}`} key={message.id}>
-            <small>{message.role === 'user' ? 'You' : 'Gemini'}</small>
+            <small>{message.role === 'user' ? 'You' : 'Llama 3.1'}</small>
             <p>{message.text}</p>
             {message.places?.length ? (
               <div className="trip-ai-place-list">
@@ -81,7 +81,7 @@ function TripAiAssistantPanel({
         ))}
 
         {isLoading ? (
-          <div className="trip-ai-typing" aria-label="Gemini is responding">
+          <div className="trip-ai-typing" aria-label="Llama 3.1 is responding">
             <span />
             <span />
             <span />
