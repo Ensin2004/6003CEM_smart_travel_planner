@@ -2,7 +2,7 @@
  * Routes module.
  * Route definitions connect endpoints with validation, authorization, and controllers.
  */
-import { Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes } from 'react-router-dom';
 import LandingPage from '../features/landing/LandingPage';
 import LoginPage from '../features/auth/LoginPage';
 import RegisterPage from '../features/auth/RegisterPage';
@@ -75,6 +75,8 @@ function AppRoutes() {
           <Route path="settings" element={<AdminSettingsPage />} />
         </Route>
       </Route>
+
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
