@@ -694,13 +694,15 @@ function ExplorePage() {
       setSearchCriteria(criteria);
       setNextStart(nextResults.nextStart || start + nextItems.length);
       setHasMore(Boolean(nextResults.hasMore && nextItems.length));
-      setStatus(
-        nextResults.available
-          ? `${append ? 'Loaded' : 'Found'} ${nextItems.length} ${noun}${nextItems.length === 1 ? '' : 's'} for ${
-              nextResults.query || destinationLabel
-            }.`
-          : nextResults.message
-      );
+      if (nextResults.available) {
+        setStatus(
+          `${append ? 'Loaded' : 'Found'} ${nextItems.length} ${noun}${nextItems.length === 1 ? '' : 's'} for ${
+            nextResults.query || destinationLabel
+          }.`
+        );
+      } else {
+        setError(nextResults.message || `${noun[0].toUpperCase()}${noun.slice(1)} search is unavailable.`);
+      }
       if (!append) {
         fetchDestinationWeather(viewId, getWeatherRequest(criteria, nextItems));
       }
@@ -857,11 +859,11 @@ function ExplorePage() {
       const response = await searchFlight(flightSearch);
       const nextFlights = response.data.data.flights;
       setFlightResults(nextFlights);
-      setStatus(
-        nextFlights.available
-          ? `${nextFlights.items.length} flight result${nextFlights.items.length === 1 ? '' : 's'} loaded.`
-          : nextFlights.message
-      );
+      if (nextFlights.available) {
+        setStatus(`${nextFlights.items.length} flight result${nextFlights.items.length === 1 ? '' : 's'} loaded.`);
+      } else {
+        setError(nextFlights.message || 'Flight search is unavailable.');
+      }
     } catch (requestError) {
       setErrorScope('transport:flights');
       setError(getErrorMessage(requestError));
@@ -925,11 +927,11 @@ function ExplorePage() {
           }
         : nextTrains;
       setTrainResults(filteredTrains);
-      setStatus(
-        filteredTrains.available
-          ? `${filteredTrains.items.length} train departure${filteredTrains.items.length === 1 ? '' : 's'} loaded.`
-          : filteredTrains.message
-      );
+      if (filteredTrains.available) {
+        setStatus(`${filteredTrains.items.length} train departure${filteredTrains.items.length === 1 ? '' : 's'} loaded.`);
+      } else {
+        setError(filteredTrains.message || 'Train search is unavailable.');
+      }
     } catch (requestError) {
       setErrorScope('transport:trains');
       setError(getErrorMessage(requestError));

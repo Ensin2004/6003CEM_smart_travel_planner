@@ -183,11 +183,11 @@ function TravelGuidePage() {
 
           setDestinations(countryGuide.items || []);
           setPagination(countryGuide.pagination || { page: 1, totalPages: 1, hasMore: false });
-          setStatus(
-            countryGuide.available
-              ? `${countryGuide.items?.length || 0} countr${countryGuide.items?.length === 1 ? 'y' : 'ies'} loaded.`
-              : countryGuide.message
-          );
+          if (countryGuide.available) {
+            setStatus(`${countryGuide.items?.length || 0} countr${countryGuide.items?.length === 1 ? 'y' : 'ies'} loaded.`);
+          } else {
+            setError(countryGuide.message || 'Travel guide countries are unavailable.');
+          }
         } catch (requestError) {
           if (!isActive) return;
           setDestinations([]);
@@ -215,7 +215,11 @@ function TravelGuidePage() {
 
         setDestinations(guide.items || []);
         setPagination(guide.pagination || { page: 1, totalPages: 1, hasMore: false });
-        setStatus(guide.available ? `${guide.items?.length || 0} guide result${guide.items?.length === 1 ? '' : 's'} loaded.` : guide.message);
+        if (guide.available) {
+          setStatus(`${guide.items?.length || 0} guide result${guide.items?.length === 1 ? '' : 's'} loaded.`);
+        } else {
+          setError(guide.message || 'Travel guides are unavailable.');
+        }
       } catch (requestError) {
         if (!isActive) return;
         setDestinations([]);
@@ -297,7 +301,12 @@ function TravelGuidePage() {
 
         setDestinations(countryGuide.items || []);
         setPagination(countryGuide.pagination || pagination);
-        setStatus(`${countryGuide.items?.length || 0} countr${countryGuide.items?.length === 1 ? 'y' : 'ies'} loaded.`);
+        if (countryGuide.available) {
+          setStatus(`${countryGuide.items?.length || 0} countr${countryGuide.items?.length === 1 ? 'y' : 'ies'} loaded.`);
+        } else {
+          setStatus('');
+          setError(countryGuide.message || 'Travel guide countries are unavailable.');
+        }
       } catch (requestError) {
         setError(getErrorMessage(requestError));
       } finally {
@@ -318,7 +327,12 @@ function TravelGuidePage() {
 
       setDestinations(guide.items || []);
       setPagination(guide.pagination || pagination);
-      setStatus(`${guide.items?.length || 0} guide result${guide.items?.length === 1 ? '' : 's'} loaded.`);
+      if (guide.available) {
+        setStatus(`${guide.items?.length || 0} guide result${guide.items?.length === 1 ? '' : 's'} loaded.`);
+      } else {
+        setStatus('');
+        setError(guide.message || 'Travel guides are unavailable.');
+      }
     } catch (requestError) {
       setError(getErrorMessage(requestError));
     } finally {

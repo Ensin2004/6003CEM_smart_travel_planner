@@ -594,7 +594,7 @@ function TransportationSubmenu({
       {activeTransportTab === 'flights' ? (
         <>
           {error && <p className="form-error explore-status">{error}</p>}
-          {status && <p className="form-success explore-status">{status}</p>}
+          {status && !error && <p className="form-success explore-status">{status}</p>}
           {transportBriefing}
 
           {flightResults?.available ? (
@@ -666,7 +666,9 @@ function TransportationSubmenu({
             <section className="explore-results-shell">
               <div className="explore-empty explore-placeholder">
                 <Plane size={34} aria-hidden="true" />
-                <h3>{flightResults?.message || 'Search by route'}</h3>
+                <h3 className={flightResults && !flightResults.available ? 'form-error' : undefined}>
+                  {flightResults?.message || 'Search by route'}
+                </h3>
                 <p>Enter an airline name, choose one or both countries, and optionally set a departure date.</p>
               </div>
             </section>
@@ -675,7 +677,7 @@ function TransportationSubmenu({
       ) : (
         <>
           {error && <p className="form-error explore-status">{error}</p>}
-          {status && <p className="form-success explore-status">{status}</p>}
+          {status && !error && <p className="form-success explore-status">{status}</p>}
           {transportBriefing}
 
           {trainResults?.available ? (
@@ -738,7 +740,9 @@ function TransportationSubmenu({
             <section className="explore-results-shell">
               <div className="explore-empty explore-placeholder">
                 <TrainFront size={34} aria-hidden="true" />
-                <h3>{trainResults?.message || 'Load a station timetable'}</h3>
+                <h3 className={trainResults && !trainResults.available ? 'form-error' : undefined}>
+                  {trainResults?.message || 'Load a station timetable'}
+                </h3>
                 <p>Search by operator, date, station, or leave station empty to use London Euston.</p>
               </div>
             </section>

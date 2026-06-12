@@ -238,7 +238,7 @@ function PlaceSearchWorkspace({
       </form>
 
       {error && <p className="form-error explore-status">{error}</p>}
-      {status && <p className="form-success explore-status">{status}</p>}
+      {status && !error && <p className="form-success explore-status">{status}</p>}
 
       <section className="explore-briefing" aria-label={`${activeOption.label} travel briefing`}>
         {hasResults ? (

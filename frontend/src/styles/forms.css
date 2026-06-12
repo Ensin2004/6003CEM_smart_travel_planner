@@ -95,3 +95,7 @@
   text-align: center;
 }
 
+.form-error {
+  color: var(--color-danger, #b42318);
+}
+
