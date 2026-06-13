@@ -24,6 +24,7 @@ const languageRoutes = require('../modules/language/language.routes');
 const transportationRoutes = require('../modules/transportation/transportation.routes');
 const visitedPlaceRoutes = require('../modules/visitedPlaces/visitedPlace.routes');
 const comparisonRoutes = require('../modules/comparison/comparison.routes');
+const categoryRoutes = require('../modules/categories/category.routes');
 
 const router = express.Router();
 //  route wires  to validation, access checks, and controller logic.
@@ -52,6 +53,7 @@ router.get('/', (req, res) => {
       '/transportation',
       '/visited-places',
       '/comparison',
+      '/categories',
     ],
   });
 });
@@ -113,4 +115,5 @@ router.use('/visited-places', visitedPlaceRoutes);
 
 // Route section connects URL patterns with validation, authentication, and controller actions.
 router.use('/comparison', comparisonRoutes);
+router.use('/categories', categoryRoutes);
 module.exports = router;
