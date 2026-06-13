@@ -4,6 +4,7 @@
  */
 import {
   Home,
+  ListTree,
   LogOut,
   Settings,
   ShieldAlert,
@@ -21,6 +22,7 @@ const settingsChildren = settingsSections.map((section) => ({
 const adminMenu = [
   { to: '/admin', label: 'Home', icon: Home, end: true },
   { to: '/admin/users', label: 'Manage Users', icon: Users },
+  { to: '/admin/categories', label: 'Manage Category', icon: ListTree },
   { to: '/admin/logging-monitoring', label: 'Logging / Monitoring', icon: ShieldAlert },
   { to: '/admin/settings', label: 'Settings', icon: Settings, bottom: true, children: settingsChildren },
   { to: '/login', label: 'Logout', icon: LogOut, bottom: true, action: 'logout' },

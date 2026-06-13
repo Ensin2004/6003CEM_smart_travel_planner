@@ -23,8 +23,9 @@ import {
 } from '../../api/exploreApi';
 import { getFavorites } from '../../api/favoriteApi';
 import { getReverseGeocodeLocation } from '../../api/mapApi';
+import { getCategories } from '../../api/categoryApi';
 import CurrencyContext from '../../context/currencyContext';
-import { attractionCategoryOptions, foodCategoryOptions, roomTypeOptions } from './explore.constants';
+import { emptyCategoryOptions, groupCategoryOptions } from './explore.constants';
 import { formatMoney, getDateKey, getErrorMessage, getPriceConversionKey } from './explore.helpers';
 import AttractionsSubmenu from './submenus/Attractions';
 import RestaurantSubmenu from './submenus/Restaurant';
@@ -176,6 +177,10 @@ function ExplorePage() {
     food: { loaded: 0, priced: 0, rated: 0, topRated: 0 },
     hotels: { loaded: 0, priced: 0, rated: 0, topRated: 0 },
   });
+  const [categoryOptions, setCategoryOptions] = useState(emptyCategoryOptions);
+  const roomTypeOptions = categoryOptions.hotel;
+  const attractionCategoryOptions = categoryOptions.attraction;
+  const foodCategoryOptions = categoryOptions.food;
   const activeOption = useMemo(
     () => viewOptions.find((option) => option.id === activeView) || viewOptions[0],
     [activeView]
@@ -219,6 +224,24 @@ function ExplorePage() {
   const selectedAttractionCategory = attractionSearchCriteria?.attractionCategory ?? attractionFilters.attractionCategory;
   const selectedAttractionCategoryLabel =
     attractionCategoryOptions.find((option) => option.value === selectedAttractionCategory)?.label || 'Any';
+
+  useEffect(() => {
+    let isActive = true;
+
+    getCategories()
+      .then((response) => {
+        if (isActive) {
+          setCategoryOptions(groupCategoryOptions(response.data?.data?.categories || []));
+        }
+      })
+      .catch(() => {
+        if (isActive) setCategoryOptions(emptyCategoryOptions);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
   const submittedSearchCriteria = isHotelsView
     ? hotelSearchCriteria
     : isFoodView
@@ -573,7 +596,7 @@ function ExplorePage() {
         ...currentWeather,
         [viewId]: response.data.data.weather,
       }));
-    } catch (requestError) {
+    } catch {
       setWeatherByView((currentWeather) => ({
         ...currentWeather,
         [viewId]: {
@@ -1270,6 +1293,7 @@ function ExplorePage() {
     activeOption,
     activeWeather,
     countryOptions,
+    categoryOptions,
     destination,
     destinationLabel,
     error: errorScope === activeOption.id ? error : '',

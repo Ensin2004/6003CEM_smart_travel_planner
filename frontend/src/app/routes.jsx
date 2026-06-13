@@ -27,6 +27,7 @@ import NotificationsPage from '../features/notifications/NotificationsPage';
 import AdminDashboard from '../features/admin/AdminDashboard';
 import ApiLogsPage from '../features/admin/ApiLogsPage';
 import ManageUsersPage from '../features/admin/ManageUsersPage';
+import ManageCategoriesPage from '../features/admin/ManageCategoriesPage';
 import SystemErrorsPage from '../features/admin/SystemErrorsPage';
 import AdminSettingsPage from '../features/settings/admin/AdminSettingsPage';
 import UserLayout from '../layouts/UserLayout';
@@ -68,6 +69,7 @@ function AppRoutes() {
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<AdminDashboard />} />
           <Route path="users" element={<ManageUsersPage />} />
+          <Route path="categories" element={<ManageCategoriesPage />} />
           <Route path="api-logs" element={<ApiLogsPage />} />
           <Route path="logging-monitoring" element={<SystemErrorsPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
