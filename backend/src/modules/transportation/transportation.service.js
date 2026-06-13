@@ -1,11 +1,12 @@
 /**
- * Transportation module.
- * Business rules, repository access, and external integrations live in this layer.
+ * Transportation API service for flight search, train timetables, and AI estimates.
+ * Integrates AirLabs, TransportAPI, and Gemini with caching and provider fallbacks.
  */
 const axios = require('axios');
 const env = require('../../config/env');
 const logger = require('../../utils/logger');
 const apiLogService = require('../apiLogs/apiLog.service');
+const { classifyExternalApiError } = require('../../utils/externalApiError');
 const transportationRepository = require('./transportation.repository');
 
 const CACHE_TTL_MS = 10 * 60 * 1000;
@@ -77,7 +78,7 @@ const consumeGeminiQuota = () => {
   aiDailyUsage.count += 1;
   return true;
 };
-const recordAirlabsFailure = (endpoint, message, statusCode, metadata) =>
+const recordAirlabsFailure = (endpoint, message, statusCode, metadata, errorCode) =>
   env.nodeEnv === 'test'
     ? Promise.resolve()
     : apiLogService
@@ -88,11 +89,12 @@ const recordAirlabsFailure = (endpoint, message, statusCode, metadata) =>
           endpoint,
           status: 'fail',
           statusCode,
+          errorCode,
           message,
           metadata,
         })
         .catch((error) => logger.error(`Failed to record AirLabs API event: ${error.message}`));
-const recordTransportApiFailure = (endpoint, message, statusCode, metadata) =>
+const recordTransportApiFailure = (endpoint, message, statusCode, metadata, errorCode) =>
   env.nodeEnv === 'test'
     ? Promise.resolve()
     : apiLogService
@@ -103,67 +105,57 @@ const recordTransportApiFailure = (endpoint, message, statusCode, metadata) =>
           endpoint,
           status: 'fail',
           statusCode,
+          errorCode,
           message,
           metadata,
         })
         .catch((error) => logger.error(`Failed to record TransportAPI event: ${error.message}`));
 const classifyAirlabsError = (error) => {
   if (error.isMissingKey) {
-    return { message: 'Flight service is not configured yet.', statusCode: 502 };
-  }
-  if (error.isDailyLimit) {
-    return { message: 'Daily flight API limit reached. Please try again tomorrow.', statusCode: 429 };
-  }
-  if (error.response?.status === 401 || error.response?.status === 403) {
-    return { message: 'Flight service configuration error', statusCode: 502 };
-  }
-  if (error.response?.status === 429) {
-    return { message: 'Flight API rate limit reached', statusCode: 429 };
-  }
-  if (error.code === 'ECONNABORTED') {
-    return { message: 'Flight service timeout', statusCode: 503 };
-  }
-  if (!error.response) {
-    return { message: 'Flight service network error', statusCode: 503 };
+    return {
+      errorCode: 'INVALID_API_KEY',
+      message: 'Flight service is not configured yet.',
+      statusCode: 502,
+    };
   }
 
-  return { message: 'Flight information temporarily unavailable', statusCode: error.response.status || 503 };
+  return classifyExternalApiError(error, {
+    invalidApiKeyMessage: 'Flight API key is missing, invalid, or unauthorized.',
+    networkMessage: 'Flight service could not be reached.',
+    rateLimitMessage: error.isDailyLimit
+      ? 'Daily flight API limit reached. Please try again tomorrow.'
+      : 'Flight API rate limit reached.',
+    timeoutMessage: 'Flight service request timed out.',
+    unavailableMessage: 'Flight information is temporarily unavailable.',
+  });
 };
 const classifyGeminiError = (error) => {
-  if (error.isDailyLimit) {
-    return { message: 'Daily AI price estimate limit reached.', statusCode: 429 };
-  }
-  if (error.response?.status === 401 || error.response?.status === 403) {
-    return { message: 'AI price estimates are temporarily unavailable.', statusCode: 502 };
-  }
-  if (error.response?.status === 429) {
-    return { message: 'AI price estimates are busy right now.', statusCode: 429 };
-  }
-  if (error.code === 'ECONNABORTED') {
-    return { message: 'AI price estimates took too long.', statusCode: 503 };
-  }
-
-  return { message: 'AI price estimates are temporarily unavailable.', statusCode: error.response?.status || 503 };
+  return classifyExternalApiError(error, {
+    invalidApiKeyMessage: 'AI price estimate API key is invalid or unauthorized.',
+    networkMessage: 'AI price estimate service could not be reached.',
+    rateLimitMessage: error.isDailyLimit
+      ? 'Daily AI price estimate limit reached.'
+      : 'AI price estimates are busy right now.',
+    timeoutMessage: 'AI price estimate request timed out.',
+    unavailableMessage: 'AI price estimates are temporarily unavailable.',
+  });
 };
 const classifyTransportApiError = (error) => {
   if (error.isMissingKey) {
-    return { message: 'Train service is not configured yet.', statusCode: 502 };
-  }
-  if (error.response?.status === 401 || error.response?.status === 403) {
-    return { message: 'Train service configuration error', statusCode: 502 };
-  }
-  if (error.response?.status === 429) {
-    return { message: 'Train API rate limit reached', statusCode: 429 };
-  }
-  if (error.code === 'ECONNABORTED') {
-    return { message: 'Train service timeout', statusCode: 503 };
+    return {
+      errorCode: 'INVALID_API_KEY',
+      message: 'Train service is not configured yet.',
+      statusCode: 502,
+    };
   }
 
-  if (!error.response) {
-    return { message: 'Train service network error', statusCode: 503 };
-  }
-
-  return { message: 'Train information temporarily unavailable', statusCode: error.response.status || 503 };
+  return classifyExternalApiError(error, {
+    invalidApiKeyMessage: 'Train API key is missing, invalid, or unauthorized.',
+    networkMessage: 'Train service could not be reached.',
+    rateLimitMessage: 'Train API rate limit reached.',
+    timeoutMessage: 'Train service request timed out.',
+    unavailableMessage: 'Train information is temporarily unavailable.',
+  });
 };
 // Normalize Text prepares incoming data for consistent storage.
 const normalizeText = (value) => String(value || '').trim();
@@ -176,35 +168,45 @@ const getResponseItems = (response) => {
   if (data && typeof data === 'object') return Object.values(data);
   return [];
 };
+// Fetches data from the AirLabs API with quota tracking and error handling
 const getAirlabs = async (endpoint, params, metadata) => {
+  // Check if the AirLabs API key is configured in the environment
   if (!env.airlabsApiKey) {
     const error = new Error('Missing AirLabs API key');
-    error.isMissingKey = true;
+    error.isMissingKey = true; // Custom flag for missing key detection
     throw error;
   }
 
+  // Enforce daily request quota; if exceeded, throw a daily limit error
   if (!consumeDailyQuota()) {
     const error = new Error('Daily flight API limit reached. Please try again tomorrow.');
-    error.isDailyLimit = true;
+    error.isDailyLimit = true; // Custom flag for daily limit detection
     throw error;
   }
 
   try {
+    // Make the actual API request to AirLabs
     const response = await airlabsClient.get(endpoint, {
       params: {
-        ...params,
-        api_key: env.airlabsApiKey,
+        ...params,               // Merge user-provided params
+        api_key: env.airlabsApiKey, // Append API key
       },
     });
 
+    // If the response contains an error field, treat it as a failed request
     if (response.data?.error) {
       throw new Error(response.data.error.message || response.data.error);
     }
 
-    return response;
+    return response; // Successful response returned
   } catch (error) {
-    const { message, statusCode } = classifyAirlabsError(error);
-    recordAirlabsFailure(endpoint.replace('/', ''), message, statusCode, metadata);
+    // Classify the error (e.g., network, rate limit, invalid key) to get structured info
+    const { errorCode, message, statusCode } = classifyAirlabsError(error);
+    
+    // Log the failure for monitoring or debugging purposes
+    recordAirlabsFailure(endpoint.replace('/', ''), message, statusCode, metadata, errorCode);
+    
+    // Re-throw the original error so the caller can handle it
     throw error;
   }
 };
@@ -230,8 +232,8 @@ const getTransportApi = async (endpoint, params, metadata) => {
 
     return response;
   } catch (error) {
-    const { message, statusCode } = classifyTransportApiError(error);
-    recordTransportApiFailure(endpoint, message, statusCode, metadata);
+    const { errorCode, message, statusCode } = classifyTransportApiError(error);
+    recordTransportApiFailure(endpoint, message, statusCode, metadata, errorCode);
     throw error;
   }
 };
@@ -851,16 +853,21 @@ const addPriceEstimates = async ({ flights, query }) => {
   try {
     return await attachGeminiPriceEstimates({ flights, query });
   } catch (error) {
-    const { message, statusCode } = classifyGeminiError(error);
+    const { errorCode, message, statusCode } = classifyGeminiError(error);
     recordAirlabsFailure('flight-price-estimate', message, statusCode, {
       fromCountryCode: query.fromCountryCode,
       toCountryCode: query.toCountryCode,
       airlineName: query.airlineName,
-    });
+    }, errorCode);
     return attachFallbackPriceEstimates(flights, message);
   }
 };
 
+/**
+ * Resolves airports and retrieves matching flight schedules and live-flight data.
+ * @param {object} input Route, date, airline, pagination, and filter criteria.
+ * @returns {Promise<object>} Normalized flights with optional price estimates.
+ */
 const getFlightsBySearch = async ({
   airlineName,
   fromCountryCode,
@@ -966,9 +973,9 @@ const getFlightsBySearch = async ({
 
     return data;
   } catch (error) {
-    const { message, statusCode } = classifyAirlabsError(error);
-    recordAirlabsFailure('flight-search', message, statusCode, { fromCountryCode, toCountryCode, airlineName });
-    return fallbackFlights(message);
+    const { errorCode, message, statusCode } = classifyAirlabsError(error);
+    recordAirlabsFailure('flight-search', message, statusCode, { fromCountryCode, toCountryCode, airlineName }, errorCode);
+    return { ...fallbackFlights(message), errorCode };
   }
 };
 
@@ -1581,12 +1588,12 @@ const estimateTrainDistance = async ({ service, stops }) => {
           : buildUnavailableTrainPriceEstimate('Gemini did not return a usable price estimate.'),
     };
   } catch (error) {
-    const { message, statusCode } = classifyGeminiError(error);
+    const { errorCode, message, statusCode } = classifyGeminiError(error);
     recordAirlabsFailure('train-distance-estimate', message, statusCode, {
       originName: service.originName,
       destinationName: service.destinationName,
       trainUid: service.trainUid,
-    });
+    }, errorCode);
     return {
       distanceEstimate: buildUnavailableTrainDistanceEstimate(message),
       priceEstimate: buildUnavailableTrainPriceEstimate(message),
@@ -1731,10 +1738,10 @@ const attachTrainRowAiEstimates = async (departures = []) => {
       };
     });
   } catch (error) {
-    const { message, statusCode } = classifyGeminiError(error);
+    const { errorCode, message, statusCode } = classifyGeminiError(error);
     recordAirlabsFailure('train-row-estimate', message, statusCode, {
       count: trainsNeedingEstimates.length,
-    });
+    }, errorCode);
     return departures;
   }
 };
@@ -1892,6 +1899,11 @@ const enrichStationDeparturesWithDestinationArrivals = async (departures = []) =
   return enrichedDepartures;
 };
 
+/**
+ * Retrieves departures for a station and enriches rows with destination arrivals.
+ * @param {object} input Station identifier or query and optional date filters.
+ * @returns {Promise<object>} Normalized station timetable and estimate metadata.
+ */
 const getTrainStationTimetable = async ({ stationCode, stationQuery, departureDate, arrivalDate }) => {
   const normalizedStationQuery = normalizeText(stationQuery || stationCode || DEFAULT_TRAIN_STATION_QUERY);
   const normalizedDepartureDate = normalizeText(departureDate);
@@ -1943,13 +1955,13 @@ const getTrainStationTimetable = async ({ stationCode, stationQuery, departureDa
 
     return result;
   } catch (error) {
-    const { message, statusCode } = classifyTransportApiError(error);
+    const { errorCode, message, statusCode } = classifyTransportApiError(error);
     recordTransportApiFailure('train-station-timetable', message, statusCode, {
       stationQuery: normalizedStationQuery,
       departureDate,
       arrivalDate,
-    });
-    return fallbackTrains(message);
+    }, errorCode);
+    return { ...fallbackTrains(message), errorCode };
   }
 };
 
@@ -1971,6 +1983,11 @@ const getTrainActualJourney = async ({ actualRid }) => {
   return normalizeActualJourney(response.data || {});
 };
 
+/**
+ * Retrieves the stop-by-stop timetable for a selected train service.
+ * @param {object} input Scheduled or actual journey identifiers.
+ * @returns {Promise<object>} Service stops, journey details, and segment estimates.
+ */
 const getTrainServiceTimetable = async ({ serviceIdentifier, trainUid, serviceDate, actualRid }) => {
   const normalizedServiceIdentifier = normalizeText(serviceIdentifier || (trainUid ? `train_uid:${trainUid}` : ''));
   const normalizedServiceDate = normalizeText(serviceDate);
@@ -2049,14 +2066,15 @@ const getTrainServiceTimetable = async ({ serviceIdentifier, trainUid, serviceDa
 
     return result;
   } catch (error) {
-    const { message, statusCode } = classifyTransportApiError(error);
+    const { errorCode, message, statusCode } = classifyTransportApiError(error);
     recordTransportApiFailure('train-service-timetable', message, statusCode, {
       serviceIdentifier: normalizedServiceIdentifier,
       serviceDate: normalizedServiceDate,
       actualRid,
-    });
+    }, errorCode);
     return {
       available: false,
+      errorCode,
       message,
       stops: [],
       performance: null,

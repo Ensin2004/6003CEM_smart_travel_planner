@@ -27,11 +27,12 @@ import { getVisitedPlaces } from '../../api/visitedPlaceApi';
 import PlaceCard from '../../components/place/PlaceCard';
 import CurrencyContext from '../../context/currencyContext';
 import { buildVisitedLookup, getVisitedPlacePayload } from '../../components/visitedPlaces/visitedPlaceUtils';
+import { getApiErrorMessage } from '../../utils/apiError';
 import { formatMoney, getPriceConversionKey } from '../explore/explore.helpers';
 import './TravelGuidePage.css';
 const getDateKey = () => new Date().toISOString().slice(0, 10);
 const getErrorMessage = (error) =>
-  error.response?.data?.message || error.response?.data?.error || error.message || 'Unable to load this guide right now.';
+  getApiErrorMessage(error, 'Unable to load this guide right now.');
 
 const categoryOptions = [
   { id: 'all', label: 'All', icon: Sparkles },

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getAdminUsers, removeAdminUser } from '../../api/adminUserApi';
+import { getApiErrorMessage } from '../../utils/apiError';
 import './ManageUsersPage.css';
 
 const roleOptions = [
@@ -39,7 +40,7 @@ const formatDate = (value) => {
   }).format(new Date(value));
 };
 const getErrorMessage = (error) =>
-  error.response?.data?.message || 'Unable to load user accounts.';
+  getApiErrorMessage(error, 'Unable to load user accounts.');
 // Format Category Label converts raw values into readable display text.
 const formatCategoryLabel = (category = 'none') =>
   category

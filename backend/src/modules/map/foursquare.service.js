@@ -4,6 +4,7 @@
 const axios = require('axios');
 const env = require('../../config/env');
 const apiLogService = require('../apiLogs/apiLog.service');
+const { classifyExternalApiError } = require('../../utils/externalApiError');
 
 const foursquareClient = axios.create({
   baseURL: 'https://places-api.foursquare.com/places',
@@ -40,22 +41,16 @@ const getHeaders = () => ({
 });
 
 const getFoursquareFailureMessage = (error) => {
-  const statusCode = error.response?.status || 503;
-
-  if (statusCode === 401 || statusCode === 403) {
-    return { message: 'Foursquare API credentials are invalid or unauthorized.', statusCode };
-  }
-  if (statusCode === 429) {
-    return { message: 'Foursquare API rate limit reached. Please try again later.', statusCode };
-  }
-
-  return {
-    message: error.response?.data?.message || error.message || 'Foursquare places are temporarily unavailable.',
-    statusCode,
-  };
+  return classifyExternalApiError(error, {
+    invalidApiKeyMessage: 'Foursquare API key is invalid or unauthorized.',
+    networkMessage: 'Foursquare could not be reached.',
+    rateLimitMessage: 'Foursquare API rate limit reached. Please try again later.',
+    timeoutMessage: 'Foursquare request timed out.',
+    unavailableMessage: 'Foursquare places are temporarily unavailable.',
+  });
 };
 
-const recordFoursquareFailure = (endpoint, message, statusCode, metadata) =>
+const recordFoursquareFailure = (endpoint, message, statusCode, metadata, errorCode) =>
   env.nodeEnv === 'test'
     ? Promise.resolve()
     : apiLogService
@@ -66,11 +61,17 @@ const recordFoursquareFailure = (endpoint, message, statusCode, metadata) =>
           endpoint,
           status: 'fail',
           statusCode,
+          errorCode,
           message,
           metadata,
         })
         .catch(() => {});
 
+/**
+ * Searches Foursquare places near a coordinate.
+ * @param {object} input Search text, coordinates, and result limit.
+ * @returns {Promise<Array<object>>} Raw provider place rows for map normalization.
+ */
 const searchFoursquarePlaces = async ({ query, latitude, longitude, limit = 30 }) => {
   const response = await foursquareClient.get('/search', {
     headers: getHeaders(),
@@ -85,6 +86,11 @@ const searchFoursquarePlaces = async ({ query, latitude, longitude, limit = 30 }
   return Array.isArray(response.data?.results) ? response.data.results : [];
 };
 
+/**
+ * Retrieves expanded Foursquare details for one place.
+ * @param {string} placeId Foursquare place identifier.
+ * @returns {Promise<object|null>} Provider detail record when found.
+ */
 const getFoursquarePlace = async (placeId) => {
   const response = await foursquareClient.get(`/${encodeURIComponent(placeId)}`, {
     headers: getHeaders(),

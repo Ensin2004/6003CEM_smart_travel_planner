@@ -22,9 +22,10 @@ import CompareButton from '../../components/compare/CompareButton';
 import VisitedPlaceControl from '../../components/visitedPlaces/VisitedPlaceControl';
 import { buildVisitedLookup, getVisitedPlacePayload } from '../../components/visitedPlaces/visitedPlaceUtils';
 import useAuth from '../../hooks/useAuth';
+import { getApiErrorMessage } from '../../utils/apiError';
 import './TravelGuidePage.css';
 const getErrorMessage = (error) =>
-  error.response?.data?.message || error.response?.data?.error || error.message || 'Unable to load travel guides right now.';
+  getApiErrorMessage(error, 'Unable to load travel guides right now.');
 
 const regionFilters = {
   All: '',

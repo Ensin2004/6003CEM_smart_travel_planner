@@ -4,6 +4,7 @@
  */
 const catchAsync = require('../../utils/catchAsync');
 const { sendSuccess } = require('../../utils/apiResponse');
+const ensureApiResult = require('../../utils/ensureApiResult');
 const transportationService = require('./transportation.service');
 const getFlight = catchAsync(async (req, res) => {
   const flights = await transportationService.getFlightsBySearch({
@@ -15,7 +16,9 @@ const getFlight = catchAsync(async (req, res) => {
     departureDate: req.query.departureDate,
   });
 
-  sendSuccess(res, 200, { flights });
+  sendSuccess(res, 200, { flights: ensureApiResult(flights, {
+    noResultsMessage: 'No matching flights found.',
+  }) });
 });
 const getTrainStationTimetable = catchAsync(async (req, res) => {
   const trains = await transportationService.getTrainStationTimetable({
@@ -25,7 +28,9 @@ const getTrainStationTimetable = catchAsync(async (req, res) => {
     arrivalDate: req.query.arrivalDate,
   });
 
-  sendSuccess(res, 200, { trains });
+  sendSuccess(res, 200, { trains: ensureApiResult(trains, {
+    noResultsMessage: 'No trains found for this station.',
+  }) });
 });
 const getTrainServiceTimetable = catchAsync(async (req, res) => {
   const timetable = await transportationService.getTrainServiceTimetable({
@@ -35,6 +40,9 @@ const getTrainServiceTimetable = catchAsync(async (req, res) => {
     actualRid: req.query.actualRid,
   });
 
-  sendSuccess(res, 200, { timetable });
+  sendSuccess(res, 200, { timetable: ensureApiResult(timetable, {
+    itemPaths: ['stops'],
+    noResultsMessage: 'No calling points found for this train.',
+  }) });
 });
 module.exports = { getFlight, getTrainStationTimetable, getTrainServiceTimetable };

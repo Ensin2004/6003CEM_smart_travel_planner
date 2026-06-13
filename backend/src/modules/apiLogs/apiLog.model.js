@@ -23,6 +23,8 @@ const apiLogSchema = new mongoose.Schema(
     endpoint: { type: String, trim: true },
     status: { type: String, enum: ['success', 'fail', 'error'], required: true },
     statusCode: Number,
+    errorCode: { type: String, required: true, trim: true, uppercase: true, index: true },
+    requestId: { type: String, required: true, trim: true, index: true },
     message: { type: String, trim: true },
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', index: true },
     metadata: {

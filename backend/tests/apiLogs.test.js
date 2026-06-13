@@ -51,7 +51,11 @@ describe('API log monitoring service', () => {
     });
 
     expect(apiLogRepository.findMany).toHaveBeenCalledWith({
-      filter: { category: 'api' },
+      filter: {
+        category: 'api',
+        errorCode: { $exists: true, $nin: [null, ''] },
+        requestId: { $exists: true, $nin: [null, ''] },
+      },
       limit: 10,
       page: 1,
     });
@@ -99,6 +103,8 @@ describe('API log monitoring service', () => {
       category: 'api',
       severity: 'info',
       status: 'fail',
+      errorCode: 'REQUEST_FAILED',
+      requestId: expect.any(String),
       metadata: {
         failedAttempts: '2',
       },
@@ -119,9 +125,57 @@ describe('API log monitoring service', () => {
       category: 'api',
       severity: 'info',
       status: 'fail',
+      errorCode: 'REQUEST_FAILED',
+      requestId: expect.any(String),
       metadata: {
         attemptedEmailMasked: 't***@example.com',
       },
     });
+  });
+
+  test('stores standardized error code and request ID as searchable fields', async () => {
+    apiLogRepository.create.mockResolvedValue({});
+
+    await apiLogService.recordEvent({
+      service: 'server',
+      category: 'system',
+      severity: 'error',
+      status: 'error',
+      statusCode: 500,
+      errorCode: 'DATABASE_UNAVAILABLE',
+      requestId: 'request-123',
+      message: 'Database connection failed',
+    });
+
+    expect(apiLogRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        errorCode: 'DATABASE_UNAVAILABLE',
+        requestId: 'request-123',
+      })
+    );
+  });
+
+  test('filters monitoring logs by standardized error code and request ID', async () => {
+    apiLogRepository.findMany.mockResolvedValue([]);
+    apiLogRepository.countMany.mockResolvedValue(0);
+    apiLogRepository.countSince.mockResolvedValue(0);
+    apiLogRepository.aggregateCategoryCounts.mockResolvedValue([]);
+    apiLogRepository.aggregateStatusCounts.mockResolvedValue([]);
+    apiLogRepository.aggregateSeverityCounts.mockResolvedValue([]);
+    apiLogRepository.aggregateDailyCounts.mockResolvedValue([]);
+
+    await apiLogService.getMonitoring({
+      errorCode: 'internal_server_error',
+      requestId: 'request-123',
+    });
+
+    expect(apiLogRepository.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filter: {
+          errorCode: 'INTERNAL_SERVER_ERROR',
+          requestId: expect.any(RegExp),
+        },
+      })
+    );
   });
 });

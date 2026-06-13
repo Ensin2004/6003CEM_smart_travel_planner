@@ -10,7 +10,7 @@ const register = catchAsync(async (req, res) => {
   sendSuccess(res, 201, result, 'Registration successful');
 });
 const login = catchAsync(async (req, res) => {
-  const result = await authService.login(req.body);
+  const result = await authService.login(req.body, { requestId: req.requestId });
   sendSuccess(res, 200, result, 'Login successful');
 });
 const refresh = catchAsync(async (req, res) => {

@@ -106,22 +106,26 @@ const getLockedAccountLabel = async (log) => {
 };
 
 const notifyAdminsOfApiLog = async (log) => {
-  const isRateLimit = log.category === 'rate-limit';
-  const isLoginLock =
-    log.category === 'auth' &&
-    log.statusCode === 429 &&
-    log.message === 'Account locked after repeated failed login attempts';
+  const { errorCode, requestId } = log;
+  const isRateLimit = errorCode === 'RATE_LIMIT_EXCEEDED';
+  const isLoginLock = errorCode === 'ACCOUNT_LOCKED';
   const isError = log.status === 'error' || ['error', 'critical'].includes(log.severity);
 
   if (!isRateLimit && !isLoginLock && !isError) return Promise.resolve([]);
 
-  const title = isLoginLock ? 'Account Lockout Alert' : isRateLimit ? 'Rate limit alert' : 'System error logged';
+  const title = isLoginLock
+    ? 'Account Lockout Alert'
+    : isRateLimit
+      ? 'Rate limit alert'
+      : `System error${errorCode ? `: ${errorCode}` : ''}`;
   const statusText = log.statusCode ? ` (${log.statusCode})` : '';
   const endpointText = log.endpoint ? ` on ${log.endpoint}` : '';
+  const codeText = errorCode ? ` [${errorCode}]` : '';
+  const requestText = requestId ? ` Request ID: ${requestId}.` : '';
   const lockedAccount = isLoginLock ? await getLockedAccountLabel(log) : null;
   const message = isLoginLock
-    ? `A user account (${lockedAccount}) was locked after repeated failed login attempts. Review the authentication logs for possible brute-force activity.`
-    : `${log.service || 'System'}${endpointText} recorded ${log.category || 'api'} ${log.status || 'event'}${statusText}: ${log.message}`;
+    ? `A user account (${lockedAccount}) was locked after repeated failed login attempts.${requestText} Review the authentication logs for possible brute-force activity.`
+    : `${log.service || 'System'}${endpointText} recorded ${log.category || 'api'} ${log.status || 'event'}${statusText}${codeText}: ${log.message || 'No message recorded'}.${requestText}`;
 
   return notifyAdmins({
     type: isLoginLock ? 'admin-login-lock' : isRateLimit ? 'admin-rate-limit' : 'admin-error-log',
@@ -134,6 +138,8 @@ const notifyAdminsOfApiLog = async (log) => {
       severity: log.severity,
       status: log.status,
       statusCode: log.statusCode,
+      errorCode,
+      requestId,
       service: log.service,
       endpoint: log.endpoint,
     },

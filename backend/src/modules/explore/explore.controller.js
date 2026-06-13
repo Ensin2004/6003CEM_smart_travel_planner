@@ -4,6 +4,7 @@
  */
 const catchAsync = require('../../utils/catchAsync');
 const { sendSuccess } = require('../../utils/apiResponse');
+const ensureApiResult = require('../../utils/ensureApiResult');
 const exploreService = require('./explore.service');
 const getWeather = catchAsync(async (req, res) => {
   const weather = await exploreService.getWeatherByDestination(req.query.destination, req.query.date, {
@@ -11,7 +12,10 @@ const getWeather = catchAsync(async (req, res) => {
     longitude: req.query.longitude,
     locationLabel: req.query.locationLabel,
   });
-  sendSuccess(res, 200, { weather });
+  sendSuccess(res, 200, { weather: ensureApiResult(weather, {
+    itemPaths: ['available'],
+    noResultsMessage: 'No weather results found for this destination.',
+  }) });
 });
 const getAttractions = catchAsync(async (req, res) => {
   const attractions = await exploreService.getAttractionsByDestination({
@@ -21,7 +25,9 @@ const getAttractions = catchAsync(async (req, res) => {
     attractionCategory: req.query.attractionCategory,
     start: req.query.start,
   });
-  sendSuccess(res, 200, { attractions });
+  sendSuccess(res, 200, { attractions: ensureApiResult(attractions, {
+    noResultsMessage: 'No attractions found for this search.',
+  }) });
 });
 const getAttractionDetail = catchAsync(async (req, res) => {
   const attraction = await exploreService.getAttractionDetail({
@@ -40,7 +46,9 @@ const getHotels = catchAsync(async (req, res) => {
     roomType: req.query.roomType,
     start: req.query.start,
   });
-  sendSuccess(res, 200, { hotels });
+  sendSuccess(res, 200, { hotels: ensureApiResult(hotels, {
+    noResultsMessage: 'No hotels found for this search.',
+  }) });
 });
 const getHotelDetail = catchAsync(async (req, res) => {
   const hotel = await exploreService.getHotelDetail({
@@ -59,7 +67,9 @@ const getRestaurants = catchAsync(async (req, res) => {
     foodCategory: req.query.foodCategory,
     start: req.query.start,
   });
-  sendSuccess(res, 200, { restaurants });
+  sendSuccess(res, 200, { restaurants: ensureApiResult(restaurants, {
+    noResultsMessage: 'No restaurants found for this search.',
+  }) });
 });
 const getRestaurantDetail = catchAsync(async (req, res) => {
   const restaurant = await exploreService.getRestaurantDetail({

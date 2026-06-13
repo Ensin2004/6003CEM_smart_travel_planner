@@ -129,6 +129,18 @@ function NotificationsPage() {
                     <h2>{notification.title}</h2>
                   </div>
                   <p>{notification.message}</p>
+                  {(notification.metadata?.errorCode || notification.metadata?.requestId) && (
+                    <div className="notification-error-context">
+                      {notification.metadata.errorCode && (
+                        <code>{notification.metadata.errorCode}</code>
+                      )}
+                      {notification.metadata.requestId && (
+                        <span title={notification.metadata.requestId}>
+                          Request ID: {notification.metadata.requestId}
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="notification-row-actions">
                   <time>{formatNotificationTime(notification.sentAt || notification.createdAt)}</time>

@@ -2,12 +2,10 @@
  * Explore module.
  * Small utilities keep repeated formatting and transformation logic reusable.
  */
+import { getApiErrorMessage } from '../../utils/apiError';
+
 export const getErrorMessage = (error) =>
-  error.response?.data?.errors?.[0]?.message ||
-  error.response?.data?.message ||
-  error.response?.data?.error ||
-  error.message ||
-  'Unable to search right now.';
+  getApiErrorMessage(error, 'Unable to search right now.');
 export const getDateKey = (date = new Date()) => date.toISOString().slice(0, 10);
 export const getMinWeatherDate = () => '2015-01-01';
 export const getMaxWeatherDate = () => {

@@ -66,11 +66,12 @@ const getPlaceReviews = async ({ dataId, placeId, allPages = true }) => {
       lastUpdated: reviewPages[reviewPages.length - 1]?.lastUpdated || new Date().toISOString(),
     };
   } catch (error) {
-    const { message, statusCode } = getGoogleMapsFailureMessage(error);
-    recordGoogleMapsFailure('place-reviews', message, statusCode, { dataId, placeId });
+    const { errorCode, message, statusCode } = getGoogleMapsFailureMessage(error);
+    recordGoogleMapsFailure('place-reviews', message, statusCode, { dataId, placeId }, errorCode);
 
     return {
       available: false,
+      errorCode,
       message,
       items: [],
     };

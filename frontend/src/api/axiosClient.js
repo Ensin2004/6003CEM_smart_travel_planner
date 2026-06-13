@@ -19,6 +19,7 @@ export const apiBaseURL = baseURL;
 
 const axiosClient = axios.create({
   baseURL,
+  timeout: 30000,
 });
 const clearSessionAndRedirect = () => {
   localStorage.removeItem('accessToken');

@@ -24,7 +24,11 @@ const formatLockMinutes = (lockUntil) => Math.ceil(getLockRetrySeconds(lockUntil
 // Lockout errors carry retry timing so the API response can set headers and guide the login screen.
 const createAccountLockedError = (lockUntil) => {
   const retryAfterSeconds = getLockRetrySeconds(lockUntil);
-  const error = new AppError(`Too many failed login attempts. Please try again in ${formatLockMinutes(lockUntil)} minute(s).`, 429);
+  const error = new AppError(
+    `Too many failed login attempts. Please try again in ${formatLockMinutes(lockUntil)} minute(s).`,
+    429,
+    'ACCOUNT_LOCKED'
+  );
   error.retryAfterSeconds = retryAfterSeconds;
   error.retryAfter = retryAfterSeconds;
   return error;
@@ -107,8 +111,11 @@ const sendUserVerificationEmail = async (user) => {
 
 // The login screen uses this custom error code to show a resend-verification action.
 const createEmailNotVerifiedError = (user) => {
-  const error = new AppError('Please verify your email before logging in. We sent a new verification link to your inbox.', 403);
-  error.code = 'EMAIL_NOT_VERIFIED';
+  const error = new AppError(
+    'Please verify your email before logging in. We sent a new verification link to your inbox.',
+    403,
+    'EMAIL_NOT_VERIFIED'
+  );
   error.email = user.email;
   error.verificationExpiresAt = user.emailVerificationExpiresAt;
   return error;
@@ -136,7 +143,7 @@ const register = async (data) => {
   return { user, email: user.email, verificationExpiresAt };
 };
 
-const login = async ({ email, password }) => {
+const login = async ({ email, password }, { requestId } = {}) => {
   const user = await authRepository.findByEmail(email, true);
 
   // Unknown accounts are logged without a user id so repeated probing can still be reviewed.
@@ -148,6 +155,8 @@ const login = async ({ email, password }) => {
       endpoint: '/auth/login',
       status: 'fail',
       statusCode: 401,
+      errorCode: 'INVALID_CREDENTIALS',
+      requestId,
       message: 'Failed login attempt for unknown account',
       attemptedEmail: email,
     });
@@ -169,6 +178,8 @@ const login = async ({ email, password }) => {
       endpoint: '/auth/login',
       status: 'fail',
       statusCode: 429,
+      errorCode: 'ACCOUNT_LOCKED_ATTEMPT',
+      requestId,
       message: 'Blocked login attempt for locked account',
       userId: user._id,
     });
@@ -196,6 +207,8 @@ const login = async ({ email, password }) => {
         endpoint: '/auth/login',
         status: 'fail',
         statusCode: 429,
+        errorCode: 'ACCOUNT_LOCKED',
+        requestId,
         message: 'Account locked after repeated failed login attempts',
         userId: user._id,
       });
@@ -213,6 +226,8 @@ const login = async ({ email, password }) => {
       endpoint: '/auth/login',
       status: 'fail',
       statusCode: 401,
+      errorCode: 'INVALID_CREDENTIALS',
+      requestId,
       message: 'Failed login attempt',
       userId: user._id,
       metadata: {
