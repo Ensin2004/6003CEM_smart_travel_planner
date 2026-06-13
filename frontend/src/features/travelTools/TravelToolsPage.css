@@ -3925,3 +3925,773 @@
     padding: 14px;
   }
 }
+
+/* Packing workspace mirrors the document-management layout while preserving packing controls. */
+.packing-redesign {
+  gap: 14px;
+  color: #17212b;
+}
+
+.packing-redesign .document-command-header {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(520px, 1.35fr);
+  gap: 24px;
+  padding: 22px 24px;
+  border: 1px solid rgba(15, 118, 110, 0.16);
+  border-radius: 8px;
+  background: var(--gradient-bright-surface);
+  color: var(--ink);
+  box-shadow: 0 10px 24px rgba(16, 42, 67, 0.045);
+}
+
+.packing-redesign .document-command-title {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.packing-redesign .document-command-icon {
+  display: grid;
+  width: 48px;
+  height: 48px;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid rgba(15, 118, 110, 0.16);
+  border-radius: 8px;
+  background: #dff8ef;
+  color: #0f766e;
+}
+
+.packing-redesign .document-command-title p,
+.packing-redesign .document-command-title span {
+  margin: 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.packing-redesign .document-command-title p {
+  margin-bottom: 3px;
+  color: #0f766e;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.packing-redesign .document-command-title h2 {
+  margin: 0 0 4px;
+  color: var(--navy);
+  font-size: 25px;
+  font-weight: 650;
+  line-height: 1.15;
+}
+
+.packing-redesign .document-view-actions {
+  display: inline-flex;
+  align-self: center;
+  justify-self: end;
+  gap: 5px;
+  padding: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 5px 12px rgba(16, 42, 67, 0.045);
+}
+
+.packing-redesign .document-view-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #64748b;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.packing-redesign .document-view-actions button.active {
+  background: #0f766e;
+  color: #ffffff;
+}
+
+.packing-redesign .document-view-actions button span {
+  display: grid;
+  min-width: 20px;
+  height: 20px;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  font-size: 11px;
+}
+
+.packing-redesign .document-loading-page {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-content: center;
+  align-items: center;
+  gap: 18px 20px;
+  min-height: min(620px, calc(100vh - 180px));
+  padding: 36px;
+  border: 1px solid #d9e2ec;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 12px 28px rgba(23, 33, 43, 0.08);
+}
+
+.packing-redesign .document-loading-mark {
+  position: relative;
+  display: grid;
+  width: 64px;
+  height: 64px;
+  place-items: center;
+  grid-row: 1 / 3;
+  border-radius: 8px;
+  background: #17212b;
+  color: #5eead4;
+}
+
+.packing-redesign .document-loading-mark .travel-tools-spinner {
+  position: absolute;
+  right: -7px;
+  bottom: -7px;
+  width: 25px;
+  height: 25px;
+  border-width: 3px;
+  border-color: #b7ddd8;
+  border-top-color: #0f766e;
+  background: #ffffff;
+}
+
+.packing-redesign .document-loading-page p,
+.packing-redesign .document-loading-page h2,
+.packing-redesign .document-loading-page span {
+  margin: 0;
+}
+
+.packing-redesign .document-loading-page p {
+  margin-bottom: 4px;
+  color: #0f766e;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.packing-redesign .document-loading-page h2 {
+  margin-bottom: 5px;
+  color: #17212b;
+  font-size: 25px;
+  font-weight: 650;
+}
+
+.packing-redesign .document-loading-page div > span {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.packing-redesign .document-loading-lines {
+  display: grid;
+  grid-column: 2;
+  gap: 7px;
+  width: min(100%, 390px);
+}
+
+.packing-redesign .document-loading-lines span {
+  height: 7px;
+  border-radius: 4px;
+  background: #e7edf3;
+  animation: document-loading-pulse 1.2s ease-in-out infinite alternate;
+}
+
+.packing-redesign .document-loading-lines span:nth-child(2) {
+  width: 78%;
+  animation-delay: 0.18s;
+}
+
+.packing-redesign .document-loading-lines span:nth-child(3) {
+  width: 56%;
+  animation-delay: 0.36s;
+}
+
+.packing-redesign .document-create-deck {
+  gap: 16px;
+  padding: 18px;
+  border: 1px solid #d9e2ec;
+  border-left: 4px solid #0f766e;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.packing-redesign .document-create-deck .travel-tools-panel-heading {
+  align-items: center;
+  padding-bottom: 13px;
+  border-bottom: 1px solid #e7edf3;
+}
+
+.packing-redesign .document-create-deck .travel-tools-panel-heading span {
+  color: #17212b;
+  font-size: 17px;
+  font-weight: 650;
+  text-transform: none;
+}
+
+.packing-redesign .document-create-deck .travel-tools-panel-heading h3 {
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.packing-redesign .document-create-mode-actions {
+  display: inline-flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.packing-redesign .document-create-mode-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid #d9e2ec;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #52606d;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  box-shadow: 0 4px 10px rgba(23, 33, 43, 0.04);
+}
+
+.packing-redesign .document-create-mode-actions button.active {
+  border-color: #0f766e;
+  background: #0f766e;
+  color: #ffffff;
+  box-shadow: 0 6px 14px rgba(15, 118, 110, 0.16);
+}
+
+.packing-redesign .document-create-mode-actions button:not(.active):hover {
+  border-color: #b7ddd8;
+  background: #f0fdfa;
+  color: #0f766e;
+}
+
+.packing-redesign .document-create-fields-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 14px;
+}
+
+.packing-redesign .document-create-fields-row .travel-tools-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 0;
+}
+
+.packing-redesign .document-create-submit {
+  min-width: 132px;
+  min-height: 42px;
+}
+
+.packing-redesign .document-template-library {
+  display: grid;
+  gap: 12px;
+  padding-top: 2px;
+}
+
+.packing-redesign .document-template-library .document-template-picker {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  overflow: visible;
+}
+
+.packing-redesign .document-template-library .document-template-card {
+  min-height: 210px;
+  border-color: #d9e2ec;
+  border-radius: 6px;
+  background: #f8fafc;
+  box-shadow: none;
+}
+
+.packing-redesign .document-template-library .document-template-card.active,
+.packing-redesign .document-template-library .document-template-card:hover {
+  border-color: #0f766e;
+  background: #ffffff;
+  box-shadow: inset 0 3px #0f766e;
+}
+
+.packing-redesign .document-template-library .document-template-select div {
+  max-height: none;
+}
+
+.packing-redesign .document-template-library .document-template-menu-panel {
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(23, 33, 43, 0.84);
+  box-shadow: 0 16px 38px rgba(23, 33, 43, 0.26);
+  backdrop-filter: blur(14px);
+}
+
+.packing-redesign .document-template-library .document-template-menu-panel button {
+  color: #f8fafc;
+}
+
+.packing-redesign .document-template-library .document-template-menu-panel button:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #5eead4;
+}
+
+.packing-redesign .document-template-library .document-template-menu-panel button:last-child:hover {
+  background: rgba(127, 29, 29, 0.5);
+  color: #fecaca;
+}
+
+.packing-redesign .document-workbench {
+  grid-template-columns: minmax(250px, 286px) minmax(0, 1fr);
+  gap: 14px;
+}
+
+.packing-redesign .document-workbench .packing-side-panel {
+  display: block;
+  padding: 0;
+  overflow: visible;
+  border: 1px solid #d9e2ec;
+  border-radius: 6px;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.packing-redesign .document-workbench .travel-tools-side-section {
+  padding: 16px;
+  border: 0;
+}
+
+.packing-redesign .document-workbench .travel-tools-list-stack {
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.packing-redesign .document-workbench .travel-tools-list-card {
+  position: relative;
+  min-height: 54px;
+  padding: 9px 10px 9px 14px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: transparent;
+  box-shadow: none;
+}
+
+.packing-redesign .document-workbench .travel-tools-list-card::before {
+  content: "";
+  position: absolute;
+  top: 9px;
+  bottom: 9px;
+  left: 5px;
+  width: 3px;
+  border-radius: 2px;
+  background: #cbd5e1;
+}
+
+.packing-redesign .document-workbench .travel-tools-list-card.active {
+  border-color: #b7ddd8;
+  background: #ecfdf5;
+  box-shadow: none;
+}
+
+.packing-redesign .document-workbench .travel-tools-list-card.active::before {
+  background: #0f766e;
+}
+
+.packing-redesign .document-workbench .packing-workspace-detail {
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #d9e2ec;
+  border-radius: 6px;
+  background: #ffffff;
+  box-shadow: none;
+}
+
+.packing-redesign .document-workbench .packing-workspace-detail > .travel-tools-detail-header {
+  padding: 18px 20px;
+  border-bottom: 1px solid #d9e2ec;
+  background: #f8fafc;
+}
+
+.packing-redesign .document-workbench .packing-workspace-fields {
+  grid-template-columns: minmax(0, 1fr);
+  padding: 16px 20px;
+  border-bottom: 1px solid #e7edf3;
+}
+
+.packing-redesign .document-workbench .packing-workspace-controls {
+  border: 0;
+  border-radius: 0;
+}
+
+.packing-redesign .document-workbench .travel-tools-actions-menu > div,
+.packing-redesign .packing-template-popup .travel-tools-actions-menu > div {
+  gap: 5px;
+  padding: 7px;
+  border-color: rgba(255, 255, 255, 0.18);
+  background: rgba(23, 33, 43, 0.84);
+  box-shadow: 0 16px 38px rgba(23, 33, 43, 0.26);
+  backdrop-filter: blur(14px);
+}
+
+.packing-redesign .document-workbench .travel-tools-actions-menu button,
+.packing-redesign .packing-template-popup .travel-tools-actions-menu button {
+  color: #f8fafc;
+}
+
+.packing-redesign .document-workbench .travel-tools-actions-menu button:hover,
+.packing-redesign .packing-template-popup .travel-tools-actions-menu button:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #5eead4;
+}
+
+.packing-redesign .document-workbench .travel-tools-actions-menu button:last-child:hover,
+.packing-redesign .packing-template-popup .travel-tools-actions-menu button:last-child:hover {
+  background: rgba(127, 29, 29, 0.5);
+  color: #fecaca;
+}
+
+.packing-redesign .travel-tools-modal-backdrop {
+  background: rgba(23, 33, 43, 0.58);
+  backdrop-filter: blur(6px);
+}
+
+.packing-redesign .travel-tools-modal {
+  border: 1px solid rgba(255, 255, 255, 0.64);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: 0 24px 60px rgba(23, 33, 43, 0.3);
+}
+
+.packing-redesign .travel-tools-modal-header {
+  align-items: flex-start;
+  padding-bottom: 13px;
+  border-bottom: 1px solid #d9e2ec;
+}
+
+.packing-redesign .travel-tools-modal-header h3 {
+  color: #0f766e;
+}
+
+.packing-redesign .travel-tools-modal-actions {
+  padding-top: 13px;
+  border-top: 1px solid #d9e2ec;
+}
+
+.packing-redesign .packing-edit-backdrop,
+.packing-redesign .packing-template-edit-backdrop {
+  z-index: 85;
+}
+
+.packing-redesign .packing-details-edit-modal {
+  width: min(540px, 100%);
+}
+
+.packing-redesign .packing-template-popup {
+  display: grid;
+  gap: 0;
+  width: min(1040px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow-y: auto;
+  padding: 0;
+}
+
+.packing-redesign .packing-template-popup > .travel-tools-detail-header {
+  position: sticky;
+  top: 0;
+  z-index: 4;
+  padding: 18px 20px;
+  border-bottom: 1px solid #d9e2ec;
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(14px);
+}
+
+.packing-redesign .packing-template-popup .travel-tools-detail-header h3 {
+  color: #0f766e;
+  font-size: 20px;
+}
+
+.packing-redesign .document-template-modal-status {
+  display: grid;
+  gap: 6px;
+  margin: 12px 20px 0;
+}
+
+.packing-redesign .document-template-step {
+  display: grid;
+  gap: 14px;
+  margin: 18px;
+  padding: 18px;
+  border: 1px solid #d9e2ec;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.packing-redesign .document-template-details-step {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.packing-redesign .document-template-step label {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  color: #334e68;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.packing-redesign .document-template-step label > span,
+.packing-redesign .document-template-items-heading span {
+  color: #0f766e;
+  font-size: 11px;
+  font-weight: 750;
+  text-transform: uppercase;
+}
+
+.packing-redesign .document-template-step input,
+.packing-redesign .document-template-step select,
+.packing-redesign .document-template-step textarea {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid #d9e2ec;
+  border-radius: 5px;
+  padding: 0 12px;
+  background: #ffffff;
+  color: #334e68;
+  font: inherit;
+  outline: none;
+}
+
+.packing-redesign .document-template-step textarea {
+  min-height: 112px;
+  padding: 11px 12px;
+  resize: vertical;
+}
+
+.packing-redesign .document-template-step input:focus,
+.packing-redesign .document-template-step select:focus,
+.packing-redesign .document-template-step textarea:focus {
+  border-color: #0f766e;
+  box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.13);
+}
+
+.packing-redesign .document-template-step label small {
+  color: #7b8794;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.packing-redesign .document-template-items-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 13px;
+  border-bottom: 1px solid #e7edf3;
+}
+
+.packing-redesign .document-template-items-heading > div {
+  display: grid;
+  gap: 4px;
+}
+
+.packing-redesign .document-template-items-heading strong {
+  color: #25313d;
+  font-size: 16px;
+}
+
+.packing-redesign .document-template-edit-list {
+  display: grid;
+  gap: 10px;
+  max-height: 286px;
+  overflow-x: hidden;
+  overflow-y: auto;
+  padding-right: 6px;
+  scrollbar-gutter: stable;
+}
+
+.packing-redesign .packing-template-inline-edit-item {
+  display: grid;
+  grid-template-columns: minmax(150px, 0.7fr) minmax(220px, 1fr) minmax(110px, 0.35fr) auto;
+  align-items: end;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #d9e2ec;
+  border-radius: 6px;
+  background: #f8fafc;
+}
+
+.packing-redesign .packing-template-inline-edit-item > button {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border: 1px solid #fecaca;
+  border-radius: 5px;
+  background: #ffffff;
+  color: var(--color-danger);
+}
+
+.packing-redesign .document-template-step-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 16px 18px 18px;
+  border-top: 1px solid #d9e2ec;
+  background: rgba(248, 250, 252, 0.92);
+}
+
+.packing-redesign .document-template-step-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.packing-redesign .document-template-step-actions .primary-action:disabled,
+.packing-redesign .document-template-step-actions .primary-action:disabled:hover {
+  border-color: #cbd5e1;
+  background: #e2e8f0;
+  color: #64748b;
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 0.78;
+  transform: none;
+}
+
+.packing-redesign .packing-item-direct-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.packing-redesign .packing-item-icon-action {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  place-items: center;
+  border: 1px solid #d9e2ec;
+  border-radius: 5px;
+  background: #ffffff;
+  color: #0f766e;
+}
+
+.packing-redesign .packing-item-icon-action:hover {
+  border-color: #b7ddd8;
+  background: #ecfdf5;
+}
+
+.packing-redesign .packing-item-delete-action {
+  color: var(--color-danger);
+}
+
+.packing-redesign .packing-item-delete-action:hover {
+  border-color: #fecaca;
+  background: #fef2f2;
+}
+
+@media (max-width: 1180px) {
+  .packing-redesign .document-command-header,
+  .packing-redesign .document-workbench {
+    grid-template-columns: 1fr;
+  }
+
+  .packing-redesign .document-template-library .document-template-picker {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .packing-redesign .document-create-fields-row {
+    grid-template-columns: 1fr;
+  }
+
+  .packing-redesign .document-create-submit {
+    justify-self: end;
+  }
+}
+
+@media (max-width: 760px) {
+  .packing-redesign .document-command-header {
+    gap: 16px;
+    padding: 17px;
+  }
+
+  .packing-redesign .document-view-actions {
+    display: grid;
+    width: 100%;
+    justify-self: stretch;
+    border-radius: 8px;
+  }
+
+  .packing-redesign .document-view-actions button {
+    justify-content: center;
+    border-radius: 6px;
+  }
+
+  .packing-redesign .document-create-deck .travel-tools-panel-heading {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .packing-redesign .document-create-mode-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .packing-redesign .document-create-mode-actions button {
+    flex: 1 1 170px;
+    justify-content: center;
+  }
+
+  .packing-redesign .document-create-fields-row .travel-tools-form-grid,
+  .packing-redesign .document-template-library .document-template-picker {
+    grid-template-columns: 1fr;
+  }
+
+  .packing-redesign .document-create-submit {
+    width: 100%;
+  }
+
+  .packing-redesign .document-loading-page {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    min-height: calc(100vh - 150px);
+    padding: 28px 18px;
+    text-align: center;
+  }
+
+  .packing-redesign .document-loading-mark {
+    grid-row: auto;
+  }
+
+  .packing-redesign .document-loading-lines {
+    grid-column: auto;
+    justify-items: center;
+  }
+
+  .packing-redesign .packing-template-popup {
+    max-height: calc(100vh - 28px);
+  }
+
+  .packing-redesign .document-template-step {
+    margin: 14px;
+    padding: 14px;
+  }
+
+  .packing-redesign .packing-template-inline-edit-item {
+    grid-template-columns: 1fr;
+  }
+
+  .packing-redesign .packing-template-inline-edit-item > button {
+    justify-self: end;
+  }
+
+  .packing-redesign .document-template-step-actions {
+    flex-wrap: wrap;
+    padding: 14px;
+  }
+}

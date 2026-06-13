@@ -6,8 +6,6 @@ import {
   Bell,
   ChevronLeft,
   ChevronRight,
-  CheckCircle2,
-  CircleAlert,
   CircleHelp,
   Copy,
   Download,
@@ -41,11 +39,12 @@ import {
   uploadTravelDocumentFiles,
 } from '../../api/travelToolsApi';
 import {
+  defaultPackingCategory,
   formatPackingCategory,
   packingCategories,
 } from './travelTools.constants';
 import { useTravelToolsPage } from './hooks/useTravelToolsPage';
-import { getCategoryIcon, getErrorMessage } from './travelTools.utils';
+import { getCategoryIcon, getErrorMessage, mapTemplateForEdit } from './travelTools.utils';
 import './TravelToolsPage.css';
 
 const documentItemTypes = ['Passport', 'Visa', 'Insurance', 'Ticket', 'Booking', 'Transport', 'Health', 'Contact', 'Custom'];
@@ -68,24 +67,6 @@ function TravelToolsPageFrame({ labelledBy, children, className = '' }) {
     <section className={`travel-tools-page ${className}`.trim()} aria-labelledby={labelledBy}>
       {children}
     </section>
-  );
-}
-// TravelToolsHero renders the main screen and handles nearby interactions.
-function TravelToolsHero({ description, eyebrow, labelledBy, liveCard, meta, metaLabel, title }) {
-  return (
-    <div className="travel-tools-hero">
-      <div>
-        <p className="eyebrow">{eyebrow}</p>
-        <h2 id={labelledBy}>{title}</h2>
-        <p>{description}</p>
-        {meta && (
-          <div className="travel-tools-hero-meta" aria-label={metaLabel}>
-            {meta}
-          </div>
-        )}
-      </div>
-      {liveCard && <div className="travel-tools-hero-actions">{liveCard}</div>}
-    </div>
   );
 }
 const getTripOptionLabel = (trip) => {
@@ -203,7 +184,11 @@ function PackingListTools() {
   useCloseTravelToolsMenusOnOutsideClick();
 
   const [packingListSearch, setPackingListSearch] = useState('');
-  const [packingTemplateSearch, setPackingTemplateSearch] = useState('');
+  const [packingView, setPackingView] = useState('create');
+  const [previousPackingView, setPreviousPackingView] = useState('create');
+  const [openPackingTemplateMenuId, setOpenPackingTemplateMenuId] = useState('');
+  const [packingTemplateEditStep, setPackingTemplateEditStep] = useState('details');
+  const [packingTemplateBaseline, setPackingTemplateBaseline] = useState('');
   const {
     categoryOptions,
     closeItemModal,
@@ -214,39 +199,26 @@ function PackingListTools() {
     createForm,
     createFormError,
     createMode,
-    customTemplates,
     error,
     filteredItems,
-    filteredTemplateItems,
     filters,
     handleCancelListTitleEdit,
-    handleCancelTemplateDescriptionEdit,
-    handleCancelTemplateTitleEdit,
     handleCreateList,
     handleEditItem,
-    handleEditTemplateItem,
     handleItemFormChange,
     handleOpenAddItem,
-    handleOpenAddTemplateItem,
     handleOpenSaveTemplateModal,
     handlePackingListTripChange,
     handleReminderDaysChange,
     handleSaveCurrentListAsTemplate,
     handleSaveItem,
     handleSaveListTitle,
-    handleSaveTemplateDescription,
-    handleSaveTemplateTitle,
     handleStartListTitleEdit,
-    handleStartTemplateDescriptionEdit,
-    handleStartTemplateTitleEdit,
-    handleTemplatePageChange,
     handleTemplateSaveFormChange,
     handleTemplateSelect,
     handleTemplateWorkspaceSelect,
     handleTogglePacked,
     isEditingListTitle,
-    isEditingTemplateDescription,
-    isEditingTemplateTitle,
     isLoading,
     isPackingReminderEnabled,
     isSaving,
@@ -257,12 +229,11 @@ function PackingListTools() {
     listTitleDraft,
     packingLists,
     progress,
-    remainingItems,
     reminderDays,
     runConfirmedAction,
+    saveTemplateDraft,
     selectedList,
     selectedTemplate,
-    selectedTemplateId,
     setConfirmAction,
     setCreateForm,
     setCreateFormError,
@@ -271,22 +242,16 @@ function PackingListTools() {
     setListTitleDraft,
     setSelectedListId,
     setSelectedTemplateId,
-    setTemplateDescriptionDraft,
+    setTemplateEditForm,
     setTemplateEditError,
-    setTemplateFilters,
-    setTemplateTitleDraft,
     statusScope,
     successMessage,
-    templateDescriptionDraft,
     templateEditError,
     templateEditForm,
-    templateFilters,
     templateSaveError,
     templateSaveForm,
-    templateTitleDraft,
     templates,
     trips,
-    visibleTemplates,
   } = useTravelToolsPage();
 
   const linkedTrip = selectedList?.tripId
@@ -306,43 +271,118 @@ function PackingListTools() {
     if (!normalizedSearch) return true;
     return [list.title, list.destination].some((value) => value?.toLowerCase().includes(normalizedSearch));
   });
-  const filteredCustomTemplates = customTemplates.filter((template) => {
-    const normalizedSearch = packingTemplateSearch.toLowerCase().trim();
-    if (!normalizedSearch) return true;
-    return [template.title, template.description].some((value) => value?.toLowerCase().includes(normalizedSearch));
-  });
-  return (
-    <TravelToolsPageFrame labelledBy="packing-title" className="travel-tools-enhanced-page">
-      <TravelToolsHero
-        labelledBy="packing-title"
-        eyebrow="Trip checklist"
-        title="Packing Lists"
-        description="Plan what to bring, tick items as packed, and reuse templates for future trips."
-        metaLabel="Packing list summary"
-        meta={
-          <>
-            <span>
-              <ListChecks size={15} aria-hidden="true" />
-              {packingLists.length} list{packingLists.length === 1 ? '' : 's'}
-            </span>
-            <span>
-              <CheckCircle2 size={15} aria-hidden="true" />
-              {progress.packedItems || 0} packed
-            </span>
-            <span className={remainingItems ? 'travel-tools-hero-health-warning' : 'travel-tools-hero-health-ready'}>
-              <CircleAlert size={15} aria-hidden="true" />
-              {remainingItems} remaining
-            </span>
-          </>
-        }
-        liveCard={
-          <div className="travel-tools-live-card">
-            <span>Current progress</span>
-            <strong>{progress.percent || 0}%</strong>
-            <small>{selectedList?.title || 'No list selected'}</small>
+  const orderedPackingTemplates = useMemo(
+    () => [
+      ...templates.filter((template) => template.source !== 'custom'),
+      ...templates.filter((template) => template.source === 'custom'),
+    ],
+    [templates]
+  );
+  const handleOpenPackingTemplateEdit = (template) => {
+    setPreviousPackingView(packingView);
+    setPackingView('all');
+    setOpenPackingTemplateMenuId('');
+    setPackingTemplateEditStep('details');
+    setPackingTemplateBaseline(JSON.stringify(mapTemplateForEdit(template)));
+    handleTemplateWorkspaceSelect(template);
+  };
+  const handleClosePackingTemplateEdit = () => {
+    setSelectedTemplateId('');
+    setPackingTemplateEditStep('details');
+    setPackingTemplateBaseline('');
+    setPackingView(previousPackingView);
+  };
+  const isPackingTemplateDirty = JSON.stringify(templateEditForm) !== packingTemplateBaseline;
+  const handlePackingTemplateFieldChange = (field, value) => {
+    setTemplateEditError('');
+    setTemplateEditForm((current) => ({ ...current, [field]: value }));
+  };
+  const handlePackingTemplateItemChange = (itemIndex, field, value) => {
+    setTemplateEditError('');
+    setTemplateEditForm((current) => ({
+      ...current,
+      items: current.items.map((item, index) => (
+        index === itemIndex
+          ? { ...item, [field]: field === 'quantity' ? Number(value) || 1 : value }
+          : item
+      )),
+    }));
+  };
+  const handleAddPackingTemplateItem = () => {
+    setTemplateEditForm((current) => ({
+      ...current,
+      items: [
+        ...current.items,
+        { id: `new-${Date.now()}`, name: '', category: defaultPackingCategory, quantity: 1, isPacked: false },
+      ],
+    }));
+  };
+  const handleRemovePackingTemplateItem = (itemIndex) => {
+    setTemplateEditForm((current) => ({
+      ...current,
+      items: current.items.filter((_, index) => index !== itemIndex),
+    }));
+  };
+  const handleSavePackingTemplateEdit = async () => {
+    if (!isPackingTemplateDirty) return;
+    const incompleteItemIndex = templateEditForm.items.findIndex((item) => !item.name.trim());
+    if (incompleteItemIndex >= 0) {
+      setPackingTemplateEditStep('items');
+      setTemplateEditError(`Complete or delete packing item ${incompleteItemIndex + 1} before saving.`);
+      return;
+    }
+    const didSave = await saveTemplateDraft(templateEditForm, 'Packing template updated.');
+    if (didSave) handleClosePackingTemplateEdit();
+  };
+
+  if (isLoading) {
+    return (
+      <TravelToolsPageFrame labelledBy="packing-loading-title" className="travel-tools-enhanced-page packing-redesign">
+        <section className="document-loading-page" role="status" aria-live="polite">
+          <span className="document-loading-mark" aria-hidden="true">
+            <ListChecks size={28} />
+            <span className="travel-tools-spinner" />
+          </span>
+          <div>
+            <p>Trip checklist control</p>
+            <h2 id="packing-loading-title">Preparing packing lists</h2>
+            <span>Loading packing lists and templates...</span>
           </div>
-        }
-      />
+          <div className="document-loading-lines" aria-hidden="true">
+            <span />
+            <span />
+            <span />
+          </div>
+        </section>
+      </TravelToolsPageFrame>
+    );
+  }
+
+  return (
+    <TravelToolsPageFrame labelledBy="packing-title" className="travel-tools-enhanced-page packing-redesign">
+      <header className="document-command-header">
+        <div className="document-command-title">
+          <span className="document-command-icon" aria-hidden="true">
+            <ListChecks size={23} />
+          </span>
+          <div>
+            <p>Trip checklist control</p>
+            <h2 id="packing-title">Packing Lists</h2>
+            <span>Plan what to bring, track packed items, and reuse templates for future trips.</span>
+          </div>
+        </div>
+        <div className="document-view-actions" role="group" aria-label="Packing list view">
+          <button className={packingView === 'create' ? 'active' : ''} type="button" onClick={() => setPackingView('create')}>
+            <Plus size={15} aria-hidden="true" />
+            Create Packing
+          </button>
+          <button className={packingView === 'all' ? 'active' : ''} type="button" onClick={() => setPackingView('all')}>
+            <ListChecks size={15} aria-hidden="true" />
+            All Packings
+            <span>{packingLists.length}</span>
+          </button>
+        </div>
+      </header>
 
       <datalist id="packing-category-options">
         {categoryOptions.map((category) => (
@@ -352,105 +392,43 @@ function PackingListTools() {
         ))}
       </datalist>
 
-      <form className="travel-tools-create-panel packing-create-panel" onSubmit={handleCreateList}>
+      {packingView === 'create' && (
+      <form className="travel-tools-create-panel packing-create-panel document-create-deck" onSubmit={handleCreateList}>
         <div className="travel-tools-panel-heading">
           <div>
             <span>Create a packing list</span>
             <h3>Create a list manually or start from a packing template.</h3>
           </div>
-          <button className="secondary-action" type="submit" disabled={isSaving}>
-            <Plus size={17} aria-hidden="true" />
-            Create
-          </button>
-        </div>
-
-        <div className="packing-create-mode packing-create-card-mode" role="group" aria-label="Create packing list type">
-          <button
-            className={createMode === 'manual' ? 'active' : ''}
-            type="button"
-            onClick={() => {
-              setCreateFormError('');
-              setCreateMode('manual');
-              setCreateForm((current) => ({ ...current, templateKey: '' }));
-            }}
-          >
-            <span className="packing-create-option-icon">
-              <Edit3 size={24} aria-hidden="true" />
-            </span>
-            <span>
-              <strong>Create manually</strong>
-              <small>Start with a blank list</small>
-            </span>
-          </button>
-          <button
-            className={createMode === 'template' ? 'active' : ''}
-            type="button"
-            onClick={() => {
-              setCreateFormError('');
-              setCreateMode('template');
-            }}
-          >
-            <span className="packing-create-option-icon packing-create-option-icon-blue">
-              <ListChecks size={24} aria-hidden="true" />
-            </span>
-            <span>
-              <strong>Use template</strong>
-              <small>Choose from saved templates</small>
-            </span>
-          </button>
-        </div>
-
-        {createMode === 'template' && (
-          <div className="travel-tools-template-carousel document-template-carousel" aria-label="Packing templates">
+          <div className="document-create-mode-actions" role="group" aria-label="Create packing list type">
             <button
-              className="travel-tools-template-arrow"
+              className={createMode === 'manual' ? 'active' : ''}
               type="button"
-              onClick={() => handleTemplatePageChange('previous')}
-              aria-label="Previous templates"
-              disabled={templates.length <= 3}
+              onClick={() => {
+                setCreateFormError('');
+                setCreateMode('manual');
+                setCreateForm((current) => ({ ...current, templateKey: '' }));
+              }}
             >
-              <ChevronLeft size={18} aria-hidden="true" />
+              <Edit3 size={15} aria-hidden="true" />
+              Create manually
             </button>
-            <div className="document-template-picker" aria-label="Packing list templates">
-              {visibleTemplates.map((template) => {
-                const isSelectedTemplate = createForm.templateKey === template.key;
-                return (
-                  <article className={`document-template-card ${isSelectedTemplate ? 'active' : ''}`} key={template.key}>
-                    <button
-                      className="document-template-select"
-                      type="button"
-                      onClick={() => {
-                        setCreateFormError('');
-                        handleTemplateSelect(template);
-                      }}
-                    >
-                      <span>{template.source === 'custom' ? 'Saved custom template' : 'Standard template'}</span>
-                      <strong>{template.title}</strong>
-                      <small>{template.description || 'Reusable packing list template.'}</small>
-                      <div>
-                        {getVisibleTemplateItems(template.items || []).map((item, index) => (
-                          <em key={`${template.key}-${item.name}-${index}`}>{item.name}</em>
-                        ))}
-                      </div>
-                    </button>
-                  </article>
-                );
-              })}
-            </div>
             <button
-              className="travel-tools-template-arrow"
+              className={createMode === 'template' ? 'active' : ''}
               type="button"
-              onClick={() => handleTemplatePageChange('next')}
-              aria-label="Next templates"
-              disabled={templates.length <= 3}
+              onClick={() => {
+                setCreateFormError('');
+                setCreateMode('template');
+              }}
             >
-              <ChevronRight size={18} aria-hidden="true" />
+              <ListChecks size={15} aria-hidden="true" />
+              Use template
             </button>
           </div>
-        )}
+        </div>
 
-        <div className="travel-tools-form-grid travel-tools-form-grid-compact">
-          <div className="travel-tools-create-field">
+        <div className="document-create-fields-row">
+          <div className="travel-tools-form-grid travel-tools-form-grid-compact">
+            <div className="travel-tools-create-field">
             <label>
               <span className="travel-tools-field-label">
                 List title
@@ -466,8 +444,8 @@ function PackingListTools() {
                 placeholder="My Packing List"
               />
             </label>
-          </div>
-          <div className="travel-tools-create-field">
+            </div>
+            <div className="travel-tools-create-field">
             <label>
               <span className="travel-tools-field-label">
                 Link trip
@@ -492,11 +470,89 @@ function PackingListTools() {
                 })}
               </select>
             </label>
+            </div>
           </div>
+          <button
+            className="secondary-action document-create-submit"
+            type="submit"
+            disabled={isSaving || !createForm.title.trim() || (createMode === 'template' && !createForm.templateKey)}
+          >
+            <Plus size={17} aria-hidden="true" />
+            Create
+          </button>
         </div>
+
+        {createMode === 'template' && (
+          <div className="document-template-library">
+            <div className="document-template-picker" aria-label="Packing list templates">
+              {orderedPackingTemplates.map((template) => {
+                const isSelectedTemplate = createForm.templateKey === template.key;
+                return (
+                  <article className={`document-template-card ${isSelectedTemplate ? 'active' : ''}`} key={template.key}>
+                    <button
+                      className="document-template-select"
+                      type="button"
+                      onClick={() => {
+                        setCreateFormError('');
+                        handleTemplateSelect(template);
+                      }}
+                    >
+                      <span>{template.source === 'custom' ? 'Saved custom template' : 'Standard template'}</span>
+                      <strong>{template.title}</strong>
+                      <small>{template.description || 'Reusable packing list template.'}</small>
+                      <div>
+                        {getVisibleTemplateItems(template.items || []).map((item, index) => (
+                          <em key={`${template.key}-${item.name}-${index}`}>{item.name}</em>
+                        ))}
+                      </div>
+                    </button>
+                    {template.source === 'custom' && (
+                      <div className="document-template-menu">
+                        <button
+                          type="button"
+                          onClick={() => setOpenPackingTemplateMenuId((current) => (current === template.key ? '' : template.key))}
+                          aria-label={`Open actions for ${template.title}`}
+                        >
+                          <MoreVertical size={17} aria-hidden="true" />
+                        </button>
+                        {openPackingTemplateMenuId === template.key && (
+                          <div className="document-template-menu-panel">
+                            <button
+                              type="button"
+                              onClick={() => {
+                                handleOpenPackingTemplateEdit(template);
+                              }}
+                            >
+                              <Edit3 size={15} aria-hidden="true" />
+                              Edit
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setConfirmAction({ type: 'delete-template', template });
+                                setOpenPackingTemplateMenuId('');
+                              }}
+                            >
+                              <Trash2 size={15} aria-hidden="true" />
+                              Delete
+                            </button>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+        )}
         {createFormError && <p className="form-error travel-tools-status">{createFormError}</p>}
+        {statusScope === 'packing' && successMessage && <p className="form-success travel-tools-status">{successMessage}</p>}
       </form>
-      <div className="travel-tools-layout packing-dashboard-layout">
+      )}
+
+      {packingView === 'all' && (
+      <div className="travel-tools-layout packing-dashboard-layout document-workbench">
         <aside className="travel-tools-list-panel packing-side-panel">
           <div className="travel-tools-side-section packing-list-side-section">
             <div className="travel-tools-panel-heading">
@@ -558,264 +614,163 @@ function PackingListTools() {
             )}
           </div>
 
-          <div className="travel-tools-side-section">
-            <div className="travel-tools-panel-heading">
-              <div>
-                <span>View Templates</span>
-                <h3>My Templates</h3>
-              </div>
-              <strong>{customTemplates.length}</strong>
-            </div>
-            <div className="travel-tools-filters travel-tools-template-filters packing-side-search">
-              <span className="travel-tools-search-field">
-                <Search size={16} aria-hidden="true" />
-                <input
-                  value={packingTemplateSearch}
-                  onChange={(event) => setPackingTemplateSearch(event.target.value)}
-                  placeholder="Search templates"
-                />
-              </span>
-            </div>
-            {customTemplates.length === 0 ? (
-              <div className="packing-side-empty">
-                <p>No saved templates yet.</p>
-                <span aria-hidden="true">
-                  <FileText size={28} />
-                </span>
-              </div>
-            ) : filteredCustomTemplates.length === 0 ? (
-              <p className="settings-empty">No templates match the current search.</p>
-            ) : (
-              <div className="travel-tools-list-stack">
-                {filteredCustomTemplates.map((template) => (
-                  <button
-                    className={`travel-tools-list-card travel-tools-template-card ${selectedTemplateId === template.key ? 'active' : ''}`}
-                    type="button"
-                    key={template.key}
-                    onClick={() => handleTemplateWorkspaceSelect(template)}
-                  >
-                    <span>{template.title}</span>
-                    <small>
-                      {(template.items || []).length} item{(template.items || []).length === 1 ? '' : 's'}
-                    </small>
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
         </aside>
 
         <div className="travel-tools-main">
           {selectedTemplate ? (
-            <section className="travel-tools-detail packing-workspace-detail template-workspace-detail">
-              <div className="packing-template-editor">
-                <div className="travel-tools-detail-header">
-                  <div>
-                    <span className="travel-tools-workspace-label">Template workspace</span>
-                    <div className="travel-tools-title-row">
-                      <h3>{templateEditForm.title}</h3>
-                    </div>
-                    <p>
-                      {templateEditForm.items.length} template item{templateEditForm.items.length === 1 ? '' : 's'}
-                    </p>
-                    <div className="travel-tools-workspace-meta" aria-label="Packing template details">
-                      <span>{selectedTemplate.source === 'custom' ? 'Custom template' : 'System template'}</span>
-                    </div>
+            <div className="travel-tools-modal-backdrop packing-template-edit-backdrop" role="presentation">
+            <section className="travel-tools-modal packing-workspace-detail template-workspace-detail packing-template-popup" role="dialog" aria-modal="true" aria-labelledby="packing-template-edit-title">
+              <div className="travel-tools-detail-header">
+                <div>
+                  <span className="travel-tools-workspace-label">Edit template · Step {packingTemplateEditStep === 'details' ? '1' : '2'} of 2</span>
+                  <div className="travel-tools-title-row">
+                    <h3 id="packing-template-edit-title">{templateEditForm.title || 'Untitled template'}</h3>
                   </div>
-                  <details className="travel-tools-actions-menu">
-                    <summary>
-                      <MoreVertical size={17} aria-hidden="true" />
-                      More
-                    </summary>
-                    <div>
-                      <button
-                        type="button"
-                        onClick={() => setConfirmAction({ type: 'duplicate-template', template: selectedTemplate })}
-                        disabled={isSaving}
-                      >
-                        <Copy size={16} aria-hidden="true" />
-                        Duplicate
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setConfirmAction({ type: 'delete-template', template: selectedTemplate })}
-                        disabled={isSaving}
-                      >
-                        <Trash2 size={16} aria-hidden="true" />
-                        Delete
-                      </button>
-                    </div>
-                  </details>
+                  <p>{packingTemplateEditStep === 'details' ? 'Update the reusable template details.' : 'Edit every packing item before saving.'}</p>
                 </div>
+                <button className="document-template-close" type="button" onClick={handleClosePackingTemplateEdit} aria-label="Close template editor">
+                  <X size={18} aria-hidden="true" />
+                </button>
+              </div>
 
-                <div className="packing-template-description">
-                  <form className="packing-title-field" onSubmit={handleSaveTemplateTitle}>
-                    <span className="packing-template-description-heading">Template title</span>
-                    <span className="packing-title-input">
-                      <input
-                        value={isEditingTemplateTitle ? templateTitleDraft : templateEditForm.title}
-                        onChange={(event) => {
-                          if (!isEditingTemplateTitle) return;
-                          setTemplateEditError('');
-                          setTemplateTitleDraft(event.target.value);
-                        }}
-                        readOnly={!isEditingTemplateTitle}
-                        aria-label="Packing template title"
-                        autoFocus={isEditingTemplateTitle}
-                      />
-                      {!isEditingTemplateTitle && (
-                        <button type="button" onClick={handleStartTemplateTitleEdit} aria-label="Edit template title">
-                          <Edit3 size={16} aria-hidden="true" />
-                        </button>
-                      )}
-                    </span>
-                    {isEditingTemplateTitle && (
-                      <div className="packing-template-description-actions">
-                        <button className="secondary-action" type="button" onClick={handleCancelTemplateTitleEdit}>
-                          Cancel
-                        </button>
-                        <button className="primary-action" type="submit" disabled={isSaving}>
-                          Save
-                        </button>
-                      </div>
-                    )}
-                  </form>
-
-                  <div className="packing-template-description-summary">
-                    <span className="packing-template-description-heading">Template description</span>
-                    <div className="packing-template-description-box">
-                      <textarea
-                        value={
-                          isEditingTemplateDescription
-                            ? templateDescriptionDraft
-                            : templateEditForm.description || 'No description added yet.'
-                        }
-                        onChange={(event) => {
-                          if (!isEditingTemplateDescription) return;
-                          setTemplateEditError('');
-                          setTemplateDescriptionDraft(event.target.value);
-                        }}
-                        placeholder="Template description"
-                        rows="4"
-                        readOnly={!isEditingTemplateDescription}
-                        autoFocus={isEditingTemplateDescription}
-                      />
-                      {!isEditingTemplateDescription && (
-                        <button
-                          type="button"
-                          onClick={handleStartTemplateDescriptionEdit}
-                          aria-label="Edit template description"
-                        >
-                          <Edit3 size={16} aria-hidden="true" />
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  {isEditingTemplateDescription && (
-                    <div className="packing-template-description-actions">
-                      <button className="secondary-action" type="button" onClick={handleCancelTemplateDescriptionEdit}>
-                        Cancel
-                      </button>
-                      <button className="primary-action" type="button" onClick={handleSaveTemplateDescription} disabled={isSaving}>
-                        Save
-                      </button>
-                    </div>
-                  )}
+              {(templateEditError || (statusScope === 'template' && error)) && (
+                <div className="document-template-modal-status" aria-live="polite">
+                  {templateEditError && <p className="form-error travel-tools-status">{templateEditError}</p>}
+                  {statusScope === 'template' && error && <p className="form-error travel-tools-status">{error}</p>}
                 </div>
+              )}
 
-                <div className="packing-workspace-controls packing-template-controls">
-                  <div className="travel-tools-filters travel-tools-template-filters">
-                    <span className="travel-tools-search-field">
-                      <Search size={16} aria-hidden="true" />
-                      <input
-                        value={templateFilters.search}
-                        onChange={(event) => setTemplateFilters((current) => ({ ...current, search: event.target.value }))}
-                        placeholder="Search items"
-                      />
-                    </span>
-                    <select value={templateFilters.category} onChange={(event) => setTemplateFilters((current) => ({ ...current, category: event.target.value }))}>
-                      <option value="">All categories</option>
-                      {packingCategories.map((category) => (
-                        <option key={category} value={category}>{formatPackingCategory(category)}</option>
-                      ))}
+              {packingTemplateEditStep === 'details' ? (
+                <div className="document-template-step document-template-details-step">
+                  <label>
+                    <span>Template name</span>
+                    <input
+                      value={templateEditForm.title}
+                      onChange={(event) => handlePackingTemplateFieldChange('title', event.target.value)}
+                      placeholder="Weekend essentials"
+                      autoFocus
+                    />
+                  </label>
+                  <label>
+                    <span>Linked trip</span>
+                    <select
+                      value={createForm.tripId}
+                      onChange={(event) => setCreateForm((current) => ({ ...current, tripId: event.target.value }))}
+                    >
+                      <option value="">None</option>
+                      {trips.map((trip) => {
+                        const isUnavailable = isTripLinkedToOtherPackingList(trip._id);
+                        return (
+                          <option key={trip._id} value={trip._id} disabled={isUnavailable}>
+                            {getTripOptionLabel(trip)}{isUnavailable ? ' (Already linked)' : ''}
+                          </option>
+                        );
+                      })}
                     </select>
-                    <button className="secondary-action travel-tools-filter-action" type="button" onClick={handleOpenAddTemplateItem}>
+                    <small>This trip will be selected when creating a packing list from the template.</small>
+                  </label>
+                  <label>
+                    <span>Description</span>
+                    <textarea
+                      value={templateEditForm.description}
+                      onChange={(event) => handlePackingTemplateFieldChange('description', event.target.value)}
+                      placeholder="Reusable packing list template"
+                      rows="5"
+                    />
+                  </label>
+                </div>
+              ) : (
+                <div className="document-template-step document-template-items-step">
+                  <div className="document-template-items-heading">
+                    <div>
+                      <span>Packing items</span>
+                      <strong>{templateEditForm.items.length} item{templateEditForm.items.length === 1 ? '' : 's'}</strong>
+                    </div>
+                    <button className="secondary-action" type="button" onClick={handleAddPackingTemplateItem} disabled={isSaving}>
                       <Plus size={16} aria-hidden="true" />
                       Add item
                     </button>
                   </div>
-
-                  {filteredTemplateItems.length === 0 ? (
-                    <p className="settings-empty packing-template-empty">No template items match the current filters.</p>
+                  {templateEditForm.items.length === 0 ? (
+                    <p className="settings-empty packing-template-empty">No packing items yet. Add an item before saving.</p>
                   ) : (
-                    <div className="travel-tools-item-list packing-template-item-list">
-                      {filteredTemplateItems.map((item) => {
-                        const CategoryIcon = getCategoryIcon(item.category);
-                        return (
-                          <article className={item.isPacked ? 'packing-template-item-card packed' : 'packing-template-item-card'} key={item.id || item.index}>
-                            <div>
-                              <div className="travel-tools-item-title-row">
-                                <strong>{item.name}</strong>
-                              </div>
-                              <span className="travel-tools-item-category packing-template-item-category">
-                                <CategoryIcon size={14} aria-hidden="true" />
-                                {formatPackingCategory(item.category)}
-                              </span>
-                            </div>
-                            <div className="travel-tools-item-meta" aria-label="Template item quantity">
-                              <span className="travel-tools-quantity">Qty {item.quantity}</span>
-                            </div>
-                            <details className="travel-tools-item-actions-menu">
-                              <summary aria-label={`Open actions for ${item.name}`}>
-                                <MoreVertical size={17} aria-hidden="true" />
-                              </summary>
-                              <div>
-                                <button type="button" onClick={() => handleEditTemplateItem(item.index)}>
-                                  <Edit3 size={15} aria-hidden="true" />
-                                  Edit
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => setConfirmAction({ type: 'delete-template-item', item, itemIndex: item.index })}
-                                >
-                                  <Trash2 size={15} aria-hidden="true" />
-                                  Delete
-                                </button>
-                              </div>
-                            </details>
-                          </article>
-                        );
-                      })}
+                    <div className="document-template-edit-list packing-template-inline-edit-list">
+                      {templateEditForm.items.map((item, index) => (
+                        <article className="document-template-edit-item packing-template-inline-edit-item" key={item.id || index}>
+                          <label>
+                            <span>Category</span>
+                            <select
+                              value={item.category}
+                              onChange={(event) => handlePackingTemplateItemChange(index, 'category', event.target.value)}
+                            >
+                              {packingCategories.map((category) => (
+                                <option key={category} value={category}>{formatPackingCategory(category)}</option>
+                              ))}
+                            </select>
+                          </label>
+                          <label>
+                            <span>Name</span>
+                            <input
+                              value={item.name}
+                              onChange={(event) => handlePackingTemplateItemChange(index, 'name', event.target.value)}
+                              placeholder="Passport"
+                            />
+                          </label>
+                          <label>
+                            <span>Quantity</span>
+                            <input
+                              type="number"
+                              min="1"
+                              max="999"
+                              value={item.quantity}
+                              onChange={(event) => handlePackingTemplateItemChange(index, 'quantity', event.target.value)}
+                            />
+                          </label>
+                          <button type="button" onClick={() => handleRemovePackingTemplateItem(index)} aria-label={`Delete ${item.name || 'packing item'}`}>
+                            <Trash2 size={16} aria-hidden="true" />
+                          </button>
+                        </article>
+                      ))}
                     </div>
                   )}
                 </div>
+              )}
 
-                {statusScope === 'template' && error && <p className="form-error travel-tools-status">{error}</p>}
-                {templateEditError && <p className="form-error travel-tools-status">{templateEditError}</p>}
-                {statusScope === 'template' && successMessage && <p className="form-success travel-tools-status">{successMessage}</p>}
+              <div className="document-template-step-actions">
+                <button className="secondary-action" type="button" onClick={handleClosePackingTemplateEdit}>Cancel</button>
+                {packingTemplateEditStep === 'details' ? (
+                  <button className="primary-action" type="button" onClick={() => setPackingTemplateEditStep('items')} disabled={!templateEditForm.title.trim()}>
+                    Next
+                    <ChevronRight size={16} aria-hidden="true" />
+                  </button>
+                ) : (
+                  <>
+                    <button className="secondary-action" type="button" onClick={() => setPackingTemplateEditStep('details')}>
+                      <ChevronLeft size={16} aria-hidden="true" />
+                      Back
+                    </button>
+                    <button
+                      className="primary-action"
+                      type="button"
+                      onClick={handleSavePackingTemplateEdit}
+                      disabled={isSaving || !isPackingTemplateDirty}
+                      title={!isPackingTemplateDirty ? 'Make a change before saving' : 'Save template changes'}
+                    >
+                      Save
+                    </button>
+                  </>
+                )}
               </div>
             </section>
+            </div>
           ) : selectedList ? (
             <section className="travel-tools-detail packing-workspace-detail">
               <div className="travel-tools-detail-header">
                 <div>
                   <span className="travel-tools-workspace-label">Packing Workspace</span>
-                  {isEditingListTitle ? (
-                    <form className="travel-tools-title-edit" onSubmit={handleSaveListTitle}>
-                      <input
-                        value={listTitleDraft}
-                        onChange={(event) => setListTitleDraft(event.target.value)}
-                        aria-label="Packing list name"
-                        autoFocus
-                      />
-                      <button type="submit" disabled={isSaving}>Save</button>
-                      <button type="button" onClick={handleCancelListTitleEdit}>Cancel</button>
-                    </form>
-                  ) : (
-                    <div className="travel-tools-title-row">
-                      <h3>{selectedList.title}</h3>
-                    </div>
-                  )}
+                  <div className="travel-tools-title-row">
+                    <h3>{selectedList.title}</h3>
+                  </div>
                   <p>
                     {progress.packedItems}/{progress.totalItems} items packed
                   </p>
@@ -829,6 +784,10 @@ function PackingListTools() {
                     More
                   </summary>
                   <div>
+                    <button type="button" onClick={handleStartListTitleEdit} disabled={isSaving}>
+                      <Edit3 size={16} aria-hidden="true" />
+                      Edit
+                    </button>
                     <button type="button" onClick={handleOpenSaveTemplateModal} disabled={isSaving}>
                       <Sparkles size={16} aria-hidden="true" />
                       Save as Template
@@ -846,15 +805,6 @@ function PackingListTools() {
               </div>
 
               <div className="packing-workspace-fields">
-                <label className="packing-title-field">
-                  <span>List title</span>
-                  <span className="packing-title-input">
-                    <input value={selectedList.title} readOnly aria-label="Current packing list title" />
-                    <button type="button" onClick={handleStartListTitleEdit} aria-label="Edit packing list name">
-                      <Edit3 size={16} aria-hidden="true" />
-                    </button>
-                  </span>
-                </label>
                 <div className="packing-trip-link-panel">
                   <label>
                     <span className="travel-tools-field-label">
@@ -971,21 +921,26 @@ function PackingListTools() {
                         <div className="travel-tools-item-meta" aria-label="Item quantity">
                           <span className="travel-tools-quantity">Qty {item.quantity}</span>
                         </div>
-                        <details className="travel-tools-item-actions-menu">
-                          <summary aria-label={`Open actions for ${item.name}`}>
-                            <MoreVertical size={17} aria-hidden="true" />
-                          </summary>
-                          <div>
-                            <button type="button" onClick={() => handleEditItem(item)}>
-                              <Edit3 size={15} aria-hidden="true" />
-                              Edit
-                            </button>
-                            <button type="button" onClick={() => setConfirmAction({ type: 'delete-item', list: selectedList, item })}>
-                              <Trash2 size={15} aria-hidden="true" />
-                              Delete
-                            </button>
-                          </div>
-                        </details>
+                        <div className="packing-item-direct-actions">
+                          <button
+                            className="packing-item-icon-action"
+                            type="button"
+                            onClick={() => handleEditItem(item)}
+                            aria-label={`Edit ${item.name}`}
+                            title={`Edit ${item.name}`}
+                          >
+                            <Edit3 size={16} aria-hidden="true" />
+                          </button>
+                          <button
+                            className="packing-item-icon-action packing-item-delete-action"
+                            type="button"
+                            onClick={() => setConfirmAction({ type: 'delete-item', list: selectedList, item })}
+                            aria-label={`Delete ${item.name}`}
+                            title={`Delete ${item.name}`}
+                          >
+                            <Trash2 size={16} aria-hidden="true" />
+                          </button>
+                        </div>
                       </article>
                     ))}
                   </div>
@@ -1008,6 +963,38 @@ function PackingListTools() {
           )}
         </div>
       </div>
+      )}
+
+      {isEditingListTitle && selectedList && (
+        <div className="travel-tools-modal-backdrop packing-edit-backdrop" role="presentation">
+          <form className="travel-tools-modal packing-details-edit-modal" onSubmit={handleSaveListTitle} aria-labelledby="packing-details-edit-title">
+            <div className="travel-tools-modal-header">
+              <div>
+                <span className="travel-tools-workspace-label">Packing settings</span>
+                <h3 id="packing-details-edit-title">Edit packing list</h3>
+              </div>
+              <button type="button" onClick={handleCancelListTitleEdit} aria-label="Close packing list edit form">
+                <X size={18} aria-hidden="true" />
+              </button>
+            </div>
+            <label>
+              Packing list name
+              <input
+                value={listTitleDraft}
+                onChange={(event) => setListTitleDraft(event.target.value)}
+                placeholder="My Packing List"
+                autoFocus
+              />
+            </label>
+            <div className="travel-tools-modal-actions">
+              <button className="secondary-action" type="button" onClick={handleCancelListTitleEdit}>Cancel</button>
+              <button className="primary-action" type="submit" disabled={isSaving || !listTitleDraft.trim()}>
+                Save changes
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       {itemModalMode && (
         <div className="travel-tools-modal-backdrop" role="presentation">
@@ -1109,6 +1096,13 @@ function PackingListTools() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {isSaving && (
+        <div className="travel-tools-busy-overlay" role="status" aria-live="polite">
+          <span className="travel-tools-spinner" aria-hidden="true" />
+          <strong>Processing...</strong>
         </div>
       )}
     </TravelToolsPageFrame>
