@@ -1315,7 +1315,7 @@
 .travel-tools-busy-overlay {
   position: fixed;
   inset: 0;
-  z-index: 80;
+  z-index: 100;
   display: grid;
   place-items: center;
   gap: 12px;
@@ -3751,6 +3751,17 @@
   display: inline-flex;
   align-items: center;
   gap: 7px;
+}
+
+.travel-documents-redesign .document-template-step-actions .primary-action:disabled,
+.travel-documents-redesign .document-template-step-actions .primary-action:disabled:hover {
+  border-color: #cbd5e1;
+  background: #e2e8f0;
+  color: #64748b;
+  box-shadow: none;
+  cursor: not-allowed;
+  opacity: 0.78;
+  transform: none;
 }
 
 .travel-documents-redesign .travel-tools-modal input,

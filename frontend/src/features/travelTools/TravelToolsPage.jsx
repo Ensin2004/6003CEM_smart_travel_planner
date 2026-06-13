@@ -1213,7 +1213,21 @@ function TravelDocumentTools() {
     const matchesType = !documentItemFilters.type || item.documentType === documentItemFilters.type;
     return matchesSearch && matchesType;
   });
+  const orderedDocumentTemplates = useMemo(
+    () => [
+      ...documentTemplates.filter((template) => template.source !== 'custom'),
+      ...documentTemplates.filter((template) => template.source === 'custom'),
+    ],
+    [documentTemplates]
+  );
   const isEditingTemplateDirty = JSON.stringify(templateEditDraft) !== templateEditBaseline;
+  const isDocumentDetailsDirty = Boolean(
+    selectedDocument &&
+    (
+      documentNameDraft.trim() !== selectedDocument.name.trim() ||
+      String(documentTripDraft || '') !== String(selectedDocument.tripId || '')
+    )
+  );
 
   const hasDuplicateDocumentName = (name) => {
     const normalizedName = name.trim().replace(/\s+/g, ' ').toLowerCase();
@@ -1350,6 +1364,7 @@ function TravelDocumentTools() {
       return;
     }
 
+    setIsDocumentItemModalOpen(false);
     setIsSaving(true);
     setFormError('');
     setSuccessMessage('');
@@ -1362,7 +1377,6 @@ function TravelDocumentTools() {
       });
       replaceDocument(response.data.data.document);
       setItemForm({ name: '', documentType: 'Passport', uploadLabel: '' });
-      setIsDocumentItemModalOpen(false);
       setSuccessMessage('Document list item added.');
     } catch (requestError) {
       setFormError(getErrorMessage(requestError));
@@ -1401,7 +1415,7 @@ function TravelDocumentTools() {
 
   const handleSaveDocumentName = async (event) => {
     event.preventDefault();
-    if (!selectedDocument) return;
+    if (!selectedDocument || !isDocumentDetailsDirty) return;
 
     if (!documentNameDraft.trim()) {
       setFormError('Document list name is required.');
@@ -1416,6 +1430,7 @@ function TravelDocumentTools() {
       return;
     }
 
+    setIsEditingDocumentName(false);
     setIsSaving(true);
     setFormError('');
     setSuccessMessage('');
@@ -1426,7 +1441,6 @@ function TravelDocumentTools() {
         tripId: documentTripDraft || null,
       });
       replaceDocument(response.data.data.document);
-      setIsEditingDocumentName(false);
       setDocumentNameDraft('');
       setDocumentTripDraft('');
       setSuccessMessage('Document list details updated.');
@@ -1524,6 +1538,7 @@ function TravelDocumentTools() {
       return;
     }
 
+    handleBackFromDocumentTemplateEdit();
     setIsSaving(true);
     setFormError('');
     setSuccessMessage('');
@@ -1546,7 +1561,6 @@ function TravelDocumentTools() {
         current.map((candidate) => (candidate.key === editingDocumentTemplate.key ? nextTemplate : candidate))
       );
       setSuccessMessage('Document template updated.');
-      handleBackFromDocumentTemplateEdit();
     } catch (requestError) {
       setFormError(getErrorMessage(requestError));
     } finally {
@@ -1577,6 +1591,7 @@ function TravelDocumentTools() {
       return;
     }
 
+    setIsTemplateModalOpen(false);
     setIsSaving(true);
     setFormError('');
     setSuccessMessage('');
@@ -1594,11 +1609,10 @@ function TravelDocumentTools() {
         key: template._id || template.id,
         source: 'custom',
       }, ...current]);
-      setIsTemplateModalOpen(false);
       setTemplateSaveForm({ name: '', description: '' });
       setSuccessMessage('Travel document saved as template.');
     } catch (requestError) {
-      setTemplateSaveError(getErrorMessage(requestError));
+      setFormError(getErrorMessage(requestError));
     } finally {
       setIsSaving(false);
     }
@@ -1606,15 +1620,23 @@ function TravelDocumentTools() {
 
   const runConfirmedAction = async () => {
     if (!confirmAction) return;
+    const confirmedAction = confirmAction;
+    setConfirmAction(null);
+    if (
+      confirmedAction.type === 'delete-document-template' &&
+      editingDocumentTemplate?.key === confirmedAction.template.key
+    ) {
+      handleBackFromDocumentTemplateEdit();
+    }
     setIsSaving(true);
     setDocumentCreateError('');
     setFormError('');
     setSuccessMessage('');
 
     try {
-      if (confirmAction.type === 'duplicate-document') {
-        const response = await duplicateTravelDocument(confirmAction.document.id, {
-          name: getDuplicateDocumentName(confirmAction.document.name),
+      if (confirmedAction.type === 'duplicate-document') {
+        const response = await duplicateTravelDocument(confirmedAction.document.id, {
+          name: getDuplicateDocumentName(confirmedAction.document.name),
         });
         const nextDocument = normalizeTravelDocumentForUi(response.data.data.document);
         setDocuments((current) => [nextDocument, ...current]);
@@ -1622,33 +1644,29 @@ function TravelDocumentTools() {
         setSuccessMessage('Travel document duplicated.');
       }
 
-      if (confirmAction.type === 'delete-document') {
-        await deleteTravelDocument(confirmAction.document.id);
+      if (confirmedAction.type === 'delete-document') {
+        await deleteTravelDocument(confirmedAction.document.id);
         setExpandedFile(null);
         setDocuments((current) => {
-          const nextDocuments = current.filter((document) => document.id !== confirmAction.document.id);
+          const nextDocuments = current.filter((document) => document.id !== confirmedAction.document.id);
           setSelectedDocumentId(nextDocuments[0]?.id || '');
           return nextDocuments;
         });
         setFormError('Travel document deleted.');
       }
 
-      if (confirmAction.type === 'delete-document-item') {
-        const response = await deleteTravelDocumentItem(confirmAction.document.id, confirmAction.item.id);
+      if (confirmedAction.type === 'delete-document-item') {
+        const response = await deleteTravelDocumentItem(confirmedAction.document.id, confirmedAction.item.id);
         replaceDocument(response.data.data.document);
         setFormError('Document item deleted.');
       }
 
-      if (confirmAction.type === 'delete-document-template') {
-        await deleteTravelDocumentTemplate(confirmAction.template.key);
-        setDocumentTemplates((current) => current.filter((template) => template.key !== confirmAction.template.key));
-        if (editingDocumentTemplate?.key === confirmAction.template.key) {
-          handleBackFromDocumentTemplateEdit();
-        }
-        setFormError('Document template deleted.');
+      if (confirmedAction.type === 'delete-document-template') {
+        await deleteTravelDocumentTemplate(confirmedAction.template.key);
+        setDocumentTemplates((current) => current.filter((template) => template.key !== confirmedAction.template.key));
+        setSuccessMessage('Document template deleted successfully.');
       }
 
-      setConfirmAction(null);
     } catch (requestError) {
       setFormError(getErrorMessage(requestError));
     } finally {
@@ -1719,12 +1737,6 @@ function TravelDocumentTools() {
 
   return (
     <TravelToolsPageFrame labelledBy="travel-document-title" className="travel-tools-enhanced-page travel-documents-redesign">
-      {isSaving && (
-        <div className="travel-tools-busy-overlay" role="status" aria-live="polite">
-          <span className="travel-tools-spinner" aria-hidden="true" />
-          <strong>Processing...</strong>
-        </div>
-      )}
       <header className="document-command-header">
         <div className="document-command-title">
           <span className="document-command-icon" aria-hidden="true">
@@ -1837,7 +1849,7 @@ function TravelDocumentTools() {
         {createMode === 'template' && (
           <div className="document-template-library">
             <div className="document-template-picker" aria-label="Document list templates">
-              {documentTemplates.map((template) => {
+              {orderedDocumentTemplates.map((template) => {
                 const isSelectedTemplate = createForm.templateKey === template.key;
                 return (
                   <article className={`document-template-card ${isSelectedTemplate ? 'active' : ''}`} key={template.key || template.id}>
@@ -2096,7 +2108,13 @@ function TravelDocumentTools() {
                       <ChevronLeft size={16} aria-hidden="true" />
                       Back
                     </button>
-                    <button className="primary-action" type="button" onClick={handleSaveDocumentTemplateEdit} disabled={isSaving || !isEditingTemplateDirty}>
+                    <button
+                      className="primary-action"
+                      type="button"
+                      onClick={handleSaveDocumentTemplateEdit}
+                      disabled={isSaving || !isEditingTemplateDirty}
+                      title={!isEditingTemplateDirty ? 'Make a change before saving' : 'Save template changes'}
+                    >
                       Save
                     </button>
                   </>
@@ -2299,7 +2317,12 @@ function TravelDocumentTools() {
             </label>
             <div className="travel-tools-modal-actions">
               <button className="secondary-action" type="button" onClick={handleCancelDocumentNameEdit}>Cancel</button>
-              <button className="primary-action" type="submit" disabled={isSaving || !documentNameDraft.trim()}>
+              <button
+                className="primary-action"
+                type="submit"
+                disabled={isSaving || !documentNameDraft.trim() || !isDocumentDetailsDirty}
+                title={!isDocumentDetailsDirty ? 'Make a change before saving' : 'Save document list changes'}
+              >
                 Save changes
               </button>
             </div>
@@ -2444,6 +2467,13 @@ function TravelDocumentTools() {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {isSaving && (
+        <div className="travel-tools-busy-overlay" role="status" aria-live="polite">
+          <span className="travel-tools-spinner" aria-hidden="true" />
+          <strong>Processing...</strong>
         </div>
       )}
 
