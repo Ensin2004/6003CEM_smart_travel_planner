@@ -1317,8 +1317,10 @@
   inset: 0;
   z-index: 100;
   display: grid;
-  place-items: center;
-  gap: 12px;
+  grid-template-rows: auto auto;
+  align-content: center;
+  justify-items: center;
+  gap: 10px;
   background: rgba(15, 23, 42, 0.28);
   color: #ffffff;
   cursor: wait;
@@ -1326,9 +1328,11 @@
 }
 
 .travel-tools-busy-overlay strong {
-  padding: 8px 12px;
+  margin: 0;
+  padding: 7px 12px;
   border-radius: 8px;
   background: rgba(15, 23, 42, 0.76);
+  line-height: 1.2;
 }
 
 .travel-tools-spinner {
@@ -4266,6 +4270,27 @@
   border: 0;
 }
 
+.packing-redesign .document-workbench .travel-tools-panel-heading span {
+  color: #17212b;
+  font-size: 14px;
+  font-weight: 650;
+  text-transform: none;
+}
+
+.packing-redesign .document-workbench .travel-tools-panel-heading h3 {
+  color: #7b8794;
+  font-size: 11px;
+}
+
+.packing-redesign .document-workbench .travel-tools-panel-heading > strong {
+  width: 30px;
+  height: 30px;
+  border-radius: 5px;
+  background: #e7edf3;
+  color: #334e68;
+  font-size: 12px;
+}
+
 .packing-redesign .document-workbench .travel-tools-list-stack {
   gap: 4px;
   margin-top: 10px;
@@ -4302,6 +4327,15 @@
   background: #0f766e;
 }
 
+.packing-redesign .document-workbench .travel-tools-list-card span {
+  color: #25313d;
+  font-size: 13px;
+}
+
+.packing-redesign .document-workbench .travel-tools-list-card small {
+  font-size: 11px;
+}
+
 .packing-redesign .document-workbench .packing-workspace-detail {
   padding: 0;
   overflow: hidden;
@@ -4317,10 +4351,38 @@
   background: #f8fafc;
 }
 
+.packing-redesign .document-workbench .packing-workspace-detail > .travel-tools-detail-header h3 {
+  margin-bottom: 4px;
+  color: #17212b;
+  font-size: 24px;
+}
+
+.packing-redesign .document-workbench .packing-workspace-detail > .travel-tools-detail-header p {
+  margin: 0;
+  font-size: 12px;
+}
+
+.packing-redesign .document-workbench .packing-workspace-detail > .travel-tools-detail-header .travel-tools-workspace-label {
+  color: #0f766e;
+  font-size: 11px;
+}
+
 .packing-redesign .document-workbench .packing-workspace-fields {
   grid-template-columns: minmax(0, 1fr);
   padding: 16px 20px;
   border-bottom: 1px solid #e7edf3;
+}
+
+.packing-redesign .document-workspace-status {
+  display: grid;
+  gap: 6px;
+  margin: 12px 20px 0;
+}
+
+.packing-redesign .document-workspace-status .travel-tools-status {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 5px;
 }
 
 .packing-redesign .document-workbench .packing-workspace-controls {
@@ -4404,15 +4466,47 @@
   position: sticky;
   top: 0;
   z-index: 4;
+  align-items: flex-start;
   padding: 18px 20px;
   border-bottom: 1px solid #d9e2ec;
   background: rgba(255, 255, 255, 0.94);
   backdrop-filter: blur(14px);
 }
 
-.packing-redesign .packing-template-popup .travel-tools-detail-header h3 {
+.packing-redesign .packing-template-popup .travel-tools-workspace-label {
   color: #0f766e;
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+
+.travel-documents-redesign .travel-document-template-workspace .travel-tools-detail-header h3,
+.packing-redesign .packing-template-popup .travel-tools-detail-header h3 {
+  margin-bottom: 8px;
+  color: #17212b;
   font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.packing-redesign .packing-template-popup .travel-tools-detail-header p {
+  margin: 0;
+  color: #64748b;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.packing-redesign .packing-template-popup .document-template-close {
+  display: grid;
+  width: 36px;
+  height: 36px;
+  margin: 0;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid #d9e2ec;
+  border-radius: 5px;
+  background: #ffffff;
+  color: #64748b;
 }
 
 .packing-redesign .document-template-modal-status {
@@ -4566,6 +4660,22 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
+}
+
+.travel-documents-redesign .document-workbench .travel-tools-item-title-row strong,
+.packing-redesign .document-workbench .travel-tools-item-title-row strong {
+  color: #25313d;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+
+.packing-redesign .document-workbench .travel-tools-item-category {
+  font-size: 13px;
+}
+
+.packing-redesign .document-workbench .travel-tools-item-meta span {
+  font-size: 12px;
 }
 
 .packing-redesign .packing-item-icon-action {

@@ -208,7 +208,6 @@ function PackingListTools() {
     handleItemFormChange,
     handleOpenAddItem,
     handleOpenSaveTemplateModal,
-    handlePackingListTripChange,
     handleReminderDaysChange,
     handleSaveCurrentListAsTemplate,
     handleSaveItem,
@@ -227,6 +226,7 @@ function PackingListTools() {
     itemFormError,
     itemModalMode,
     listTitleDraft,
+    listTripDraft,
     packingLists,
     progress,
     reminderDays,
@@ -240,6 +240,7 @@ function PackingListTools() {
     setCreateMode,
     setFilters,
     setListTitleDraft,
+    setListTripDraft,
     setSelectedListId,
     setSelectedTemplateId,
     setTemplateEditForm,
@@ -260,6 +261,13 @@ function PackingListTools() {
   const linkedTripName = selectedList?.tripId
     ? (linkedTrip ? getTripOptionLabel(linkedTrip) : selectedList.destination || 'Linked trip unavailable')
     : 'Not linked';
+  const isPackingDetailsDirty = Boolean(
+    selectedList
+      && (
+        listTitleDraft.trim() !== selectedList.title
+        || String(listTripDraft || '') !== String(selectedList.tripId || '')
+      )
+  );
   const isTripLinkedToOtherPackingList = (tripId, excludedListId = '') =>
     packingLists.some(
       (list) =>
@@ -547,7 +555,8 @@ function PackingListTools() {
           </div>
         )}
         {createFormError && <p className="form-error travel-tools-status">{createFormError}</p>}
-        {statusScope === 'packing' && successMessage && <p className="form-success travel-tools-status">{successMessage}</p>}
+        {error && <p className="form-error travel-tools-status">{error}</p>}
+        {successMessage && <p className="form-success travel-tools-status">{successMessage}</p>}
       </form>
       )}
 
@@ -804,27 +813,12 @@ function PackingListTools() {
                 </details>
               </div>
 
-              <div className="packing-workspace-fields">
-                <div className="packing-trip-link-panel">
-                  <label>
-                    <span className="travel-tools-field-label">
-                      Link trip (optional)
-                      {renderTip('Choose a trip to link this list or select "None" to unlink it.')}
-                    </span>
-                    <select value={selectedList.tripId || ''} onChange={handlePackingListTripChange} disabled={isSaving}>
-                      <option value="">None</option>
-                      {trips.map((trip) => {
-                        const isUnavailable = isTripLinkedToOtherPackingList(trip._id, selectedList._id);
-                        return (
-                          <option key={trip._id} value={trip._id} disabled={isUnavailable}>
-                            {getTripOptionLabel(trip)}{isUnavailable ? ' (Already linked)' : ''}
-                          </option>
-                        );
-                      })}
-                    </select>
-                  </label>
+              {(statusScope === 'packing' && (error || successMessage)) && (
+                <div className="document-workspace-status" aria-live="polite">
+                  {error && <p className="form-error travel-tools-status">{error}</p>}
+                  {successMessage && <p className="form-success travel-tools-status">{successMessage}</p>}
                 </div>
-              </div>
+              )}
 
               <div className="packing-workspace-controls">
                 <div className="packing-reminder">
@@ -947,8 +941,6 @@ function PackingListTools() {
                 )}
               </div>
 
-              {statusScope === 'packing' && error && <p className="form-error travel-tools-status">{error}</p>}
-              {statusScope === 'packing' && successMessage && <p className="form-success travel-tools-status">{successMessage}</p>}
             </section>
           ) : (
             <section className="travel-tools-detail travel-tools-empty-detail packing-empty-detail">
@@ -977,6 +969,7 @@ function PackingListTools() {
                 <X size={18} aria-hidden="true" />
               </button>
             </div>
+            {statusScope === 'packing' && error && <p className="form-error travel-tools-modal-status">{error}</p>}
             <label>
               Packing list name
               <input
@@ -986,9 +979,28 @@ function PackingListTools() {
                 autoFocus
               />
             </label>
+            <label>
+              Linked trip
+              <select value={listTripDraft} onChange={(event) => setListTripDraft(event.target.value)}>
+                <option value="">None</option>
+                {trips.map((trip) => {
+                  const isUnavailable = isTripLinkedToOtherPackingList(trip._id, selectedList._id);
+                  return (
+                    <option key={trip._id} value={trip._id} disabled={isUnavailable}>
+                      {getTripOptionLabel(trip)}{isUnavailable ? ' (Already linked)' : ''}
+                    </option>
+                  );
+                })}
+              </select>
+            </label>
             <div className="travel-tools-modal-actions">
               <button className="secondary-action" type="button" onClick={handleCancelListTitleEdit}>Cancel</button>
-              <button className="primary-action" type="submit" disabled={isSaving || !listTitleDraft.trim()}>
+              <button
+                className="primary-action"
+                type="submit"
+                disabled={isSaving || !listTitleDraft.trim() || !isPackingDetailsDirty}
+                title={!isPackingDetailsDirty ? 'Make a change before saving' : 'Save packing list changes'}
+              >
                 Save changes
               </button>
             </div>

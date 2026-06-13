@@ -67,6 +67,7 @@ export function useTravelToolsPage() {
   const [editingItemId, setEditingItemId] = useState('');
   const [isEditingListTitle, setIsEditingListTitle] = useState(false);
   const [listTitleDraft, setListTitleDraft] = useState('');
+  const [listTripDraft, setListTripDraft] = useState('');
   const [isEditingTemplateTitle, setIsEditingTemplateTitle] = useState(false);
   const [templateTitleDraft, setTemplateTitleDraft] = useState('');
   const [isEditingTemplateDescription, setIsEditingTemplateDescription] = useState(false);
@@ -555,13 +556,16 @@ export function useTravelToolsPage() {
   const handleStartListTitleEdit = () => {
     if (!selectedList) return;
     setListTitleDraft(selectedList.title);
+    setListTripDraft(selectedList.tripId || '');
     setIsEditingListTitle(true);
+    setError('');
     setSuccessMessage('');
   };
 
   const handleCancelListTitleEdit = () => {
     setIsEditingListTitle(false);
     setListTitleDraft('');
+    setListTripDraft('');
   };
 
   const handleSaveListTitle = async (event) => {
@@ -581,11 +585,15 @@ export function useTravelToolsPage() {
     setError('');
     setSuccessMessage('');
     try {
-      const response = await updatePackingList(selectedList._id, { title: listTitleDraft.trim() });
+      const response = await updatePackingList(selectedList._id, {
+        title: listTitleDraft.trim(),
+        tripId: listTripDraft || null,
+      });
       replaceList(response.data.data.packingList);
       setIsEditingListTitle(false);
       setListTitleDraft('');
-      setSuccessMessage('Packing list name updated.');
+      setListTripDraft('');
+      setSuccessMessage('Packing list updated.');
     } catch (requestError) {
       setError(getErrorMessage(requestError));
     } finally {
@@ -819,6 +827,7 @@ export function useTravelToolsPage() {
     itemFormError,
     itemModalMode,
     listTitleDraft,
+    listTripDraft,
     packingLists,
     progress,
     remainingItems,
@@ -834,6 +843,7 @@ export function useTravelToolsPage() {
     setCreateMode,
     setFilters,
     setListTitleDraft,
+    setListTripDraft,
     setSelectedListId,
     setSelectedTemplateId,
     setTemplateDescriptionDraft,
