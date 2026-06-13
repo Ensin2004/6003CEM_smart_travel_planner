@@ -1,5 +1,8 @@
+/**
+ * Language module.
+ * Validation schemas reject unsafe or incomplete request payloads.
+ */
 const { body, param, query } = require('express-validator');
-
 const languageCodeRule = (field) =>
   body(field)
     .trim()
@@ -24,5 +27,4 @@ const historyQueryRules = [
 const historyIdRules = [
   param('id').isMongoId().withMessage('Invalid translation history id'),
 ];
-
 module.exports = { historyIdRules, historyQueryRules, translateRules };

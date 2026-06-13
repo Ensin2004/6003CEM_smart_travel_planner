@@ -1,13 +1,18 @@
+/**
+ * Currency module.
+ * Assertions cover expected behavior, error handling, and response shape.
+ */
 const axios = require('axios');
 const currencyService = require('../src/modules/currency/currency.service');
 
 jest.mock('axios');
-
+// Test group covers  behavior.
 describe('Currency service', () => {
+  // Setup prepares shared data before assertions.
   beforeEach(() => {
     jest.clearAllMocks();
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('returns supported currencies for the selector', () => {
     const currencies = currencyService.getSupportedCurrencies();
 
@@ -18,7 +23,7 @@ describe('Currency service', () => {
       ])
     );
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('converts amounts with Frankfurter rates', async () => {
     axios.get.mockResolvedValueOnce({
       data: {
@@ -40,7 +45,7 @@ describe('Currency service', () => {
     expect(conversion.rate).toBe(4.72);
     expect(conversion.available).toBe(true);
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('does not call Frankfurter when currencies match', async () => {
     const conversion = await currencyService.convertCurrency({
       amount: 125,

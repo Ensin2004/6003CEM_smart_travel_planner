@@ -1,13 +1,34 @@
+/**
+ * Explore module.
+ * Reusable labels, keys, and defaults stay centralized for feature code.
+ */
 export const roomTypeOptions = [
-  { value: '', label: 'Any room' },
+  { value: '', label: 'Any' },
   { value: 'single room', label: 'Single' },
   { value: 'double room', label: 'Double' },
   { value: 'family room', label: 'Family' },
   { value: 'suite', label: 'Suite' },
 ];
-
+export const attractionCategoryOptions = [
+  { value: '', label: 'Any' },
+  { value: 'tourist attractions', label: 'Tourist attractions' },
+  { value: 'landmarks', label: 'Landmarks' },
+  { value: 'museums', label: 'Museums' },
+  { value: 'theme parks', label: 'Theme parks' },
+  { value: 'nature parks', label: 'Nature parks' },
+  { value: 'beaches', label: 'Beaches' },
+  { value: 'historical sites', label: 'Historical sites' },
+  { value: 'cultural attractions', label: 'Cultural attractions' },
+  { value: 'shopping malls', label: 'Shopping malls' },
+  { value: 'night markets', label: 'Night markets' },
+  { value: 'zoos aquariums', label: 'Zoos / Aquariums' },
+  { value: 'gardens', label: 'Gardens' },
+  { value: 'viewpoints', label: 'Viewpoints' },
+  { value: 'religious sites', label: 'Religious sites' },
+  { value: 'family attractions', label: 'Family attractions' },
+];
 export const foodCategoryOptions = [
-  { value: '', label: 'Any food' },
+  { value: '', label: 'Any' },
   { value: 'chinese cuisine', label: 'Chinese cuisine' },
   { value: 'japanese cuisine', label: 'Japanese cuisine' },
   { value: 'korean cuisine', label: 'Korean cuisine' },

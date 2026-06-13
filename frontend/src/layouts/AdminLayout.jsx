@@ -1,3 +1,7 @@
+/**
+ * Admin Layout module.
+ * Exports and local helpers keep related behavior in a single module.
+ */
 import {
   Home,
   LogOut,
@@ -21,9 +25,9 @@ const adminMenu = [
   { to: '/admin/settings', label: 'Settings', icon: Settings, bottom: true, children: settingsChildren },
   { to: '/login', label: 'Logout', icon: LogOut, bottom: true, action: 'logout' },
 ];
-
+// AdminLayout renders the main screen and handles nearby interactions.
 function AdminLayout() {
   return <AppLayout role="admin" menuItems={adminMenu} />;
 }
-
+// Default export registers the primary  value.
 export default AdminLayout;

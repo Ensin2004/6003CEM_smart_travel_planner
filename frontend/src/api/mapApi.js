@@ -1,12 +1,11 @@
+/**
+ * Frontend map API helpers.
+ * This file combines backend map endpoints with direct OpenStreetMap search
+ * calls used for client-side place lookup.
+ */
 import axiosClient from './axiosClient';
 
 const NOMINATIM_SEARCH_URL = 'https://nominatim.openstreetmap.org/search';
-const OSRM_ROUTE_URL = 'https://router.project-osrm.org/route/v1';
-const routeModeProfiles = {
-  car: 'driving',
-  bike: 'cycling',
-  walking: 'foot',
-};
 const estimatedModeSpeedsKph = {
   walking: 5,
   car: 45,
@@ -24,11 +23,13 @@ const categorySearchTerms = {
   shopping: ['shopping mall', 'hypermarket', 'supermarket', 'department store', 'marketplace'],
 };
 
+// Search constants above separate provider URLs, route modes, fallback speeds, and category keywords.
+
+// OpenStreetMap errors are converted into short messages suitable for search feedback.
 const getOpenStreetMapErrorMessage = (status) => {
   if (status === 429) {
     return 'Map search is busy right now. Please try again in a moment.';
   }
-
   if (status >= 500) {
     return 'Map search is temporarily unavailable.';
   }
@@ -43,6 +44,8 @@ const getOpenStreetMapImage = (place = {}) => {
   return /^https?:\/\//i.test(image || '') ? image : '';
 };
 
+// Nominatim results are normalized to the same marker shape used by backend place searches.
+// Number conversion happens here so map components can rely on numeric coordinates.
 const normalizeOpenStreetMapPlace = (place, fallbackName = 'Selected place') => ({
   id: `${place.osm_type}-${place.osm_id}`,
   name: place.name || place.display_name?.split(',')[0] || fallbackName,
@@ -56,9 +59,11 @@ const normalizeOpenStreetMapPlace = (place, fallbackName = 'Selected place') => 
   openState: place.extratags?.opening_hours || '',
 });
 
+// Text search queries Nominatim directly for fast client-side lookup from the map search box.
 export const searchOpenStreetMapPlaces = async (query, options = {}) => {
   const trimmedQuery = String(query || '').trim();
 
+  // Very short queries are skipped to avoid noisy provider results and unnecessary requests.
   if (trimmedQuery.length < 2) {
     return [];
   }
@@ -70,14 +75,12 @@ export const searchOpenStreetMapPlaces = async (query, options = {}) => {
     extratags: '1',
     limit: String(options.limit || 6),
   });
-
   const response = await fetch(`${NOMINATIM_SEARCH_URL}?${params.toString()}`, {
     headers: {
       Accept: 'application/json',
     },
     signal: options.signal,
   });
-
   if (!response.ok) {
     throw new Error(getOpenStreetMapErrorMessage(response.status));
   }
@@ -89,6 +92,7 @@ export const searchOpenStreetMapPlaces = async (query, options = {}) => {
     .filter((place) => Number.isFinite(place.lat) && Number.isFinite(place.lng));
 };
 
+// Category search runs several keyword searches around the visible map area.
 export const searchOpenStreetMapCategoryPlaces = async (categoryId, center, options = {}) => {
   const searchTerms = categorySearchTerms[categoryId] || [];
   const lat = Number(center?.[0]);
@@ -100,6 +104,8 @@ export const searchOpenStreetMapCategoryPlaces = async (categoryId, center, opti
 
   const radius = Number(options.radius || 0.18);
   const bounds = options.bounds;
+
+  // A bounded viewbox keeps category results near the current map viewport.
   const viewbox = bounds
     ? [
       Number(bounds.west).toFixed(5),
@@ -115,6 +121,7 @@ export const searchOpenStreetMapCategoryPlaces = async (categoryId, center, opti
     ].join(',');
   const limitPerTerm = Math.max(8, Math.ceil((options.limit || 40) / searchTerms.length));
 
+  // Category searches fan out across several search terms, then merge duplicates by OSM id.
   const responses = await Promise.allSettled(searchTerms.map(async (searchTerm) => {
     const params = new URLSearchParams({
       q: searchTerm,
@@ -125,14 +132,12 @@ export const searchOpenStreetMapCategoryPlaces = async (categoryId, center, opti
       bounded: '1',
       viewbox,
     });
-
     const response = await fetch(`${NOMINATIM_SEARCH_URL}?${params.toString()}`, {
       headers: {
         Accept: 'application/json',
       },
       signal: options.signal,
     });
-
     if (!response.ok) {
       throw new Error(getOpenStreetMapErrorMessage(response.status));
     }
@@ -148,22 +153,24 @@ export const searchOpenStreetMapCategoryPlaces = async (categoryId, center, opti
 
   const uniquePlaces = new Map();
 
+  // Fulfilled results are merged by normalized place id so repeated keywords do not duplicate markers.
   responses
     .filter((result) => result.status === 'fulfilled')
     .flatMap((result) => result.value)
     .forEach((place) => {
-    const normalizedPlace = normalizeOpenStreetMapPlace(place, categoryId);
+      const normalizedPlace = normalizeOpenStreetMapPlace(place, categoryId);
 
-    if (Number.isFinite(normalizedPlace.lat) && Number.isFinite(normalizedPlace.lng)) {
-      uniquePlaces.set(normalizedPlace.id, normalizedPlace);
-    }
-  });
+      if (Number.isFinite(normalizedPlace.lat) && Number.isFinite(normalizedPlace.lng)) {
+        uniquePlaces.set(normalizedPlace.id, normalizedPlace);
+      }
+    });
 
   return [...uniquePlaces.values()]
     .sort((firstPlace, secondPlace) => secondPlace.importance - firstPlace.importance)
     .slice(0, options.limit || 40);
 };
 
+// Backend category search is used when provider-specific enrichment is handled by the server.
 export const searchMapCategoryPlaces = async (categoryId, center, options = {}) => {
   const response = await axiosClient.get('/map/places', {
     params: {
@@ -177,13 +184,20 @@ export const searchMapCategoryPlaces = async (categoryId, center, options = {}) 
   });
 
   const places = response.data.data.places;
-  return Array.isArray(places) ? places : places?.items || [];
+  return Array.isArray(places)
+    ? { available: places.length > 0, items: places }
+    : places || { available: false, items: [] };
 };
 
+// Place details are requested with the identifying fields available from the selected marker.
 export const getMapPlaceDetails = async (place, options = {}) => {
   const response = await axiosClient.get('/map/place-details', {
     params: {
       category: place.categoryId,
+      placeId: place.id,
+      foursquarePlaceId: place.foursquarePlaceId,
+      googlePlaceId: place.placeId,
+      dataId: place.dataId,
       name: place.name,
       address: place.address || place.displayName,
       latitude: place.lat,
@@ -195,6 +209,7 @@ export const getMapPlaceDetails = async (place, options = {}) => {
   return response.data.data.details;
 };
 
+// Weather lookup accepts either destination text or coordinates, depending on map selection context.
 export const getMapWeather = async ({ destination, date, latitude, longitude, locationLabel }, options = {}) => {
   const response = await axiosClient.get('/map/weather', {
     params: {
@@ -210,8 +225,31 @@ export const getMapWeather = async ({ destination, date, latitude, longitude, lo
   return response.data.data.weather;
 };
 
+// Reverse geocode keeps provider keys on the backend while the browser supplies coordinates.
+export const getReverseGeocodeLocation = async ({ latitude, longitude }, options = {}) => {
+  const response = await axiosClient.get('/map/reverse-geocode', {
+    params: {
+      latitude,
+      longitude,
+    },
+    signal: options.signal,
+  });
+
+  return response.data.data.location;
+};
+
+export const getGeocodeLocation = async (query, options = {}) => {
+  const response = await axiosClient.get('/map/geocode', {
+    params: { query },
+    signal: options.signal,
+  });
+
+  return response.data.data.location;
+};
+
 const toRadians = (degrees) => degrees * (Math.PI / 180);
 
+// The haversine calculation keeps route estimates available if the backend cannot be reached.
 const getDistanceMeters = (firstPoint, secondPoint) => {
   const earthRadiusMeters = 6371000;
   const firstLat = toRadians(Number(firstPoint.lat));
@@ -224,6 +262,7 @@ const getDistanceMeters = (firstPoint, secondPoint) => {
   return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(haversineValue), Math.sqrt(1 - haversineValue));
 };
 
+// Estimated routes keep the UI useful for train and plane modes that OSRM does not support.
 const getEstimatedRoute = (points, mode) => {
   const distanceMeters = points.slice(1).reduce((totalDistance, point, index) => (
     totalDistance + getDistanceMeters(points[index], point)
@@ -239,6 +278,7 @@ const getEstimatedRoute = (points, mode) => {
   };
 };
 
+// Route lookup accepts either an array of points or the older origin/destination pair signature.
 export const getRouteBetweenPlaces = async (pointsOrOrigin, destination, options = {}) => {
   const points = Array.isArray(pointsOrOrigin)
     ? pointsOrOrigin
@@ -256,48 +296,39 @@ export const getRouteBetweenPlaces = async (pointsOrOrigin, destination, options
     throw new Error('Route needs at least two points.');
   }
 
-  if (!routeModeProfiles[mode]) {
-    return getEstimatedRoute(validPoints, mode);
-  }
-
-  const coordinates = validPoints.map((point) => `${point.lng},${point.lat}`).join(';');
-  const params = new URLSearchParams({
-    overview: 'full',
-    geometries: 'geojson',
-    steps: 'false',
-  });
-
   try {
-    const response = await fetch(`${OSRM_ROUTE_URL}/${routeModeProfiles[mode]}/${coordinates}?${params.toString()}`, {
-      headers: {
-        Accept: 'application/json',
-      },
+    const response = await axiosClient.post('/map/routes', {
+      mode,
+      points: validPoints.map((point) => ({ lat: point.lat, lng: point.lng })),
+    }, {
       signal: options.signal,
     });
+    const routeResult = response.data.data.routes;
+    const alternatives = routeResult.routes || [];
+    const selectedRoute = alternatives.find((route) => route.id === routeResult.bestRouteId) || alternatives[0];
 
-    if (!response.ok) {
-      return getEstimatedRoute(validPoints, mode);
-    }
-
-    const routeData = await response.json();
-    const route = routeData.routes?.[0];
-
-    if (!route) {
+    if (!selectedRoute) {
       return getEstimatedRoute(validPoints, mode);
     }
 
     return {
-      distanceMeters: route.distance,
-      durationSeconds: route.duration,
-      coordinates: route.geometry.coordinates.map(([lng, lat]) => [lat, lng]),
-      estimated: false,
+      ...selectedRoute,
+      alternatives,
+      estimated: routeResult.estimated,
+      provider: routeResult.provider,
+      message: routeResult.message,
+      optimization: routeResult.optimization,
+      optimizedPoints: routeResult.optimization?.pointOrder
+        ?.map((pointIndex) => validPoints[pointIndex])
+        .filter(Boolean) || validPoints,
       mode,
     };
   } catch (error) {
-    if (error.name === 'AbortError') {
+    if (isAbortError(error)) {
       throw error;
     }
 
+    // Network failures fall back to distance-based estimates instead of blanking the route.
     return getEstimatedRoute(validPoints, mode);
   }
 };

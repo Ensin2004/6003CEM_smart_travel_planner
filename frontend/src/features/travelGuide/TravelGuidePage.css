@@ -1,9 +1,12 @@
+/**
+ * Travel Guide styles.
+ * Layout, spacing, and interaction rules support the matching React view.
+ */
 .travel-guide-page {
   display: grid;
   gap: 16px;
   text-align: left;
 }
-
 .travel-guide-hero {
   position: relative;
   display: grid;
@@ -19,7 +22,6 @@
   padding: 28px;
   box-shadow: 0 18px 42px rgba(16, 42, 67, 0.08);
 }
-
 .travel-guide-hero::after {
   position: absolute;
   right: 22px;
@@ -39,7 +41,6 @@
   font-weight: 700;
   line-height: 1.4;
 }
-
 .travel-guide-eyebrow {
   display: inline-flex;
   gap: 7px;
@@ -50,7 +51,6 @@
   background: rgba(255, 255, 255, 0.7);
   padding: 6px 10px;
 }
-
 .travel-guide-hero h2 {
   margin: 10px 0 8px;
   max-width: 760px;
@@ -70,12 +70,10 @@
   font-size: 14px;
   line-height: 1.6;
 }
-
 .travel-guide-hero p {
   max-width: 720px;
   margin: 0;
 }
-
 .travel-guide-hero-card {
   display: grid;
   gap: 7px;
@@ -85,7 +83,6 @@
   padding: 14px;
   box-shadow: 0 14px 30px rgba(16, 42, 67, 0.08);
 }
-
 .travel-guide-hero-card strong {
   overflow: hidden;
   color: var(--navy);
@@ -95,7 +92,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .travel-guide-toolbar {
   display: grid;
   gap: 10px;
@@ -268,6 +264,7 @@
   transition:
     transform 0.18s ease,
     box-shadow 0.18s ease;
+  cursor: pointer;
 }
 
 .travel-guide-card:hover {
@@ -351,7 +348,9 @@
 
 .travel-guide-card span,
 .travel-guide-card strong,
-.travel-guide-card small {
+.travel-guide-card small,
+.travel-guide-card .visited-place-control,
+.travel-guide-card .compare-button {
   position: relative;
   z-index: 1;
 }
@@ -384,6 +383,27 @@
   font-size: 12px;
   line-height: 1.35;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.travel-guide-card .visited-place-control {
+  margin-top: 9px;
+}
+
+.travel-guide-card .compare-button {
+  justify-self: start;
+  margin-top: 8px;
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.travel-guide-card .visited-place-watermark {
+  width: auto;
+  max-width: none;
+  overflow: visible;
+  background: rgba(240, 253, 244, 0.94);
+  color: #166534;
+  padding: 5px 8px;
+  text-overflow: clip;
   white-space: nowrap;
 }
 
@@ -1282,12 +1302,14 @@
   display: grid;
   grid-template-columns: 170px minmax(0, 1fr);
   gap: 12px;
+  align-items: stretch;
 }
 
 .travel-guide-row-intro {
   display: grid;
   align-content: space-between;
-  min-height: 250px;
+  height: 100%;
+  min-height: 0;
   border-radius: 8px;
   background:
     linear-gradient(180deg, rgba(16, 42, 67, 0.86), rgba(16, 42, 67, 0.74)),
@@ -1322,10 +1344,6 @@
   font-weight: 750;
 }
 
-.travel-guide-row-scroll {
-  display: none;
-}
-
 .travel-guide-row-carousel {
   display: grid;
   grid-template-columns: 38px minmax(0, 1fr) 38px;
@@ -1336,9 +1354,13 @@
 
 .travel-guide-row-window {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 12px;
   min-width: 0;
+}
+
+.travel-guide-row-window .explore-attraction {
+  height: 100%;
 }
 
 .travel-guide-row-arrow {
@@ -1390,10 +1412,6 @@
 
   .travel-guide-smart-lists {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .travel-guide-row-window {
-    grid-template-columns: minmax(0, 1fr);
   }
 
   .travel-guide-intelligence-grid {

@@ -1,12 +1,14 @@
+/**
+ * App Sidebar Nav module.
+ * Exports and local helpers keep related behavior in a single module.
+ */
 import { Link } from 'react-router-dom';
-
+// AppSidebarLink renders the main screen and handles nearby interactions.
 function AppSidebarLink({ item, active, onNavigate, parentActive }) {
   const ItemIcon = item.icon;
-
   const handleClick = (event) => {
     onNavigate?.(item, event);
   };
-
   return (
     <Link
       to={item.to}
@@ -25,7 +27,7 @@ function AppSidebarLink({ item, active, onNavigate, parentActive }) {
     </Link>
   );
 }
-
+// AppSidebarNav renders the main screen and handles nearby interactions.
 function AppSidebarNav({ ariaLabel, items, isItemActive, isMenuItemActive, onNavigate }) {
   return (
     <nav className="sidebar-nav" aria-label={ariaLabel}>
@@ -41,5 +43,5 @@ function AppSidebarNav({ ariaLabel, items, isItemActive, isMenuItemActive, onNav
     </nav>
   );
 }
-
+// Default export registers the primary  value.
 export default AppSidebarNav;

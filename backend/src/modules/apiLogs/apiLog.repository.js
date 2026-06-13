@@ -1,5 +1,8 @@
+/**
+ * Api Logs module.
+ * Database queries stay isolated behind focused persistence helpers.
+ */
 const ApiLog = require('./apiLog.model');
-
 const create = (data) => ApiLog.create(data);
 const findRecent = (limit = 50) => ApiLog.find().sort({ createdAt: -1 }).limit(limit).lean();
 const findMany = ({ filter, limit, page }) =>
@@ -19,21 +22,18 @@ const aggregateCategoryCounts = (filter) =>
     { $group: { _id: '$category', count: { $sum: 1 } } },
     { $sort: { count: -1 } },
   ]);
-
 const aggregateStatusCounts = (filter) =>
   ApiLog.aggregate([
     { $match: filter },
     { $group: { _id: '$status', count: { $sum: 1 } } },
     { $sort: { count: -1 } },
   ]);
-
 const aggregateSeverityCounts = (filter) =>
   ApiLog.aggregate([
     { $match: filter },
     { $group: { _id: '$severity', count: { $sum: 1 } } },
     { $sort: { count: -1 } },
   ]);
-
 const aggregateDailyCounts = (filter, days = 7) => {
   const since = new Date();
   since.setDate(since.getDate() - (days - 1));
@@ -53,7 +53,6 @@ const aggregateDailyCounts = (filter, days = 7) => {
     { $sort: { '_id.date': 1 } },
   ]);
 };
-
 const aggregateUserIssueSummary = () =>
   ApiLog.aggregate([
     {
@@ -78,7 +77,6 @@ const aggregateUserIssueSummary = () =>
       },
     },
   ]);
-
 module.exports = {
   create,
   findRecent,

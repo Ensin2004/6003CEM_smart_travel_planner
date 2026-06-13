@@ -1,4 +1,8 @@
-const { query } = require('express-validator');
+/**
+ * Map module.
+ * Validation schemas reject unsafe or incomplete request payloads.
+ */
+const { body, query } = require('express-validator');
 
 const mapCategories = ['hotels', 'airports', 'train', 'food', 'attractions', 'shopping'];
 
@@ -11,12 +15,10 @@ const destinationRule = query('destination')
   .trim()
   .isLength({ min: 2, max: 120 })
   .withMessage('Destination must be between 2 and 120 characters');
-
 const coordinateRule = (field, min, max) =>
   query(field)
     .isFloat({ min, max })
     .withMessage(`${field} must be a valid coordinate`);
-
 const optionalCoordinateRule = (field, min, max) =>
   query(field)
     .optional({ checkFalsy: true })
@@ -27,7 +29,6 @@ const placeNameRule = query('name')
   .trim()
   .isLength({ min: 2, max: 160 })
   .withMessage('Place name is required');
-
 const optionalTextRule = (field, max = 180) =>
   query(field)
     .optional({ checkFalsy: true })
@@ -39,6 +40,17 @@ const dateRule = query('date')
   .optional({ checkFalsy: true })
   .isISO8601({ strict: true, strictSeparator: true })
   .withMessage('Travel date must use YYYY-MM-DD format');
+const requireDestinationOrCoordinates = query().custom((_, { req }) => {
+  const hasDestination = Boolean(req.query.destination?.trim());
+  const hasLatitude = req.query.latitude !== undefined && req.query.latitude !== '';
+  const hasLongitude = req.query.longitude !== undefined && req.query.longitude !== '';
+
+  if (hasDestination || (hasLatitude && hasLongitude)) {
+    return true;
+  }
+
+  throw new Error('Destination or current location coordinates are required.');
+});
 
 const mapPlacesRules = [
   categoryRule,
@@ -50,6 +62,10 @@ const mapPlacesRules = [
 
 const mapPlaceDetailsRules = [
   categoryRule,
+  optionalTextRule('placeId', 120),
+  optionalTextRule('foursquarePlaceId', 120),
+  optionalTextRule('googlePlaceId', 240),
+  optionalTextRule('dataId', 240),
   placeNameRule,
   optionalTextRule('address'),
   optionalCoordinateRule('latitude', -90, 90),
@@ -57,11 +73,42 @@ const mapPlaceDetailsRules = [
 ];
 
 const mapWeatherRules = [
-  query('destination').trim().isLength({ min: 2, max: 120 }).withMessage('Destination is required'),
+  destinationRule,
   dateRule,
   optionalCoordinateRule('latitude', -90, 90),
   optionalCoordinateRule('longitude', -180, 180),
   optionalTextRule('locationLabel', 160),
+  requireDestinationOrCoordinates,
 ];
-
-module.exports = { mapPlacesRules, mapPlaceDetailsRules, mapWeatherRules };
+const reverseGeocodeRules = [
+  coordinateRule('latitude', -90, 90),
+  coordinateRule('longitude', -180, 180),
+];
+const geocodeRules = [
+  query('query')
+    .trim()
+    .isLength({ min: 2, max: 160 })
+    .withMessage('Location must be between 2 and 160 characters'),
+];
+const mapRouteRules = [
+  body('mode')
+    .isIn(['car', 'walking', 'bike', 'train', 'plane'])
+    .withMessage('Travel mode is invalid'),
+  body('points')
+    .isArray({ min: 2, max: 10 })
+    .withMessage('Route must contain between 2 and 10 points'),
+  body('points.*.lat')
+    .isFloat({ min: -90, max: 90 })
+    .withMessage('Route latitude must be a valid coordinate'),
+  body('points.*.lng')
+    .isFloat({ min: -180, max: 180 })
+    .withMessage('Route longitude must be a valid coordinate'),
+];
+module.exports = {
+  geocodeRules,
+  mapPlacesRules,
+  mapPlaceDetailsRules,
+  mapRouteRules,
+  mapWeatherRules,
+  reverseGeocodeRules,
+};

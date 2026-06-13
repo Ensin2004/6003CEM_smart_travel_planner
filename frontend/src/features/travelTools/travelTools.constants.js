@@ -1,3 +1,7 @@
+/**
+ * Travel Tools module.
+ * Reusable labels, keys, and defaults stay centralized for feature code.
+ */
 export const packingCategories = [
   'clothes',
   'toiletries',
@@ -8,9 +12,8 @@ export const packingCategories = [
   'travel essentials',
   'other',
 ];
-
 export const defaultPackingCategory = 'travel essentials';
-
+// Format Packing Category converts raw values into readable display text.
 export const formatPackingCategory = (category = '') =>
   category
     .split(' ')

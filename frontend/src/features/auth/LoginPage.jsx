@@ -1,3 +1,8 @@
+/**
+ * Login screen for returning users.
+ * Handles local form validation, token storage, role-based navigation, and
+ * email-verification recovery from the same submit flow.
+ */
 import { CalendarDays, CheckCircle2, CloudSun, Eye, EyeOff, MailWarning } from 'lucide-react';
 import { useContext, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
@@ -9,6 +14,8 @@ import './AuthPage.css';
 function LoginPage() {
   const navigate = useNavigate();
   const { setUser } = useContext(AuthContext);
+
+  // Form state is kept small because login needs only credentials plus verification-resend feedback.
   const [formData, setFormData] = useState({ email: '', password: '' });
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -16,12 +23,10 @@ function LoginPage() {
   const [verificationPrompt, setVerificationPrompt] = useState(null);
   const [resendStatus, setResendStatus] = useState('');
   const [isResending, setIsResending] = useState(false);
-
   const handleChange = (event) => {
     const { name, value } = event.target;
     setFormData((current) => ({ ...current, [name]: value }));
   };
-
   const handleSubmit = async (event) => {
     event.preventDefault();
     setError('');
@@ -32,12 +37,12 @@ function LoginPage() {
     }
 
     setIsSubmitting(true);
-
     try {
       const response = await login(formData);
       const result = response.data.data;
       const destination = result.user.role === 'admin' ? '/admin' : '/dashboard';
 
+      // Tokens are stored after a successful login so axios interceptors can refresh later requests.
       localStorage.setItem('accessToken', result.accessToken);
       localStorage.setItem('refreshToken', result.refreshToken);
       localStorage.setItem('user', JSON.stringify(result.user));
@@ -45,6 +50,7 @@ function LoginPage() {
       navigate(destination);
     } catch (requestError) {
       if (requestError.response?.data?.code === 'EMAIL_NOT_VERIFIED') {
+        // Unverified accounts stay on the login page with a resend option instead of showing a generic error.
         setVerificationPrompt({
           email: requestError.response.data.email || formData.email,
           expiresAt: requestError.response.data.verificationExpiresAt,
@@ -64,13 +70,11 @@ function LoginPage() {
       setIsSubmitting(false);
     }
   };
-
   const handleResendVerification = async () => {
     if (!verificationPrompt?.email) return;
 
     setIsResending(true);
     setResendStatus('');
-
     try {
       const response = await resendVerificationEmail({ email: verificationPrompt.email });
       const result = response.data.data;
@@ -88,7 +92,6 @@ function LoginPage() {
       setIsResending(false);
     }
   };
-
   return (
     <main className="auth-page auth-login">
       <PublicTopbar />
@@ -222,5 +225,5 @@ function LoginPage() {
     </main>
   );
 }
-
+// Default export registers the primary  value.
 export default LoginPage;

@@ -1,11 +1,14 @@
+/**
+ * Trips module.
+ * Schema fields define stored document structure, defaults, and indexes.
+ */
 const mongoose = require('mongoose');
-
 const getStartOfToday = () => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   return today;
 };
-
+// Note Schema groups database fields before model registration.
 const noteSchema = new mongoose.Schema(
   {
     content: { type: String, required: true, trim: true, maxlength: 1000 },
@@ -13,7 +16,7 @@ const noteSchema = new mongoose.Schema(
   },
   { _id: true }
 );
-
+// Budget Schema groups database fields before model registration.
 const budgetSchema = new mongoose.Schema(
   {
     totalAmount: { type: Number, min: 0, default: 0 },
@@ -22,7 +25,7 @@ const budgetSchema = new mongoose.Schema(
   },
   { _id: false }
 );
-
+// Travel Preference Schema groups database fields before model registration.
 const travelPreferenceSchema = new mongoose.Schema(
   {
     culture: { type: Boolean, default: false },
@@ -38,7 +41,7 @@ const travelPreferenceSchema = new mongoose.Schema(
   },
   { _id: false }
 );
-
+// Destination Segment Schema groups database fields before model registration.
 const destinationSegmentSchema = new mongoose.Schema(
   {
     country: { type: String, trim: true, maxlength: 80 },
@@ -55,7 +58,7 @@ const destinationSegmentSchema = new mongoose.Schema(
   },
   { _id: true }
 );
-
+// Document Checklist Schema groups database fields before model registration.
 const documentChecklistSchema = new mongoose.Schema(
   {
     enabled: { type: Boolean, default: false },
@@ -63,7 +66,7 @@ const documentChecklistSchema = new mongoose.Schema(
   },
   { _id: false }
 );
-
+// Date Flexibility Schema groups database fields before model registration.
 const dateFlexibilitySchema = new mongoose.Schema(
   {
     mode: { type: String, enum: ['exact', 'flexible'], default: 'exact' },
@@ -72,7 +75,7 @@ const dateFlexibilitySchema = new mongoose.Schema(
   },
   { _id: false }
 );
-
+// Trip Schema groups database fields before model registration.
 const tripSchema = new mongoose.Schema(
   {
     userId: {
@@ -121,5 +124,4 @@ tripSchema.virtual('status').get(function status() {
 });
 
 tripSchema.statics.getStatusBoundaryDate = getStartOfToday;
-
 module.exports = mongoose.model('Trip', tripSchema);

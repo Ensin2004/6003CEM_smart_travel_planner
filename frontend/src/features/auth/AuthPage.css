@@ -1,4 +1,8 @@
-﻿.auth-page {
+/**
+ * Shared visual system for login, registration, verification, and password recovery screens.
+ * The layout pairs a branded travel showcase with compact form panels.
+ */
+.auth-page {
   display: grid;
   grid-template-rows: 1fr;
   place-items: start center;
@@ -12,7 +16,6 @@
     linear-gradient(135deg, rgba(248, 250, 252, 0.94), rgba(236, 253, 245, 0.86)),
     url("../../assets/landing-hero.png") center / cover;
 }
-
 .auth-page::before {
   content: "";
   position: absolute;
@@ -28,7 +31,7 @@
 .auth-showcase {
   position: relative;
 }
-
+/* Main auth card keeps the showcase and form side by side on desktop. */
 .auth-card {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -43,7 +46,6 @@
   backdrop-filter: blur(18px);
   animation: authPanelIn 0.45s ease both;
 }
-
 .auth-login .auth-panel {
   order: 1;
 }
@@ -59,7 +61,6 @@
 .auth-register .auth-panel {
   order: 2;
 }
-
 .auth-showcase {
   display: flex;
   flex-direction: column;
@@ -73,7 +74,6 @@
     url("../../assets/landing-hero.png") center / cover;
   animation: authShowcaseIn 0.6s ease 0.08s both;
 }
-
 .auth-showcase::after {
   content: "";
   position: absolute;
@@ -84,11 +84,9 @@
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
 }
-
 .auth-brand {
   color: #ffffff;
 }
-
 .auth-page .public-topbar {
   flex: 0 0 auto;
 }

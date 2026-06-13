@@ -1,5 +1,8 @@
+/**
+ * Role module.
+ * Middleware shapes request flow before controller logic runs.
+ */
 const AppError = require('../utils/AppError');
-
 const restrictTo = (...roles) => (req, res, next) => {
   if (!req.user || !roles.includes(req.user.role)) {
     return next(new AppError('You do not have permission to perform this action', 403));
@@ -7,5 +10,4 @@ const restrictTo = (...roles) => (req, res, next) => {
 
   return next();
 };
-
 module.exports = { restrictTo };

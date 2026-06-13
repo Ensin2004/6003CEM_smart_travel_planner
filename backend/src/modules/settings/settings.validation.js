@@ -1,3 +1,7 @@
+/**
+ * Settings module.
+ * Validation schemas reject unsafe or incomplete request payloads.
+ */
 const { body } = require('express-validator');
 
 const updateContentRules = [
@@ -7,5 +11,4 @@ const updateContentRules = [
   body('faqs.*.question').trim().isLength({ min: 1, max: 180 }).withMessage('FAQ question is required'),
   body('faqs.*.answer').trim().isLength({ min: 1, max: 2000 }).withMessage('FAQ answer is required'),
 ];
-
 module.exports = { updateContentRules };

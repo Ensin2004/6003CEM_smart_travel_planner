@@ -1,28 +1,38 @@
+/**
+ * Favorites module.
+ * Schema fields define stored document structure, defaults, and indexes.
+ */
 const mongoose = require('mongoose');
-
-const favoriteLocationSchema = new mongoose.Schema(
+// Favorite Coordinates Schema remains absent for address-only favourites and validates complete GeoJSON points.
+const favoriteCoordinatesSchema = new mongoose.Schema(
   {
-    address: { type: String, trim: true },
+    type: {
+      type: String,
+      enum: ['Point'],
+      default: 'Point',
+    },
     coordinates: {
-      type: {
-        type: String,
-        enum: ['Point'],
-        default: 'Point',
-      },
-      coordinates: {
-        type: [Number],
-        validate: {
-          validator(value) {
-            return !value || value.length === 2;
-          },
-          message: 'Coordinates must contain longitude and latitude',
+      type: [Number],
+      required: true,
+      validate: {
+        validator(value) {
+          return value.length === 2;
         },
+        message: 'Coordinates must contain longitude and latitude',
       },
     },
   },
   { _id: false }
 );
-
+// Favorite Location Schema groups database fields before model registration.
+const favoriteLocationSchema = new mongoose.Schema(
+  {
+    address: { type: String, trim: true },
+    coordinates: { type: favoriteCoordinatesSchema, default: undefined },
+  },
+  { _id: false }
+);
+// Favorite Schema groups database fields before model registration.
 const favoriteSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
@@ -44,5 +54,4 @@ const favoriteSchema = new mongoose.Schema(
 
 favoriteSchema.index({ userId: 1, type: 1 });
 favoriteSchema.index({ 'location.coordinates': '2dsphere' });
-
 module.exports = mongoose.model('Favorite', favoriteSchema, 'favorites');

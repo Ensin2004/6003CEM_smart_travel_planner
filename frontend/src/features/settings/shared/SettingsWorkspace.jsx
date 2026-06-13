@@ -1,3 +1,7 @@
+/**
+ * Settings module.
+ * Exports and local helpers keep related behavior in a single module.
+ */
 import { Edit3 } from 'lucide-react';
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { useLocation } from 'react-router-dom';
@@ -20,7 +24,7 @@ import {
   sections,
 } from './settings.constants';
 import './SettingsWorkspace.css';
-
+// SettingsWorkspace renders the main screen and handles nearby interactions.
 function SettingsWorkspace({ role }) {
   const { setUser } = useContext(AuthContext);
   const location = useLocation();
@@ -109,7 +113,6 @@ function SettingsWorkspace({ role }) {
     countries.find(({ country }) => country === profile.country)?.countryCode || 'MY';
   const selectedGender = genderOptions.find(({ value }) => value === profile.gender);
   const selectedAgeGroup = ageGroupOptions.find(({ value }) => value === profile.ageGroup);
-
   useEffect(() => {
     const loadSettings = async () => {
       try {
@@ -146,16 +149,13 @@ function SettingsWorkspace({ role }) {
 
     loadSettings();
   }, [isAdmin]);
-
   const handleProfileChange = (event) => {
     const { name, value } = event.target;
     setProfile((current) => ({ ...current, [name]: value }));
   };
-
   const handleProfileSelect = (name, value) => {
     setProfile((current) => ({ ...current, [name]: value }));
   };
-
   const handleNotificationToggle = (key) => {
     setProfile((current) => ({
       ...current,
@@ -166,7 +166,6 @@ function SettingsWorkspace({ role }) {
       },
     }));
   };
-
   const handleAllNotificationsOff = () => {
     setProfile((current) => {
       const notificationsOn = Boolean(current.notificationPreferences?.notificationsOff);
@@ -180,7 +179,6 @@ function SettingsWorkspace({ role }) {
       };
     });
   };
-
   const handleAvatarChange = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -208,12 +206,10 @@ function SettingsWorkspace({ role }) {
     };
     reader.readAsDataURL(file);
   };
-
   const handleAvatarRemove = () => {
     setProfile((current) => ({ ...current, avatarUrl: '' }));
     setStatus({ target: 'profile', type: 'success', text: 'Avatar removed. Save profile to keep this change.' });
   };
-
   const handleProfileSubmit = async (event) => {
     event?.preventDefault();
     setStatus({ target: '', type: '', text: '' });
@@ -238,7 +234,6 @@ function SettingsWorkspace({ role }) {
       });
     }
   };
-
   const handlePasswordSubmit = async (event) => {
     event.preventDefault();
     setStatus({ target: '', type: '', text: '' });
@@ -275,7 +270,6 @@ function SettingsWorkspace({ role }) {
       });
     }
   };
-
   const handleContentChange = (field, value) => {
     setContent((current) => ({ ...current, [field]: value }));
   };

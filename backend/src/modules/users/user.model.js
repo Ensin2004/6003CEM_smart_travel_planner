@@ -1,6 +1,10 @@
+/**
+ * Users module.
+ * Schema fields define stored document structure, defaults, and indexes.
+ */
 const mongoose = require('mongoose');
 const argon2 = require('argon2');
-
+// Preference Schema groups database fields before model registration.
 const preferenceSchema = new mongoose.Schema(
   {
     travelStyle: { type: String, trim: true },
@@ -15,7 +19,7 @@ const preferenceSchema = new mongoose.Schema(
   },
   { _id: false }
 );
-
+// User Schema groups database fields before model registration.
 const userSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true, maxlength: 80 },
@@ -98,5 +102,4 @@ userSchema.pre('save', async function hashPassword() {
 userSchema.methods.comparePassword = function comparePassword(candidatePassword) {
   return argon2.verify(this.password, candidatePassword);
 };
-
 module.exports = mongoose.model('User', userSchema);

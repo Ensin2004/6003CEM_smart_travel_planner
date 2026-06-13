@@ -1,8 +1,14 @@
+/**
+ * Explore styles.
+ * Layout, spacing, and interaction rules support the matching React view.
+ */
 .explore-search {
   display: grid;
-  grid-template-columns: minmax(150px, 210px) minmax(0, 1fr) minmax(170px, 190px) auto;
   gap: 14px;
   align-items: center;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   overflow: visible;
   border: 1px solid rgba(15, 118, 110, 0.14);
   border-radius: 8px;
@@ -10,16 +16,56 @@
   padding: 14px;
   box-shadow: 0 8px 18px rgba(16, 42, 67, 0.035);
 }
-
-.explore-search-hotels {
-  grid-template-columns: minmax(120px, 150px) minmax(180px, 0.8fr) minmax(160px, 180px) minmax(420px, 1.35fr) auto;
-  column-gap: 10px;
+.explore-search-attractions,
+.explore-search-hotels,
+.explore-search-restaurants {
+  grid-template-columns: minmax(170px, 0.55fr) minmax(0, 1.8fr) minmax(112px, 140px);
+  grid-template-areas:
+    "copy copy copy"
+    "destination destination destination"
+    "date filters action";
+  column-gap: 12px;
+  row-gap: 14px;
+}
+.explore-search-copy {
+  grid-area: copy;
+  display: grid;
+  gap: 3px;
+  min-width: 0;
 }
 
-.explore-search-copy {
+.explore-search-destination {
+  grid-area: destination;
+}
+
+.explore-search-date {
+  grid-area: date;
+}
+
+.explore-search-filters {
+  grid-area: filters;
+}
+
+.explore-search-action {
+  grid-area: action;
+  align-self: end;
+}
+
+.explore-search-field,
+.explore-filter-control {
   display: grid;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
+}
+
+.explore-field-label {
+  overflow: hidden;
+  color: var(--teal);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .explore-search-copy span,
@@ -29,11 +75,10 @@
   font-weight: 650;
   line-height: 1.4;
 }
-
 .explore-search-copy strong {
   overflow: hidden;
   color: var(--navy);
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 750;
   line-height: 1.25;
   text-overflow: ellipsis;
@@ -45,7 +90,8 @@
   display: flex;
   gap: 9px;
   align-items: center;
-  min-height: 48px;
+  min-width: 0;
+  min-height: 46px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #ffffff;
@@ -75,33 +121,47 @@
 .explore-search select:focus {
   outline: none;
 }
-
 .explore-search select {
   cursor: pointer;
 }
-
 .explore-search select:disabled {
   cursor: not-allowed;
   color: var(--muted);
 }
-
 .explore-filter-row {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(104px, 1fr));
   gap: 10px;
   min-width: 0;
 }
 
+.explore-filter-field {
+  min-width: 0;
+  padding-inline: 10px;
+}
+
 .explore-filter-field select {
   max-height: 42vh;
+  overflow: hidden;
+  padding-right: 6px;
+  line-height: 1.35;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .explore-search .primary-action {
   gap: 8px;
-  min-height: 48px;
+  min-width: 0;
+  min-height: 46px;
   padding-inline: 20px;
   font-weight: 650;
   box-shadow: 0 6px 14px rgba(15, 118, 110, 0.13);
+}
+
+.explore-search-attractions .primary-action,
+.explore-search-hotels .primary-action,
+.explore-search-restaurants .primary-action {
+  padding-inline: 10px;
 }
 
 .explore-briefing,
@@ -120,7 +180,7 @@
   min-width: 0;
   border: 1px solid rgba(217, 226, 236, 0.88);
   border-radius: 8px;
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(242, 248, 247, 0.92));
+  background: #ffffff;
   box-shadow: 0 5px 12px rgba(16, 42, 67, 0.025);
 }
 
@@ -128,7 +188,23 @@
   display: flex;
   gap: 12px;
   align-items: center;
+  border-left-width: 4px;
   padding: 13px 14px;
+}
+
+.explore-stats-row article:nth-child(1) {
+  border-left-color: #0f766e;
+  background: linear-gradient(135deg, rgba(240, 253, 250, 0.92), #ffffff 58%);
+}
+
+.explore-stats-row article:nth-child(2) {
+  border-left-color: #7c3aed;
+  background: linear-gradient(135deg, rgba(245, 243, 255, 0.92), #ffffff 58%);
+}
+
+.explore-stats-row article:nth-child(3) {
+  border-left-color: #b45309;
+  background: linear-gradient(135deg, rgba(255, 251, 235, 0.92), #ffffff 58%);
 }
 
 .explore-stats-row svg,
@@ -167,15 +243,113 @@
 }
 
 .explore-guidance-grid {
-  grid-template-columns: minmax(280px, 0.82fr) minmax(340px, 1.18fr);
+  grid-template-columns: minmax(280px, 0.82fr) minmax(320px, 1.18fr);
   align-items: start;
+}
+
+.explore-stats-row article:nth-child(1) svg {
+  border-color: rgba(15, 118, 110, 0.16);
+  background: rgba(15, 118, 110, 0.1);
+  color: #0f766e;
+}
+
+.explore-stats-row article:nth-child(2) svg {
+  border-color: rgba(124, 58, 237, 0.16);
+  background: rgba(124, 58, 237, 0.09);
+  color: #7c3aed;
+}
+
+.explore-stats-row article:nth-child(3) svg {
+  border-color: rgba(180, 83, 9, 0.16);
+  background: rgba(245, 158, 11, 0.12);
+  color: #b45309;
+}
+
+.explore-presearch-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 0.82fr) minmax(320px, 1.18fr);
+  gap: 14px;
+}
+
+.explore-presearch-card {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-height: 238px;
+  border: 1px solid rgba(217, 226, 236, 0.9);
+  border-radius: 8px;
+  background: linear-gradient(180deg, #ffffff, #fbfcfe);
+  padding: 16px;
+  box-shadow: 0 8px 20px rgba(16, 42, 67, 0.035);
+}
+
+.explore-presearch-card .explore-briefing-title small {
+  margin-left: auto;
+  border-radius: 999px;
+  background: rgba(15, 118, 110, 0.1);
+  color: var(--teal);
+  padding: 5px 9px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.explore-presearch-center {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 9px;
+  min-height: 150px;
+  text-align: center;
+}
+
+.explore-presearch-center > svg {
+  width: 56px;
+  height: 56px;
+  border-radius: 999px;
+  background: rgba(15, 118, 110, 0.08);
+  color: var(--teal);
+  padding: 13px;
+}
+
+.explore-presearch-center h3 {
+  max-width: 280px;
+  margin: 0;
+  color: var(--navy);
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1.3;
+}
+
+.explore-presearch-center p {
+  max-width: 360px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.explore-presearch-center .explore-quick-tips-list {
+  justify-self: center;
+  max-width: 360px;
+  text-align: left;
+}
+
+.explore-presearch-action {
+  min-height: 36px;
+  border: 0;
+  border-radius: 6px;
+  background: rgba(15, 118, 110, 0.1);
+  color: var(--teal);
+  padding: 0 18px;
+  font-size: 13px;
+  font-weight: 800;
 }
 
 .explore-briefing-card {
   display: grid;
   align-content: start;
   gap: 12px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 251, 253, 0.98));
+  background: #ffffff;
   padding: 16px;
   box-shadow: 0 8px 18px rgba(16, 42, 67, 0.035);
 }
@@ -183,20 +357,8 @@
 .explore-weather-summary {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(135deg, rgba(15, 118, 110, 0.14), rgba(245, 158, 11, 0.08) 34%, rgba(255, 255, 255, 0.96) 68%), #ffffff;
-}
-
-.explore-weather-summary::after {
-  position: absolute;
-  right: -46px;
-  top: -56px;
-  width: 160px;
-  height: 160px;
-  border: 1px solid rgba(15, 118, 110, 0.1);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.46);
-  content: '';
-  pointer-events: none;
+  gap: 14px;
+  background: #ffffff;
 }
 
 .explore-briefing-card > * {
@@ -204,8 +366,8 @@
   z-index: 1;
 }
 
-.explore-briefing-ai {
-  background: linear-gradient(135deg, rgba(245, 158, 11, 0.08), rgba(255, 255, 255, 0.96) 42%), #ffffff;
+.explore-quick-tips-card {
+  background: #ffffff;
 }
 
 .explore-briefing-title {
@@ -224,6 +386,12 @@
   font-size: 12px;
   font-weight: 750;
   text-transform: uppercase;
+}
+
+.explore-weather-summary .explore-briefing-title span {
+  color: var(--navy);
+  font-size: 15px;
+  text-transform: none;
 }
 
 .explore-briefing-title strong {
@@ -263,6 +431,29 @@
   line-height: 1.25;
 }
 
+.explore-weather-current {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+  min-width: 0;
+}
+
+.explore-weather-current-icon {
+  width: 86px;
+  height: 86px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(219, 234, 254, 0.78), rgba(241, 245, 249, 0.78));
+  color: #4b5563;
+  padding: 20px;
+}
+
+.explore-weather-current-detail {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
 .explore-briefing-main,
 .explore-briefing-text {
   margin: 0;
@@ -277,23 +468,21 @@
   gap: 7px;
   align-items: center;
   color: var(--muted);
+  font-size: 16px;
+  line-height: 1.65;
 }
 
 .explore-weather-line {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 18px;
   align-items: baseline;
   min-width: 0;
-  border: 1px solid rgba(15, 118, 110, 0.1);
-  border-radius: 8px;
-  background: rgba(255, 255, 255, 0.72);
-  padding: 12px;
 }
 
 .explore-weather-line strong {
   color: var(--navy);
-  font-size: 30px;
+  font-size: 40px;
   font-weight: 750;
   line-height: 1.1;
 }
@@ -301,10 +490,19 @@
 .explore-weather-line span {
   overflow: hidden;
   color: var(--ink);
-  font-size: 15px;
+  font-size: 18px;
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.explore-weather-metrics span {
+  background: #ffffff;
+  color: #475569;
+  padding: 6px 12px;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 5px 12px rgba(16, 42, 67, 0.04);
 }
 
 .explore-ai-action {
@@ -326,6 +524,31 @@
 .explore-ai-action:disabled {
   cursor: not-allowed;
   opacity: 0.72;
+}
+
+.explore-quick-tips-list {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.explore-quick-tips-list li {
+  position: relative;
+  margin: 0;
+  color: var(--navy);
+  padding-left: 20px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.explore-quick-tips-list li::before {
+  position: absolute;
+  left: 0;
+  color: var(--teal);
+  font-weight: 850;
+  content: "\2713";
 }
 
 .explore-ai-details {
@@ -470,11 +693,35 @@
   opacity: 0.72;
 }
 
+@media (max-width: 1320px) {
+  .explore-search-attractions,
+  .explore-search-hotels,
+  .explore-search-restaurants {
+    grid-template-columns: minmax(170px, 0.55fr) minmax(0, 1.8fr) minmax(112px, 140px);
+    grid-template-areas:
+      "copy copy copy"
+      "destination destination destination"
+      "date filters action";
+  }
+}
+
 @media (max-width: 900px) {
   .explore-search,
   .explore-search-hotels,
-  .explore-guidance-grid {
+  .explore-search-restaurants,
+  .explore-search-attractions,
+  .explore-guidance-grid,
+  .explore-presearch-grid {
     grid-template-columns: 1fr;
+    grid-template-areas: none;
+  }
+
+  .explore-search-copy,
+  .explore-search-destination,
+  .explore-search-date,
+  .explore-search-filters,
+  .explore-search-action {
+    grid-area: auto;
   }
 
   .explore-results-heading {
@@ -519,5 +766,21 @@
 
   .explore-briefing-title .explore-ai-action {
     flex: 0 0 auto;
+  }
+}
+
+@media (max-width: 520px) {
+  .explore-weather-current {
+    grid-template-columns: 1fr;
+    justify-items: start;
+    gap: 12px;
+  }
+
+  .explore-weather-line strong {
+    font-size: 34px;
+  }
+
+  .explore-weather-line span {
+    font-size: 16px;
   }
 }

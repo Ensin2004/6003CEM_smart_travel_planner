@@ -1,5 +1,8 @@
+/**
+ * Axios Client module.
+ * Exports and local helpers keep related behavior in a single module.
+ */
 import axios from 'axios';
-
 const getBaseURL = () => {
   const fallbackBaseURL = 'http://localhost:5000/api/v1';
   const configuredBaseURL = String(import.meta.env.VITE_API_BASE_URL || '').trim();
@@ -12,16 +15,15 @@ const getBaseURL = () => {
 };
 
 const baseURL = getBaseURL();
+export const apiBaseURL = baseURL;
 
 const axiosClient = axios.create({
   baseURL,
 });
-
 const clearSessionAndRedirect = () => {
   localStorage.removeItem('accessToken');
   localStorage.removeItem('refreshToken');
   localStorage.removeItem('user');
-
   if (window.location.pathname !== '/login') {
     window.location.assign('/login');
   }
@@ -66,7 +68,6 @@ axiosClient.interceptors.response.use(
     }
 
     originalRequest._retry = true;
-
     try {
       const response = await axios.post(`${baseURL}/auth/refresh`, { refreshToken });
       const { accessToken, refreshToken: nextRefreshToken, user } = response.data.data;
@@ -83,5 +84,5 @@ axiosClient.interceptors.response.use(
     }
   }
 );
-
+// Default export registers the primary  value.
 export default axiosClient;

@@ -1,5 +1,9 @@
+/**
+ * Settings module.
+ * Exports and local helpers keep related behavior in a single module.
+ */
 import { ChevronDown } from 'lucide-react';
-
+// FaqSettings renders the main screen and handles nearby interactions.
 function FaqSettings({
   content,
   editMode,
@@ -82,5 +86,5 @@ function FaqSettings({
     </section>
   );
 }
-
+// Default export registers the primary  value.
 export default FaqSettings;

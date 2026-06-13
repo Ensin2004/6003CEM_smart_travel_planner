@@ -1,3 +1,7 @@
+/**
+ * Travel Guide module.
+ * Page state, event handlers, and render sections define the screen experience.
+ */
 import {
   ArrowLeft,
   BedDouble,
@@ -16,11 +20,15 @@ import {
   Sun,
 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { useEffect, useMemo, useState } from 'react';
+import { useContext, useEffect, useMemo, useState } from 'react';
+import { convertCurrency } from '../../api/currencyApi';
 import { getTravelGuideDestinationDetails } from '../../api/travelGuideApi';
+import { getVisitedPlaces } from '../../api/visitedPlaceApi';
 import PlaceCard from '../../components/place/PlaceCard';
+import CurrencyContext from '../../context/currencyContext';
+import { buildVisitedLookup, getVisitedPlacePayload } from '../../components/visitedPlaces/visitedPlaceUtils';
+import { formatMoney, getPriceConversionKey } from '../explore/explore.helpers';
 import './TravelGuidePage.css';
-
 const getDateKey = () => new Date().toISOString().slice(0, 10);
 const getErrorMessage = (error) =>
   error.response?.data?.message || error.response?.data?.error || error.message || 'Unable to load this guide right now.';
@@ -39,7 +47,6 @@ const weatherOptions = [
   { id: 'cloudy', label: 'Cloudy', icon: CloudSun, tip: 'Keeps outdoor plans open while favoring places with easier backup options.' },
   { id: 'hot', label: 'Hot', icon: Flame, tip: 'Prioritizes shaded, air-conditioned, and lower-transfer plans.' },
 ];
-
 const getWeatherScore = (place, scenario, category) => {
   if (scenario === 'overall') return Number(place.rating || 0);
 
@@ -56,16 +63,30 @@ const getWeatherScore = (place, scenario, category) => {
   if (scenario === 'hot') return rating + indoorBoost + foodBoost + hotelBoost;
   return rating;
 };
-
 const sortForWeather = (items, scenario, category) =>
   [...items].sort((first, second) => getWeatherScore(second, scenario, category) - getWeatherScore(first, scenario, category));
-
 const getCarouselImageCount = (item) => item.imageUrls?.length || (item.imageUrl ? 1 : 0);
-
-function GuideCarousel({ id, title, introTitle, introText, items, rowIndex, onMove, onMore, onMoveCardCarousel, getCardCarouselIndex }) {
-  const visibleItems = items.slice(rowIndex, rowIndex + 3);
+// GuideCarousel renders destination guide rows with the intro panel and shared Explore place cards.
+function GuideCarousel({
+  id,
+  title,
+  introTitle,
+  introText,
+  items,
+  rowIndex,
+  onMove,
+  onMore,
+  onMoveCardCarousel,
+  getCardCarouselIndex,
+  getVisitedRecord,
+  getConvertedPriceText,
+  getOriginalPriceText,
+  onVisitedChange,
+}) {
+  const visibleCount = 4;
+  const visibleItems = items.slice(rowIndex, rowIndex + visibleCount);
   const canMoveBack = rowIndex > 0;
-  const canMoveNext = rowIndex + 3 < items.length;
+  const canMoveNext = rowIndex + visibleCount < items.length;
 
   return (
     <section className="travel-guide-carousel-row">
@@ -91,8 +112,13 @@ function GuideCarousel({ id, title, introTitle, introText, items, rowIndex, onMo
               index={rowIndex + index}
               item={place}
               key={`${title}-${place.id}-${place.name}`}
+              convertedPriceText={getConvertedPriceText(place)}
               onMoveCarousel={onMoveCardCarousel}
+              onVisitedChange={onVisitedChange}
+              originalPriceText={getOriginalPriceText(place)}
               type={id === 'stays' ? 'hotels' : id === 'food' ? 'food' : 'attractions'}
+              visitedRecord={getVisitedRecord?.(place, id === 'stays' ? 'hotel' : id === 'food' ? 'restaurant' : 'attraction')}
+              visitedSource="travel-guide"
             />
           )) : (
             <div className="travel-guide-mini-empty">
@@ -113,8 +139,9 @@ function GuideCarousel({ id, title, introTitle, introText, items, rowIndex, onMo
     </section>
   );
 }
-
+// TravelGuideDestinationPage renders the main screen and handles nearby interactions.
 function TravelGuideDestinationPage() {
+  const currency = useContext(CurrencyContext);
   const [searchParams] = useSearchParams();
   const destination = searchParams.get('destination') || '';
   const country = searchParams.get('country') || '';
@@ -131,7 +158,10 @@ function TravelGuideDestinationPage() {
   const [galleryIndex, setGalleryIndex] = useState(0);
   const [rowIndexes, setRowIndexes] = useState({ things: 0, stays: 0, food: 0 });
   const [cardCarouselIndexes, setCardCarouselIndexes] = useState({});
-
+  const [priceConversions, setPriceConversions] = useState({});
+  const [visitedPlaces, setVisitedPlaces] = useState([]);
+  const selectedCurrency = currency?.selectedCurrency || 'USD';
+  const supportedCurrencyCodes = useMemo(() => currency?.currencies?.map((option) => option.code) || [], [currency?.currencies]);
   const destinationLabel = useMemo(() => [destination, country].filter(Boolean).join(', '), [country, destination]);
   const gallery = guide?.gallery?.length ? guide.gallery : guide?.heroImageUrl ? [guide.heroImageUrl] : [];
   const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destinationLabel || destination)}`;
@@ -144,6 +174,111 @@ function TravelGuideDestinationPage() {
     }),
     [guide, weatherScenario]
   );
+  const visitedLookup = useMemo(() => buildVisitedLookup(visitedPlaces), [visitedPlaces]);
+  const guideItems = useMemo(
+    () => [
+      ...(guide?.attractions?.items || []),
+      ...(guide?.restaurants?.items || []),
+      ...(guide?.hotels?.items || []),
+    ],
+    [guide]
+  );
+  const getTopTitle = (items, action) => `Top ${Math.min(items.length || 8, 8)} ${action}`;
+
+  useEffect(() => {
+    const convertibleItems = guideItems.filter((item) => {
+      const detail = item.priceDetail;
+      return (
+        detail?.currency &&
+        detail.amount !== null &&
+        !detail.isTier &&
+        detail.currency !== selectedCurrency &&
+        supportedCurrencyCodes.includes(detail.currency) &&
+        supportedCurrencyCodes.includes(selectedCurrency)
+      );
+    });
+
+    if (!convertibleItems.length) {
+      return;
+    }
+
+    let isActive = true;
+    const missingItems = convertibleItems.filter((item) => !priceConversions[getPriceConversionKey(item, selectedCurrency)]);
+
+    if (!missingItems.length) {
+      return;
+    }
+
+    Promise.all(
+      missingItems.map(async (item) => {
+        const detail = item.priceDetail;
+        const key = getPriceConversionKey(item, selectedCurrency);
+
+        try {
+          const response = await convertCurrency({
+            amount: detail.amount,
+            from: detail.currency,
+            to: selectedCurrency,
+          });
+          const conversion = response.data.data.conversion;
+          const convertedMaxAmount =
+            detail.maxAmount !== null && conversion.rate
+              ? Number((detail.maxAmount * conversion.rate).toFixed(2))
+              : null;
+
+          return {
+            key,
+            value: {
+              amount: conversion.convertedAmount,
+              maxAmount: convertedMaxAmount,
+              currency: selectedCurrency,
+            },
+          };
+        } catch {
+          return {
+            key,
+            value: null,
+          };
+        }
+      })
+    ).then((results) => {
+      if (!isActive) return;
+      setPriceConversions((currentConversions) => ({
+        ...currentConversions,
+        ...Object.fromEntries(results.map((result) => [result.key, result.value])),
+      }));
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, [guideItems, priceConversions, selectedCurrency, supportedCurrencyCodes]);
+
+  const getOriginalPriceText = (item) => item.priceDetail?.display || item.price || 'Price unavailable';
+
+  const getConvertedPriceText = (item) => {
+    const conversion = priceConversions[getPriceConversionKey(item, selectedCurrency)];
+
+    if (!conversion) {
+      return '';
+    }
+
+    const convertedAmount = formatMoney(conversion.amount, conversion.currency);
+    const convertedMaxAmount =
+      conversion.maxAmount !== null ? ` - ${formatMoney(conversion.maxAmount, conversion.currency)}` : '';
+
+    return `Approx. ${convertedAmount}${convertedMaxAmount}`;
+  };
+
+  const getVisitedRecord = (place, type) => {
+    const payload = getVisitedPlacePayload({
+      item: place,
+      type,
+      source: 'travel-guide',
+      defaultDate: travelDate || getDateKey(),
+    });
+    return visitedLookup[payload.placeKey];
+  };
   const weatherPickNames = useMemo(() => {
     const picks = [
       ...categories.attractions.slice(0, 2),
@@ -153,10 +288,8 @@ function TravelGuideDestinationPage() {
 
     return picks.map((place) => place.name).filter(Boolean);
   }, [categories]);
-
   useEffect(() => {
     let isActive = true;
-
     const loadGuide = async () => {
       if (!destination) {
         setError('Destination is required.');
@@ -165,7 +298,6 @@ function TravelGuideDestinationPage() {
 
       setIsLoading(true);
       setError('');
-
       try {
         const response = await getTravelGuideDestinationDetails({
           destination,
@@ -197,11 +329,36 @@ function TravelGuideDestinationPage() {
 
     loadGuide();
 
+    // Cleanup prevents state updates after component unmount.
     return () => {
       isActive = false;
     };
   }, [country, destination, latitude, longitude, starts, travelDate]);
 
+  useEffect(() => {
+    let isActive = true;
+
+    getVisitedPlaces()
+      .then((response) => {
+        if (!isActive) return;
+        setVisitedPlaces(response.data?.data?.visitedPlaces || []);
+      })
+      .catch(() => {
+        if (isActive) setVisitedPlaces([]);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+
+  const handleVisitedChange = (visitedPlace) => {
+    if (!visitedPlace?.placeKey) return;
+    setVisitedPlaces((currentPlaces) => {
+      const withoutCurrent = currentPlaces.filter((place) => place.placeKey !== visitedPlace.placeKey);
+      return [visitedPlace, ...withoutCurrent];
+    });
+  };
   const handleViewMore = (category = activeCategory) => {
     const targetCategory = category === 'all' ? 'attractions' : category;
     const itemCount = guide?.[targetCategory]?.items?.length || 8;
@@ -212,7 +369,6 @@ function TravelGuideDestinationPage() {
       [targetCategory]: current[targetCategory] + itemCount,
     }));
   };
-
   const moveGallery = (direction) => {
     if (!gallery.length) return;
     setGalleryIndex((current) => (current + direction + gallery.length) % gallery.length);
@@ -220,7 +376,7 @@ function TravelGuideDestinationPage() {
 
   const moveRow = (rowId, items, direction) => {
     setRowIndexes((current) => {
-      const maxIndex = Math.max(items.length - 3, 0);
+      const maxIndex = Math.max(items.length - 4, 0);
       const nextIndex = Math.max(0, Math.min((current[rowId] || 0) + direction, maxIndex));
 
       return {
@@ -248,7 +404,6 @@ function TravelGuideDestinationPage() {
   const renderSingleCategory = (category) => {
     const option = categoryOptions.find((item) => item.id === category);
     const items = categories[category] || [];
-
     return (
       <section className="travel-guide-place-section">
         <div className="travel-guide-section-heading">
@@ -261,12 +416,15 @@ function TravelGuideDestinationPage() {
         <div className="travel-guide-place-grid">
           {items.map((place, index) => (
             <PlaceCard
-              carouselIndex={getCardCarouselIndex(place.id || place.name, getCarouselImageCount(place))}
               index={index}
               item={place}
               key={`${category}-${place.id}-${place.name}`}
-              onMoveCarousel={moveCardCarousel}
+              convertedPriceText={getConvertedPriceText(place)}
+              onVisitedChange={handleVisitedChange}
+              originalPriceText={getOriginalPriceText(place)}
               type={category === 'hotels' ? 'hotels' : category === 'restaurants' ? 'food' : 'attractions'}
+              visitedRecord={getVisitedRecord(place, category === 'hotels' ? 'hotel' : category === 'restaurants' ? 'restaurant' : 'attraction')}
+              visitedSource="travel-guide"
             />
           ))}
         </div>
@@ -277,7 +435,6 @@ function TravelGuideDestinationPage() {
       </section>
     );
   };
-
   return (
     <section className="travel-guide-page travel-guide-detail-page">
       <Link className="travel-guide-back-link" to="/travel-guide">
@@ -441,38 +598,50 @@ function TravelGuideDestinationPage() {
               <GuideCarousel
                 id="things"
                 title="things"
-                introTitle="What to do"
+                introTitle={getTopTitle(categories.attractions, 'to do')}
                 introText="Sightseeing ideas ranked around ratings, reviews, and the selected weather mode."
                 items={categories.attractions.slice(0, 8)}
                 rowIndex={rowIndexes.things || 0}
                 getCardCarouselIndex={getCardCarouselIndex}
+                getVisitedRecord={getVisitedRecord}
+                getConvertedPriceText={getConvertedPriceText}
+                getOriginalPriceText={getOriginalPriceText}
                 onMove={moveRow}
                 onMoveCardCarousel={moveCardCarousel}
                 onMore={() => handleViewMore('attractions')}
+                onVisitedChange={handleVisitedChange}
               />
               <GuideCarousel
                 id="stays"
                 title="stays"
-                introTitle="Where to stay"
+                introTitle={getTopTitle(categories.hotels, 'to stay')}
                 introText="Stay options to compare by rating, location signals, and price visibility."
                 items={categories.hotels.slice(0, 8)}
                 rowIndex={rowIndexes.stays || 0}
                 getCardCarouselIndex={getCardCarouselIndex}
+                getVisitedRecord={getVisitedRecord}
+                getConvertedPriceText={getConvertedPriceText}
+                getOriginalPriceText={getOriginalPriceText}
                 onMove={moveRow}
                 onMoveCardCarousel={moveCardCarousel}
                 onMore={() => handleViewMore('hotels')}
+                onVisitedChange={handleVisitedChange}
               />
               <GuideCarousel
                 id="food"
                 title="food"
-                introTitle="What to eat"
+                introTitle={getTopTitle(categories.restaurants, 'to eat')}
                 introText="Food spots for quick shortlist building, with ratings and review counts when available."
                 items={categories.restaurants.slice(0, 8)}
                 rowIndex={rowIndexes.food || 0}
                 getCardCarouselIndex={getCardCarouselIndex}
+                getVisitedRecord={getVisitedRecord}
+                getConvertedPriceText={getConvertedPriceText}
+                getOriginalPriceText={getOriginalPriceText}
                 onMove={moveRow}
                 onMoveCardCarousel={moveCardCarousel}
                 onMore={() => handleViewMore('restaurants')}
+                onVisitedChange={handleVisitedChange}
               />
             </>
           ) : (

@@ -1,3 +1,7 @@
+/**
+ * Api Logs module.
+ * Assertions cover expected behavior, error handling, and response shape.
+ */
 jest.mock('../src/modules/apiLogs/apiLog.repository', () => ({
   findMany: jest.fn(),
   countMany: jest.fn(),
@@ -11,12 +15,13 @@ jest.mock('../src/modules/apiLogs/apiLog.repository', () => ({
 
 const apiLogRepository = require('../src/modules/apiLogs/apiLog.repository');
 const apiLogService = require('../src/modules/apiLogs/apiLog.service');
-
+// Test group covers  behavior.
 describe('API log monitoring service', () => {
+  // Setup prepares shared data before assertions.
   beforeEach(() => {
     jest.clearAllMocks();
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('returns monitoring summary, pagination, and filtered logs', async () => {
     const logs = [
       {
@@ -76,7 +81,7 @@ describe('API log monitoring service', () => {
       totalPages: 1,
     });
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('removes empty metadata before recording event', async () => {
     apiLogRepository.create.mockResolvedValue({});
 
@@ -99,7 +104,7 @@ describe('API log monitoring service', () => {
       },
     });
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('masks attempted email before saving auth log metadata', async () => {
     apiLogRepository.create.mockResolvedValue({});
 

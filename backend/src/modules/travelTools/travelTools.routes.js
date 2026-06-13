@@ -1,3 +1,7 @@
+/**
+ * Travel Tools module.
+ * Route definitions connect endpoints with validation, authorization, and controllers.
+ */
 const express = require('express');
 const { protect } = require('../../middleware/auth.middleware');
 const validate = require('../../middleware/validate.middleware');
@@ -27,6 +31,7 @@ const {
 
 const router = express.Router();
 
+// Route section connects URL patterns with validation, authentication, and controller actions.
 router.use(protect);
 
 /**
@@ -506,10 +511,15 @@ router
   .route('/documents')
   .get(travelToolsController.getTravelDocuments)
   .post(createTravelDocumentRules, validate, travelToolsController.createTravelDocument);
+//  route wires  to validation, access checks, and controller logic.
 router.post('/documents/:documentId/files', uploadTravelDocumentFilesRules, validate, travelToolsController.addTravelDocumentFiles);
+//  route wires  to validation, access checks, and controller logic.
 router.post('/documents/:documentId/items', addTravelDocumentItemRules, validate, travelToolsController.addTravelDocumentItem);
+//  route wires  to validation, access checks, and controller logic.
 router.delete('/documents/:documentId/items/:itemId', deleteTravelDocumentItemRules, validate, travelToolsController.deleteTravelDocumentItem);
+//  route wires  to validation, access checks, and controller logic.
 router.delete('/documents/:documentId/files/:fileId', deleteTravelDocumentFileRules, validate, travelToolsController.deleteTravelDocumentFile);
+//  route wires  to validation, access checks, and controller logic.
 router.post('/documents/:documentId/duplicate', duplicateTravelDocumentRules, validate, travelToolsController.duplicateTravelDocument);
 router
   .route('/documents/:documentId')
@@ -523,8 +533,9 @@ router
   .route('/document-templates/:templateId')
   .patch(updateDocumentTemplateRules, validate, travelToolsController.updateDocumentTemplate)
   .delete(documentTemplateIdRule, validate, travelToolsController.deleteDocumentTemplate);
-
+//  route wires  to validation, access checks, and controller logic.
 router.get('/templates', travelToolsController.getTemplates);
+//  route wires  to validation, access checks, and controller logic.
 router.post('/templates', createTemplateRules, validate, travelToolsController.createTemplate);
 router
   .route('/templates/:templateId')
@@ -535,8 +546,9 @@ router
   .route('/')
   .get(travelToolsController.getMyPackingLists)
   .post(createPackingListRules, validate, travelToolsController.createPackingList);
-
+//  route wires  to validation, access checks, and controller logic.
 router.post('/:id/duplicate', duplicatePackingListRules, validate, travelToolsController.duplicatePackingList);
+//  route wires  to validation, access checks, and controller logic.
 router.post('/:id/items', addItemRules, validate, travelToolsController.addItem);
 
 router
@@ -549,5 +561,4 @@ router
   .get(objectIdRule, validate, travelToolsController.getPackingList)
   .patch(updatePackingListRules, validate, travelToolsController.updatePackingList)
   .delete(objectIdRule, validate, travelToolsController.deletePackingList);
-
 module.exports = router;

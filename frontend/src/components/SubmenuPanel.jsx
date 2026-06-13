@@ -1,5 +1,9 @@
+/**
+ * Submenu Panel module.
+ * Exports and local helpers keep related behavior in a single module.
+ */
 import { Link } from 'react-router-dom';
-
+// SubmenuPanel renders the main screen and handles nearby interactions.
 function SubmenuPanel({
   activeId,
   ariaLabel,
@@ -28,7 +32,6 @@ function SubmenuPanel({
             </Link>
           );
         }
-
         return (
           <button
             key={item.id}
@@ -43,5 +46,5 @@ function SubmenuPanel({
     </aside>
   );
 }
-
+// Default export registers the primary  value.
 export default SubmenuPanel;

@@ -1,3 +1,7 @@
+/**
+ * Transportation module.
+ * Business rules, repository access, and external integrations live in this layer.
+ */
 const axios = require('axios');
 const env = require('../../config/env');
 const logger = require('../../utils/logger');
@@ -7,6 +11,9 @@ const transportationRepository = require('./transportation.repository');
 const CACHE_TTL_MS = 10 * 60 * 1000;
 const DEFAULT_LIMIT = 12;
 const AIRPORT_QUERY_CONCURRENCY = 4;
+const MAX_AIRPORT_SEARCH_PAIRS = 3;
+const MAX_LIVE_FLIGHT_SEARCH_PAIRS = 1;
+const TRAIN_ROW_AI_BATCH_SIZE = 8;
 const dailyUsage = {
   date: '',
   count: 0,
@@ -25,7 +32,6 @@ const transportApiClient = axios.create({
   baseURL: 'https://transportapi.com/v3/uk',
   timeout: 9000,
 });
-
 const fallbackFlights = (message = 'Flight information temporarily unavailable') => ({
   available: false,
   message,
@@ -33,7 +39,6 @@ const fallbackFlights = (message = 'Flight information temporarily unavailable')
   schedules: [],
   liveFlights: [],
 });
-
 const fallbackTrains = (message = 'Train information temporarily unavailable') => ({
   available: false,
   message,
@@ -41,13 +46,10 @@ const fallbackTrains = (message = 'Train information temporarily unavailable') =
   departures: [],
   stationMatches: [],
 });
-
 const getTodayKey = () => new Date().toISOString().slice(0, 10);
-
 const consumeDailyQuota = () => {
   const today = getTodayKey();
   const dailyLimit = Math.max(Number(env.airlabsDailyLimit) || 100, 0);
-
   if (dailyUsage.date !== today) {
     dailyUsage.date = today;
     dailyUsage.count = 0;
@@ -60,11 +62,9 @@ const consumeDailyQuota = () => {
   dailyUsage.count += 1;
   return true;
 };
-
 const consumeGeminiQuota = () => {
   const today = getTodayKey();
   const dailyLimit = Math.max(Number(env.geminiDailyLimit) || 100, 0);
-
   if (aiDailyUsage.date !== today) {
     aiDailyUsage.date = today;
     aiDailyUsage.count = 0;
@@ -77,7 +77,6 @@ const consumeGeminiQuota = () => {
   aiDailyUsage.count += 1;
   return true;
 };
-
 const recordAirlabsFailure = (endpoint, message, statusCode, metadata) =>
   env.nodeEnv === 'test'
     ? Promise.resolve()
@@ -93,7 +92,6 @@ const recordAirlabsFailure = (endpoint, message, statusCode, metadata) =>
           metadata,
         })
         .catch((error) => logger.error(`Failed to record AirLabs API event: ${error.message}`));
-
 const recordTransportApiFailure = (endpoint, message, statusCode, metadata) =>
   env.nodeEnv === 'test'
     ? Promise.resolve()
@@ -109,68 +107,54 @@ const recordTransportApiFailure = (endpoint, message, statusCode, metadata) =>
           metadata,
         })
         .catch((error) => logger.error(`Failed to record TransportAPI event: ${error.message}`));
-
 const classifyAirlabsError = (error) => {
   if (error.isMissingKey) {
     return { message: 'Flight service is not configured yet.', statusCode: 502 };
   }
-
   if (error.isDailyLimit) {
     return { message: 'Daily flight API limit reached. Please try again tomorrow.', statusCode: 429 };
   }
-
   if (error.response?.status === 401 || error.response?.status === 403) {
     return { message: 'Flight service configuration error', statusCode: 502 };
   }
-
   if (error.response?.status === 429) {
     return { message: 'Flight API rate limit reached', statusCode: 429 };
   }
-
   if (error.code === 'ECONNABORTED') {
     return { message: 'Flight service timeout', statusCode: 503 };
   }
-
   if (!error.response) {
     return { message: 'Flight service network error', statusCode: 503 };
   }
 
   return { message: 'Flight information temporarily unavailable', statusCode: error.response.status || 503 };
 };
-
 const classifyGeminiError = (error) => {
   if (error.isDailyLimit) {
     return { message: 'Daily AI price estimate limit reached.', statusCode: 429 };
   }
-
   if (error.response?.status === 401 || error.response?.status === 403) {
     return { message: 'AI price estimates are temporarily unavailable.', statusCode: 502 };
   }
-
   if (error.response?.status === 429) {
     return { message: 'AI price estimates are busy right now.', statusCode: 429 };
   }
-
   if (error.code === 'ECONNABORTED') {
     return { message: 'AI price estimates took too long.', statusCode: 503 };
   }
 
   return { message: 'AI price estimates are temporarily unavailable.', statusCode: error.response?.status || 503 };
 };
-
 const classifyTransportApiError = (error) => {
   if (error.isMissingKey) {
     return { message: 'Train service is not configured yet.', statusCode: 502 };
   }
-
   if (error.response?.status === 401 || error.response?.status === 403) {
     return { message: 'Train service configuration error', statusCode: 502 };
   }
-
   if (error.response?.status === 429) {
     return { message: 'Train API rate limit reached', statusCode: 429 };
   }
-
   if (error.code === 'ECONNABORTED') {
     return { message: 'Train service timeout', statusCode: 503 };
   }
@@ -181,18 +165,17 @@ const classifyTransportApiError = (error) => {
 
   return { message: 'Train information temporarily unavailable', statusCode: error.response.status || 503 };
 };
-
+// Normalize Text prepares incoming data for consistent storage.
 const normalizeText = (value) => String(value || '').trim();
+// Normalize Code prepares incoming data for consistent storage.
 const normalizeCode = (value) => normalizeText(value).toUpperCase();
 const includesText = (value, search) => normalizeText(value).toLowerCase().includes(normalizeText(search).toLowerCase());
-
 const getResponseItems = (response) => {
   const data = response?.data?.response;
   if (Array.isArray(data)) return data;
   if (data && typeof data === 'object') return Object.values(data);
   return [];
 };
-
 const getAirlabs = async (endpoint, params, metadata) => {
   if (!env.airlabsApiKey) {
     const error = new Error('Missing AirLabs API key');
@@ -225,7 +208,6 @@ const getAirlabs = async (endpoint, params, metadata) => {
     throw error;
   }
 };
-
 const getTransportApi = async (endpoint, params, metadata) => {
   if (!env.transportApiAppId || !env.transportApiAppKey) {
     const error = new Error('Missing TransportAPI credentials');
@@ -280,6 +262,20 @@ const normalizeAirline = (airline = {}) => ({
   isPassenger: Boolean(airline.is_passenger),
   isInternational: Boolean(airline.is_international),
 });
+
+const normalizeFlightAirline = (row = {}, context = {}) => {
+  if (context.airline) {
+    return context.airline;
+  }
+
+  const airlineName = row.airline_name || row.airline?.name || row.airline_iata || row.airline_icao || 'Airline name unavailable';
+
+  return {
+    name: airlineName,
+    iata: row.airline_iata || '',
+    icao: row.airline_icao || '',
+  };
+};
 
 const airportMatchesName = (airport, airportName) =>
   !airportName || includesText(airport.name, airportName) || includesText(airport.city, airportName) || includesText(airport.iata_code, airportName);
@@ -486,13 +482,13 @@ const getAirportSearchPairs = ({ departureAirports, arrivalAirports, airline }) 
 };
 
 const fetchFlightRowsForSearch = async ({ departureAirports, arrivalAirports, airline, departureDate, metadata }) => {
-  const searchPairs = getAirportSearchPairs({ departureAirports, arrivalAirports, airline });
+  const searchPairs = getAirportSearchPairs({ departureAirports, arrivalAirports, airline }).slice(0, MAX_AIRPORT_SEARCH_PAIRS);
 
   if (!searchPairs.length) {
     return { schedules: [], liveFlights: [] };
   }
 
-  const responses = await runLimited(searchPairs, AIRPORT_QUERY_CONCURRENCY, async (pair) => {
+  const scheduleResponses = await runLimited(searchPairs, AIRPORT_QUERY_CONCURRENCY, async (pair) => {
     const queryParams = buildFlightQueryParams({
       departureAirport: pair.departureAirport,
       arrivalAirport: pair.arrivalAirport,
@@ -500,35 +496,56 @@ const fetchFlightRowsForSearch = async ({ departureAirports, arrivalAirports, ai
     });
 
     const scheduleResponse = await getAirlabs('/schedules', queryParams, metadata);
-    const liveFlightResponse = departureDate
-      ? null
-      : await getAirlabs(
-          '/flights',
-          {
-            ...queryParams,
-            _fields: 'flag,flight_number,flight_icao,flight_iata,dep_icao,dep_iata,arr_icao,arr_iata,airline_icao,airline_iata,status,lat,lng,alt,dir,speed,updated',
-            limit: DEFAULT_LIMIT,
-          },
-          metadata
-        );
 
     return {
+      pair,
       schedules: getResponseItems(scheduleResponse).filter(
         (schedule) =>
           airportMatchesFilter({ airportCode: schedule.dep_iata, airports: pair.filterDepartures || [] }) &&
           airportMatchesFilter({ airportCode: schedule.arr_iata, airports: pair.filterArrivals || [] })
       ),
-      liveFlights: getResponseItems(liveFlightResponse).filter(
-        (flight) =>
-          airportMatchesFilter({ airportCode: flight.dep_iata, airports: pair.filterDepartures || [] }) &&
-          airportMatchesFilter({ airportCode: flight.arr_iata, airports: pair.filterArrivals || [] })
-      ),
     };
   });
 
+  const schedules = sortSchedulesByDepartureTime(uniqueRows(scheduleResponses.flatMap((response) => response.schedules)));
+  let liveFlights = [];
+
+  if (!departureDate && schedules.length < DEFAULT_LIMIT) {
+    const liveSearchPairs = (
+      scheduleResponses.filter((response) => !response.schedules.length).map((response) => response.pair).length
+        ? scheduleResponses.filter((response) => !response.schedules.length).map((response) => response.pair)
+        : searchPairs
+    ).slice(0, MAX_LIVE_FLIGHT_SEARCH_PAIRS);
+
+    const liveResponses = await runLimited(liveSearchPairs, AIRPORT_QUERY_CONCURRENCY, async (pair) => {
+      const queryParams = buildFlightQueryParams({
+        departureAirport: pair.departureAirport,
+        arrivalAirport: pair.arrivalAirport,
+        airline,
+      });
+      const liveFlightResponse = await getAirlabs(
+        '/flights',
+        {
+          ...queryParams,
+          _fields: 'flag,flight_number,flight_icao,flight_iata,dep_icao,dep_iata,arr_icao,arr_iata,airline_icao,airline_iata,status,lat,lng,alt,dir,speed,updated',
+          limit: DEFAULT_LIMIT,
+        },
+        metadata
+      );
+
+      return getResponseItems(liveFlightResponse).filter(
+        (flight) =>
+          airportMatchesFilter({ airportCode: flight.dep_iata, airports: pair.filterDepartures || [] }) &&
+          airportMatchesFilter({ airportCode: flight.arr_iata, airports: pair.filterArrivals || [] })
+      );
+    });
+
+    liveFlights = uniqueRows(liveResponses.flat());
+  }
+
   return {
-    schedules: sortSchedulesByDepartureTime(uniqueRows(responses.flatMap((response) => response.schedules))),
-    liveFlights: uniqueRows(responses.flatMap((response) => response.liveFlights)),
+    schedules,
+    liveFlights,
   };
 };
 
@@ -576,11 +593,7 @@ const normalizeLiveFlight = (flight = {}, context = {}) => ({
   flightIata: flight.flight_iata || '',
   flightIcao: flight.flight_icao || '',
   status: flight.status || 'unknown',
-  airline: context.airline || {
-    name: flight.airline_iata || flight.airline_icao || 'Airline name unavailable',
-    iata: flight.airline_iata || '',
-    icao: flight.airline_icao || '',
-  },
+  airline: normalizeFlightAirline(flight, context),
   departure: {
     airport: getAirportFromLookup({
       lookup: context.airportLookup,
@@ -619,11 +632,7 @@ const normalizeSchedule = (schedule = {}, context = {}) => ({
     flightIata: schedule.cs_flight_iata || '',
   },
   status: schedule.status || 'scheduled',
-  airline: context.airline || {
-    name: schedule.airline_iata || schedule.airline_icao || 'Airline name unavailable',
-    iata: schedule.airline_iata || '',
-    icao: schedule.airline_icao || '',
-  },
+  airline: normalizeFlightAirline(schedule, context),
   departure: {
     airport: getAirportFromLookup({
       lookup: context.airportLookup,
@@ -1255,6 +1264,44 @@ Return JSON with:
 }
 `;
 
+const buildTrainRowEstimatePrompt = ({ trains }) => `
+Estimate rail route distance and one-way ticket price for each UK train service below.
+Use general rail geography and public-market fare knowledge. Return estimates only, not live fares.
+Currency must be MYR. Match each estimate to the supplied id.
+
+Services:
+${JSON.stringify(
+  trains.map((train) => ({
+    id: train.id,
+    operatorName: train.operatorName || train.operator,
+    originName: train.originName,
+    destinationName: train.destinationName,
+    departureDate: train.expectedDepartureDate || train.departureDate || train.serviceDate,
+    departureTime: train.expectedDepartureTime || train.actualDepartureTime || train.aimedDepartureTime,
+    arrivalDate: train.expectedArrivalDate || train.arrivalDate || train.serviceDate,
+    arrivalTime: train.expectedArrivalTime || train.actualArrivalTime || train.aimedArrivalTime,
+    trainUid: train.trainUid,
+  })),
+  null,
+  2
+)}
+
+Return JSON with:
+{
+  "estimates": [
+    {
+      "id": "matching service id",
+      "kilometers": number,
+      "miles": number,
+      "priceMin": number,
+      "priceMax": number,
+      "confidence": "low" | "medium" | "high",
+      "note": "short reason"
+    }
+  ]
+}
+`;
+
 function buildUnavailableTrainDistanceEstimate(note = 'AI distance estimate unavailable.') {
   return {
     available: false,
@@ -1404,10 +1451,10 @@ const estimateTrainDistance = async ({ service, stops }) => {
   }
 
   if (!env.geminiApiKey) {
-    return buildFallbackTrainEstimates({
-      stops,
-      note: 'Gemini API key is not configured, so this is a route-based fallback estimate.',
-    });
+    return {
+      distanceEstimate: buildUnavailableTrainDistanceEstimate('Gemini API key is not configured.'),
+      priceEstimate: buildUnavailableTrainPriceEstimate('Gemini API key is not configured.'),
+    };
   }
 
   try {
@@ -1541,11 +1588,154 @@ const estimateTrainDistance = async ({ service, stops }) => {
       trainUid: service.trainUid,
     });
     return {
-      ...buildFallbackTrainEstimates({
-        stops,
-        note: message,
-      }),
+      distanceEstimate: buildUnavailableTrainDistanceEstimate(message),
+      priceEstimate: buildUnavailableTrainPriceEstimate(message),
     };
+  }
+};
+
+const buildTrainRowAiEstimate = (estimate = {}) => {
+  const kilometers = Math.max(Math.round(Number(estimate.kilometers) || 0), 0);
+  const miles = Math.max(Math.round(Number(estimate.miles) || kilometers * 0.621371), 0);
+  const priceMin = Math.max(Math.round(Number(estimate.priceMin ?? estimate.min ?? estimate.price_myr_min) || 0), 0);
+  const priceMax = Math.max(Math.round(Number(estimate.priceMax ?? estimate.max ?? estimate.price_myr_max) || 0), priceMin);
+  const confidence = normalizeText(estimate.confidence) || 'low';
+  const note = normalizeText(estimate.note).slice(0, 140);
+
+  return {
+    distanceEstimate:
+      kilometers || miles
+        ? {
+            available: true,
+            isFallback: false,
+            kilometers,
+            miles,
+            display: `${kilometers.toLocaleString('en-US')} km`,
+            confidence,
+            note,
+          }
+        : buildUnavailableTrainDistanceEstimate('Gemini did not return a usable distance estimate.'),
+    priceEstimate:
+      priceMin && priceMax
+        ? {
+            available: true,
+            isFallback: false,
+            currency: 'MYR',
+            min: priceMin,
+            max: priceMax,
+            display: `MYR ${priceMin.toLocaleString('en-US')} - ${priceMax.toLocaleString('en-US')}`,
+            confidence,
+            note,
+          }
+        : buildUnavailableTrainPriceEstimate('Gemini did not return a usable price estimate.'),
+  };
+};
+
+const getTrainEstimateKeys = (train = {}) =>
+  [
+    train.id,
+    train.trainUid,
+    train.service,
+    train.serviceIdentifier,
+    [train.service, train.trainUid].filter(Boolean).join(':'),
+    [train.trainUid, train.aimedDepartureTime || train.expectedDepartureTime || train.actualDepartureTime, train.destinationName].filter(Boolean).join(':'),
+  ]
+    .map(normalizeText)
+    .filter(Boolean);
+
+const attachTrainRowAiEstimates = async (departures = []) => {
+  const trainsNeedingEstimates = departures.filter(
+    (train) =>
+      (!train.priceEstimate?.available || !train.distanceEstimate?.available) &&
+      normalizeText(train.originName) &&
+      normalizeText(train.destinationName)
+  );
+
+  if (!trainsNeedingEstimates.length || !env.geminiApiKey) {
+    return departures;
+  }
+
+  try {
+    const estimateById = new Map();
+    for (let index = 0; index < trainsNeedingEstimates.length; index += TRAIN_ROW_AI_BATCH_SIZE) {
+      if (!consumeGeminiQuota()) {
+        const error = new Error('Daily AI train estimate limit reached.');
+        error.isDailyLimit = true;
+        throw error;
+      }
+
+      const batch = trainsNeedingEstimates.slice(index, index + TRAIN_ROW_AI_BATCH_SIZE);
+      const response = await axios.post(
+        `https://generativelanguage.googleapis.com/v1beta/models/${env.geminiModel}:generateContent`,
+        {
+          contents: [
+            {
+              parts: [{ text: buildTrainRowEstimatePrompt({ trains: batch }) }],
+            },
+          ],
+          generationConfig: {
+            temperature: 0.15,
+            maxOutputTokens: 4096,
+            responseMimeType: 'application/json',
+            responseJsonSchema: {
+              type: 'object',
+              properties: {
+                estimates: {
+                  type: 'array',
+                  items: {
+                    type: 'object',
+                    properties: {
+                      id: { type: 'string' },
+                      kilometers: { type: 'number' },
+                      miles: { type: 'number' },
+                      priceMin: { type: 'number' },
+                      priceMax: { type: 'number' },
+                      confidence: { type: 'string' },
+                      note: { type: 'string' },
+                    },
+                    required: ['id', 'kilometers', 'miles', 'priceMin', 'priceMax', 'confidence', 'note'],
+                  },
+                },
+              },
+              required: ['estimates'],
+            },
+          },
+        },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': env.geminiApiKey,
+          },
+          timeout: 22000,
+        }
+      );
+      const parsed = parseAiJson(response);
+      (Array.isArray(parsed.estimates) ? parsed.estimates : []).forEach((estimate) => {
+        const builtEstimate = buildTrainRowAiEstimate(estimate);
+        [estimate.id, estimate.trainUid, estimate.service, estimate.serviceIdentifier]
+          .map(normalizeText)
+          .filter(Boolean)
+          .forEach((key) => estimateById.set(key, builtEstimate));
+      });
+    }
+
+    return departures.map((train) => {
+      const estimateKey = getTrainEstimateKeys(train).find((key) => estimateById.has(key));
+      const estimate = estimateKey ? estimateById.get(estimateKey) : null;
+      if (!estimate) return train;
+
+      return {
+        ...train,
+        distanceEstimate: train.distanceEstimate?.available ? train.distanceEstimate : estimate.distanceEstimate,
+        priceEstimate: train.priceEstimate?.available ? train.priceEstimate : estimate.priceEstimate,
+      };
+    });
+  } catch (error) {
+    const { message, statusCode } = classifyGeminiError(error);
+    recordAirlabsFailure('train-row-estimate', message, statusCode, {
+      count: trainsNeedingEstimates.length,
+    });
+    return departures;
   }
 };
 
@@ -1622,9 +1812,10 @@ const buildTrainDestinationArrivalFields = (destinationStop = {}, train = {}) =>
   expectedArrivalDate: destinationStop.expectedArrivalDate || train.expectedArrivalDate,
 });
 
-const getTrainDestinationArrivalPatch = async (train = {}) => {
+const getTrainDestinationArrivalPatch = async (train = {}, options = {}) => {
   const normalizedServiceIdentifier = normalizeText(train.serviceIdentifier || (train.trainUid ? `train_uid:${train.trainUid}` : ''));
   const normalizedServiceDate = normalizeText(train.serviceDate);
+  const shouldEstimateRoute = options.estimateRoute !== false;
 
   if (!normalizedServiceIdentifier || !normalizedServiceDate) {
     return {};
@@ -1643,7 +1834,9 @@ const getTrainDestinationArrivalPatch = async (train = {}) => {
       );
       const actualJourney = normalizeActualJourney(actualResponse.data || {});
       const destinationStop = getDestinationStop(actualJourney.stops, train.destinationName);
-      const routeEstimatePatch = await buildTrainRouteEstimatePatch({ train, stops: actualJourney.stops });
+      const routeEstimatePatch = shouldEstimateRoute
+        ? await buildTrainRouteEstimatePatch({ train, stops: actualJourney.stops })
+        : {};
 
       if (destinationStop) {
         arrivalPatch = buildTrainDestinationArrivalFields(destinationStop, train);
@@ -1677,7 +1870,7 @@ const getTrainDestinationArrivalPatch = async (train = {}) => {
     }
 
     return {
-      ...(await buildTrainRouteEstimatePatch({ train, stops })),
+      ...(shouldEstimateRoute ? await buildTrainRouteEstimatePatch({ train, stops }) : {}),
       ...buildTrainDestinationArrivalFields(destinationStop, train),
     };
   } catch (error) {
@@ -1692,7 +1885,7 @@ const enrichStationDeparturesWithDestinationArrivals = async (departures = []) =
   const enrichedDepartures = await Promise.all(
     departures.map(async (departure) => ({
       ...departure,
-      ...(await getTrainDestinationArrivalPatch(departure)),
+      ...(await getTrainDestinationArrivalPatch(departure, { estimateRoute: false })),
     }))
   );
 
@@ -1727,7 +1920,7 @@ const getTrainStationTimetable = async ({ stationCode, stationQuery, departureDa
       departureDate: normalizedDepartureDate,
       arrivalDate: normalizedArrivalDate,
     });
-    const enrichedDepartures = await enrichStationDeparturesWithDestinationArrivals(departures);
+    const enrichedDepartures = await attachTrainRowAiEstimates(await enrichStationDeparturesWithDestinationArrivals(departures));
     const result = {
       available: enrichedDepartures.length > 0,
       message: enrichedDepartures.length > 0 ? 'Train station timetable loaded.' : 'No trains found for this station.',

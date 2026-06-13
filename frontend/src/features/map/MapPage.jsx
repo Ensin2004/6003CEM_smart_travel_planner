@@ -1,5 +1,10 @@
+/**
+ * Map module.
+ * Page state, event handlers, and render sections define the screen experience.
+ */
 import { useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { useLocation } from 'react-router-dom';
 import {
   BedDouble,
   ChevronRight,
@@ -30,6 +35,7 @@ import { MapContainer, Marker, Polyline, Popup, TileLayer, Tooltip, useMap, useM
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { convertCurrency } from '../../api/currencyApi';
+import { addFavorite, getFavorites, removeFavorite } from '../../api/favoriteApi';
 import {
   getMapPlaceDetails,
   getMapWeather,
@@ -38,11 +44,13 @@ import {
   searchOpenStreetMapCategoryPlaces,
   searchOpenStreetMapPlaces,
 } from '../../api/mapApi';
+import CompareButton from '../../components/compare/CompareButton';
 import CurrencyContext from '../../context/currencyContext';
+import { buildFavoriteLookup, buildPlaceFavoritePayload, getFavoriteKey } from '../../utils/favoriteUtils';
 import './MapPage.css';
 
 const defaultCenter = [5.4141, 100.3288];
-const defaultZoom = 8;
+const defaultZoom = 11;
 
 const categoryConfig = {
   hotels: { label: 'Hotels', icon: BedDouble, color: '#2563eb' },
@@ -92,9 +100,29 @@ const categoryPanelPlace = {
   zoom: defaultZoom,
   panelMode: 'category',
 };
-
 const getPlaceAddress = (place) => place.address || place.displayName || 'Location details unavailable';
+const hasRichPlaceDetails = (place = {}) =>
+  place.detailSource === 'serpapi' ||
+  Boolean(
+    place.imageUrl ||
+    Number(place.rating) ||
+    Number(place.reviews || place.reviewCount) ||
+    place.openState ||
+    (place.hours && place.hours !== 'Hours unavailable') ||
+    place.priceDetail
+  );
+const mergePreservingRichPlace = (basePlace = {}, nextPlace = {}) => {
+  if (!hasRichPlaceDetails(basePlace)) return { ...basePlace, ...nextPlace };
 
+  return {
+    ...nextPlace,
+    ...basePlace,
+    lat: nextPlace.lat ?? basePlace.lat,
+    lng: nextPlace.lng ?? basePlace.lng,
+    categoryId: nextPlace.categoryId || basePlace.categoryId,
+  };
+};
+// Format Category Place converts raw values into readable display text.
 const formatCategoryPlace = (place, categoryId) => ({
   ...place,
   lat: Number(place.lat ?? place.coordinates?.latitude),
@@ -103,6 +131,7 @@ const formatCategoryPlace = (place, categoryId) => ({
   address: getPlaceAddress(place),
   imageUrl: place.imageUrl || place.imageUrls?.[0] || '',
   imageUrls: place.imageUrls || (place.imageUrl ? [place.imageUrl] : []),
+  reviewItems: place.reviewItems || [],
   hours: place.hours || place.hoursSummary || place.openState || 'Hours unavailable',
   rating: place.rating || 'N/A',
   reviews: place.reviews || place.reviewCount || 'No reviews yet',
@@ -112,23 +141,19 @@ const formatCategoryPlace = (place, categoryId) => ({
   url: place.url || '',
   summary: place.summary || place.category || 'Place result from map data.',
 });
-
 const getDateKey = (date = new Date()) => date.toISOString().slice(0, 10);
-
+// Format Temperature converts raw values into readable display text.
 const formatTemperature = (value) => (Number.isFinite(Number(value)) ? `${Math.round(Number(value))} C` : '--');
-
+// Format Money converts raw values into readable display text.
 const formatMoney = (amount, currencyCode) =>
   new Intl.NumberFormat(undefined, {
     style: 'currency',
     currency: currencyCode,
     maximumFractionDigits: 2,
   }).format(amount);
-
 const getPriceConversionKey = (item, targetCurrency) =>
   `${item.id}:${item.priceDetail?.display || item.price || 'price'}:${targetCurrency}`;
-
 const getOriginalPriceText = (item) => item.priceDetail?.display || item.price || 'Price unavailable';
-
 const getOpenStatus = (openState = '') => {
   const normalizedState = openState.toLowerCase();
 
@@ -142,7 +167,6 @@ const getOpenStatus = (openState = '') => {
 
   return { label: 'Hours unknown', tone: 'unknown' };
 };
-
 const getRouteModeNote = (route) => {
   if (!route) return 'Not calculated';
   if (route.mode === 'train' || route.mode === 'plane') {
@@ -150,12 +174,10 @@ const getRouteModeNote = (route) => {
   }
   return route.estimated ? 'Estimated route' : 'Mapped route';
 };
-
 const isCanceledRequest = (error) => error.name === 'AbortError' || error.name === 'CanceledError';
-
 const getPlaceRequestKey = (placeId, lat, lng) =>
   `${placeId || 'place'}:${Number(lat).toFixed(4)}:${Number(lng).toFixed(4)}`;
-
+// Format Distance converts raw values into readable display text.
 const formatDistance = (meters) => {
   if (!Number.isFinite(meters)) {
     return 'Distance unavailable';
@@ -167,7 +189,7 @@ const formatDistance = (meters) => {
 
   return `${(meters / 1000).toFixed(1)} km`;
 };
-
+// Format Duration converts raw values into readable display text.
 const formatDuration = (seconds) => {
   if (!Number.isFinite(seconds)) {
     return 'Time unavailable';
@@ -184,7 +206,6 @@ const formatDuration = (seconds) => {
 
   return remainingMinutes ? `${hours} hr ${remainingMinutes} min` : `${hours} hr`;
 };
-
 const loadUserMarkers = () => {
   try {
     const savedMarkers = JSON.parse(localStorage.getItem(userMarkersStorageKey) || '[]');
@@ -193,16 +214,14 @@ const loadUserMarkers = () => {
     return [];
   }
 };
-
+// Save User Markers applies allowed changes to an existing record.
 const saveUserMarkers = (markers) => {
   localStorage.setItem(userMarkersStorageKey, JSON.stringify(markers));
 };
-
 const isCountryResult = (place) => (
   place?.category === 'boundary' ||
   ['country', 'state', 'province', 'administrative'].includes(place?.type)
 );
-
 const inferCategoryFromSearch = (query, place) => {
   const text = `${query} ${place?.category || ''} ${place?.type || ''}`.toLowerCase();
 
@@ -215,21 +234,52 @@ const inferCategoryFromSearch = (query, place) => {
   return 'attractions';
 };
 
+// Favorite records use GeoJSON coordinates, so map navigation converts longitude and latitude into Leaflet fields.
+const favoriteToMapPlace = (favorite = {}) => {
+  const coordinates = favorite.location?.coordinates?.coordinates || [];
+  const categoryId = {
+    attraction: 'attractions',
+    hotel: 'hotels',
+    location: 'custom',
+    restaurant: 'food',
+  }[favorite.type] || 'attractions';
+
+  return {
+    id: `favorite-${favorite._id || favorite.externalId || favorite.title}`,
+    dataId: favorite.externalId,
+    name: favorite.title || 'Saved place',
+    address: favorite.location?.address || favorite.description || 'Saved favourite',
+    summary: favorite.description || favorite.location?.address || 'Saved favourite place.',
+    rating: favorite.rating,
+    price: favorite.priceLevel,
+    lat: Number(coordinates[1]),
+    lng: Number(coordinates[0]),
+    categoryId,
+    favoriteOrigin: true,
+    panelMode: 'place',
+    zoom: 17,
+  };
+};
+
+const hasMapCoordinates = (place) => Number.isFinite(place?.lat) && Number.isFinite(place?.lng);
+
+// Create Map Icon builds a new record from validated input.
 const createMapIcon = (pin, categoryId) => {
   const category = categoryConfig[categoryId] || categoryConfig.attractions;
   const PinIcon = category.icon;
   const iconMarkup = renderToStaticMarkup(<PinIcon size={17} strokeWidth={2.4} />);
+  const isFavoriteOrigin = Boolean(pin.favoriteOrigin);
 
   return L.divIcon({
     className: '',
     html: `
-      <span class="travel-map-pin" style="--pin-color: ${category.color}">
+      <span class="travel-map-pin${isFavoriteOrigin ? ' travel-map-pin-favorite-origin' : ''}" style="--pin-color: ${category.color}">
         <span class="travel-map-pin-icon">${iconMarkup}</span>
       </span>
     `,
-    iconSize: [42, 50],
-    iconAnchor: [21, 48],
-    popupAnchor: [0, -44],
+    iconSize: isFavoriteOrigin ? [52, 60] : [42, 50],
+    iconAnchor: isFavoriteOrigin ? [26, 58] : [21, 48],
+    popupAnchor: isFavoriteOrigin ? [0, -54] : [0, -44],
   });
 };
 
@@ -245,12 +295,23 @@ const createUserLocationIcon = () => (
 
 function MapFocus({ place }) {
   const map = useMap();
-
   useEffect(() => {
     if (place?.panelMode !== 'category' && place?.lat && place?.lng) {
       map.flyTo([place.lat, place.lng], place.zoom || 12, { duration: 0.75 });
     }
   }, [map, place]);
+
+  return null;
+}
+
+// Favorite-origin reset restores the default viewport without changing normal map focus behavior.
+function FavoriteMapReset({ resetCount }) {
+  const map = useMap();
+  useEffect(() => {
+    if (resetCount > 0) {
+      map.flyTo(defaultCenter, defaultZoom, { duration: 0.75 });
+    }
+  }, [map, resetCount]);
 
   return null;
 }
@@ -265,7 +326,6 @@ function MapToolControls({
   panelOpen,
 }) {
   const map = useMap();
-
   return (
     <div className={['map-tool-stack', panelOpen ? 'is-panel-open' : 'is-panel-closed'].join(' ')} aria-label="Map controls">
       <button type="button" onClick={() => map.zoomIn()} aria-label="Zoom in" data-tooltip="Zoom in">
@@ -327,7 +387,6 @@ function MapClickHandler({ isAddingMarker, onAddMarker }) {
 
 function MapViewportTracker({ onViewportChange }) {
   const map = useMap();
-
   useEffect(() => {
     const center = map.getCenter();
     const bounds = map.getBounds();
@@ -366,12 +425,10 @@ function MapViewportTracker({ onViewportChange }) {
 
 function StarRating({ rating, size = 14 }) {
   const normalizedRating = Math.max(0, Math.min(Number(rating) || 0, 5));
-
   return (
     <div className="map-star-rating" aria-label={`${normalizedRating || 'No'} out of 5 stars`}>
       {[1, 2, 3, 4, 5].map((star) => {
         const fillPercent = Math.max(0, Math.min(normalizedRating - (star - 1), 1)) * 100;
-
         return (
           <span className="map-star" key={star} aria-hidden="true">
             <Star size={size} />
@@ -389,11 +446,15 @@ function PlaceDetails({
   categoryId,
   detailStatus,
   getConvertedPriceText,
+  isFavorite,
+  isSavingFavorite,
   onAddRoutePoint,
   onClearRoute,
   onCalculateRoute,
+  onFavoriteToggle,
   onRenameCustomMarker,
   onRemove,
+  onRemoveRoutePoint,
   place,
   route,
   routeMode,
@@ -402,6 +463,7 @@ function PlaceDetails({
   routeStatus,
   weather,
   weatherStatus,
+  onRouteAlternativeChange,
   onRouteModeChange,
 }) {
   const category = categoryConfig[categoryId] || categoryConfig.attractions;
@@ -409,16 +471,39 @@ function PlaceDetails({
   const details = formatCategoryPlace(place || {}, categoryId);
   const openStatus = getOpenStatus(details.openState || details.hours);
   const convertedPriceText = getConvertedPriceText(details);
-
+  const compareItem = {
+    ...details,
+    category: category.label,
+    source: 'map',
+    price: getOriginalPriceText(details),
+    hours: details.openState || details.hours || 'Opening hours unavailable',
+    reviewCount: details.reviewCount || details.reviews,
+    imageUrl: details.imageUrl,
+  };
   return (
     <div className="map-place-details">
-      {details.imageUrl ? (
-        <img className="map-detail-image" src={details.imageUrl} alt="" loading="lazy" />
-      ) : (
-        <div className="map-detail-image map-detail-image-empty">
-          <Image size={28} aria-hidden="true" />
-        </div>
-      )}
+      <div className="map-detail-image-wrap">
+        {details.imageUrl ? (
+          <img className="map-detail-image" src={details.imageUrl} alt="" loading="lazy" />
+        ) : (
+          <div className="map-detail-image map-detail-image-empty">
+            <Image size={28} aria-hidden="true" />
+          </div>
+        )}
+        <button
+          className={`map-detail-favorite-button ${isFavorite ? 'active' : ''}`}
+          type="button"
+          aria-label={isFavorite ? `Remove ${details.name} from favourites` : `Add ${details.name} to favourites`}
+          disabled={isSavingFavorite}
+          onClick={() => onFavoriteToggle(details)}
+        >
+          {isSavingFavorite ? (
+            <LoaderCircle className="map-spin" size={18} aria-hidden="true" />
+          ) : (
+            <Heart size={19} fill={isFavorite ? 'currentColor' : 'none'} aria-hidden="true" />
+          )}
+        </button>
+      </div>
 
       <div className="map-detail-category" style={{ '--detail-color': category.color }}>
         <CategoryIcon size={17} aria-hidden="true" />
@@ -431,6 +516,9 @@ function PlaceDetails({
           Loading richer place details...
         </p>
       ) : null}
+      {details.enrichmentMessage ? (
+        <p className="map-detail-provider-warning" role="status">{details.enrichmentMessage}</p>
+      ) : null}
 
       <div className="map-detail-rating">
         <StarRating rating={details.rating} size={17} />
@@ -441,6 +529,21 @@ function PlaceDetails({
       </div>
 
       <p>{details.summary}</p>
+
+      {details.reviewItems.length ? (
+        <section className="map-review-list" aria-label="Google review highlights">
+          <h3>Google review highlights</h3>
+          {details.reviewItems.slice(0, 3).map((review) => (
+            <article key={review.id}>
+              <div>
+                <strong>{review.author}</strong>
+                <span>{review.rating ? `${Number(review.rating).toFixed(1)} stars` : review.date}</span>
+              </div>
+              <p>{review.text || 'No written review provided.'}</p>
+            </article>
+          ))}
+        </section>
+      ) : null}
 
       <div className="map-detail-facts">
         <span>
@@ -515,6 +618,7 @@ function PlaceDetails({
         </div>
 
         <div className="map-route-actions">
+          <CompareButton item={compareItem} label="Compare" className="map-compare-action" />
           <button type="button" onClick={() => onAddRoutePoint(details)}>
             <Navigation size={16} aria-hidden="true" />
             Add stop
@@ -540,12 +644,20 @@ function PlaceDetails({
 
         <div className="map-route-point-list">
           {routePoints.map((point, index) => (
-            <span key={`${point.id}-${index}`}>
-              {index + 1}. {point.name}
-            </span>
+            <div className="map-route-point" key={`${point.id}-${index}`}>
+              <span>{index + 1}</span>
+              <strong>{point.name}</strong>
+              <button
+                type="button"
+                onClick={() => onRemoveRoutePoint(index)}
+                aria-label={`Remove ${point.name} from route`}
+              >
+                <Trash2 size={14} aria-hidden="true" />
+              </button>
+            </div>
           ))}
           {!routePoints.length ? (
-            <span>No route stops selected yet.</span>
+            <p>No route stops selected yet.</p>
           ) : null}
         </div>
 
@@ -553,7 +665,6 @@ function PlaceDetails({
           {routeModeOptions.map((mode) => {
             const modeRoute = routeResults[mode.id];
             const isActive = routeMode === mode.id;
-
             return (
               <button
                 className={isActive ? 'is-active' : ''}
@@ -570,6 +681,30 @@ function PlaceDetails({
             );
           })}
         </div>
+        {route?.alternatives?.length ? (
+          <div className="map-route-alternatives" aria-label={`${routeMode} route alternatives`}>
+            <strong>Possible {routeMode} routes</strong>
+            {route.alternatives.map((alternative) => (
+              <button
+                className={route.id === alternative.id ? 'is-active' : ''}
+                key={alternative.id}
+                type="button"
+                onClick={() => onRouteAlternativeChange(alternative)}
+              >
+                <span>Route {alternative.rank}</span>
+                <small>{formatDistance(alternative.distanceMeters)} · {formatDuration(alternative.durationSeconds)}</small>
+                <em>
+                  {[
+                    alternative.isBest ? 'Best balance' : '',
+                    alternative.isShortest ? 'Shortest' : '',
+                    alternative.isFastest ? 'Fastest' : '',
+                  ].filter(Boolean).join(' · ') || 'Alternative'}
+                </em>
+              </button>
+            ))}
+            {route.message ? <p>{route.message}</p> : null}
+          </div>
+        ) : null}
       </section>
 
       <dl>
@@ -607,10 +742,17 @@ function PlaceDetails({
 
 function MapPage() {
   const currency = useContext(CurrencyContext);
+  const location = useLocation();
+  const selectedFavorite = location.state?.selectedFavorite;
+  const initialFavoritePlace = useMemo(
+    () => (selectedFavorite ? favoriteToMapPlace(selectedFavorite) : null),
+    [selectedFavorite]
+  );
   const loadedPlaceDetailsRef = useRef(new Set());
   const placeWeatherCacheRef = useRef(new Map());
-  const [query, setQuery] = useState('Penang');
-  const [activeCategories, setActiveCategories] = useState([]);
+  const [query, setQuery] = useState(selectedFavorite?.title || selectedFavorite?.location?.address || 'Penang');
+  const [mapDestination, setMapDestination] = useState(selectedFavorite?.location?.address || selectedFavorite?.title || 'Penang');
+  const [activeCategories, setActiveCategories] = useState(initialFavoritePlace ? [initialFavoritePlace.categoryId] : []);
   const [categoryResults, setCategoryResults] = useState({});
   const [suggestions, setSuggestions] = useState([]);
   const [isSuggestionOpen, setIsSuggestionOpen] = useState(false);
@@ -621,7 +763,9 @@ function MapPage() {
   const [mapType, setMapType] = useState('default');
   const [mapCenter, setMapCenter] = useState(defaultCenter);
   const [mapBounds, setMapBounds] = useState(null);
-  const [selectedPlace, setSelectedPlace] = useState(categoryPanelPlace);
+  const [selectedPlace, setSelectedPlace] = useState(
+    hasMapCoordinates(initialFavoritePlace) ? initialFavoritePlace : categoryPanelPlace
+  );
   const [userLocation, setUserLocation] = useState(fallbackUserLocation);
   const [route, setRoute] = useState(null);
   const [routeMode, setRouteMode] = useState('car');
@@ -634,6 +778,10 @@ function MapPage() {
   const [placeWeatherStatus, setPlaceWeatherStatus] = useState('idle');
   const [status, setStatus] = useState('idle');
   const [message, setMessage] = useState('');
+  const [isFavoriteMarkerLabelVisible, setIsFavoriteMarkerLabelVisible] = useState(Boolean(selectedFavorite));
+  const [favorites, setFavorites] = useState(() => (selectedFavorite?._id ? [selectedFavorite] : []));
+  const [savingFavoriteKey, setSavingFavoriteKey] = useState('');
+  const [favoriteMapResetCount, setFavoriteMapResetCount] = useState(0);
 
   const panelMode = selectedPlace?.panelMode || 'category';
   const selectedCategory = selectedPlace?.categoryId || activeCategories[0] || 'attractions';
@@ -676,17 +824,96 @@ function MapPage() {
   const selectedCurrency = currency?.selectedCurrency || 'USD';
   const supportedCurrencyCodes = useMemo(() => currency?.currencies?.map((option) => option.code) || [], [currency?.currencies]);
   const selectedPlaceId = selectedPlace?.id;
+  const selectedPlaceFoursquareId = selectedPlace?.foursquarePlaceId;
+  const selectedPlaceGoogleId = selectedPlace?.placeId;
+  const selectedPlaceDataId = selectedPlace?.dataId;
   const selectedPlaceName = selectedPlace?.name;
   const selectedPlaceCategoryId = selectedPlace?.categoryId;
   const selectedPlaceAddress = selectedPlace?.address || selectedPlace?.displayName;
   const selectedPlaceLat = selectedPlace?.lat;
   const selectedPlaceLng = selectedPlace?.lng;
   const selectedPlaceIsCustom = selectedPlace?.custom;
+  const selectedPlaceHasRichDetails = hasRichPlaceDetails(selectedPlace);
+  const favoriteLookup = useMemo(() => buildFavoriteLookup(favorites), [favorites]);
+  const selectedPlaceFavoritePayload = useMemo(() => {
+    if (panelMode !== 'place' || !selectedPlace?.name) return null;
+
+    const favoriteType = selectedPlace.categoryId === 'custom' ? 'location' : selectedPlace.categoryId;
+    return buildPlaceFavoritePayload({
+      item: {
+        ...selectedPlace,
+        coordinates: {
+          latitude: selectedPlace.lat,
+          longitude: selectedPlace.lng,
+        },
+      },
+      type: favoriteType,
+      originalPriceText: getOriginalPriceText(selectedPlace),
+      visitedSource: 'map',
+    });
+  }, [panelMode, selectedPlace]);
+  const selectedPlaceFavoriteKey = selectedPlaceFavoritePayload ? getFavoriteKey(selectedPlaceFavoritePayload) : '';
+  const selectedPlaceFavoriteRecord = selectedPlaceFavoriteKey ? favoriteLookup[selectedPlaceFavoriteKey] : null;
+
+  useEffect(() => {
+    let isActive = true;
+
+    getFavorites()
+      .then((response) => {
+        if (isActive) setFavorites(response.data?.data?.favorites || []);
+      })
+      .catch(() => {
+        if (isActive && !selectedFavorite?._id) setFavorites([]);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, [selectedFavorite?._id]);
+
+  useEffect(() => {
+    if (!selectedFavorite || hasMapCoordinates(initialFavoritePlace)) return undefined;
+
+    const favoritePlace = initialFavoritePlace;
+
+    const controller = new AbortController();
+    const resolveFavoriteLocation = async () => {
+      try {
+        const searchText = selectedFavorite.location?.address || selectedFavorite.title;
+        const places = await searchOpenStreetMapPlaces(searchText, { limit: 1, signal: controller.signal });
+        const resolvedPlace = places[0];
+
+        if (resolvedPlace) {
+          setSelectedPlace(formatCategoryPlace({
+            ...resolvedPlace,
+            name: selectedFavorite.title || resolvedPlace.name,
+            summary: selectedFavorite.description || resolvedPlace.summary,
+            rating: selectedFavorite.rating || resolvedPlace.rating,
+            price: selectedFavorite.priceLevel || resolvedPlace.price,
+            favoriteOrigin: true,
+            zoom: 17,
+          }, favoritePlace.categoryId));
+          return;
+        }
+
+        setMessage('This saved favourite does not have enough location information to show on the map.');
+        setStatus('error');
+      } catch (error) {
+        if (!isCanceledRequest(error)) {
+          setMessage('Unable to locate this saved favourite on the map right now.');
+          setStatus('error');
+        }
+      }
+    };
+
+    resolveFavoriteLocation();
+    return () => controller.abort();
+  }, [initialFavoritePlace, selectedFavorite]);
 
   const handleViewportChange = useCallback((viewport) => {
     setMapCenter(viewport.center);
     setMapBounds(viewport.bounds);
-  }, []);
+  }, [setMapBounds, setMapCenter]);
 
   useEffect(() => {
     const trimmedQuery = query.trim();
@@ -754,17 +981,22 @@ function MapPage() {
           searchableCategories.map(async (categoryId) => {
             const resultLimit = categoryId === 'attractions' || categoryId === 'shopping' ? 60 : 30;
             let places = [];
+            let providerMessage;
 
             try {
               const mapPlaces = await searchMapCategoryPlaces(categoryId, mapCenter, {
+                destination: mapDestination,
                 limit: resultLimit,
                 signal: controller.signal,
               });
               places = mapPlaces.available ? mapPlaces.items || [] : [];
+              providerMessage = mapPlaces.message || '';
             } catch (error) {
               if (isCanceledRequest(error)) {
                 throw error;
               }
+
+              providerMessage = error.message || '';
             }
 
             if (!places.length) {
@@ -783,7 +1015,7 @@ function MapPage() {
               }
             }
 
-            return [categoryId, places.map((place) => formatCategoryPlace(place, categoryId))];
+            return [categoryId, places.map((place) => formatCategoryPlace(place, categoryId)), providerMessage];
           })
         );
 
@@ -810,7 +1042,12 @@ function MapPage() {
             const refreshedPlaces = resultEntries[categoryId];
             const existingPlaces = currentResults[categoryId] || [];
 
-            nextResults[categoryId] = refreshedPlaces?.length ? refreshedPlaces : existingPlaces;
+            nextResults[categoryId] = refreshedPlaces?.length
+              ? refreshedPlaces.map((place) => {
+                  const existingPlace = existingPlaces.find((candidate) => candidate.id === place.id);
+                  return existingPlace ? mergePreservingRichPlace(existingPlace, place) : place;
+                })
+              : existingPlaces;
           });
 
           return nextResults;
@@ -826,7 +1063,8 @@ function MapPage() {
           setMessage('');
         } else {
           setStatus('empty');
-          setMessage('Map markers are temporarily unavailable. Try again shortly.');
+          const providerMessage = completedResults.map((result) => result.value[2]).find(Boolean);
+          setMessage(providerMessage || 'Map markers are temporarily unavailable. Try again shortly.');
         }
       } catch (error) {
         if (!isCanceledRequest(error)) {
@@ -840,7 +1078,7 @@ function MapPage() {
       window.clearTimeout(timerId);
       controller.abort();
     };
-  }, [activeCategories, mapBounds, mapCenter]);
+  }, [activeCategories, mapBounds, mapCenter, mapDestination]);
 
   useEffect(() => {
     saveUserMarkers(customMarkers);
@@ -923,13 +1161,16 @@ function MapPage() {
 
     const detailsKey = getPlaceRequestKey(selectedPlaceId, selectedPlaceLat, selectedPlaceLng);
 
-    if (loadedPlaceDetailsRef.current.has(detailsKey)) {
+    if (loadedPlaceDetailsRef.current.has(detailsKey) && selectedPlaceHasRichDetails) {
       return undefined;
     }
 
     const controller = new AbortController();
     const detailsRequest = {
       id: selectedPlaceId,
+      foursquarePlaceId: selectedPlaceFoursquareId,
+      placeId: selectedPlaceGoogleId,
+      dataId: selectedPlaceDataId,
       name: selectedPlaceName,
       categoryId: selectedPlaceCategoryId,
       address: selectedPlaceAddress,
@@ -944,21 +1185,34 @@ function MapPage() {
         const details = await getMapPlaceDetails(detailsRequest, { signal: controller.signal });
 
         if (!controller.signal.aborted && details.available && details.item) {
-          loadedPlaceDetailsRef.current.add(detailsKey);
+          const formattedDetails = formatCategoryPlace(
+            details.item,
+            selectedPlaceCategoryId || detailsRequest.categoryId
+          );
+          if (hasRichPlaceDetails(formattedDetails)) {
+            loadedPlaceDetailsRef.current.add(detailsKey);
+          }
           setSelectedPlace((currentPlace) => (
             currentPlace?.id === detailsRequest.id
               ? {
                   ...currentPlace,
-                  ...formatCategoryPlace(details.item, currentPlace.categoryId || detailsRequest.categoryId),
+                  ...formattedDetails,
                   id: currentPlace.id,
                   panelMode: 'place',
                   zoom: currentPlace.zoom,
                 }
               : currentPlace
           ));
+          setCategoryResults((currentResults) => ({
+            ...currentResults,
+            [detailsRequest.categoryId]: (currentResults[detailsRequest.categoryId] || []).map((place) => (
+              place.id === detailsRequest.id
+                ? mergePreservingRichPlace(place, formattedDetails)
+                : place
+            )),
+          }));
         }
-        loadedPlaceDetailsRef.current.add(detailsKey);
-        setPlaceDetailStatus('success');
+        setPlaceDetailStatus(details.item?.detailSource === 'serpapi' ? 'success' : 'error');
       } catch (error) {
         if (error.name !== 'AbortError' && error.name !== 'CanceledError') {
           setPlaceDetailStatus('error');
@@ -973,11 +1227,15 @@ function MapPage() {
     panelMode,
     selectedPlaceAddress,
     selectedPlaceCategoryId,
+    selectedPlaceDataId,
+    selectedPlaceFoursquareId,
+    selectedPlaceGoogleId,
     selectedPlaceId,
     selectedPlaceIsCustom,
     selectedPlaceLat,
     selectedPlaceLng,
     selectedPlaceName,
+    selectedPlaceHasRichDetails,
   ]);
 
   useEffect(() => {
@@ -1081,6 +1339,7 @@ function MapPage() {
         panelMode: 'place',
       });
       setMapCenter([place.lat, place.lng]);
+      setMapDestination(place.name);
       setStatus('success');
       setMessage('');
       setSuggestions([]);
@@ -1118,11 +1377,15 @@ function MapPage() {
   };
 
   const handleSelectMarker = (marker) => {
-    setSelectedPlace({
-      ...marker,
+    setSelectedPlace((currentPlace) => ({
+      ...(
+        currentPlace?.id === marker.id
+          ? mergePreservingRichPlace(currentPlace, marker)
+          : marker
+      ),
       panelMode: 'place',
       zoom: 14,
-    });
+    }));
     setMapCenter([marker.lat, marker.lng]);
     setQuery(marker.name);
     setStatus('success');
@@ -1132,6 +1395,71 @@ function MapPage() {
     setPlaceWeather(null);
     setPlaceWeatherStatus('idle');
     setPlaceDetailStatus('idle');
+  };
+
+  // Closing a favourite-origin detail returns only that navigation path to the normal default map view.
+  const handleCloseDestinationPanel = () => {
+    if (selectedPlace?.favoriteOrigin) {
+      setIsFavoriteMarkerLabelVisible(false);
+      setSelectedPlace(categoryPanelPlace);
+      setActiveCategories([]);
+      setQuery('Penang');
+      setMapDestination('Penang');
+      setStatus('idle');
+      setMessage('');
+      setFavoriteMapResetCount((currentCount) => currentCount + 1);
+    }
+
+    setIsPanelOpen(false);
+  };
+
+  // Map favourites use the shared favourites API and remain separate from local custom marker storage.
+  const handleFavoriteToggle = async (place) => {
+    const favoriteType = place.categoryId === 'custom' ? 'location' : place.categoryId;
+    const payload = buildPlaceFavoritePayload({
+      item: {
+        ...place,
+        coordinates: {
+          latitude: place.lat,
+          longitude: place.lng,
+        },
+      },
+      type: favoriteType,
+      originalPriceText: getOriginalPriceText(place),
+      visitedSource: 'map',
+    });
+    const favoriteKey = getFavoriteKey(payload);
+    const existingFavorite = favoriteLookup[favoriteKey];
+
+    if (!favoriteKey || savingFavoriteKey) return;
+
+    setSavingFavoriteKey(favoriteKey);
+    setMessage('');
+    try {
+      if (existingFavorite?._id) {
+        await removeFavorite(existingFavorite._id);
+        setFavorites((currentFavorites) => currentFavorites.filter((favorite) => favorite._id !== existingFavorite._id));
+        setStatus('success');
+        setMessage(`${place.name} was removed from favourites.`);
+        return;
+      }
+
+      const response = await addFavorite(payload);
+      const savedFavorite = response.data?.data?.favorite;
+      if (savedFavorite) {
+        setFavorites((currentFavorites) => [
+          savedFavorite,
+          ...currentFavorites.filter((favorite) => favorite._id !== savedFavorite._id),
+        ]);
+      }
+      setStatus('success');
+      setMessage(`${place.name} was saved to favourites.`);
+    } catch (error) {
+      setStatus('error');
+      setMessage(error.response?.data?.message || 'Unable to update this favourite right now.');
+    } finally {
+      setSavingFavoriteKey('');
+    }
   };
 
   const calculateRoute = async (points = routePoints) => {
@@ -1219,9 +1547,30 @@ function MapPage() {
     setRouteStatus('idle');
   };
 
+  const handleRemoveRoutePoint = (pointIndex) => {
+    setRoutePoints((points) => points.filter((_, index) => index !== pointIndex));
+    setRoute(null);
+    setRouteResults({});
+    setRouteStatus('idle');
+    setMessage('');
+  };
+
   const handleRouteModeChange = (nextMode) => {
     setRouteMode(nextMode);
     setRoute(routeResults[nextMode] || route);
+  };
+  const handleRouteAlternativeChange = (alternative) => {
+    const modeRoute = routeResults[routeMode];
+
+    setRoute({
+      ...alternative,
+      alternatives: modeRoute?.alternatives || [],
+      estimated: modeRoute?.estimated,
+      message: modeRoute?.message,
+      mode: routeMode,
+      points: modeRoute?.points || routePoints,
+      provider: modeRoute?.provider,
+    });
   };
 
   const handleAddCustomMarker = (latlng) => {
@@ -1304,6 +1653,7 @@ function MapPage() {
       panelMode: 'place',
     });
     setMapCenter([place.lat, place.lng]);
+    setMapDestination(place.name);
     setQuery(place.name);
     setSuggestions([]);
     setIsSuggestionOpen(false);
@@ -1446,6 +1796,7 @@ function MapPage() {
             url={activeTileLayer.url}
           />
           <MapFocus place={selectedPlace} />
+          <FavoriteMapReset resetCount={favoriteMapResetCount} />
           <MapClickHandler isAddingMarker={isAddingMarker} onAddMarker={handleAddCustomMarker} />
           <MapViewportTracker onViewportChange={handleViewportChange} />
           <MapToolControls
@@ -1472,10 +1823,21 @@ function MapPage() {
             </Marker>
           ) : null}
           {route?.coordinates?.length ? (
-            <Polyline
-              positions={route.coordinates}
-              pathOptions={{ color: '#2563eb', opacity: 0.9, weight: 5 }}
-            />
+            <>
+              {(route.alternatives || [])
+                .filter((alternative) => alternative.id !== route.id)
+                .map((alternative) => (
+                  <Polyline
+                    key={alternative.id}
+                    positions={alternative.coordinates}
+                    pathOptions={{ color: '#64748b', dashArray: '8 8', opacity: 0.45, weight: 4 }}
+                  />
+                ))}
+              <Polyline
+                positions={route.coordinates}
+                pathOptions={{ color: '#2563eb', opacity: 0.9, weight: 5 }}
+              />
+            </>
           ) : null}
           {visibleMarkers.map((pin) => (
             <Marker
@@ -1507,6 +1869,21 @@ function MapPage() {
                   </button>
                 ) : null}
               </Popup>
+              {pin.favoriteOrigin && isFavoriteMarkerLabelVisible ? (
+                <Tooltip
+                  className="map-favorite-origin-label"
+                  direction="top"
+                  offset={[0, -54]}
+                  opacity={1}
+                  permanent
+                  interactive
+                >
+                  <span>
+                    <strong>HERE!</strong>
+                    <small>{pin.name}</small>
+                  </span>
+                </Tooltip>
+              ) : null}
             </Marker>
           ))}
         </MapContainer>
@@ -1521,7 +1898,7 @@ function MapPage() {
       {isPanelOpen ? (
       <aside className="map-destination-panel" aria-label="Map results">
         <div className="map-panel-header">
-          <button type="button" aria-label="Close destination panel" onClick={() => setIsPanelOpen(false)}>
+          <button type="button" aria-label="Close destination panel" onClick={handleCloseDestinationPanel}>
             <X size={22} aria-hidden="true" />
           </button>
           <h2 id="map-page-title">
@@ -1541,7 +1918,7 @@ function MapPage() {
           <>
             <div className="map-panel-section">
               <h3>Places on the map</h3>
-              <p>Results are loaded from OpenStreetMap for the visible area.</p>
+              <p>Nearby places use Foursquare and OpenStreetMap coordinates, enriched with SerpApi Google Maps details.</p>
             </div>
 
             <div className="map-city-list">
@@ -1628,6 +2005,8 @@ function MapPage() {
             categoryId={selectedCategory}
             detailStatus={placeDetailStatus}
             getConvertedPriceText={getConvertedPriceText}
+            isFavorite={Boolean(selectedPlaceFavoriteRecord?._id)}
+            isSavingFavorite={savingFavoriteKey === selectedPlaceFavoriteKey}
             route={route}
             routeMode={routeMode}
             routePoints={routePoints}
@@ -1638,8 +2017,11 @@ function MapPage() {
             onAddRoutePoint={handleAddRoutePoint}
             onCalculateRoute={handleCalculateRoute}
             onClearRoute={handleClearRoute}
+            onFavoriteToggle={handleFavoriteToggle}
             onRenameCustomMarker={handleRenameCustomMarker}
             onRemove={handleRemoveCustomMarker}
+            onRemoveRoutePoint={handleRemoveRoutePoint}
+            onRouteAlternativeChange={handleRouteAlternativeChange}
             onRouteModeChange={handleRouteModeChange}
           />
         )}

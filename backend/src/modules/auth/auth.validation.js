@@ -1,3 +1,7 @@
+/**
+ * Auth module.
+ * Validation schemas reject unsafe or incomplete request payloads.
+ */
 const { body } = require('express-validator');
 
 const registerRules = [
@@ -65,7 +69,6 @@ const resetPasswordRules = [
     .custom((value, { req }) => value === req.body.password)
     .withMessage('Passwords must match'),
 ];
-
 module.exports = {
   registerRules,
   loginRules,

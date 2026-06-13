@@ -1,4 +1,10 @@
+/**
+ * Hotels module.
+ * Assertions cover expected behavior, error handling, and response shape.
+ */
+// Test group covers  behavior.
 describe('Hotels service fallback', () => {
+  // Scenario verifies one expected outcome or error path.
   test('returns friendly fallback when SerpApi key is not configured', async () => {
     const hotelsService = require('../src/modules/explore/hotels.service');
     const hotels = await hotelsService.getHotelsByDestination({ country: 'Malaysia', state: 'Penang' });
@@ -8,13 +14,14 @@ describe('Hotels service fallback', () => {
     expect(hotels.items).toEqual([]);
   });
 });
-
+// Test group covers  behavior.
 describe('Hotels service search', () => {
+  // Cleanup resets shared state after assertions.
   afterEach(() => {
     jest.resetModules();
     jest.clearAllMocks();
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('supports filter-only searches and does not trim results to 12', async () => {
     jest.resetModules();
 

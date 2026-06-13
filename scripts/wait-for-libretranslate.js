@@ -1,10 +1,13 @@
+/**
+ * Wait For Libretranslate module.
+ * Exports and local helpers keep related behavior in a single module.
+ */
 const http = require('http');
 
 const targetUrl = new URL(process.env.LIBRETRANSLATE_BASE_URL || 'http://127.0.0.1:5001');
 const timeoutMs = Number(process.env.LIBRETRANSLATE_WAIT_TIMEOUT_MS || 180000);
 const intervalMs = Number(process.env.LIBRETRANSLATE_WAIT_INTERVAL_MS || 5000);
 const startedAt = Date.now();
-
 const checkLanguages = () =>
   new Promise((resolve, reject) => {
     const request = http.get(`${targetUrl.origin}/languages`, { timeout: 10000 }, (response) => {
@@ -30,7 +33,6 @@ const checkLanguages = () =>
 
     request.on('error', reject);
   });
-
 const wait = async () => {
   while (Date.now() - startedAt < timeoutMs) {
     try {

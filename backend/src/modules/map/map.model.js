@@ -1,5 +1,9 @@
+/**
+ * Map module.
+ * Schema fields define stored document structure, defaults, and indexes.
+ */
 const mongoose = require('mongoose');
-
+// Map Search Cache Schema groups database fields before model registration.
 const mapSearchCacheSchema = new mongoose.Schema(
   {
     cacheKey: {
@@ -24,5 +28,4 @@ const mapSearchCacheSchema = new mongoose.Schema(
     strict: true,
   }
 );
-
 module.exports = mongoose.model('MapSearchCache', mapSearchCacheSchema);

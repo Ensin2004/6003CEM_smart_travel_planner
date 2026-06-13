@@ -1,10 +1,14 @@
+/**
+ * Travel Tools module.
+ * Database queries stay isolated behind focused persistence helpers.
+ */
 const {
   DocumentTemplate,
   PackingList,
   PackingTemplate,
   TripDocument,
 } = require('./travelTools.model');
-
+// Make Owned Repository transforms source data into the shape required nearby.
 const makeOwnedRepository = (Model, sort = { updatedAt: -1, createdAt: -1 }) => ({
   create: (data) => Model.create(data),
   deleteByIdAndUserId: (id, userId) => Model.findOneAndDelete({ _id: id, userId }),
@@ -28,7 +32,6 @@ const tripDocumentRepository = {
   save: (document) => document.save(),
 };
 const documentTemplateRepository = makeOwnedRepository(DocumentTemplate, { updatedAt: -1, createdAt: -1 });
-
 module.exports = {
   documentTemplateRepository,
   packingListRepository,

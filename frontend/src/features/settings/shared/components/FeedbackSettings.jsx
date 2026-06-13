@@ -1,6 +1,10 @@
+/**
+ * Settings module.
+ * Exports and local helpers keep related behavior in a single module.
+ */
 import { Star } from 'lucide-react';
 import { dateFormatter, feedbackRatingOptions, feedbackSortOptions } from '../settings.constants';
-
+// FeedbackSettings renders the main screen and handles nearby interactions.
 function FeedbackSettings({
   feedbackForm,
   filteredFeedbackEntries,
@@ -101,5 +105,5 @@ function FeedbackSettings({
     </section>
   );
 }
-
+// Default export registers the primary  value.
 export default FeedbackSettings;

@@ -1,3 +1,7 @@
+/**
+ * Swagger module.
+ * Exports and local helpers keep related behavior in a single module.
+ */
 const path = require('path');
 const swaggerJsdoc = require('swagger-jsdoc');
 const swaggerUi = require('swagger-ui-express');
@@ -23,9 +27,8 @@ const swaggerSpec = swaggerJsdoc({
   },
   apis: [path.join(__dirname, '../modules/**/*.routes.js')],
 });
-
 const setupSwagger = (app) => {
+  // Express middleware mounts  into the request pipeline.
   app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 };
-
 module.exports = setupSwagger;

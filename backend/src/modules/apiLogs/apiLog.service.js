@@ -1,8 +1,13 @@
+/**
+ * Api Logs module.
+ * Business rules, repository access, and external integrations live in this layer.
+ */
 const apiLogRepository = require('./apiLog.repository');
+const logger = require('../../utils/logger');
+const notificationService = require('../notifications/notification.service');
 
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 100;
-
 const cleanMetadata = (metadata = {}) =>
   Object.entries(metadata).reduce((safeMetadata, [key, value]) => {
     if (value === undefined || value === null) {
@@ -12,20 +17,17 @@ const cleanMetadata = (metadata = {}) =>
     safeMetadata[key] = String(value).slice(0, 200);
     return safeMetadata;
   }, {});
-
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-
 const maskEmail = (email = '') => {
   const normalizedEmail = String(email).trim().toLowerCase();
   const [name, domain] = normalizedEmail.split('@');
-
   if (!name || !domain) {
     return '';
   }
 
   return `${name[0]}***@${domain}`;
 };
-
+// Format Log converts raw values into readable display text.
 const formatLog = (log) => {
   const populatedUser = log.userId && typeof log.userId === 'object' ? log.userId : null;
 
@@ -43,7 +45,7 @@ const formatLog = (log) => {
     attemptedEmail: log.metadata?.attemptedEmailMasked,
   };
 };
-
+// Build Filter transforms source data into the shape required nearby.
 const buildFilter = ({ status, category, severity, service, from, to } = {}) => {
   const filter = {};
 
@@ -60,12 +62,11 @@ const buildFilter = ({ status, category, severity, service, from, to } = {}) => 
 
   return filter;
 };
-
+// Normalize Pagination prepares incoming data for consistent storage.
 const normalizePagination = ({ limit, page } = {}) => ({
   limit: Math.min(Number(limit) || DEFAULT_LIMIT, MAX_LIMIT),
   page: Math.max(Number(page) || 1, 1),
 });
-
 const fillDailyCounts = (dailyCounts, days = 7) => {
   const today = new Date();
 
@@ -83,14 +84,13 @@ const fillDailyCounts = (dailyCounts, days = 7) => {
     };
   });
 };
-
 const recordEvent = async (data) => {
   const metadata = cleanMetadata({
     ...data.metadata,
     ...(data.attemptedEmail && { attemptedEmailMasked: maskEmail(data.attemptedEmail) }),
   });
 
-  return apiLogRepository.create({
+  const log = await apiLogRepository.create({
     service: data.service,
     category: data.category || 'api',
     severity: data.severity || 'info',
@@ -102,8 +102,13 @@ const recordEvent = async (data) => {
     userId: data.userId,
     ...(Object.keys(metadata).length && { metadata }),
   });
-};
 
+  notificationService
+    .notifyAdminsOfApiLog(log)
+    .catch((error) => logger.error(`Failed to notify admins about API log: ${error.message}`));
+
+  return log;
+};
 const getRecentLogs = async (query = {}) => {
   const filter = buildFilter(query);
   const pagination = normalizePagination(query);
@@ -111,7 +116,6 @@ const getRecentLogs = async (query = {}) => {
   const logs = await apiLogRepository.findMany({ filter, ...pagination });
   return logs.map(formatLog);
 };
-
 const getMonitoring = async (query = {}) => {
   const filter = buildFilter(query);
   const pagination = normalizePagination(query);
@@ -169,5 +173,4 @@ const getMonitoring = async (query = {}) => {
     },
   };
 };
-
 module.exports = { getRecentLogs, getMonitoring, maskEmail, recordEvent };

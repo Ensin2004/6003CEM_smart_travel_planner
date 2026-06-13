@@ -1,3 +1,7 @@
+/**
+ * App Error module.
+ * Exports and local helpers keep related behavior in a single module.
+ */
 class AppError extends Error {
   constructor(message, statusCode = 500) {
     super(message);
@@ -8,5 +12,4 @@ class AppError extends Error {
     Error.captureStackTrace(this, this.constructor);
   }
 }
-
 module.exports = AppError;

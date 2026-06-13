@@ -1,9 +1,16 @@
+/**
+ * App Layout module.
+ * Exports and local helpers keep related behavior in a single module.
+ */
 import {
   Bell,
+  Bot,
   ChevronDown,
   Heart,
+  LoaderCircle,
   LogOut,
   Menu,
+  Send,
   Settings,
   User,
   WalletCards,
@@ -18,34 +25,42 @@ import {
   loadTranslateClient,
   refreshTranslatedContent,
 } from '../api/languageApi';
+import { sendAiChatPrompt } from '../api/aiAssistantApi';
 import logo from '../assets/logo.png';
 import AppSidebarNav from '../components/AppSidebarNav';
+import CompareTray from '../components/compare/CompareTray';
 import SubmenuPanel from '../components/SubmenuPanel';
 import AuthContext from '../context/authContext';
 import CurrencyContext from '../context/currencyContext';
+import useNotifications from '../hooks/useNotifications';
 import './AppLayout.css';
-
+// AppLayout renders the main screen and handles nearby interactions.
 function AppLayout({ role, menuItems }) {
   const isAdmin = role === 'admin';
   const location = useLocation();
   const navigate = useNavigate();
   const { logout, user } = useContext(AuthContext);
   const currency = useContext(CurrencyContext);
+  const { unreadCount } = useNotifications();
   const [collapsedSubmenuTo, setCollapsedSubmenuTo] = useState(null);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState(() => getSavedTranslateLanguage());
   const [isLanguagePickerOpen, setIsLanguagePickerOpen] = useState(false);
   const [isCurrencyPickerOpen, setIsCurrencyPickerOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
+  const [isAiChatOpen, setIsAiChatOpen] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState('');
+  const [aiMessages, setAiMessages] = useState([]);
+  const [aiError, setAiError] = useState('');
+  const [isAiSubmitting, setIsAiSubmitting] = useState(false);
   const languagePickerRef = useRef(null);
   const currencyPickerRef = useRef(null);
   const profileMenuRef = useRef(null);
-
   const availableLanguages = useMemo(() => getAvailableLanguages(), []);
   const activeLanguage =
     availableLanguages.find((language) => language.value === selectedLanguage) ?? availableLanguages[0];
   const availableCurrencies = currency?.currencies ?? [];
-  const activeCurrency = currency?.activeCurrency ?? availableCurrencies[0];
+  const activeCurrency = currency?.activeCurrency ?? { code: currency?.selectedCurrency || 'USD', label: currency?.selectedCurrency || 'USD' };
 
   const mainMenuItems = menuItems.filter((item) => !item.bottom && !item.hidden && !item.header);
   const accountSettingsItem = menuItems.find((item) => item.bottom && item.children?.length && !item.hidden);
@@ -62,7 +77,6 @@ function AppLayout({ role, menuItems }) {
   const displayName = user?.name || user?.email || (isAdmin ? 'Admin user' : 'Traveller');
   const displayRole = isAdmin ? 'Admin' : 'Traveller';
   const avatarUrl = user?.avatarUrl || user?.profileImage;
-
   const initials = useMemo(
     () =>
       displayName
@@ -76,7 +90,10 @@ function AppLayout({ role, menuItems }) {
   );
 
   const currentUrl = `${location.pathname}${location.search}${location.hash}`;
-
+  const isTravelToolsExperience =
+    location.pathname === '/packing-lists' ||
+    location.pathname === '/travel-documents';
+  const showGlobalAiAssistant = !isAdmin && isTravelToolsExperience;
   const isItemActive = (item, isExactMatch = false) => {
     const itemUrl = item.to;
     const [itemPath] = itemUrl.split(/[?#]/);
@@ -91,7 +108,6 @@ function AppLayout({ role, menuItems }) {
 
     return item.end ? location.pathname === itemPath : location.pathname.startsWith(itemPath);
   };
-
   const isMenuItemActive = (item) =>
     isItemActive(item) || item.children?.some((child) => isItemActive(child, true));
 
@@ -106,9 +122,7 @@ function AppLayout({ role, menuItems }) {
   }));
 
   const activeSubmenuId = activeSubmenuItems?.find((child) => isItemActive(child, true))?.id;
-
   const closeMobileNav = () => setIsMobileNavOpen(false);
-
   const handleNavigate = (item, event) => {
     if (item.action === 'logout') {
       event.preventDefault();
@@ -118,15 +132,12 @@ function AppLayout({ role, menuItems }) {
 
     closeMobileNav();
   };
-
   useEffect(() => {
     loadTranslateClient(selectedLanguage).catch(() => {});
   }, [selectedLanguage]);
-
   useEffect(() => {
     refreshTranslatedContent();
   }, [selectedLanguage, isLanguagePickerOpen]);
-
   useEffect(() => {
     const handlePointerDown = (event) => {
       const clickedOutsideLanguage =
@@ -148,7 +159,6 @@ function AppLayout({ role, menuItems }) {
         setIsProfileMenuOpen(false);
       }
     };
-
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
         setIsLanguagePickerOpen(false);
@@ -162,28 +172,25 @@ function AppLayout({ role, menuItems }) {
       document.addEventListener('keydown', handleKeyDown);
     }
 
+    // Cleanup prevents state updates after component unmount.
     return () => {
       document.removeEventListener('pointerdown', handlePointerDown);
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isCurrencyPickerOpen, isLanguagePickerOpen, isProfileMenuOpen]);
-
   const handleLanguageChange = (language) => {
     setSelectedLanguage(language.value);
     setIsLanguagePickerOpen(false);
     changeTranslateLanguage(language.value);
   };
-
   const handleCurrencyChange = (currencyOption) => {
     currency?.changeCurrency(currencyOption.code);
     setIsCurrencyPickerOpen(false);
   };
-
   const handleProfileMenuNavigate = (item, event) => {
     handleNavigate(item, event);
     setIsProfileMenuOpen(false);
   };
-
   const handleSubmenuToggle = () => {
     if (!activeSubmenu) {
       return;
@@ -191,7 +198,57 @@ function AppLayout({ role, menuItems }) {
 
     setCollapsedSubmenuTo((current) => (current === activeSubmenu.to ? null : activeSubmenu.to));
   };
+  const openNewAiChat = () => {
+    setAiPrompt('');
+    setAiMessages([]);
+    setAiError('');
+    setIsAiChatOpen(true);
+  };
+  const handleAiFloatingClick = () => {
+    if (isAiChatOpen) {
+      setIsAiChatOpen(false);
+      return;
+    }
 
+    openNewAiChat();
+  };
+  const handleAiChatSubmit = async (event) => {
+    event.preventDefault();
+    const prompt = aiPrompt.trim();
+
+    if (!prompt || isAiSubmitting) {
+      return;
+    }
+
+    setAiPrompt('');
+    setAiError('');
+    setIsAiSubmitting(true);
+    const userMessage = { role: 'user', text: prompt };
+    setAiMessages((currentMessages) => [...currentMessages, userMessage]);
+
+    try {
+      const response = await sendAiChatPrompt({
+        prompt,
+        page: currentUrl || location.pathname,
+      });
+      const reply = response.data.data.reply;
+      const assistantMessage = {
+        role: 'assistant',
+        text: reply.answer,
+        available: reply.available,
+      };
+
+      setAiMessages((currentMessages) => [...currentMessages, assistantMessage]);
+    } catch (requestError) {
+      const message = requestError.response?.data?.message || 'Unable to reach Groq chat right now.';
+      const assistantMessage = { role: 'assistant', text: message, available: false };
+
+      setAiError(message);
+      setAiMessages((currentMessages) => [...currentMessages, assistantMessage]);
+    } finally {
+      setIsAiSubmitting(false);
+    }
+  };
   return (
     <div
       className={[
@@ -263,22 +320,28 @@ function AppLayout({ role, menuItems }) {
                     <p className="currency-helper" translate="no">{currency.errorMessage}</p>
                   )}
                   <div className="currency-options-scroll">
-                    <div className="currency-grid">
-                      {availableCurrencies.map((currencyOption) => (
-                        <button
-                          className={`currency-option ignore notranslate ${
-                            currency?.selectedCurrency === currencyOption.code ? 'is-active' : ''
-                          }`}
-                          type="button"
-                          key={currencyOption.code}
-                          translate="no"
-                          onClick={() => handleCurrencyChange(currencyOption)}
-                        >
-                          <strong translate="no">{currencyOption.code}</strong>
-                          <span translate="no">{currencyOption.label}</span>
-                        </button>
-                      ))}
-                    </div>
+                    {currency?.isCurrencyListLoading ? (
+                      <p className="currency-helper" translate="no">Loading currencies...</p>
+                    ) : availableCurrencies.length ? (
+                      <div className="currency-grid">
+                        {availableCurrencies.map((currencyOption) => (
+                          <button
+                            className={`currency-option ignore notranslate ${
+                              currency?.selectedCurrency === currencyOption.code ? 'is-active' : ''
+                            }`}
+                            type="button"
+                            key={currencyOption.code}
+                            translate="no"
+                            onClick={() => handleCurrencyChange(currencyOption)}
+                          >
+                            <strong translate="no">{currencyOption.code}</strong>
+                            <span translate="no">{currencyOption.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="currency-helper" translate="no">No currencies available from the API.</p>
+                    )}
                   </div>
                 </div>
               )}
@@ -359,9 +422,18 @@ function AppLayout({ role, menuItems }) {
             </Link>
           )}
 
-          <button className="header-icon-button" type="button" aria-label="Notifications">
+          <Link
+            className="header-icon-button notification-bell-button"
+            to={isAdmin ? '/admin/notifications' : '/notifications'}
+            aria-label="Notifications"
+          >
             <Bell size={18} aria-hidden="true" />
-          </button>
+            {unreadCount > 0 && (
+              <span className="notification-badge" aria-label={`${unreadCount} unread notifications`}>
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
+          </Link>
 
           <div className="profile-menu" ref={profileMenuRef}>
             <button
@@ -419,7 +491,6 @@ function AppLayout({ role, menuItems }) {
 
                   {settingsDropdownItems.map((item) => {
                     const ItemIcon = item.icon;
-
                     return (
                       <Link
                         className="profile-menu-subitem"
@@ -500,6 +571,77 @@ function AppLayout({ role, menuItems }) {
           <Outlet />
         </main>
       </div>
+
+      <CompareTray />
+
+      {showGlobalAiAssistant && (
+        <>
+          <button
+            className="app-ai-floating"
+            type="button"
+            aria-label="Ask AI"
+            aria-expanded={isAiChatOpen}
+            onClick={handleAiFloatingClick}
+          >
+            <Bot size={20} aria-hidden="true" />
+            <span>Ask AI</span>
+          </button>
+
+          {isAiChatOpen && (
+            <section className="app-ai-chat" aria-label="Groq Llama chat prompt">
+              <div className="app-ai-chat-header">
+                <div>
+                  <span>Groq Llama 3.1</span>
+                  <strong>Ask AI</strong>
+                </div>
+                <button type="button" onClick={() => setIsAiChatOpen(false)} aria-label="Close AI chat">
+                  <X size={18} aria-hidden="true" />
+                </button>
+              </div>
+
+              <div className="app-ai-chat-body" aria-live="polite">
+                {aiMessages.length === 0 ? (
+                  <p className="app-ai-chat-empty">Ask for help with itineraries, packing, documents, places, transport, or anything else in your trip.</p>
+                ) : (
+                  aiMessages.map((message, index) => (
+                    <article
+                      className={`app-ai-message ${message.role === 'user' ? 'is-user' : 'is-assistant'} ${message.available === false ? 'is-muted' : ''}`}
+                      key={`${message.role}-${index}`}
+                    >
+                      <span>{message.role === 'user' ? 'You' : 'Llama 3.1'}</span>
+                      <p>{message.text}</p>
+                    </article>
+                  ))
+                )}
+                {isAiSubmitting && (
+                  <article className="app-ai-message is-assistant">
+                    <span>Llama 3.1</span>
+                    <p><LoaderCircle className="app-ai-spin" size={15} aria-hidden="true" /> Thinking...</p>
+                  </article>
+                )}
+                {aiError && <p className="app-ai-error">{aiError}</p>}
+              </div>
+
+              <form className="app-ai-chat-form" onSubmit={handleAiChatSubmit}>
+                <label>
+                  <span className="sr-only">AI prompt</span>
+                  <textarea
+                    value={aiPrompt}
+                    rows="3"
+                    maxLength={2000}
+                    placeholder="Ask Llama 3.1 about your trip..."
+                    onChange={(event) => setAiPrompt(event.target.value)}
+                  />
+                </label>
+                <button type="submit" disabled={!aiPrompt.trim() || isAiSubmitting}>
+                  {isAiSubmitting ? <LoaderCircle className="app-ai-spin" size={17} aria-hidden="true" /> : <Send size={17} aria-hidden="true" />}
+                  Send
+                </button>
+              </form>
+            </section>
+          )}
+        </>
+      )}
     </div>
   );
 }

@@ -1,5 +1,9 @@
+/**
+ * Itinerary module.
+ * Schema fields define stored document structure, defaults, and indexes.
+ */
 const mongoose = require('mongoose');
-
+// Location Schema groups database fields before model registration.
 const locationSchema = new mongoose.Schema(
   {
     address: { type: String, trim: true },
@@ -22,7 +26,7 @@ const locationSchema = new mongoose.Schema(
   },
   { _id: false }
 );
-
+// Price Estimate Schema groups database fields before model registration.
 const priceEstimateSchema = new mongoose.Schema(
   {
     amount: { type: Number, min: 0 },
@@ -30,7 +34,7 @@ const priceEstimateSchema = new mongoose.Schema(
   },
   { _id: false }
 );
-
+// Itinerary Item Schema groups database fields before model registration.
 const itineraryItemSchema = new mongoose.Schema(
   {
     tripId: { type: mongoose.Schema.Types.ObjectId, ref: 'Trip', required: true, index: true },
@@ -63,5 +67,4 @@ const itineraryItemSchema = new mongoose.Schema(
 
 itineraryItemSchema.index({ tripId: 1, scheduledDate: 1 });
 itineraryItemSchema.index({ 'location.coordinates': '2dsphere' });
-
 module.exports = mongoose.model('ItineraryItem', itineraryItemSchema, 'itineraryItems');

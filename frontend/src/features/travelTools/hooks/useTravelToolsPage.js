@@ -1,3 +1,8 @@
+/**
+ * Owns the packing-list workspace state used by TravelToolsPage.
+ * The hook keeps list editing, template editing, filters, reminders, and
+ * confirmation dialogs in one place because those controls share the same data set.
+ */
 import { useEffect, useMemo, useState } from 'react';
 import {
   addPackingItem,
@@ -36,6 +41,7 @@ import {
 } from '../travelTools.validation';
 
 export function useTravelToolsPage() {
+  // Core workspace state covers loaded lists, templates, trips, selected records, and request feedback.
   const [packingLists, setPackingLists] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [trips, setTrips] = useState([]);
@@ -75,6 +81,7 @@ export function useTravelToolsPage() {
   const [filters, setFilters] = useState(emptyFilters);
   const [templateFilters, setTemplateFilters] = useState(emptyFilters);
 
+  // The selected list falls back to the first available list so the workspace always has a target.
   const selectedList = useMemo(
     () => packingLists.find((list) => list._id === selectedListId) || packingLists[0],
     [packingLists, selectedListId]
@@ -87,7 +94,6 @@ export function useTravelToolsPage() {
   };
 
   const remainingItems = Math.max((progress.totalItems || 0) - (progress.packedItems || 0), 0);
-
   const unpackedItemCount = useMemo(
     () => selectedList?.items?.filter((item) => !item.isPacked).length || 0,
     [selectedList]
@@ -96,6 +102,7 @@ export function useTravelToolsPage() {
   const isPackingReminderEnabled =
     !notificationPreferences.notificationsOff && notificationPreferences.packingReminder !== false;
 
+  // Built-in templates stay available separately, but only custom templates can be edited.
   const customTemplates = useMemo(
     () => templates.filter((template) => template.source === 'custom'),
     [templates]
@@ -106,6 +113,7 @@ export function useTravelToolsPage() {
     [customTemplates, selectedTemplateId]
   );
 
+  // Category filters include defaults plus any custom categories already used in lists or templates.
   const categoryOptions = useMemo(() => {
     const categories = new Set(packingCategories);
     packingLists.forEach((list) => list.items?.forEach((item) => item.category && categories.add(item.category)));
@@ -113,6 +121,7 @@ export function useTravelToolsPage() {
     return Array.from(categories);
   }, [packingLists, templates]);
 
+  // Template cards rotate in a fixed-size window so the page can browse many templates compactly.
   const visibleTemplates = useMemo(() => {
     if (templates.length <= 3) return templates;
     return Array.from({ length: 3 }, (_, index) => templates[(templatePage + index) % templates.length]);
@@ -120,6 +129,7 @@ export function useTravelToolsPage() {
 
   const maxTemplatePage = Math.max(templates.length - 1, 0);
 
+  // Item filtering combines text, category, and packed status while keeping the original list order.
   const filteredItems = useMemo(() => {
     const items = selectedList?.items || [];
     return items.filter((item) => {
@@ -133,6 +143,7 @@ export function useTravelToolsPage() {
     });
   }, [filters, selectedList]);
 
+  // Template item filtering preserves original item indexes so edits still update the correct row.
   const filteredTemplateItems = useMemo(() => {
     const items = templateEditForm.items || [];
     return items
@@ -148,6 +159,7 @@ export function useTravelToolsPage() {
       });
   }, [templateEditForm.items, templateFilters]);
 
+  // Duplicate checks normalize casing and whitespace so visually identical names are blocked.
   const hasDuplicateListTitle = (title, excludedListId = '') => {
     const normalizedTitle = normalizeName(title);
     return packingLists.some(
@@ -169,6 +181,7 @@ export function useTravelToolsPage() {
     );
   };
 
+  // Initial load gathers packing lists, templates, trips, and profile preferences in one request batch.
   useEffect(() => {
     let isMounted = true;
 
@@ -205,6 +218,7 @@ export function useTravelToolsPage() {
 
     loadPackingLists();
 
+    // Unmounted guards prevent late responses from changing state after navigation.
     return () => {
       isMounted = false;
     };
@@ -245,7 +259,6 @@ export function useTravelToolsPage() {
     setCreateFormError('');
     setError('');
     setSuccessMessage('');
-
     try {
       const response = await createPackingList({
         title: createForm.title.trim(),
@@ -295,7 +308,6 @@ export function useTravelToolsPage() {
     setIsSaving(true);
     setError('');
     setSuccessMessage('');
-
     try {
       const response = await updatePackingList(selectedList._id, {
         tripId: tripId || null,
@@ -340,7 +352,6 @@ export function useTravelToolsPage() {
     setTemplateEditError('');
     setError('');
     setSuccessMessage('');
-
     try {
       const response = await updatePackingListTemplate(selectedTemplate.key, {
         title: draft.title.trim(),
@@ -422,7 +433,6 @@ export function useTravelToolsPage() {
     setIsSaving(true);
     setError('');
     setSuccessMessage('');
-
     try {
       const response = await createPackingListTemplate({
         title: templateSaveForm.title.trim(),
@@ -512,7 +522,6 @@ export function useTravelToolsPage() {
     setIsSaving(true);
     setError('');
     setSuccessMessage('');
-
     try {
       const response = itemModalMode === 'edit'
         ? await updatePackingItem(selectedList._id, editingItemId, {
@@ -571,7 +580,6 @@ export function useTravelToolsPage() {
     setIsSaving(true);
     setError('');
     setSuccessMessage('');
-
     try {
       const response = await updatePackingList(selectedList._id, { title: listTitleDraft.trim() });
       replaceList(response.data.data.packingList);
@@ -636,7 +644,6 @@ export function useTravelToolsPage() {
     const daysBeforeTrip = Number(event.target.value);
     setReminderDays(daysBeforeTrip);
     if (!selectedList) return;
-
     try {
       const response = await updatePackingList(selectedList._id, {
         reminder: { enabled: selectedList.reminder?.enabled ?? true, daysBeforeTrip },
@@ -652,7 +659,6 @@ export function useTravelToolsPage() {
     setIsSaving(true);
     setError('');
     setSuccessMessage('');
-
     try {
       if (confirmAction.type === 'duplicate-list') {
         setStatusScope('packing');

@@ -1,3 +1,7 @@
+/**
+ * Api Logs module.
+ * Validation schemas reject unsafe or incomplete request payloads.
+ */
 const { query } = require('express-validator');
 
 const listLogRules = [
@@ -16,5 +20,4 @@ const listLogRules = [
   query('page').optional().isInt({ min: 1 }).withMessage('Page must be one or more'),
   query('limit').optional().isInt({ min: 1, max: 100 }).withMessage('Limit must be between 1 and 100'),
 ];
-
 module.exports = { listLogRules };

@@ -1,18 +1,19 @@
-﻿.settings-workspace {
+/**
+ * Settings styles.
+ * Layout, spacing, and interaction rules support the matching React view.
+ */
+.settings-workspace {
   min-width: 0;
 }
-
 .settings-subnav {
   display: none;
 }
-
 .settings-content {
   display: grid;
   gap: 14px;
   align-self: start;
   min-width: 0;
 }
-
 .settings-pane {
   display: grid;
   align-content: start;
@@ -24,7 +25,6 @@
   border-radius: 8px;
   background: #ffffff;
 }
-
 .settings-pane h3 {
   min-height: 38px;
   margin: 0;
@@ -32,7 +32,6 @@
   font-size: var(--font-size-2xl);
   line-height: 38px;
 }
-
 .settings-pane-header {
   display: flex;
   align-items: center;
@@ -40,7 +39,6 @@
   gap: 12px;
   min-height: 38px;
 }
-
 .settings-icon-button {
   display: grid;
   width: 38px;
@@ -51,12 +49,10 @@
   background: #ffffff;
   color: var(--muted);
 }
-
 .settings-icon-button:hover {
   background: var(--color-primary-soft);
   color: var(--color-primary);
 }
-
 .settings-form {
   display: grid;
   gap: 16px;

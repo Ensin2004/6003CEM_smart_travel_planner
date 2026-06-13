@@ -1,4 +1,8 @@
-import { Route, Routes } from 'react-router-dom';
+/**
+ * Routes module.
+ * Route definitions connect endpoints with validation, authorization, and controllers.
+ */
+import { Navigate, Route, Routes } from 'react-router-dom';
 import LandingPage from '../features/landing/LandingPage';
 import LoginPage from '../features/auth/LoginPage';
 import RegisterPage from '../features/auth/RegisterPage';
@@ -8,13 +12,18 @@ import UserDashboard from '../features/dashboard/UserDashboard';
 import TripsPage from '../features/trips/TripsPage';
 import TripDetailsPage from '../features/trips/TripDetailsPage';
 import ExplorePage from '../features/explore/ExplorePage';
-import TrainServiceTimetablePage from '../features/explore/TrainServiceTimetablePage';
+import AttractionDetailPage from '../features/explore/submenus/AttractionDetailPage';
+import HotelDetailPage from '../features/explore/submenus/HotelDetailPage';
+import RestaurantDetailPage from '../features/explore/submenus/RestaurantDetailPage';
+import TrainServiceTimetablePage from '../features/explore/submenus/TrainServiceTimetablePage';
+import FavoritesPage from '../features/favorites/FavoritesPage';
 import MapPage from '../features/map/MapPage';
 import TravelGuideDestinationPage from '../features/travelGuide/TravelGuideDestinationPage';
 import TravelGuidePage from '../features/travelGuide/TravelGuidePage';
 import TravelToolsPage from '../features/travelTools/TravelToolsPage';
 import LanguageHelperPage from '../features/languageHelper/LanguageHelperPage';
 import UserSettingsPage from '../features/settings/user/UserSettingsPage';
+import NotificationsPage from '../features/notifications/NotificationsPage';
 import AdminDashboard from '../features/admin/AdminDashboard';
 import ApiLogsPage from '../features/admin/ApiLogsPage';
 import ManageUsersPage from '../features/admin/ManageUsersPage';
@@ -23,7 +32,7 @@ import AdminSettingsPage from '../features/settings/admin/AdminSettingsPage';
 import UserLayout from '../layouts/UserLayout';
 import AdminLayout from '../layouts/AdminLayout';
 import ProtectedRoute from '../components/ProtectedRoute';
-
+// AppRoutes renders the main screen and handles nearby interactions.
 function AppRoutes() {
   return (
     <Routes>
@@ -36,9 +45,14 @@ function AppRoutes() {
       <Route element={<ProtectedRoute allowedRoles={['user']} />}>
         <Route element={<UserLayout />}>
           <Route path="/dashboard" element={<UserDashboard />} />
+          <Route path="/favorites" element={<FavoritesPage />} />
+          <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/trips" element={<TripsPage />} />
           <Route path="/trips/:id" element={<TripDetailsPage />} />
           <Route path="/explore" element={<ExplorePage />} />
+          <Route path="/explore/attractions/detail" element={<AttractionDetailPage />} />
+          <Route path="/explore/hotels/detail" element={<HotelDetailPage />} />
+          <Route path="/explore/restaurants/detail" element={<RestaurantDetailPage />} />
           <Route path="/transportation/trains/service-timetable" element={<TrainServiceTimetablePage />} />
           <Route path="/travel-guide" element={<TravelGuidePage />} />
           <Route path="/travel-guide/destination" element={<TravelGuideDestinationPage />} />
@@ -56,12 +70,15 @@ function AppRoutes() {
           <Route path="users" element={<ManageUsersPage />} />
           <Route path="api-logs" element={<ApiLogsPage />} />
           <Route path="logging-monitoring" element={<SystemErrorsPage />} />
+          <Route path="notifications" element={<NotificationsPage />} />
           <Route path="system-errors" element={<SystemErrorsPage />} />
           <Route path="settings" element={<AdminSettingsPage />} />
         </Route>
       </Route>
+
+      <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
-
+// Default export registers the primary  value.
 export default AppRoutes;

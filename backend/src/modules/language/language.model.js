@@ -1,5 +1,9 @@
+/**
+ * Language module.
+ * Schema fields define stored document structure, defaults, and indexes.
+ */
 const mongoose = require('mongoose');
-
+// Translation Language Schema groups database fields before model registration.
 const translationLanguageSchema = new mongoose.Schema(
   {
     code: { type: String, required: true, unique: true, trim: true, maxlength: 20 },
@@ -13,7 +17,7 @@ const translationLanguageSchema = new mongoose.Schema(
 
 translationLanguageSchema.index({ provider: 1, code: 1 }, { unique: true });
 translationLanguageSchema.index({ name: 1 });
-
+// Translation History Schema groups database fields before model registration.
 const translationHistorySchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
@@ -39,10 +43,8 @@ const translationHistorySchema = new mongoose.Schema(
 
 translationHistorySchema.index({ userId: 1, createdAt: -1 });
 translationHistorySchema.index({ userId: 1, sourceLanguageId: 1, targetLanguageId: 1 });
-
 const getModel = (name, schema, collection) =>
   mongoose.models[name] || mongoose.model(name, schema, collection);
-
 module.exports = {
   TranslationHistory: getModel('TranslationHistory', translationHistorySchema, 'translationHistories'),
   TranslationLanguage: getModel('TranslationLanguage', translationLanguageSchema, 'translationLanguages'),

@@ -1,9 +1,15 @@
+/**
+ * Explore Ai module.
+ * Assertions cover expected behavior, error handling, and response shape.
+ */
+// Test group covers  behavior.
 describe('Explore AI recommendations', () => {
+  // Cleanup resets shared state after assertions.
   afterEach(() => {
     jest.resetModules();
     jest.clearAllMocks();
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('returns friendly fallback when AI key is not configured', async () => {
     jest.resetModules();
 
@@ -25,7 +31,7 @@ describe('Explore AI recommendations', () => {
     expect(recommendations.message).toContain('AI recommendations are not configured');
     expect(recommendations.stats.totalResults).toBe(1);
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('parses structured AI output into useful fields only', async () => {
     jest.resetModules();
 
@@ -101,7 +107,7 @@ describe('Explore AI recommendations', () => {
       })
     );
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('returns local recommendations when AI service cannot be reached', async () => {
     jest.resetModules();
 

@@ -1,31 +1,50 @@
+/**
+ * Trip planning screen for manual and AI-assisted trip creation.
+ * This file keeps the form state, country/state loading, trip search, and
+ * trip form side effects together because those controls update the same draft trip.
+ */
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   ArrowRight,
-  Bot,
   CalendarDays,
   CheckCircle2,
-  FileText,
+  ChevronDown,
+  Clock3,
+  Eye,
+  Heart,
+  Info,
   ListChecks,
   LoaderCircle,
+  LockKeyhole,
   MapPin,
+  MoreVertical,
+  Plane,
   Plus,
   Search,
-  Sparkles,
+  Star,
   WalletCards,
 } from 'lucide-react';
+import { addFavorite, getFavorites, removeFavorite } from '../../api/favoriteApi';
+import { getTripItinerary } from '../../api/itineraryApi';
 import { createTrip, getTrips } from '../../api/tripApi';
-import { createPackingList } from '../../api/travelToolsApi';
+import CompareButton from '../../components/compare/CompareButton';
 import TripMapPreview from '../../components/trips/TripMapPreview';
 import CurrencyContext from '../../context/currencyContext';
+import { buildTripFavoritePayload } from '../../utils/favoriteUtils';
 import './TripsPage.css';
 
 const today = new Date().toISOString().slice(0, 10);
 const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
-const documentOptions = ['Passport', 'Visa', 'Flight ticket', 'Hotel booking', 'Insurance'];
-const styleOptions = ['Food', 'Culture', 'Nature', 'Shopping', 'Relaxing'];
-const flexibleDayOptions = [1, 2, 3, 4, 5, 6, 7];
+const defaultPreviewPlaces = [
+  { city: 'Penang', country: 'Malaysia' },
+  { city: 'Singapore', country: 'Singapore' },
+];
+const tripFilters = ['All Trips', 'Active', 'Upcoming', 'Past', 'Drafts', 'Favorites'];
 
+// Date helpers keep exact-date and flexible-date planning consistent before the payload is built.
+
+// Flexible trip planning starts from upcoming months instead of exact departure dates.
 const getMonthOptions = () => Array.from({ length: 12 }, (_, index) => {
   const date = new Date();
   date.setDate(1);
@@ -38,6 +57,7 @@ const getMonthOptions = () => Array.from({ length: 12 }, (_, index) => {
   };
 });
 
+// The flexible range uses the first day of the selected month and expands by the selected day count.
 const getFlexibleDateRange = (monthValue, days) => {
   const [year, month] = String(monthValue || today.slice(0, 7)).split('-').map(Number);
   const start = new Date(year, month - 1, 1);
@@ -50,6 +70,7 @@ const getFlexibleDateRange = (monthValue, days) => {
   };
 };
 
+// New segments inherit the current trip date range so multi-city planning starts with useful defaults.
 const createEmptySegment = (order = 1, startDate = today, endDate = tomorrow) => ({
   city: '',
   country: '',
@@ -59,6 +80,7 @@ const createEmptySegment = (order = 1, startDate = today, endDate = tomorrow) =>
   order,
 });
 
+// API and display helpers keep response parsing and date labels outside the component body.
 const normalizeTripList = (response) => response.data?.data?.trips || [];
 
 const formatDateRange = (startDate, endDate) => {
@@ -71,21 +93,85 @@ const getDurationDays = (startDate, endDate) => {
   const diff = new Date(endDate).getTime() - new Date(startDate).getTime();
   return Math.max(1, Math.ceil(diff / 86400000) + 1);
 };
+const getTripStatus = (trip, itineraryDays = []) => {
+  if (!trip.destinationSegments?.length && trip.destination === 'Not added yet' && !getItineraryDestinationPlaces(itineraryDays).length) return 'Draft';
 
+  const start = new Date(trip.startDate);
+  const end = new Date(trip.endDate);
+  const todayDate = new Date(today);
+
+  if (end < todayDate) return 'Past';
+  if (start > todayDate) return 'Upcoming';
+  return 'Active';
+};
+const getTripProgress = (trip, itineraryDays = []) => {
+  const status = getTripStatus(trip, itineraryDays);
+  if (status === 'Draft') return { label: '0% planned', percent: 0 };
+  if (status === 'Past') return { label: 'Completed', percent: 100 };
+  if (status === 'Upcoming') return { label: '20% planned', percent: 20 };
+  return { label: '60% planned', percent: 60 };
+};
+
+const getSegmentDestinationName = (segment = {}) => (segment.city || segment.country || '').trim();
+const getItineraryDestinationPlaces = (days = []) => {
+  const places = days
+    .filter((day) => day.location?.name || day.location?.country)
+    .map((day) => ({
+      city: day.location?.name,
+      country: day.location?.country,
+      address: [day.location?.name, day.location?.country].filter(Boolean).join(', '),
+      lat: day.location?.coordinates?.latitude,
+      lng: day.location?.coordinates?.longitude,
+    }));
+
+  return [...new Map(places.map((place) => [[place.city, place.country].filter(Boolean).join('|'), place])).values()];
+};
+const getTripDestinationLabel = (trip, itineraryDays = []) => {
+  const itineraryPlaces = getItineraryDestinationPlaces(itineraryDays);
+  if (itineraryPlaces.length) {
+    return itineraryPlaces.map((place) => [place.city, place.country].filter(Boolean).join(', ')).join(' • ');
+  }
+
+  return [trip.destination, trip.country].filter(Boolean).join(', ') || 'Not decided';
+};
+
+// Trip comparison items use trip-level details when place-level details are not available.
+const getTripCompareItem = (trip, itineraryDays = []) => ({
+  id: trip._id,
+  name: trip.title || trip.destination,
+  category: trip.planningMode === 'ai' ? 'AI assisted trip' : 'Manual trip',
+  source: 'trips',
+  price: trip.budget?.totalAmount
+    ? `${trip.budget.currency || 'MYR'} ${Number(trip.budget.totalAmount).toLocaleString()}`
+    : 'Budget unavailable',
+  hours: formatDateRange(trip.startDate, trip.endDate),
+  address: getTripDestinationLabel(trip, itineraryDays),
+});
+
+// The component owns the full create-trip workflow, from draft form state to final navigation.
 function TripsPage() {
   const navigate = useNavigate();
   const currency = useContext(CurrencyContext);
   const activeCurrencyCode = currency?.activeCurrency?.code || currency?.selectedCurrency || 'MYR';
-  const [countries, setCountries] = useState([]);
-  const [stateOptionsByCountry, setStateOptionsByCountry] = useState({});
-  const [createMode, setCreateMode] = useState('self');
+
+  // Screen state is grouped around the create form, trip list, country selectors, and save feedback.
+  // Country and state options are kept separate because selecting a country refreshes only one dropdown.
+  // View state controls whether the page shows the create form or the saved-trip directory.
   const [activeView, setActiveView] = useState('create');
+  const [tripFilter, setTripFilter] = useState('All Trips');
+  const [tripSort, setTripSort] = useState('recent');
   const [trips, setTrips] = useState([]);
+  const [tripItineraryDays, setTripItineraryDays] = useState({});
+  const [favorites, setFavorites] = useState([]);
   const [status, setStatus] = useState('loading');
   const [message, setMessage] = useState('');
+  const [favoriteMessage, setFavoriteMessage] = useState('');
+  const [savingFavoriteTripId, setSavingFavoriteTripId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [formError, setFormError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+
+  // Form state mirrors the backend trip payload closely so submission needs minimal remapping.
   const [form, setForm] = useState({
     title: '',
     startDate: today,
@@ -94,14 +180,10 @@ function TripsPage() {
     flexibleWindowDays: 3,
     flexibleMonth: today.slice(0, 7),
     budgetAmount: '',
-    aiPrompt: '',
-    styles: [],
-    createPackingList: true,
-    createDocumentChecklist: true,
-    documentTypes: ['Passport', 'Flight ticket', 'Hotel booking'],
     destinationSegments: [createEmptySegment()],
   });
 
+  // Initial trip loading populates the recent trip list and search results.
   useEffect(() => {
     let isMounted = true;
 
@@ -117,25 +199,81 @@ function TripsPage() {
         setMessage(error.response?.data?.message || 'Unable to load trips.');
       });
 
+    // Cleanup prevents state updates after the user navigates away.
     return () => {
       isMounted = false;
     };
   }, []);
 
-  const visibleTrips = useMemo(() => {
+  useEffect(() => {
+    let isMounted = true;
+
+    if (!trips.length) {
+      Promise.resolve().then(() => {
+        if (isMounted) setTripItineraryDays({});
+      });
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    Promise.allSettled(trips.map(async (trip) => {
+      const response = await getTripItinerary(trip._id);
+      return [trip._id, response.data?.data?.days || []];
+    })).then((results) => {
+      if (!isMounted) return;
+      setTripItineraryDays(Object.fromEntries(
+        results
+          .filter((result) => result.status === 'fulfilled')
+          .map((result) => result.value)
+      ));
+    });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [trips]);
+
+  // Trip favourites are identified by their trip external id so saved place coordinates cannot collide with trip cards.
+  const tripFavorites = useMemo(
+    () => favorites.filter((favorite) => (
+      favorite.type === 'location'
+      && favorite.source === 'trips'
+      && String(favorite.externalId || '').startsWith('trip-')
+    )),
+    [favorites]
+  );
+  const tripFavoriteLookup = useMemo(
+    () => Object.fromEntries(tripFavorites.map((favorite) => [favorite.externalId, favorite])),
+    [tripFavorites]
+  );
+  const tripStatusCounts = trips.reduce((counts, trip) => {
+    const statusName = getTripStatus(trip, tripItineraryDays[trip._id] || []).toLowerCase();
+    return { ...counts, [statusName]: (counts[statusName] || 0) + 1 };
+  }, { active: 0, upcoming: 0, past: 0, draft: 0 });
+  const filteredDashboardTrips = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
-    if (!query) return trips.slice(0, 6);
-
-    return trips.filter((trip) =>
-      [trip.title, trip.destination, trip.country]
+    const filteredTrips = trips.filter((trip) => {
+      const itineraryDays = tripItineraryDays[trip._id] || [];
+      const matchesFilter = tripFilter === 'All Trips'
+        || (tripFilter === 'Favorites' && Boolean(tripFavoriteLookup[`trip-${trip._id}`]))
+        || getTripStatus(trip, itineraryDays) === tripFilter.replace(/s$/, '');
+      const destinationLabel = getTripDestinationLabel(trip, itineraryDays);
+      const matchesSearch = !query || [trip.title, trip.destination, trip.country, destinationLabel]
         .filter(Boolean)
-        .some((value) => value.toLowerCase().includes(query))
-    );
-  }, [searchQuery, trips]);
+        .some((value) => value.toLowerCase().includes(query));
+      return matchesFilter && matchesSearch;
+    });
 
-  const previewSegments = form.destinationSegments.filter((segment) => segment.city.trim());
+    return [...filteredTrips].sort((leftTrip, rightTrip) => {
+      if (tripSort === 'startDate') return new Date(leftTrip.startDate) - new Date(rightTrip.startDate);
+      return new Date(rightTrip.updatedAt || rightTrip.createdAt || rightTrip.startDate) - new Date(leftTrip.updatedAt || leftTrip.createdAt || leftTrip.startDate);
+    });
+  }, [searchQuery, tripFavoriteLookup, tripFilter, tripItineraryDays, tripSort, trips]);
+
+  const previewSegments = form.destinationSegments.filter((segment) => getSegmentDestinationName(segment));
   const totalBudget = Number(form.budgetAmount || 0);
-  const primarySegment = form.destinationSegments[0];
+  // Preview values are recalculated from the draft form so the summary stays accurate while typing.
   const flexibleMonthOptions = useMemo(() => getMonthOptions(), []);
   const displayedDateRange = form.dateMode === 'flexible'
     ? getFlexibleDateRange(form.flexibleMonth, form.flexibleWindowDays)
@@ -145,12 +283,12 @@ function TripsPage() {
   useEffect(() => {
     let isMounted = true;
 
-    import('country-state-city')
-      .then(({ Country }) => {
-        if (isMounted) setCountries(Country.getAllCountries());
+    getFavorites()
+      .then((response) => {
+        if (isMounted) setFavorites(response.data?.data?.favorites || []);
       })
       .catch(() => {
-        if (isMounted) setCountries([]);
+        if (isMounted) setFavorites([]);
       });
 
     return () => {
@@ -158,109 +296,60 @@ function TripsPage() {
     };
   }, []);
 
-  useEffect(() => {
-    if (!primarySegment?.countryCode) {
-      return;
+  const getTripFavoriteRecord = (trip) => {
+    return tripFavoriteLookup[`trip-${trip._id}`];
+  };
+
+  const handleTripFavoriteToggle = async (event, trip) => {
+    event.preventDefault();
+    event.stopPropagation();
+    if (savingFavoriteTripId) return;
+
+    setSavingFavoriteTripId(trip._id);
+    setFavoriteMessage('');
+
+    try {
+      const existingFavorite = getTripFavoriteRecord(trip);
+
+      if (existingFavorite?._id) {
+        await removeFavorite(existingFavorite._id);
+        setFavorites((currentFavorites) => currentFavorites.filter((favorite) => favorite._id !== existingFavorite._id));
+        setFavoriteMessage('Trip removed from favourites.');
+        return;
+      }
+
+      const response = await addFavorite(buildTripFavoritePayload(trip));
+      const favorite = response.data?.data?.favorite;
+      if (favorite) {
+        setFavorites((currentFavorites) => {
+          const withoutDuplicate = currentFavorites.filter((currentFavorite) => currentFavorite._id !== favorite._id);
+          return [favorite, ...withoutDuplicate];
+        });
+      }
+      setFavoriteMessage('Trip saved to favourites.');
+    } catch (error) {
+      setFavoriteMessage(error.response?.data?.message || 'Unable to update favourite right now.');
+    } finally {
+      setSavingFavoriteTripId('');
     }
+  };
 
-    let isMounted = true;
-
-    import('country-state-city')
-      .then(({ State }) => {
-        if (isMounted) {
-          setStateOptionsByCountry((current) => ({
-            ...current,
-            [primarySegment.countryCode]: State.getStatesOfCountry(primarySegment.countryCode),
-          }));
-        }
-      })
-      .catch(() => {});
-
-    return () => {
-      isMounted = false;
-    };
-  }, [primarySegment?.countryCode]);
-
+  // Simple field updates clear the previous validation error so fresh input gets a clean attempt.
   const updateField = (field, value) => {
     setFormError('');
     setForm((current) => ({ ...current, [field]: value }));
   };
 
-  const updateSegment = (index, field, value) => {
-    setFormError('');
-    setForm((current) => ({
-      ...current,
-      destinationSegments: current.destinationSegments.map((segment, segmentIndex) =>
-        segmentIndex === index ? { ...segment, [field]: value } : segment
-      ),
-    }));
-  };
-
-  const updateSegmentCountry = (index, countryCode) => {
-    const country = countries.find((item) => item.isoCode === countryCode);
-    setFormError('');
-    if (countryCode && !stateOptionsByCountry[countryCode]) {
-      import('country-state-city')
-        .then(({ State }) => {
-          setStateOptionsByCountry((current) => ({
-            ...current,
-            [countryCode]: State.getStatesOfCountry(countryCode),
-          }));
-        })
-        .catch(() => {});
-    }
-    setForm((current) => ({
-      ...current,
-      destinationSegments: current.destinationSegments.map((segment, segmentIndex) =>
-        segmentIndex === index
-          ? { ...segment, countryCode, country: country?.name || '', city: '' }
-          : segment
-      ),
-    }));
-  };
-
-  const toggleArrayValue = (field, value) => {
-    setForm((current) => ({
-      ...current,
-      [field]: current[field].includes(value)
-        ? current[field].filter((item) => item !== value)
-        : [...current[field], value],
-    }));
-  };
-
-  const addSegment = () => {
-    setForm((current) => ({
-      ...current,
-      destinationSegments: [
-        ...current.destinationSegments,
-        createEmptySegment(current.destinationSegments.length + 1, current.startDate, current.endDate),
-      ],
-    }));
-  };
-
-  const removeSegment = (index) => {
-    setForm((current) => ({
-      ...current,
-      destinationSegments: current.destinationSegments
-        .filter((_, segmentIndex) => segmentIndex !== index)
-        .map((segment, segmentIndex) => ({ ...segment, order: segmentIndex + 1 })),
-    }));
-  };
-
+  // Client-side validation catches the most common form mistakes before sending an API request.
   const validateForm = () => {
-    const segments = form.destinationSegments.filter((segment) => segment.city.trim());
-
     if (!form.title.trim()) return 'Trip title is required.';
-    if (!segments.length) return 'Add at least one destination.';
     if (form.dateMode === 'exact' && new Date(form.endDate) < new Date(form.startDate)) return 'Trip end date cannot be before start date.';
     if (!Number.isFinite(totalBudget) || totalBudget < 0) return 'Budget must be a valid number.';
-
-    const invalidSegment = segments.find((segment) => new Date(segment.endDate) < new Date(segment.startDate));
-    if (invalidSegment) return 'Destination end date cannot be before its start date.';
 
     return '';
   };
 
+  // Submission builds the final trip payload and optionally creates a matching packing list.
   const handleSubmit = async (event) => {
     event.preventDefault();
     const error = validateForm();
@@ -272,34 +361,25 @@ function TripsPage() {
     setIsSaving(true);
     setFormError('');
 
+    // Flexible trips use generated dates; exact trips keep the dates selected for each segment.
     const submitDates = form.dateMode === 'flexible'
       ? getFlexibleDateRange(form.flexibleMonth, form.flexibleWindowDays)
       : { startDate: form.startDate, endDate: form.endDate };
 
-    const segments = form.destinationSegments
-      .filter((segment) => segment.city.trim())
-      .map((segment, index) => ({
-        city: segment.city.trim(),
-        country: segment.country.trim(),
-        countryCode: segment.countryCode,
-        startDate: form.dateMode === 'flexible' ? submitDates.startDate : segment.startDate,
-        endDate: form.dateMode === 'flexible' ? submitDates.endDate : segment.endDate,
-        order: index + 1,
-      }));
-
+    // Destination planning now starts after creation, so the trip uses a clear placeholder summary.
     const payload = {
       title: form.title.trim(),
-      destination: segments[0].city,
-      country: segments[0].country,
+      destination: 'Not added yet',
+      country: '',
       startDate: submitDates.startDate,
       endDate: submitDates.endDate,
-      planningMode: createMode,
+      planningMode: 'self',
       budget: {
         totalAmount: Number(form.budgetAmount || 0),
         dailyLimit: 0,
         currency: activeCurrencyCode,
       },
-      destinationSegments: segments,
+      destinationSegments: [],
       dateFlexibility: {
         mode: form.dateMode,
         windowDays: form.dateMode === 'flexible' ? Number(form.flexibleWindowDays) : 0,
@@ -308,31 +388,25 @@ function TripsPage() {
           : '',
       },
       travelPreferences: {
-        styles: form.styles.map((value) => value.toLowerCase().replace(/\s+/g, '-')),
+        styles: [],
         pace: 'moderate',
         accommodation: 'comfort',
       },
       documentChecklist: {
-        enabled: form.createDocumentChecklist,
-        documentTypes: form.createDocumentChecklist ? form.documentTypes : [],
+        enabled: false,
+        documentTypes: [],
       },
-      notes: form.aiPrompt.trim() ? [{ content: form.aiPrompt.trim() }] : [],
+      notes: [],
     };
 
     try {
       const response = await createTrip(payload);
       const trip = response.data?.data?.trip;
 
-      if (trip && form.createPackingList) {
-        await createPackingList({
-          title: `${trip.title || trip.destination} packing list`,
-          tripId: trip._id,
-        });
-      }
-
       navigate(`/trips/${trip._id}`);
     } catch (error) {
-      setFormError(error.response?.data?.message || 'Unable to create trip.');
+      const validationMessages = error.response?.data?.errors?.map((item) => item.message).filter(Boolean);
+      setFormError(validationMessages?.[0] || error.response?.data?.message || 'Unable to create trip.');
     } finally {
       setIsSaving(false);
     }
@@ -340,13 +414,12 @@ function TripsPage() {
 
   return (
     <section className="trips-page trips-page-comfort" aria-labelledby="trips-page-title">
-      <div className="trips-header">
+      <header className="trips-dashboard-header">
         <div>
-          <p className="eyebrow">Trip planning workspace</p>
-          <h2 id="trips-page-title">Create a Trip</h2>
-          <p>Set the trip foundation here. Itinerary, ideas, day notes, and budget allocation are managed after creation.</p>
+          <h2 id="trips-page-title">My Trips</h2>
+          <p>All your trips in one place. Plan, organize, and relive your adventures.</p>
         </div>
-        <div className="trips-header-actions" role="tablist" aria-label="Trip menu">
+        <div className="trips-dashboard-actions" role="tablist" aria-label="Trip menu">
           <button
             className={activeView === 'create' ? 'active' : ''}
             type="button"
@@ -355,7 +428,7 @@ function TripsPage() {
             onClick={() => setActiveView('create')}
           >
             <Plus size={16} aria-hidden="true" />
-            Create
+            Create Trip
           </button>
           <button
             className={activeView === 'my-trips' ? 'active' : ''}
@@ -369,445 +442,269 @@ function TripsPage() {
             <span className="trip-count-badge">{trips.length}</span>
           </button>
         </div>
-      </div>
+      </header>
 
       {message && <p className="form-error trips-status" role="alert">{message}</p>}
+      {favoriteMessage && <p className="form-success trips-status" role="status">{favoriteMessage}</p>}
 
       {activeView === 'my-trips' ? (
-        <section className="trip-directory" aria-labelledby="my-trips-title">
-          <div className="trip-directory-hero">
-            <div>
-              <span>Trip workspace</span>
-              <h3 id="my-trips-title">My Trips</h3>
-              <p>Pick up planning where you left off, compare upcoming routes, and keep every destination visible.</p>
+        <section className="trip-dashboard-panel" aria-labelledby="my-trips-title">
+          <div className="trip-dashboard-toolbar">
+            <div className="trip-dashboard-filters" aria-label="Trip filters">
+              {tripFilters.map((filter) => (
+                <button
+                  className={tripFilter === filter ? 'active' : ''}
+                  type="button"
+                  key={filter}
+                  onClick={() => setTripFilter(filter)}
+                >
+                  {filter}
+                </button>
+              ))}
             </div>
-            <div className="trip-directory-hero-card" aria-hidden="true">
-              <span>{trips.length}</span>
-              <small>saved plans</small>
-            </div>
-            <button type="button" onClick={() => setActiveView('create')}>
-              <Plus size={16} aria-hidden="true" />
-              New trip
-            </button>
+            <label className="trip-dashboard-sort">
+              <select value={tripSort} onChange={(event) => setTripSort(event.target.value)} aria-label="Sort trips">
+                <option value="recent">Recently updated</option>
+                <option value="startDate">Start date</option>
+              </select>
+              <ChevronDown size={15} aria-hidden="true" />
+            </label>
           </div>
 
-          <div className="trip-directory-stats" aria-label="Trip directory summary">
+          <div className="trip-dashboard-stats" aria-label="Trip summary">
             <span>
-              <i><ListChecks size={17} aria-hidden="true" /></i>
-              <small>Saved trips</small>
-              <strong>{trips.length} trip{trips.length === 1 ? '' : 's'}</strong>
+              <i><Plane size={19} aria-hidden="true" /></i>
+              <small>Total Trips</small>
+              <strong>{trips.length}</strong>
+              <em>All time</em>
             </span>
             <span>
-              <i><MapPin size={17} aria-hidden="true" /></i>
-              <small>Countries</small>
-              <strong>{new Set(trips.map((trip) => trip.country).filter(Boolean)).size} countr{new Set(trips.map((trip) => trip.country).filter(Boolean)).size === 1 ? 'y' : 'ies'}</strong>
+              <i><CalendarDays size={19} aria-hidden="true" /></i>
+              <small>Active</small>
+              <strong>{tripStatusCounts.active}</strong>
+              <em>Currently in progress</em>
             </span>
             <span>
-              <i><CalendarDays size={17} aria-hidden="true" /></i>
+              <i><Clock3 size={19} aria-hidden="true" /></i>
               <small>Upcoming</small>
-              <strong>{trips.filter((trip) => new Date(trip.endDate) >= new Date(today)).length} active</strong>
+              <strong>{tripStatusCounts.upcoming}</strong>
+              <em>Planned trips</em>
+            </span>
+            <span>
+              <i><CheckCircle2 size={19} aria-hidden="true" /></i>
+              <small>Past</small>
+              <strong>{tripStatusCounts.past}</strong>
+              <em>Completed trips</em>
+            </span>
+            <span>
+              <i><Heart size={19} aria-hidden="true" /></i>
+              <small>Saved Trips</small>
+              <strong>{tripFavorites.length}</strong>
+              <em>Trip favourites</em>
             </span>
           </div>
 
-          <div className="trip-directory-header">
-            <div>
-              <span>Saved trips</span>
-              <h4>Trip library</h4>
-            </div>
+          <div className="trip-dashboard-heading">
+            <h3 id="my-trips-title">Your Trips</h3>
+            <label className="trip-search-field trip-search-field-large">
+              <Search size={16} aria-hidden="true" />
+              <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search trips" />
+            </label>
           </div>
-
-          <label className="trip-search-field trip-search-field-large">
-            <Search size={16} aria-hidden="true" />
-            <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search by title, destination, or country" />
-          </label>
 
           {status === 'loading' ? (
             <p className="settings-empty"><LoaderCircle className="trip-spin" size={16} aria-hidden="true" /> Loading trips...</p>
-          ) : visibleTrips.length === 0 ? (
+          ) : filteredDashboardTrips.length === 0 ? (
             <div className="trip-empty-state">
               <MapPin size={30} aria-hidden="true" />
-              <h3>No saved trips yet</h3>
-              <p>Create a trip first, then manage the itinerary and ideas in the details page.</p>
+              <h3>No trips found</h3>
+              <p>Create a trip or adjust the filter to see more plans.</p>
               <button type="button" onClick={() => setActiveView('create')}>Create trip</button>
             </div>
           ) : (
-            <div className="trip-directory-grid">
-              {visibleTrips.map((trip) => {
+            <div className="trip-dashboard-grid">
+              {filteredDashboardTrips.map((trip, index) => {
                 const tripDays = getDurationDays(trip.startDate, trip.endDate);
+                const itineraryDays = tripItineraryDays[trip._id] || [];
+                const statusName = getTripStatus(trip, itineraryDays);
+                const progress = getTripProgress(trip, itineraryDays);
+                const destinationLabel = getTripDestinationLabel(trip, itineraryDays);
+                const favoriteRecord = getTripFavoriteRecord(trip);
+                const isFavoriteTrip = Boolean(favoriteRecord?._id);
+                const tripTitle = trip.title || trip.destination;
 
                 return (
-                  <Link className="trip-directory-card" to={`/trips/${trip._id}`} key={trip._id}>
-                    <div className="trip-directory-card-art">
-                      <MapPin size={20} aria-hidden="true" />
+                  <article className="trip-dashboard-card" key={trip._id}>
+                    <div className={`trip-dashboard-card-image trip-photo-${index % 5}`}>
+                      <Link className="trip-dashboard-card-image-link" to={`/trips/${trip._id}`} aria-label={`Open ${tripTitle}`} />
+                      <span className={`trip-status-pill is-${statusName.toLowerCase()}`}>{statusName}</span>
+                      <button
+                        className={`trip-dashboard-favorite ${isFavoriteTrip ? 'active' : ''}`}
+                        type="button"
+                        aria-label={isFavoriteTrip ? `Remove ${tripTitle} from favourites` : `Add ${tripTitle} to favourites`}
+                        disabled={savingFavoriteTripId === trip._id}
+                        onClick={(event) => handleTripFavoriteToggle(event, trip)}
+                      >
+                        {savingFavoriteTripId === trip._id ? (
+                          <LoaderCircle className="trip-spin" size={17} aria-hidden="true" />
+                        ) : (
+                          <Heart size={17} fill={isFavoriteTrip ? 'currentColor' : 'none'} aria-hidden="true" />
+                        )}
+                      </button>
                     </div>
-                    <div className="trip-directory-card-top">
-                      <span>{trip.planningMode === 'ai' ? 'AI assisted' : 'Manual plan'}</span>
-                      <em>{tripDays} day{tripDays === 1 ? '' : 's'}</em>
+                    <div className="trip-dashboard-card-body">
+                      <div className="trip-dashboard-card-title">
+                        <Link to={`/trips/${trip._id}`}>{tripTitle}</Link>
+                        <button type="button" aria-label={`More options for ${tripTitle}`}>
+                          <MoreVertical size={17} aria-hidden="true" />
+                        </button>
+                      </div>
+                      <div className="trip-dashboard-card-meta">
+                        <span><CalendarDays size={14} aria-hidden="true" />{formatDateRange(trip.startDate, trip.endDate)}</span>
+                        <span><Clock3 size={14} aria-hidden="true" />{Math.max(0, tripDays - 1)} night{tripDays - 1 === 1 ? '' : 's'} ({tripDays} day{tripDays === 1 ? '' : 's'})</span>
+                        <span><MapPin size={14} aria-hidden="true" />{destinationLabel}</span>
+                        <span><WalletCards size={14} aria-hidden="true" />{trip.budget?.totalAmount ? `${trip.budget.currency || 'MYR'} ${Number(trip.budget.totalAmount).toLocaleString()}` : '-'}</span>
+                      </div>
+                      <div className="trip-dashboard-progress" aria-label={`${progress.label} progress`}>
+                        <span><em style={{ width: `${progress.percent}%` }} /></span>
+                        <small>{progress.label}</small>
+                      </div>
+                      <CompareButton compact item={getTripCompareItem(trip, itineraryDays)} />
                     </div>
-                    <strong>{trip.title || trip.destination}</strong>
-                    <div className="trip-directory-card-meta">
-                      <small><CalendarDays size={14} aria-hidden="true" />{formatDateRange(trip.startDate, trip.endDate)}</small>
-                      <small><MapPin size={14} aria-hidden="true" />{[trip.destination, trip.country].filter(Boolean).join(', ')}</small>
-                    </div>
-                    <div className="trip-directory-card-footer">
-                      <span>{trip.dateFlexibility?.mode === 'flexible' ? 'Flexible dates' : 'Exact dates'}</span>
-                      <em>
-                        Open details
-                        <ArrowRight size={15} aria-hidden="true" />
-                      </em>
-                    </div>
-                  </Link>
+                  </article>
                 );
               })}
             </div>
           )}
         </section>
       ) : (
-      <div className="trip-comfort-layout">
-        <form className="trip-create-form trip-create-form-comfort" onSubmit={handleSubmit}>
-          <div className="trip-create-hero">
-            <div>
-              <span>New trip setup</span>
-              <h3>Shape the trip foundation.</h3>
-              <p>Set the core details now, then use the details page for daily timing, places, notes, and budget distribution.</p>
-            </div>
-            <div className="trip-create-actions">
-              <div className="trip-mode-toggle" role="group" aria-label="Trip creation mode">
-                <button className={createMode === 'self' ? 'active' : ''} type="button" onClick={() => setCreateMode('self')}>
-                  <ListChecks size={16} aria-hidden="true" />
-                  Manual
-                </button>
-                <button className={createMode === 'ai' ? 'active' : ''} type="button" onClick={() => setCreateMode('ai')}>
-                  <Bot size={16} aria-hidden="true" />
-                  AI Assist
-                </button>
-              </div>
-              <button className="primary-action trip-save-button" type="submit" disabled={isSaving}>
-                {isSaving ? <LoaderCircle className="trip-spin" size={17} aria-hidden="true" /> : <CheckCircle2 size={17} aria-hidden="true" />}
-                Create Trip
-              </button>
-            </div>
+      <div className="trip-reference-layout">
+        <form className="trip-reference-form" onSubmit={handleSubmit}>
+          <div className="trip-reference-form-heading">
+            <span>Create a Trip</span>
+            <p>Set the basic trip details first. Places, route, packing list, and documents can be managed after creation.</p>
           </div>
 
-          <div className="trip-form-summary" aria-label="Trip setup summary">
-            <span>
-              <i><CalendarDays size={17} aria-hidden="true" /></i>
-              <small>Trip length</small>
-              <strong>{durationDays} day{durationDays === 1 ? '' : 's'}</strong>
-            </span>
-            <span>
-              <i><MapPin size={17} aria-hidden="true" /></i>
-              <small>Stops</small>
-              <strong>{previewSegments.length || 0} stop{previewSegments.length === 1 ? '' : 's'}</strong>
-            </span>
-            <span>
-              <i><WalletCards size={17} aria-hidden="true" /></i>
-              <small>Budget currency</small>
-              <strong>{activeCurrencyCode}</strong>
-            </span>
-          </div>
-
-          <nav className="trip-step-nav" aria-label="Trip creation steps">
-            <a href="#trip-step-basics">
-              <span>01</span>
-              <strong>Trip Basics</strong>
-            </a>
-            <a href="#trip-step-destination">
-              <span>02</span>
-              <strong>Destination</strong>
-            </a>
-            <a href="#trip-step-preferences">
-              <span>03</span>
-              <strong>Preferences</strong>
-            </a>
-          </nav>
-
-          <section id="trip-step-basics" className="trip-create-section trip-essentials-section" aria-labelledby="essentials-title">
-            <div className="trip-section-heading">
-              <span className="trip-section-icon"><CalendarDays size={18} aria-hidden="true" /></span>
-              <div>
-                <span className="trip-section-step-label">Step 01</span>
-                <h3 id="essentials-title">Trip Basics</h3>
-                <p>Give the trip a name, date range, and total budget.</p>
-              </div>
-            </div>
-
-            <div className="trip-form-grid">
-              <label>
-                <span>Trip title</span>
-                <input value={form.title} onChange={(event) => updateField('title', event.target.value)} placeholder="Penang food weekend" />
-              </label>
-              <label>
-                <span>Whole trip budget ({activeCurrencyCode})</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={form.budgetAmount}
-                  onChange={(event) => updateField('budgetAmount', event.target.value)}
-                  placeholder="2500"
-                />
-              </label>
-            </div>
-
-            <div className="trip-date-box">
-              <div className="trip-date-toggle" role="group" aria-label="Date type">
-                <button className={form.dateMode === 'exact' ? 'active' : ''} type="button" onClick={() => updateField('dateMode', 'exact')}>
-                  Exact dates
-                </button>
-                <button className={form.dateMode === 'flexible' ? 'active' : ''} type="button" onClick={() => updateField('dateMode', 'flexible')}>
-                  Flexible
-                </button>
-              </div>
-              {form.dateMode === 'exact' ? (
-                <div className="trip-form-grid">
-                  <label>
-                    <span>Start date</span>
-                    <input type="date" value={form.startDate} onChange={(event) => updateField('startDate', event.target.value)} />
-                  </label>
-                  <label>
-                    <span>End date</span>
-                    <input type="date" value={form.endDate} onChange={(event) => updateField('endDate', event.target.value)} />
-                  </label>
-                </div>
-              ) : (
-                <div className="trip-flexible-picker">
-                  <div>
-                    <span className="trip-field-title">Days</span>
-                    <div className="trip-flexible-options">
-                      {flexibleDayOptions.map((days) => (
-                        <button
-                          className={Number(form.flexibleWindowDays) === days ? 'active' : ''}
-                          type="button"
-                          key={days}
-                          onClick={() => updateField('flexibleWindowDays', days)}
-                        >
-                          {days} day{days === 1 ? '' : 's'}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <span className="trip-field-title">Month</span>
-                    <div className="trip-flexible-options">
-                      {flexibleMonthOptions.map((month) => (
-                        <button
-                          className={form.flexibleMonth === month.value ? 'active' : ''}
-                          type="button"
-                          key={month.value}
-                          onClick={() => updateField('flexibleMonth', month.value)}
-                        >
-                          {month.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <p className="trip-flexible-summary">
-                    We'll create a {durationDays}-day planning window in {flexibleMonthOptions.find((month) => month.value === form.flexibleMonth)?.label}.
-                  </p>
-                </div>
-              )}
-            </div>
-          </section>
-
-          <section id="trip-step-destination" className="trip-create-section" aria-labelledby="destinations-title">
-            <div className="trip-section-heading">
-              <span className="trip-section-icon trip-section-icon-destination"><MapPin size={18} aria-hidden="true" /></span>
-              <div>
-                <span className="trip-section-step-label">Step 02</span>
-                <h3 id="destinations-title">Destination</h3>
-                <p>Choose the main place for this trip. Extra stops are optional.</p>
-              </div>
-            </div>
-
-            <p className="trip-section-helper">
-              Choose a country first, then select the state or region you want recommendations for. Additional stops can be added here, while daily planning happens on the details page.
-            </p>
-            <div className="trip-segment-list trip-simple-segments">
-              {form.destinationSegments.map((segment, index) => (
-                <article className="trip-segment-card" key={`${segment.order}-${index}`}>
-                  <div className="trip-segment-number">{index + 1}</div>
-                  <div className="trip-segment-fields">
-                    <label>
-                      <span>Country</span>
-                      <select value={segment.countryCode} onChange={(event) => updateSegmentCountry(index, event.target.value)}>
-                        <option value="">Select country</option>
-                        {countries.map((country) => (
-                          <option key={country.isoCode} value={country.isoCode}>{country.name}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <label>
-                      <span>State or region</span>
-                      <select
-                        value={segment.city}
-                        onChange={(event) => updateSegment(index, 'city', event.target.value)}
-                        disabled={!segment.countryCode}
-                      >
-                        <option value="">{segment.countryCode ? 'Select state or region' : 'Select country first'}</option>
-                        {(stateOptionsByCountry[segment.countryCode] || []).map((state) => (
-                          <option key={state.isoCode} value={state.name}>{state.name}</option>
-                        ))}
-                      </select>
-                    </label>
-                    {form.dateMode === 'exact' && (
-                      <>
-                        <label>
-                          <span>From</span>
-                          <input type="date" value={segment.startDate} onChange={(event) => updateSegment(index, 'startDate', event.target.value)} />
-                        </label>
-                        <label>
-                          <span>To</span>
-                          <input type="date" value={segment.endDate} onChange={(event) => updateSegment(index, 'endDate', event.target.value)} />
-                        </label>
-                      </>
-                    )}
-                  </div>
-                  {form.destinationSegments.length > 1 && (
-                    <button className="trip-remove-segment" type="button" onClick={() => removeSegment(index)}>
-                      Remove
-                    </button>
-                  )}
-                </article>
-              ))}
-            </div>
-            <button className="trip-secondary-link" type="button" onClick={addSegment}>
-              <Plus size={16} aria-hidden="true" />
-              Add another country or state
-            </button>
-          </section>
-
-          {createMode === 'ai' && (
-            <label className="trip-ai-prompt">
-              <span>
-                <Sparkles size={16} aria-hidden="true" />
-                AI prompt
-              </span>
-              <textarea
-                value={form.aiPrompt}
-                onChange={(event) => updateField('aiPrompt', event.target.value)}
-                placeholder="Relaxed trip with food, short walks, and rainy-day alternatives."
+          <label className="trip-reference-field trip-reference-field-full">
+            <span>Trip Name</span>
+            <small>Give your trip a name you'll love.</small>
+            <div className="trip-reference-input">
+              <CalendarDays size={16} aria-hidden="true" />
+              <input
+                maxLength={60}
+                value={form.title}
+                onChange={(event) => updateField('title', event.target.value)}
+                placeholder="Penang & Singapore Adventure"
               />
-            </label>
-          )}
-
-          <details id="trip-step-preferences" className="trip-optional-details">
-            <summary>
-              <span>
-                <em className="trip-section-icon trip-section-icon-preferences"><Sparkles size={18} aria-hidden="true" /></em>
-                <span className="trip-section-step-label">Step 03</span>
-                <strong>Preferences and setup</strong>
-                <small>Optional travel style, packing list, and document checklist</small>
-              </span>
-            </summary>
-            <div className="trip-create-section">
-              <span className="trip-field-title">Travel style</span>
-              <div className="trip-choice-grid">
-                {styleOptions.map((option) => (
-                  <button
-                    className={form.styles.includes(option) ? 'active' : ''}
-                    type="button"
-                    key={option}
-                    onClick={() => toggleArrayValue('styles', option)}
-                  >
-                    {option}
-                  </button>
-                ))}
-              </div>
-              <div className="trip-tool-grid">
-                <label className="trip-tool-card">
-                  <input type="checkbox" checked={form.createPackingList} onChange={(event) => updateField('createPackingList', event.target.checked)} />
-                  <span>
-                    <ListChecks size={18} aria-hidden="true" />
-                    <strong>Create packing list</strong>
-                  </span>
-                </label>
-                <label className="trip-tool-card">
-                  <input type="checkbox" checked={form.createDocumentChecklist} onChange={(event) => updateField('createDocumentChecklist', event.target.checked)} />
-                  <span>
-                    <FileText size={18} aria-hidden="true" />
-                    <strong>Create document checklist</strong>
-                  </span>
-                </label>
-              </div>
-              {form.createDocumentChecklist && (
-                <div className="trip-choice-grid">
-                  {documentOptions.map((option) => (
-                    <button
-                      className={form.documentTypes.includes(option) ? 'active' : ''}
-                      type="button"
-                      key={option}
-                      onClick={() => toggleArrayValue('documentTypes', option)}
-                    >
-                      {option}
-                    </button>
-                  ))}
-                </div>
-              )}
+              <em>{form.title.length}/60</em>
             </div>
-          </details>
+          </label>
 
-          <div className="trip-budget-summary">
-            <WalletCards size={18} aria-hidden="true" />
-            <span>
-              Save the whole-trip budget now. Distribute daily budgets on the trip details page.
-              {totalBudget > 0 ? ` ${currency?.formatAmount ? currency.formatAmount(totalBudget, activeCurrencyCode) : totalBudget}` : ''}
-            </span>
+          <div className="trip-reference-date-row">
+            <label className="trip-reference-field">
+              <span>Start Date</span>
+              <small>When does your trip start?</small>
+              <div className="trip-reference-input">
+                <CalendarDays size={16} aria-hidden="true" />
+                <input type="date" value={form.startDate} onChange={(event) => updateField('startDate', event.target.value)} />
+              </div>
+            </label>
+            <ArrowRight className="trip-reference-date-arrow" size={18} aria-hidden="true" />
+            <label className="trip-reference-field">
+              <span>End Date</span>
+              <small>When does your trip end?</small>
+              <div className="trip-reference-input">
+                <CalendarDays size={16} aria-hidden="true" />
+                <input type="date" value={form.endDate} onChange={(event) => updateField('endDate', event.target.value)} />
+              </div>
+            </label>
           </div>
+
+          <div className="trip-reference-field trip-reference-field-full">
+            <span>Total Duration</span>
+            <div className="trip-duration-banner">
+              <CalendarDays size={16} aria-hidden="true" />
+              <strong>Total duration: {Math.max(0, durationDays - 1)} night{durationDays - 1 === 1 ? '' : 's'} ({durationDays} day{durationDays === 1 ? '' : 's'})</strong>
+            </div>
+          </div>
+
+          <label className="trip-reference-field trip-reference-field-full">
+            <span>Total Budget</span>
+            <small>Set your estimated budget for the entire trip.</small>
+            <div className="trip-budget-input-row">
+              <select value={activeCurrencyCode} disabled aria-label="Budget currency">
+                <option>{activeCurrencyCode}</option>
+              </select>
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                value={form.budgetAmount}
+                onChange={(event) => updateField('budgetAmount', event.target.value)}
+                placeholder="2500.00"
+              />
+            </div>
+          </label>
+
+          <p className="trip-reference-info">
+            <Info size={16} aria-hidden="true" />
+            You can always adjust your budget later.
+          </p>
 
           {formError && <p className="form-error trips-status" role="alert">{formError}</p>}
+
+          <button className="trip-reference-submit" type="submit" disabled={isSaving}>
+            {isSaving ? <LoaderCircle className="trip-spin" size={18} aria-hidden="true" /> : null}
+            Create Trip
+            <ArrowRight size={18} aria-hidden="true" />
+          </button>
+
+          <p className="trip-reference-after">
+            <LockKeyhole size={13} aria-hidden="true" />
+            You can edit everything later
+          </p>
         </form>
 
-        <aside className="trip-side-rail" aria-label="Saved trips">
-          <div className="trip-preview-panel">
-            <div className="trip-preview-card-header">
-              <div>
-                <span>Live snapshot</span>
-                <h3>{form.title || 'Untitled trip'}</h3>
-              </div>
-              <small>{previewSegments.length || 0} stop{previewSegments.length === 1 ? '' : 's'}</small>
+        <aside className="trip-reference-side" aria-label="Trip creation preview">
+          <section className="trip-reference-preview">
+            <header>
+              <h3>Trip Preview</h3>
+              <button type="button">
+                <Eye size={15} aria-hidden="true" />
+                Preview
+              </button>
+            </header>
+            <TripMapPreview places={previewSegments.length ? previewSegments : defaultPreviewPlaces} />
+            <div className="trip-reference-preview-meta">
+              <span><CalendarDays size={16} aria-hidden="true" />{formatDateRange(displayedDateRange.startDate, displayedDateRange.endDate)}</span>
+              <span><CalendarDays size={16} aria-hidden="true" />{Math.max(0, durationDays - 1)} night{durationDays - 1 === 1 ? '' : 's'} ({durationDays} day{durationDays === 1 ? '' : 's'})</span>
+              <span><WalletCards size={16} aria-hidden="true" />Budget: <strong>{totalBudget > 0 ? (currency?.formatAmount ? currency.formatAmount(totalBudget, activeCurrencyCode) : `${activeCurrencyCode} ${totalBudget.toLocaleString()}`) : `${activeCurrencyCode} 0`}</strong></span>
+              <span><MapPin size={16} aria-hidden="true" />Destinations: Not added yet</span>
             </div>
-            <TripMapPreview places={previewSegments} />
-            <div className="trip-preview-content">
-              <div className="trip-preview-heading">
-                <span>Trip window</span>
-                <p>{formatDateRange(form.startDate, form.endDate)}</p>
-              </div>
-              <div className="trip-preview-metrics">
-                <span>{durationDays} days</span>
-                <span>{form.dateMode === 'flexible' ? `Flexible ${form.flexibleWindowDays}d` : 'Exact dates'}</span>
-                <span>{totalBudget > 0 ? (currency?.formatAmount ? currency.formatAmount(totalBudget, activeCurrencyCode) : `${activeCurrencyCode} ${totalBudget}`) : 'No budget'}</span>
-              </div>
-            </div>
-          </div>
+            <p className="trip-reference-next">
+              <Info size={16} aria-hidden="true" />
+              <strong>Next step: Add the places you'll visit and plan your route.</strong>
+            </p>
+          </section>
 
-          <section className="trip-list-workspace trip-recent-list" aria-labelledby="recent-trips-title">
-            <div className="trip-list-header">
-              <div>
-                <span>Saved</span>
-                <h3 id="recent-trips-title">Recent Trips</h3>
-              </div>
-              <button type="button" onClick={() => setActiveView('my-trips')}>View all</button>
+          <section className="trip-reference-benefits">
+            <h3>Why create a trip?</h3>
+            <div>
+              <span><Star size={17} aria-hidden="true" /></span>
+              <p><strong>Personalized recommendations</strong>Get ideas that match your interests, dates, and budget.</p>
             </div>
-            <label className="trip-search-field">
-              <Search size={16} aria-hidden="true" />
-              <input value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search trips" />
-            </label>
-            {status === 'loading' ? (
-              <p className="settings-empty"><LoaderCircle className="trip-spin" size={16} aria-hidden="true" /> Loading trips...</p>
-            ) : visibleTrips.length === 0 ? (
-              <p className="settings-empty">No saved trips yet.</p>
-            ) : (
-              <div className="trip-card-grid trip-card-grid-compact">
-                {visibleTrips.map((trip) => (
-                  <Link className="trip-list-card" to={`/trips/${trip._id}`} key={trip._id}>
-                    <span className="trip-card-title">{trip.title || trip.destination}</span>
-                    <span className="trip-card-meta"><CalendarDays size={14} aria-hidden="true" />{formatDateRange(trip.startDate, trip.endDate)}</span>
-                    <span className="trip-card-meta"><MapPin size={14} aria-hidden="true" />{trip.destination}</span>
-                  </Link>
-                ))}
-              </div>
-            )}
+            <div>
+              <span><CalendarDays size={17} aria-hidden="true" /></span>
+              <p><strong>Smart itinerary planning</strong>Easily organize your days and activities.</p>
+            </div>
+            <div>
+              <span><WalletCards size={17} aria-hidden="true" /></span>
+              <p><strong>Budget made simple</strong>Track expenses and stay within your budget.</p>
+            </div>
+            <div>
+              <span><ListChecks size={17} aria-hidden="true" /></span>
+              <p><strong>Everything in one place</strong>Access your plans anytime, anywhere.</p>
+            </div>
           </section>
         </aside>
       </div>

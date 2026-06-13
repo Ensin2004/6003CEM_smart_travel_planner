@@ -1,3 +1,8 @@
+/**
+ * Handles map search, place details, and weather requests from the map screen.
+ * Query parameters are passed through as named service inputs so provider logic
+ * stays out of controller code.
+ */
 const catchAsync = require('../../utils/catchAsync');
 const { sendSuccess } = require('../../utils/apiResponse');
 const mapService = require('./map.service');
@@ -13,10 +18,13 @@ const getMapPlaces = catchAsync(async (req, res) => {
 
   sendSuccess(res, 200, { places });
 });
-
 const getMapPlaceDetails = catchAsync(async (req, res) => {
   const details = await mapService.getMapPlaceDetails({
     category: req.query.category,
+    placeId: req.query.placeId,
+    foursquarePlaceId: req.query.foursquarePlaceId,
+    googlePlaceId: req.query.googlePlaceId,
+    dataId: req.query.dataId,
     name: req.query.name,
     address: req.query.address,
     latitude: req.query.latitude,
@@ -25,7 +33,6 @@ const getMapPlaceDetails = catchAsync(async (req, res) => {
 
   sendSuccess(res, 200, { details });
 });
-
 const getMapWeather = catchAsync(async (req, res) => {
   const weather = await mapService.getMapWeather({
     destination: req.query.destination,
@@ -37,5 +44,33 @@ const getMapWeather = catchAsync(async (req, res) => {
 
   sendSuccess(res, 200, { weather });
 });
+const getReverseGeocodeLocation = catchAsync(async (req, res) => {
+  const location = await mapService.getReverseGeocodeLocation({
+    latitude: req.query.latitude,
+    longitude: req.query.longitude,
+  });
 
-module.exports = { getMapPlaces, getMapPlaceDetails, getMapWeather };
+  sendSuccess(res, 200, { location });
+});
+const getGeocodeLocation = catchAsync(async (req, res) => {
+  const location = await mapService.getGeocodeLocation(req.query.query);
+
+  sendSuccess(res, 200, { location });
+});
+const getMapRoutes = catchAsync(async (req, res) => {
+  const routes = await mapService.getMapRoutes({
+    mode: req.body.mode,
+    points: req.body.points,
+  });
+
+  sendSuccess(res, 200, { routes });
+});
+
+module.exports = {
+  getGeocodeLocation,
+  getMapPlaces,
+  getMapPlaceDetails,
+  getMapRoutes,
+  getMapWeather,
+  getReverseGeocodeLocation,
+};

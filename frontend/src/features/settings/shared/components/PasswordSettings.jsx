@@ -1,5 +1,9 @@
+/**
+ * Settings module.
+ * Exports and local helpers keep related behavior in a single module.
+ */
 import { Eye, EyeOff } from 'lucide-react';
-
+// PasswordSettings renders the main screen and handles nearby interactions.
 function PasswordSettings({
   doPasswordsMatch,
   onPasswordSubmit,
@@ -38,7 +42,6 @@ function PasswordSettings({
       </div>
     </label>
   );
-
   return (
     <form className="settings-pane settings-form settings-password-form" onSubmit={onPasswordSubmit}>
       <h3>Change Password</h3>
@@ -64,5 +67,5 @@ function PasswordSettings({
     </form>
   );
 }
-
+// Default export registers the primary  value.
 export default PasswordSettings;

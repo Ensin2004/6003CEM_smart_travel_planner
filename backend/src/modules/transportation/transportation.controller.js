@@ -1,7 +1,10 @@
+/**
+ * Transportation module.
+ * Request handlers translate HTTP input into service calls and response payloads.
+ */
 const catchAsync = require('../../utils/catchAsync');
 const { sendSuccess } = require('../../utils/apiResponse');
 const transportationService = require('./transportation.service');
-
 const getFlight = catchAsync(async (req, res) => {
   const flights = await transportationService.getFlightsBySearch({
     airlineName: req.query.airlineName,
@@ -14,7 +17,6 @@ const getFlight = catchAsync(async (req, res) => {
 
   sendSuccess(res, 200, { flights });
 });
-
 const getTrainStationTimetable = catchAsync(async (req, res) => {
   const trains = await transportationService.getTrainStationTimetable({
     stationCode: req.query.stationCode,
@@ -25,7 +27,6 @@ const getTrainStationTimetable = catchAsync(async (req, res) => {
 
   sendSuccess(res, 200, { trains });
 });
-
 const getTrainServiceTimetable = catchAsync(async (req, res) => {
   const timetable = await transportationService.getTrainServiceTimetable({
     serviceIdentifier: req.query.serviceIdentifier,
@@ -36,5 +37,4 @@ const getTrainServiceTimetable = catchAsync(async (req, res) => {
 
   sendSuccess(res, 200, { timetable });
 });
-
 module.exports = { getFlight, getTrainStationTimetable, getTrainServiceTimetable };

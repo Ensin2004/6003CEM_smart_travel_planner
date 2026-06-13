@@ -1,3 +1,7 @@
+/**
+ * Currency module.
+ * Schema fields define stored document structure, defaults, and indexes.
+ */
 const supportedCurrencies = [
   'USD',
   'EUR',
@@ -15,6 +19,11 @@ const supportedCurrencies = [
   'IDR',
   'PHP',
   'VND',
+  'ARS',
+  'BRL',
+  'CLP',
+  'COP',
+  'MXN',
 ];
 
 const currencyLabels = {
@@ -34,6 +43,10 @@ const currencyLabels = {
   IDR: 'Indonesian Rupiah',
   PHP: 'Philippine Peso',
   VND: 'Vietnamese Dong',
+  ARS: 'Argentine Peso',
+  BRL: 'Brazilian Real',
+  CLP: 'Chilean Peso',
+  COP: 'Colombian Peso',
+  MXN: 'Mexican Peso',
 };
-
 module.exports = { supportedCurrencies, currencyLabels };

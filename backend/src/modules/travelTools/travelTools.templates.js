@@ -1,3 +1,7 @@
+/**
+ * Travel Tools module.
+ * Exports and local helpers keep related behavior in a single module.
+ */
 const { priorityLevels } = require('./travelTools.constants');
 
 const [highPriority, mediumPriority, lowPriority] = priorityLevels;
@@ -64,7 +68,7 @@ const templates = [
     ],
   },
 ];
-
+// Map Template Items transforms source data into the shape required nearby.
 const mapTemplateItems = (items) =>
   items.map(([name, category, priority, quantity]) => ({
     name,
@@ -78,5 +82,4 @@ const packingTemplates = templates.map((template) => ({
   ...template,
   items: mapTemplateItems(template.items),
 }));
-
 module.exports = packingTemplates;

@@ -1,4 +1,10 @@
+/**
+ * Restaurants module.
+ * Assertions cover expected behavior, error handling, and response shape.
+ */
+// Test group covers  behavior.
 describe('Restaurant service fallback', () => {
+  // Scenario verifies one expected outcome or error path.
   test('returns friendly fallback when SerpApi key is not configured', async () => {
     const restaurantService = require('../src/modules/explore/restaurant.service');
     const restaurants = await restaurantService.getRestaurantsByDestination({ country: 'Malaysia', state: 'Penang' });
@@ -8,13 +14,14 @@ describe('Restaurant service fallback', () => {
     expect(restaurants.items).toEqual([]);
   });
 });
-
+// Test group covers  behavior.
 describe('Restaurant service search', () => {
+  // Cleanup resets shared state after assertions.
   afterEach(() => {
     jest.resetModules();
     jest.clearAllMocks();
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('supports food category searches and does not trim results', async () => {
     jest.resetModules();
 

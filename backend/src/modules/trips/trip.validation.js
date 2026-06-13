@@ -1,7 +1,10 @@
+/**
+ * Trips module.
+ * Validation schemas reject unsafe or incomplete request payloads.
+ */
 const { body, param } = require('express-validator');
 
 const objectIdRule = param('id').isMongoId().withMessage('Invalid trip id');
-
 const optionalBudgetRule = () =>
   body('budget')
     .optional()
@@ -29,7 +32,7 @@ const tripBodyRules = [
   body('budget.dailyLimit').optional().isFloat({ min: 0 }).withMessage('Daily budget must be zero or more'),
   body('budget.currency').optional().trim().isLength({ min: 3, max: 3 }).withMessage('Currency must be a valid 3-letter code'),
   body('planningMode').optional().isIn(['self', 'ai']),
-  body('destinationSegments').optional().isArray({ min: 1 }),
+  body('destinationSegments').optional().isArray(),
   body('destinationSegments.*.city').optional().trim().isLength({ min: 2, max: 120 }),
   body('destinationSegments.*.country').optional().trim().isLength({ max: 80 }),
   body('destinationSegments.*.startDate').optional().isISO8601(),
@@ -60,16 +63,22 @@ const updateTripRules = [
   body('budget.dailyLimit').optional().isFloat({ min: 0 }),
   body('budget.currency').optional().trim().isLength({ min: 3, max: 3 }),
   body('planningMode').optional().isIn(['self', 'ai']),
-  body('destinationSegments').optional().isArray({ min: 1 }),
+  body('destinationSegments').optional().isArray(),
   body('destinationSegments.*.city').optional().trim().isLength({ min: 2, max: 120 }),
   body('destinationSegments.*.country').optional().trim().isLength({ max: 80 }),
   body('destinationSegments.*.startDate').optional().isISO8601(),
   body('destinationSegments.*.endDate').optional().isISO8601(),
   body('destinationSegments.*.order').optional().isInt({ min: 1 }),
+  body('travelPreferences.companions').optional().isArray(),
+  body('travelPreferences.styles').optional().isArray(),
+  body('travelPreferences.pace').optional().isIn(['relaxed', 'moderate', 'packed']),
+  body('travelPreferences.accommodation').optional().isIn(['economy', 'comfort', 'premium', 'luxury']),
+  body('travelPreferences.transportModes').optional().isArray(),
+  body('documentChecklist.enabled').optional().isBoolean(),
+  body('documentChecklist.documentTypes').optional().isArray(),
   body('dateFlexibility.mode').optional().isIn(['exact', 'flexible']),
   body('dateFlexibility.windowDays').optional().isInt({ min: 0, max: 30 }),
   body('dateFlexibility.preferredMonth').optional().trim().isLength({ max: 20 }),
   body('notes').optional().isArray(),
 ];
-
 module.exports = { objectIdRule, tripBodyRules, updateTripRules };

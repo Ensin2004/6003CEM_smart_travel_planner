@@ -1,5 +1,9 @@
+/**
+ * Travel Guide module.
+ * Schema fields define stored document structure, defaults, and indexes.
+ */
 const mongoose = require('mongoose');
-
+// Travel Guide Cache Schema groups database fields before model registration.
 const travelGuideCacheSchema = new mongoose.Schema(
   {
     cacheKey: { type: String, required: true, unique: true, trim: true },
@@ -11,5 +15,4 @@ const travelGuideCacheSchema = new mongoose.Schema(
 );
 
 travelGuideCacheSchema.index({ category: 1, updatedAt: -1 });
-
 module.exports = mongoose.model('TravelGuideCache', travelGuideCacheSchema);

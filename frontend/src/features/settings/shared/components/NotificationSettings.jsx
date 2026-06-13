@@ -1,5 +1,9 @@
+/**
+ * Settings module.
+ * Exports and local helpers keep related behavior in a single module.
+ */
 import { notificationCopy } from '../settings.constants';
-
+// NotificationSettings renders the main screen and handles nearby interactions.
 function NotificationSettings({
   onAllNotificationsOff,
   onNotificationToggle,
@@ -42,5 +46,5 @@ function NotificationSettings({
     </section>
   );
 }
-
+// Default export registers the primary  value.
 export default NotificationSettings;

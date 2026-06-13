@@ -1,8 +1,270 @@
+# Docs configuration.
+# Exports and local helpers keep related behavior in a single module.
+# Swagger document version used by generated API documentation.
 openapi: 3.0.0
 info:
   title: Smart Travel Planner API
   version: 1.0.0
 paths:
+  /api/v1/comparison/recommendation:
+    post:
+      summary: Choose the best place from selected comparison items
+      description: Uses /api/v1 URI-based API versioning and deterministic scoring over rating, reviews, price clarity, and working hours.
+      tags:
+        - Comparison
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [items]
+              properties:
+                context:
+                  type: object
+                  properties:
+                    page:
+                      type: string
+                    destination:
+                      type: string
+                items:
+                  type: array
+                  minItems: 2
+                  maxItems: 4
+                  items:
+                    type: object
+                    required: [name]
+                    properties:
+                      id:
+                        type: string
+                      name:
+                        type: string
+                      category:
+                        type: string
+                      rating:
+                        type: number
+                        minimum: 0
+                        maximum: 5
+                      reviewCount:
+                        type: integer
+                        minimum: 0
+                      price:
+                        type: string
+                      hours:
+                        type: string
+                      address:
+                        type: string
+            example:
+              context:
+                page: /explore
+              items:
+                - id: museum
+                  name: City Museum
+                  category: Attraction
+                  rating: 4.7
+                  reviewCount: 2500
+                  price: RM 20
+                  hours: Open now
+                  address: Downtown
+                - id: market
+                  name: Night Market
+                  category: Food
+                  rating: 4.1
+                  reviewCount: 320
+                  price: Free entry
+                  hours: Closed
+                  address: Central
+      responses:
+        '200':
+          description: Best-pick recommendation for selected places
+          content:
+            application/json:
+              example:
+                status: success
+                message: Comparison recommendation ready
+                data:
+                  recommendation:
+                    available: true
+                    bestPick:
+                      id: museum
+                      name: City Museum
+                      score: 98
+                      reason: City Museum is the best fit because 4.7 star rating, 2,500 reviews, available hours look favorable.
+                      caution: confirm live details before booking or visiting
+                    summary: City Museum leads Night Market by 15 points based on rating, reviews, price clarity, and hours.
+                    items: []
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid token
+  /api/v1/visited-places:
+    get:
+      summary: List visited places for the authenticated user
+      tags:
+        - Visited Places
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: User visited places
+        '401':
+          description: Missing or invalid token
+    post:
+      summary: Add a dated or undated visit record for a place
+      tags:
+        - Visited Places
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            example:
+              type: attraction
+              title: The Heritage Museum
+              address: Jalan Bukit Residen, Kuala Lipis
+              source: trip-itinerary
+              externalId: osm-123
+              visitedDate: '2026-06-03'
+              visitCount: 1
+              notes: Morning stop
+      responses:
+        '201':
+          description: Visit entry added for the user. Visited date is optional, and repeated visits are stored on the same place record.
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid token
+  /api/v1/visited-places/calendar:
+    get:
+      summary: Get visited places grouped by calendar date
+      tags:
+        - Visited Places
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: startDate
+          required: false
+          schema:
+            type: string
+            format: date
+          example: '2026-06-01'
+        - in: query
+          name: endDate
+          required: false
+          schema:
+            type: string
+            format: date
+          example: '2026-06-30'
+      responses:
+        '200':
+          description: Calendar days with visited places
+          content:
+            application/json:
+              example:
+                status: success
+                message: Success
+                data:
+                  days:
+                    - date: '2026-06-03'
+                      places:
+                        - title: The Heritage Museum
+                          type: attraction
+                          visitedDate: '2026-06-03T00:00:00.000Z'
+                          visitCount: 1
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid token
+  /api/v1/visited-places/{id}:
+    delete:
+      summary: Remove one visited place record
+      tags:
+        - Visited Places
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          example: 6655f6f2b1f1f1f1f1f1f901
+      responses:
+        '204':
+          description: Visited place removed
+        '401':
+          description: Missing or invalid token
+        '404':
+          description: Visited place not found
+  /api/v1/trips/{id}/summary:
+    get:
+      summary: Get trip summary with weather guidance and attraction ideas
+      tags:
+        - Trips
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+          example: 6655f6f2b1f1f1f1f1f1f301
+      responses:
+        '200':
+          description: Trip summary using /api/v1 URI-based API versioning
+          content:
+            application/json:
+              example:
+                status: success
+                message: Success
+                data:
+                  trip:
+                    _id: 6655f6f2b1f1f1f1f1f1f301
+                    destination: Tokyo
+                    country: Japan
+                    startDate: '2026-06-01T00:00:00.000Z'
+                    endDate: '2026-06-05T00:00:00.000Z'
+                  weather:
+                    available: true
+                    condition: Light rain
+                    temperature:
+                      max: 27.2
+                      mean: 24.1
+                      unit: C
+                    precipitation:
+                      amountMm: 4.5
+                      probability: 65
+                    travelTip: Keep outdoor plans flexible and save a few indoor options.
+                  weatherGuidance:
+                    available: true
+                    mode: rainy
+                    headline: Rain-friendly plan
+                    packingTips:
+                      - Bring an umbrella or raincoat.
+                      - Use waterproof shoes or sandals.
+                    placeTips:
+                      - Choose indoor places such as museums, malls, cafes, and hotels.
+                    recommendedCategories:
+                      - shopping
+                      - food
+                      - hotels
+                      - attractions
+                  attractions:
+                    available: true
+                    items: []
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid token
+        '404':
+          description: Trip not found
+        '503':
+          description: External weather or attraction service unavailable with graceful fallback data
   /api/v1/language/languages:
     get:
       summary: List supported manual speech and translation languages
@@ -402,7 +664,7 @@ paths:
           description: External service unavailable
   /api/v1/map/places:
     get:
-      summary: Search map places with rich Google Maps details
+      summary: Search map places using Foursquare and SerpApi Google Maps
       tags:
         - Map
       security:
@@ -568,11 +830,12 @@ paths:
       parameters:
         - in: query
           name: destination
-          required: true
+          required: false
           schema:
             type: string
             minLength: 2
           example: Tokyo
+          description: Required when latitude and longitude are not supplied.
         - in: query
           name: date
           required: false
@@ -604,7 +867,7 @@ paths:
           example: Tokyo Tower, Tokyo
       responses:
         '200':
-          description: Parsed Open-Meteo destination forecast
+          description: Parsed Open-Meteo weather. Past dates use Archive API daily data, today uses Forecast API current_weather, future dates up to 16 days use Forecast API daily data, and dates beyond 16 days use Seasonal API daily data.
           content:
             application/json:
               example:
@@ -615,7 +878,7 @@ paths:
                     available: true
                     destination: Tokyo
                     requestedDate: '2026-06-01'
-                    forecastType: forecast
+                    forecastType: current
                     source: Open-Meteo Forecast
                     location:
                       name: Tokyo
@@ -632,8 +895,8 @@ paths:
                     condition: Light rain
                     icon: cloud-rain
                     precipitation:
-                      amountMm: 4.5
-                      probability: 65
+                      amountMm: null
+                      probability: null
                     windSpeed:
                       max: 18
                       unit: km/h
@@ -751,6 +1014,68 @@ paths:
           description: External API configuration error
         '503':
           description: External flight service unavailable
+  /api/v1/explore/reviews:
+    get:
+      summary: Load Google review snippets for an Explore place on demand
+      tags:
+        - Explore
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: dataId
+          required: false
+          schema:
+            type: string
+            maxLength: 500
+          example: 0x304ac395b3f1e6b5:0xd2f0b4e7a1d1a123
+        - in: query
+          name: placeId
+          required: false
+          schema:
+            type: string
+            maxLength: 500
+          example: ChIJN1t_tDeuEmsRUsoyG83frY4
+        - in: query
+          name: allPages
+          required: false
+          schema:
+            type: boolean
+            default: true
+          example: true
+      responses:
+        '200':
+          description: Normalized Google review snippets loaded only after the user requests them
+          content:
+            application/json:
+              example:
+                status: success
+                message: Success
+                data:
+                  reviews:
+                    available: true
+                    items:
+                      - id: review-1
+                        author: Google user
+                        authorLink: https://www.google.com/maps/contrib/example
+                        avatarUrl: https://lh3.googleusercontent.com/example
+                        rating: 5
+                        date: 2 weeks ago
+                        text: Great place and friendly service.
+                        ownerReply:
+                          author: Owner response
+                          date: 1 week ago
+                          text: Thanks for visiting.
+                    pagesFetched: 2
+                    lastUpdated: '2026-06-04T12:00:00.000Z'
+        '400':
+          description: Validation error
+        '401':
+          description: Missing or invalid token
+        '429':
+          description: Too many third-party API requests
+        '503':
+          description: External review service unavailable
   /api/v1/explore/ai-recommendations:
     post:
       summary: Generate AI recommendations from Explore results
@@ -834,6 +1159,8 @@ paths:
                       label: US Dollar
                     - code: MYR
                       label: Malaysian Ringgit
+                    - code: ARS
+                      label: Argentine Peso
   /api/v1/currency/convert:
     get:
       summary: Convert an amount with Frankfurter exchange rates

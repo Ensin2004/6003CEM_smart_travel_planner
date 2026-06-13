@@ -1,3 +1,7 @@
+/**
+ * Travel Tools module.
+ * Schema fields define stored document structure, defaults, and indexes.
+ */
 const mongoose = require('mongoose');
 const {
   defaultPackingCategory,
@@ -5,7 +9,7 @@ const {
   normalizePriorityLevel,
   priorityLevels,
 } = require('./travelTools.constants');
-
+// Packing Item Schema groups database fields before model registration.
 const packingItemSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true, maxlength: 120 },
@@ -25,7 +29,7 @@ const packingItemSchema = new mongoose.Schema(
   },
   { _id: true, timestamps: true }
 );
-
+// Packing List Schema groups database fields before model registration.
 const packingListSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
@@ -67,7 +71,7 @@ packingListSchema.virtual('progress').get(function progress() {
     percent: totalItems ? Math.round((packedItems / totalItems) * 100) : 0,
   };
 });
-
+// Template Item Schema groups database fields before model registration.
 const templateItemSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true, maxlength: 120 },
@@ -77,7 +81,7 @@ const templateItemSchema = new mongoose.Schema(
   },
   { _id: true }
 );
-
+// Packing Template Schema groups database fields before model registration.
 const packingTemplateSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
@@ -102,7 +106,7 @@ packingTemplateSchema.pre('validate', function normalizeItemPriorities() {
     item.priority = normalizePriorityLevel(item.priority);
   });
 });
-
+// Document File Schema groups database fields before model registration.
 const documentFileSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true, maxlength: 180 },
@@ -118,7 +122,7 @@ const documentFileSchema = new mongoose.Schema(
   },
   { _id: true }
 );
-
+// Document Item Schema groups database fields before model registration.
 const documentItemSchema = new mongoose.Schema(
   {
     name: { type: String, required: true, trim: true, maxlength: 140 },
@@ -132,7 +136,7 @@ const documentItemSchema = new mongoose.Schema(
   },
   { _id: true, timestamps: true }
 );
-
+// Trip Document Schema groups database fields before model registration.
 const tripDocumentSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
@@ -157,7 +161,7 @@ const tripDocumentSchema = new mongoose.Schema(
 
 tripDocumentSchema.index({ userId: 1, createdAt: -1 });
 tripDocumentSchema.index({ userId: 1, tripId: 1 });
-
+// Document Template Schema groups database fields before model registration.
 const documentTemplateSchema = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
@@ -191,10 +195,8 @@ const documentTemplateSchema = new mongoose.Schema(
 );
 
 documentTemplateSchema.index({ userId: 1, documentType: 1 });
-
 const getModel = (name, schema, collection) =>
   mongoose.models[name] || mongoose.model(name, schema, collection);
-
 module.exports = {
   DocumentTemplate: getModel('DocumentTemplate', documentTemplateSchema, 'documentTemplates'),
   PackingList: getModel('PackingList', packingListSchema, 'packingLists'),

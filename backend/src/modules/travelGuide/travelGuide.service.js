@@ -1,3 +1,7 @@
+/**
+ * Travel Guide module.
+ * Business rules, repository access, and external integrations live in this layer.
+ */
 const axios = require('axios');
 const env = require('../../config/env');
 const weatherService = require('../explore/weather.service');
@@ -19,9 +23,7 @@ const restCountriesClient = axios.create({
 
 const cache = new Map();
 const CACHE_TTL_MS = 15 * 60 * 1000;
-
 const getCacheKey = (key, params) => `${key}:${JSON.stringify(params)}`.toLowerCase();
-
 const withCache = async (key, params, fetcher) => {
   const cacheKey = getCacheKey(key, params);
   const cached = cache.get(cacheKey);
@@ -29,7 +31,6 @@ const withCache = async (key, params, fetcher) => {
   if (cached && Date.now() - cached.createdAt < CACHE_TTL_MS) {
     return cached.value;
   }
-
   if (env.nodeEnv !== 'test') {
     const storedCache = await travelGuideRepository.findValidCache(cacheKey).catch(() => null);
 
@@ -41,7 +42,6 @@ const withCache = async (key, params, fetcher) => {
 
   const value = await fetcher();
   cache.set(cacheKey, { createdAt: Date.now(), value });
-
   if (env.nodeEnv !== 'test') {
     travelGuideRepository
       .upsertCache(cacheKey, key, value, new Date(Date.now() + CACHE_TTL_MS))
@@ -50,12 +50,10 @@ const withCache = async (key, params, fetcher) => {
 
   return value;
 };
-
 const unavailable = (message = 'Geoapify API key is not configured') => ({
   available: false,
   message,
 });
-
 const requireGeoapifyKey = () => {
   if (!env.geoapifyApiKey || env.nodeEnv === 'test') {
     return unavailable();
@@ -63,7 +61,6 @@ const requireGeoapifyKey = () => {
 
   return null;
 };
-
 const requestGeoapify = async (path, params) => {
   const response = await geoapifyClient.get(path, {
     params: {
@@ -74,7 +71,6 @@ const requestGeoapify = async (path, params) => {
 
   return response.data;
 };
-
 const getFeatureName = (properties = {}) =>
   properties.name ||
   properties.address_line1 ||
@@ -83,10 +79,9 @@ const getFeatureName = (properties = {}) =>
   properties.country ||
   properties.formatted ||
   'Unnamed place';
-
 const getFeatureImage = (name, type) =>
   `https://source.unsplash.com/900x640/?${encodeURIComponent(`${name} ${type} travel`)}`;
-
+// Normalize Feature prepares incoming data for consistent storage.
 const normalizeFeature = (feature = {}, index = 0, fallbackType = 'Destination') => {
   const properties = feature.properties || {};
   const name = getFeatureName(properties);
@@ -108,7 +103,6 @@ const normalizeFeature = (feature = {}, index = 0, fallbackType = 'Destination')
     },
   };
 };
-
 const getBoundingBox = (properties = {}) => {
   const bbox = properties.bbox;
 
@@ -122,7 +116,6 @@ const getBoundingBox = (properties = {}) => {
 
   return '';
 };
-
 const geocode = async (text) =>
   withCache('geocode', { text }, async () => {
     const data = await requestGeoapify('/v1/geocode/search', {
@@ -133,7 +126,6 @@ const geocode = async (text) =>
 
     return data.features?.[0] || null;
   });
-
 const getPlaces = async ({ filter, categories, limit = 20, offset = 0, bias, name }) =>
   withCache('places', { filter, categories, limit, offset, bias, name }, async () => {
     const data = await requestGeoapify('/v2/places', {
@@ -148,7 +140,6 @@ const getPlaces = async ({ filter, categories, limit = 20, offset = 0, bias, nam
 
     return data.features || [];
   });
-
 const fetchSummary = async (destination) => {
   try {
     const title = encodeURIComponent(destination.replace(/\s+/g, '_'));
@@ -176,7 +167,7 @@ const fetchSummary = async (destination) => {
     };
   }
 };
-
+// Normalize Guide Item prepares incoming data for consistent storage.
 const normalizeGuideItem = (item = {}, index = 0, fallbackType = 'Destination') => ({
   id: item.id || `${item.name}-${index}`,
   name: item.name,
@@ -193,15 +184,11 @@ const normalizeGuideItem = (item = {}, index = 0, fallbackType = 'Destination') 
   imageUrls: item.imageUrls || (item.imageUrl ? [item.imageUrl] : []),
   coordinates: item.coordinates,
 });
-
 const getCountryCodeFilter = (countryCode) => (countryCode ? `countrycode:${countryCode.toLowerCase()}` : '');
 
 const regionFilters = new Set(['Asia', 'Europe', 'North America', 'South America', 'Oceania', 'Africa', 'Antarctica', 'Other']);
-
 const getCountryName = (country = {}) => country.name?.common || country.name?.official || '';
-
 const getCountryRegion = (country = {}) => country.continents?.find((continent) => regionFilters.has(continent)) || 'Other';
-
 const normalizeCountry = (country = {}) => {
   const name = getCountryName(country);
   const region = getCountryRegion(country);
@@ -231,7 +218,6 @@ const getCountryList = async ({ region = '', search = '', currentCountry = '', c
   const normalizedSearch = search.trim().toLowerCase();
   const excludedCountry = currentCountry.trim().toLowerCase();
   const excludedCountryCode = currentCountryCode.trim().toUpperCase();
-
   try {
     const countries = await withCache('countries', { source: 'restcountries-v3.1' }, async () => {
       const response = await restCountriesClient.get('/v3.1/all', {
@@ -284,7 +270,6 @@ const getDestinationList = async ({ country, countryCode, mode = 'domestic', reg
   const currentPage = Math.max(Number(page) || 1, 1);
   const pageSize = Math.min(Number(limit) || 24, 48);
   const start = (currentPage - 1) * pageSize;
-
   if (env.serpApiKey && env.nodeEnv !== 'test') {
     const attractions = await placesService.getAttractionsByDestination(`popular tourist destinations in ${country}`, start);
     const items = (attractions.items || []).slice(0, pageSize).map((item, index) => normalizeGuideItem(item, start + index));
@@ -314,7 +299,6 @@ const getDestinationList = async ({ country, countryCode, mode = 'domestic', reg
   const locationFeature = await geocode(locationQuery);
   const fallbackFilter = countryCode ? getCountryCodeFilter(countryCode) : '';
   const filter = getBoundingBox(locationFeature?.properties) || fallbackFilter;
-
   if (!filter) {
     return { available: false, message: 'Unable to find this guide location.', items: [] };
   }

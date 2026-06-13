@@ -1,6 +1,9 @@
+/**
+ * Currency module.
+ * Validation schemas reject unsafe or incomplete request payloads.
+ */
 const { query } = require('express-validator');
 const { supportedCurrencies } = require('./currency.model');
-
 const currencyCodeRule = (field) =>
   query(field)
     .trim()
@@ -16,5 +19,4 @@ const convertCurrencyRules = [
     .withMessage('Amount must be zero or more')
     .toFloat(),
 ];
-
 module.exports = { convertCurrencyRules };

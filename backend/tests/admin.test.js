@@ -1,7 +1,12 @@
+/**
+ * Admin module.
+ * Assertions cover expected behavior, error handling, and response shape.
+ */
 const request = require('supertest');
 const app = require('../src/app');
-
+// Test group covers  behavior.
 describe('Admin route protection', () => {
+  // Scenario verifies one expected outcome or error path.
   test('rejects admin dashboard request without JWT', async () => {
     const response = await request(app).get('/api/v1/admin/dashboard');
 
@@ -33,12 +38,13 @@ const userRepository = require('../src/modules/users/user.repository');
 const tripRepository = require('../src/modules/trips/trip.repository');
 const apiLogRepository = require('../src/modules/apiLogs/apiLog.repository');
 const adminService = require('../src/modules/admin/admin.service');
-
+// Test group covers  behavior.
 describe('Admin user management service', () => {
+  // Setup prepares shared data before assertions.
   beforeEach(() => {
     jest.clearAllMocks();
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('returns user summary for admin management', async () => {
     userRepository.findAll.mockResolvedValue([
       { _id: 'user-1', role: 'user', status: 'active' },
@@ -70,7 +76,7 @@ describe('Admin user management service', () => {
     });
     expect(result.users[0].issueSummary.totalIssues).toBe(3);
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('removes traveller account and trip records', async () => {
     const user = { id: 'user-1', role: 'user' };
     userRepository.findById.mockResolvedValue(user);
@@ -83,14 +89,14 @@ describe('Admin user management service', () => {
     expect(tripRepository.deleteByUserId).toHaveBeenCalledWith('user-1');
     expect(result).toEqual({ user, removedTrips: 2 });
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('rejects removing own admin account', async () => {
     await expect(adminService.removeUser('admin-1', 'admin-1')).rejects.toThrow(
       'You cannot remove your own admin account'
     );
     expect(userRepository.deleteById).not.toHaveBeenCalled();
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('rejects removing another admin account', async () => {
     userRepository.findById.mockResolvedValue({ id: 'admin-2', role: 'admin' });
 

@@ -1,3 +1,7 @@
+/**
+ * User Layout module.
+ * Exports and local helpers keep related behavior in a single module.
+ */
 import {
   BookOpenCheck,
   BriefcaseBusiness,
@@ -13,7 +17,6 @@ import {
   MapPinned,
   Plane,
   Settings,
-  Sparkles,
   Utensils,
 } from 'lucide-react';
 import { sections as settingsSections } from '../features/settings/shared/settings.constants';
@@ -37,7 +40,6 @@ const userMenu = [
     label: 'Explore',
     icon: Compass,
     children: [
-      { to: '/explore?view=discover', label: 'AI Discovery', icon: Sparkles },
       { to: '/explore?view=attractions', label: 'Attractions', icon: MapPinned },
       { to: '/explore?view=food', label: 'Restaurants / Food', icon: Utensils },
       { to: '/explore?view=hotels', label: 'Hotels / Rooms', icon: Building2 },
@@ -55,14 +57,14 @@ const userMenu = [
     ],
   },
   { to: '/map', label: 'Map', icon: Map },
-  { to: '/dashboard#favourite', label: 'Favourite', icon: Heart, header: true },
+  { to: '/favorites', label: 'Favourite', icon: Heart, header: true },
   { to: '/language-helper', label: 'Language Helper', icon: Languages },
   { to: '/profile', label: 'Settings', icon: Settings, bottom: true, children: settingsChildren },
   { to: '/login', label: 'Logout', icon: LogOut, bottom: true, action: 'logout' },
 ];
-
+// UserLayout renders the main screen and handles nearby interactions.
 function UserLayout() {
   return <AppLayout role="user" menuItems={userMenu} />;
 }
-
+// Default export registers the primary  value.
 export default UserLayout;

@@ -1,3 +1,7 @@
+/**
+ * Users module.
+ * Validation schemas reject unsafe or incomplete request payloads.
+ */
 const { body } = require('express-validator');
 
 const maxAvatarSizeMegabytes = 1000;
@@ -54,5 +58,4 @@ const changePasswordRules = [
     .custom((value, { req }) => value === req.body.password)
     .withMessage('Passwords must match'),
 ];
-
 module.exports = { updateMeRules, changePasswordRules };

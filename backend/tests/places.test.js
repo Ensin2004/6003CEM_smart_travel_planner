@@ -1,4 +1,10 @@
+/**
+ * Places module.
+ * Assertions cover expected behavior, error handling, and response shape.
+ */
+// Test group covers  behavior.
 describe('Places service fallback', () => {
+  // Scenario verifies one expected outcome or error path.
   test('returns friendly fallback when SerpApi key is not configured', async () => {
     const placesService = require('../src/modules/explore/places.service');
     const attractions = await placesService.getAttractionsByDestination('Tokyo');
@@ -8,13 +14,14 @@ describe('Places service fallback', () => {
     expect(attractions.items).toEqual([]);
   });
 });
-
+// Test group covers  behavior.
 describe('Places service normalization', () => {
+  // Cleanup resets shared state after assertions.
   afterEach(() => {
     jest.resetModules();
     jest.clearAllMocks();
   });
-
+  // Scenario verifies one expected outcome or error path.
   test('does not expose SerpApi follow-up URLs to the frontend', async () => {
     jest.resetModules();
 
@@ -58,5 +65,72 @@ describe('Places service normalization', () => {
     expect(attractions.items[0].url).not.toContain('serpapi.com');
     expect(attractions.items[0].url).not.toContain('api_key');
     expect(attractions.items[1].url).toBe('https://example.com/museum');
+  });
+
+  test('enriches attraction details with Google Maps photo results', async () => {
+    jest.resetModules();
+
+    const serpGet = jest
+      .fn()
+      .mockResolvedValueOnce({
+        data: {
+          local_results: [
+            {
+              place_id: 'place-1',
+              data_id: 'data-1',
+              title: 'Tokyo Tower',
+              type: 'Observation deck',
+              thumbnail: 'https://lh3.googleusercontent.com/photo-a=w408-h306-k-no',
+              address: '4 Chome-2-8 Shibakoen, Minato City, Tokyo',
+            },
+          ],
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          photos: [
+            { image: 'https://lh3.googleusercontent.com/photo-a=s1600-w800' },
+            { image: 'https://lh3.googleusercontent.com/photo-b=s1600-w800' },
+            { thumbnail: 'https://lh3.googleusercontent.com/photo-c=s240' },
+          ],
+        },
+      })
+      .mockResolvedValueOnce({
+        data: {
+          reviews: [],
+        },
+      });
+    const wikiGet = jest.fn().mockRejectedValue(new Error('No wiki match'));
+
+    jest.doMock('axios', () => ({
+      create: jest.fn(() => ({ get: serpGet })),
+      get: wikiGet,
+    }));
+    jest.doMock('../src/config/env', () => ({
+      nodeEnv: 'development',
+      serpApiKey: 'test-serpapi-key',
+    }));
+    jest.doMock('../src/modules/apiLogs/apiLog.service', () => ({
+      recordEvent: jest.fn().mockResolvedValue({}),
+    }));
+
+    const service = require('../src/modules/explore/places.service');
+    const detail = await service.getAttractionDetail({
+      name: 'Tokyo Tower',
+      address: '4 Chome-2-8 Shibakoen, Minato City, Tokyo',
+      dataId: 'data-1',
+    });
+
+    expect(serpGet).toHaveBeenCalledWith('/search', {
+      params: expect.objectContaining({
+        engine: 'google_maps_photos',
+        data_id: 'data-1',
+      }),
+    });
+    expect(detail.item.imageUrls).toEqual([
+      'https://lh3.googleusercontent.com/photo-a=w408-h306-k-no',
+      'https://lh3.googleusercontent.com/photo-b=s1600-w800',
+      'https://lh3.googleusercontent.com/photo-c=s240',
+    ]);
   });
 });

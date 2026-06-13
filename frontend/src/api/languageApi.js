@@ -1,13 +1,16 @@
+/**
+ * Language Api module.
+ * Frontend API functions keep HTTP contract details close to one file.
+ */
 import axiosClient from './axiosClient';
 
 const TRANSLATE_SCRIPT_ID = 'translate-js-client';
 const TRANSLATE_SCRIPT_SRC = 'https://cdn.staticfile.net/translate.js/3.18.66/translate.js';
 const LANGUAGE_STORAGE_KEY = 'smartTravelPlanner.language';
-
 export const DEFAULT_LANGUAGE = 'english';
 
 let preferredLanguage = DEFAULT_LANGUAGE;
-
+// Format Language Label converts raw values into readable display text.
 const formatLanguageLabel = (value) =>
   value
     .split('_')
@@ -175,27 +178,23 @@ const languageFlags = {
   malagasy: 'mg',
   tongan: 'to',
 };
-
 const isSupportedLanguage = (language) =>
   Boolean(language && Object.prototype.hasOwnProperty.call(languageLabels, language));
-
+// Save Preferred Language applies allowed changes to an existing record.
 const savePreferredLanguage = (language) => {
   if (!isSupportedLanguage(language) || typeof window === 'undefined') {
     return;
   }
-
   try {
     window.localStorage.setItem(LANGUAGE_STORAGE_KEY, language);
   } catch {
     // Ignore storage failures so translation still works in private/restricted contexts.
   }
 };
-
 export const getSavedTranslateLanguage = () => {
   if (typeof window === 'undefined') {
     return DEFAULT_LANGUAGE;
   }
-
   try {
     const savedLanguage = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
     return isSupportedLanguage(savedLanguage) ? savedLanguage : DEFAULT_LANGUAGE;
@@ -203,7 +202,6 @@ export const getSavedTranslateLanguage = () => {
     return DEFAULT_LANGUAGE;
   }
 };
-
 export const getAvailableLanguages = () =>
   Object.entries(languageLabels).map(([value, label]) => ({
     value,
@@ -213,13 +211,12 @@ export const getAvailableLanguages = () =>
       ? `https://flagcdn.com/24x18/${languageFlags[value]}.png`
       : '',
   }));
-
+// Remove Default Translate Selector removes a record after ownership checks.
 const removeDefaultTranslateSelector = () => {
   document
     .querySelectorAll('#translate, .translateSelectLanguage')
     .forEach((element) => element.remove());
 };
-
 const configureTranslate = (language = preferredLanguage) => {
   preferredLanguage = isSupportedLanguage(language) ? language : DEFAULT_LANGUAGE;
   savePreferredLanguage(preferredLanguage);
@@ -232,7 +229,6 @@ const configureTranslate = (language = preferredLanguage) => {
   window.translate.changeLanguage(preferredLanguage);
   removeDefaultTranslateSelector();
 };
-
 export const loadTranslateClient = (language = DEFAULT_LANGUAGE) =>
   new Promise((resolve, reject) => {
     preferredLanguage = isSupportedLanguage(language) ? language : DEFAULT_LANGUAGE;
@@ -267,7 +263,6 @@ export const loadTranslateClient = (language = DEFAULT_LANGUAGE) =>
 
     document.body.appendChild(script);
   });
-
 export const changeTranslateLanguage = (language) => {
   preferredLanguage = isSupportedLanguage(language) ? language : DEFAULT_LANGUAGE;
   savePreferredLanguage(preferredLanguage);
@@ -283,12 +278,10 @@ export const changeTranslateLanguage = (language) => {
     })
     .catch(() => {});
 };
-
 export const refreshTranslatedContent = () => {
   if (!window.translate) {
     return;
   }
-
   const refresh = () => {
     removeDefaultTranslateSelector();
     window.translate.execute();
@@ -302,19 +295,17 @@ export const refreshTranslatedContent = () => {
 
   window.setTimeout(refresh, 0);
 };
-
 export const getLanguageHelperLanguages = () => axiosClient.get('/language/languages');
-
 export const translateLanguageHelperText = ({ sourceLanguage, targetLanguage, text }) =>
   axiosClient.post('/language/translate', {
     sourceLanguage,
     targetLanguage,
     text,
   });
-
 export const getLanguageHelperHistory = ({ page = 1, limit = 10, search = '' } = {}) =>
   axiosClient.get('/language/history', {
     params: { page, limit, search },
   });
 
+// Delete Language Helper History removes a record after ownership checks.
 export const deleteLanguageHelperHistory = (id) => axiosClient.delete(`/language/history/${id}`);

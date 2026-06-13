@@ -1,3 +1,7 @@
+/**
+ * Travel Guide module.
+ * Page state, event handlers, and render sections define the screen experience.
+ */
 import {
   ArrowLeft,
   BookOpenCheck,
@@ -13,9 +17,12 @@ import {
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { getTravelGuideCountries, getTravelGuideDestinations } from '../../api/travelGuideApi';
+import { getVisitedPlaces } from '../../api/visitedPlaceApi';
+import CompareButton from '../../components/compare/CompareButton';
+import VisitedPlaceControl from '../../components/visitedPlaces/VisitedPlaceControl';
+import { buildVisitedLookup, getVisitedPlacePayload } from '../../components/visitedPlaces/visitedPlaceUtils';
 import useAuth from '../../hooks/useAuth';
 import './TravelGuidePage.css';
-
 const getErrorMessage = (error) =>
   error.response?.data?.message || error.response?.data?.error || error.message || 'Unable to load travel guides right now.';
 
@@ -30,18 +37,52 @@ const regionFilters = {
   Antarctica: 'Antarctica',
   Other: 'Other',
 };
+// DestinationCard renders the main screen and handles nearby interactions.
+function DestinationCard({ destination, onOpen, visitedRecord, onVisitedChange }) {
+  const visitedPayload = getVisitedPlacePayload({
+    item: destination,
+    type: 'location',
+    source: 'travel-guide',
+    defaultDate: new Date().toISOString().slice(0, 10),
+  });
+  const compareItem = {
+    ...destination,
+    source: 'travel-guide',
+    category: destination.type || 'Destination',
+    price: destination.price || 'Price unavailable',
+    hours: destination.openState || destination.hours || 'Working hours unavailable',
+    address: destination.address || [destination.name, destination.country].filter(Boolean).join(', '),
+  };
 
-function DestinationCard({ destination, onOpen }) {
   return (
-    <button className="travel-guide-card" type="button" onClick={() => onOpen(destination)}>
+    <article
+      className="travel-guide-card"
+      role="button"
+      tabIndex="0"
+      onClick={() => onOpen(destination)}
+      onKeyDown={(event) => {
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault();
+          onOpen(destination);
+        }
+      }}
+    >
+      {visitedRecord ? <span className="visited-place-watermark">Visited</span> : null}
       <img src={destination.imageUrl} alt="" loading="lazy" />
       <span>{destination.type || 'Destination'}</span>
       <strong>{destination.name}</strong>
       {destination.region && <small>{destination.region}</small>}
-    </button>
+      <VisitedPlaceControl
+        compact
+        payload={visitedPayload}
+        visitedRecord={visitedRecord}
+        onVisitedChange={onVisitedChange}
+      />
+      <CompareButton item={compareItem} />
+    </article>
   );
 }
-
+// TravelGuidePage renders the main screen and handles nearby interactions.
 function TravelGuidePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -51,17 +92,18 @@ function TravelGuidePage() {
   const [selectedOverseasCountry, setSelectedOverseasCountry] = useState(null);
   const [activeRegion, setActiveRegion] = useState('All');
   const [searchTerm, setSearchTerm] = useState('');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('');
   const [destinations, setDestinations] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, totalPages: 1, hasMore: false });
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [visitedPlaces, setVisitedPlaces] = useState([]);
 
   const currentCountry = userCountry;
   const isCountryDirectory = guideMode === 'overseas' && !selectedOverseasCountry;
   const filteredDestinations = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
-
     if (!normalizedSearch) {
       return destinations;
     }
@@ -74,10 +116,52 @@ function TravelGuidePage() {
       .includes(normalizedSearch)
     );
   }, [destinations, searchTerm]);
+  const visitedLookup = useMemo(() => buildVisitedLookup(visitedPlaces), [visitedPlaces]);
+
+  useEffect(() => {
+    const timerId = window.setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm.trim());
+    }, 450);
+
+    return () => window.clearTimeout(timerId);
+  }, [searchTerm]);
+
+  const getDestinationVisitedRecord = (destination) => {
+    const payload = getVisitedPlacePayload({
+      item: destination,
+      type: 'location',
+      source: 'travel-guide',
+      defaultDate: new Date().toISOString().slice(0, 10),
+    });
+    return visitedLookup[payload.placeKey];
+  };
+
+  const handleVisitedChange = (visitedPlace) => {
+    if (!visitedPlace?.placeKey) return;
+    setVisitedPlaces((currentPlaces) => {
+      const withoutCurrent = currentPlaces.filter((place) => place.placeKey !== visitedPlace.placeKey);
+      return [visitedPlace, ...withoutCurrent];
+    });
+  };
 
   useEffect(() => {
     let isActive = true;
 
+    getVisitedPlaces()
+      .then((response) => {
+        if (!isActive) return;
+        setVisitedPlaces(response.data?.data?.visitedPlaces || []);
+      })
+      .catch(() => {
+        if (isActive) setVisitedPlaces([]);
+      });
+
+    return () => {
+      isActive = false;
+    };
+  }, []);
+  useEffect(() => {
+    let isActive = true;
     const loadDestinations = async () => {
       setIsLoading(true);
       setError('');
@@ -91,7 +175,7 @@ function TravelGuidePage() {
             region: regionFilters[activeRegion],
             limit: 24,
             page: 1,
-            search: searchTerm.trim(),
+            search: debouncedSearchTerm,
           });
           const countryGuide = response.data.data.countries;
 
@@ -99,11 +183,11 @@ function TravelGuidePage() {
 
           setDestinations(countryGuide.items || []);
           setPagination(countryGuide.pagination || { page: 1, totalPages: 1, hasMore: false });
-          setStatus(
-            countryGuide.available
-              ? `${countryGuide.items?.length || 0} countr${countryGuide.items?.length === 1 ? 'y' : 'ies'} loaded.`
-              : countryGuide.message
-          );
+          if (countryGuide.available) {
+            setStatus(`${countryGuide.items?.length || 0} countr${countryGuide.items?.length === 1 ? 'y' : 'ies'} loaded.`);
+          } else {
+            setError(countryGuide.message || 'Travel guide countries are unavailable.');
+          }
         } catch (requestError) {
           if (!isActive) return;
           setDestinations([]);
@@ -115,7 +199,6 @@ function TravelGuidePage() {
         }
         return;
       }
-
       try {
         const response = await getTravelGuideDestinations({
           mode: 'domestic',
@@ -123,7 +206,7 @@ function TravelGuidePage() {
           countryCode: selectedOverseasCountry?.countryCode || userCountryCode,
           limit: 24,
           page: 1,
-          search: searchTerm.trim(),
+          search: debouncedSearchTerm,
         });
         const guide = response.data.data.guide;
 
@@ -132,7 +215,11 @@ function TravelGuidePage() {
 
         setDestinations(guide.items || []);
         setPagination(guide.pagination || { page: 1, totalPages: 1, hasMore: false });
-        setStatus(guide.available ? `${guide.items?.length || 0} guide result${guide.items?.length === 1 ? '' : 's'} loaded.` : guide.message);
+        if (guide.available) {
+          setStatus(`${guide.items?.length || 0} guide result${guide.items?.length === 1 ? '' : 's'} loaded.`);
+        } else {
+          setError(guide.message || 'Travel guides are unavailable.');
+        }
       } catch (requestError) {
         if (!isActive) return;
         setDestinations([]);
@@ -146,22 +233,21 @@ function TravelGuidePage() {
 
     loadDestinations();
 
+    // Cleanup prevents state updates after component unmount.
     return () => {
       isActive = false;
     };
   }, [
     activeRegion,
+    debouncedSearchTerm,
     isCountryDirectory,
-    searchTerm,
     selectedOverseasCountry,
     userCountry,
     userCountryCode,
   ]);
-
   const loadMoreDestinations = () => {
     changePage(Math.min(pagination.page + 1, pagination.totalPages));
   };
-
   const handleModeChange = (nextMode) => {
     setGuideMode(nextMode);
     setSelectedOverseasCountry(null);
@@ -169,7 +255,6 @@ function TravelGuidePage() {
     setDestinations([]);
     setPagination({ page: 1, totalPages: 1, hasMore: false });
   };
-
   const openDestination = (destination) => {
     if (isCountryDirectory && destination.type === 'Country') {
       setSelectedOverseasCountry(destination);
@@ -194,7 +279,6 @@ function TravelGuidePage() {
 
     navigate(`/travel-guide/destination?${params.toString()}`);
   };
-
   const changePage = async (nextPage) => {
     if (nextPage < 1 || nextPage > pagination.totalPages || nextPage === pagination.page) {
       return;
@@ -211,13 +295,18 @@ function TravelGuidePage() {
           region: regionFilters[activeRegion],
           limit: 24,
           page: nextPage,
-          search: searchTerm.trim(),
+          search: debouncedSearchTerm,
         });
         const countryGuide = response.data.data.countries;
 
         setDestinations(countryGuide.items || []);
         setPagination(countryGuide.pagination || pagination);
-        setStatus(`${countryGuide.items?.length || 0} countr${countryGuide.items?.length === 1 ? 'y' : 'ies'} loaded.`);
+        if (countryGuide.available) {
+          setStatus(`${countryGuide.items?.length || 0} countr${countryGuide.items?.length === 1 ? 'y' : 'ies'} loaded.`);
+        } else {
+          setStatus('');
+          setError(countryGuide.message || 'Travel guide countries are unavailable.');
+        }
       } catch (requestError) {
         setError(getErrorMessage(requestError));
       } finally {
@@ -225,7 +314,6 @@ function TravelGuidePage() {
       }
       return;
     }
-
     try {
       const response = await getTravelGuideDestinations({
         mode: 'domestic',
@@ -233,20 +321,24 @@ function TravelGuidePage() {
         countryCode: selectedOverseasCountry?.countryCode || userCountryCode,
         limit: 24,
         page: nextPage,
-        search: searchTerm.trim(),
+        search: debouncedSearchTerm,
       });
       const guide = response.data.data.guide;
 
       setDestinations(guide.items || []);
       setPagination(guide.pagination || pagination);
-      setStatus(`${guide.items?.length || 0} guide result${guide.items?.length === 1 ? '' : 's'} loaded.`);
+      if (guide.available) {
+        setStatus(`${guide.items?.length || 0} guide result${guide.items?.length === 1 ? '' : 's'} loaded.`);
+      } else {
+        setStatus('');
+        setError(guide.message || 'Travel guides are unavailable.');
+      }
     } catch (requestError) {
       setError(getErrorMessage(requestError));
     } finally {
       setIsLoading(false);
     }
   };
-
   return (
     <section className="travel-guide-page">
       <div className="travel-guide-hero">
@@ -375,6 +467,8 @@ function TravelGuidePage() {
                   destination={destination}
                   key={`${destination.id}-${destination.name}`}
                   onOpen={openDestination}
+                  onVisitedChange={handleVisitedChange}
+                  visitedRecord={getDestinationVisitedRecord(destination)}
                 />
               ))}
             </div>
@@ -410,4 +504,5 @@ function TravelGuidePage() {
   );
 }
 
+// Default export registers the primary  value.
 export default TravelGuidePage;

@@ -1,3 +1,7 @@
+/**
+ * Admin module.
+ * Page state, event handlers, and render sections define the screen experience.
+ */
 import {
   AlertTriangle,
   Ban,
@@ -26,7 +30,7 @@ const statusOptions = [
   { value: 'active', label: 'Active' },
   { value: 'disabled', label: 'Disabled' },
 ];
-
+// Format Date converts raw values into readable display text.
 const formatDate = (value) => {
   if (!value) return 'Unknown';
 
@@ -34,16 +38,15 @@ const formatDate = (value) => {
     dateStyle: 'medium',
   }).format(new Date(value));
 };
-
 const getErrorMessage = (error) =>
   error.response?.data?.message || 'Unable to load user accounts.';
-
+// Format Category Label converts raw values into readable display text.
 const formatCategoryLabel = (category = 'none') =>
   category
     .split('-')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
-
+// ManageUsersPage renders the main screen and handles nearby interactions.
 function ManageUsersPage() {
   const [users, setUsers] = useState([]);
   const [summary, setSummary] = useState({
@@ -68,7 +71,6 @@ function ManageUsersPage() {
     setIsLoading(true);
     setError('');
     setSuccessMessage('');
-
     try {
       const response = await getAdminUsers();
       setUsers(response.data.data.users || []);
@@ -83,15 +85,13 @@ function ManageUsersPage() {
       setIsLoading(false);
     }
   }, []);
-
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       fetchUsers();
     }, 0);
-
+    // Cleanup prevents state updates after component unmount.
     return () => window.clearTimeout(timeoutId);
   }, [fetchUsers]);
-
   const filteredUsers = useMemo(() => {
     const normalizedQuery = filters.query.trim().toLowerCase();
 
@@ -122,12 +122,10 @@ function ManageUsersPage() {
     { label: 'Disabled', value: summary.disabled || 0, className: 'disabled' },
   ];
   const statusMax = Math.max(...statusChartItems.map((item) => item.value), 1);
-
   const handleFilterChange = (event) => {
     const { name, value } = event.target;
     setFilters((current) => ({ ...current, [name]: value }));
   };
-
   const clearFilters = () => {
     setFilters({
       query: '',
@@ -135,18 +133,15 @@ function ManageUsersPage() {
       status: '',
     });
   };
-
   const closeRemoveDialog = () => {
     if (!isRemoving) setSelectedUser(null);
   };
-
   const confirmRemoveUser = async () => {
     if (!selectedUser) return;
 
     setIsRemoving(true);
     setError('');
     setSuccessMessage('');
-
     try {
       const response = await removeAdminUser(selectedUser.id || selectedUser._id);
       const removedTrips = response.data.data.removedTrips || 0;
@@ -166,7 +161,6 @@ function ManageUsersPage() {
       setIsRemoving(false);
     }
   };
-
   return (
     <section className="manage-users-page" aria-labelledby="manage-users-title">
       <div className="manage-users-hero">
@@ -445,4 +439,5 @@ function ManageUsersPage() {
   );
 }
 
+// Default export registers the primary  value.
 export default ManageUsersPage;

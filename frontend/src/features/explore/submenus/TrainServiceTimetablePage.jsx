@@ -1,14 +1,19 @@
+/**
+ * Explore module.
+ * Business rules, repository access, and external integrations live in this layer.
+ */
 import { ArrowLeft, LoaderCircle, TrainFront } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import { searchTrainServiceTimetable } from '../../api/exploreApi';
-import { getErrorMessage } from './explore.helpers';
-import './submenus/Transportation.css';
-
+import { searchTrainServiceTimetable } from '../../../api/exploreApi';
+import { getErrorMessage } from '../explore.helpers';
+import './Transportation.css';
+// Format Time converts raw values into readable display text.
 const formatTime = (value) => value || '--:--';
+// Format Date converts raw values into readable display text.
 const formatDate = (value) => value || 'Date unavailable';
 const getStopKey = (stop = {}) => [stop.stationCode, stop.stationName].filter(Boolean).join(':').toLowerCase();
-
+// TrainServiceTimetablePage renders the main screen and handles nearby interactions.
 function TrainServiceTimetablePage() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -64,7 +69,7 @@ function TrainServiceTimetablePage() {
     };
 
     loadTimetable();
-
+    // Cleanup prevents state updates after component unmount.
     return () => {
       isActive = false;
     };
@@ -211,4 +216,5 @@ function TrainServiceTimetablePage() {
   );
 }
 
+// Default export registers the primary  value.
 export default TrainServiceTimetablePage;

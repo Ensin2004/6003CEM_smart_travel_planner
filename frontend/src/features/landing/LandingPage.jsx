@@ -1,3 +1,7 @@
+/**
+ * Landing module.
+ * Page state, event handlers, and render sections define the screen experience.
+ */
 import {
   CalendarDays,
   CheckCircle2,
@@ -32,7 +36,7 @@ const features = [
   [CalendarDays, 'Trip planner', 'Save destinations, dates, notes, travel style, and trip status in a clear workspace.'],
   [CloudSun, 'Weather preview', 'Check destination conditions before you decide what to pack or schedule.'],
   [MapPinned, 'Attractions', 'Discover nearby places and keep interesting stops close to your itinerary.'],
-  [WalletCards, 'Budget view', 'Track estimated spending so flights, hotels, food, and activities stay visible.'],
+  [MapPinned, 'Map', 'View saved places and trip stops together on an interactive map.'],
   [ListChecks, 'Travel checklist', 'Prepare documents, packing items, bookings, and culture reminders before departure.'],
   [Heart, 'Favourites', 'Save destinations and ideas you want to return to later.'],
 ];
@@ -55,7 +59,7 @@ const travellerTypes = [
   [Compass, 'Culture seekers', 'Add customs, food ideas, etiquette notes, and meaningful local experiences.'],
   [Users, 'Group organizers', 'Prepare cleaner trip records for sharing during discussion and demos.'],
 ];
-
+// LandingPage renders the main screen and handles nearby interactions.
 function LandingPage() {
   useEffect(() => {
     const revealElements = document.querySelectorAll('.reveal-on-scroll');
@@ -73,17 +77,15 @@ function LandingPage() {
     );
 
     revealElements.forEach((element) => observer.observe(element));
-
+    // Cleanup prevents state updates after component unmount.
     return () => observer.disconnect();
   }, []);
-
   useEffect(() => {
     if (!window.location.hash) {
       return;
     }
 
     const section = document.getElementById(window.location.hash.slice(1));
-
     if (!section) {
       return;
     }
@@ -92,7 +94,6 @@ function LandingPage() {
       section.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
   }, []);
-
   return (
     <main className="landing-page">
       <PublicTopbar />
@@ -102,14 +103,14 @@ function LandingPage() {
             <h1>Smart Travel Planner</h1>
             <p className="hero-copy">
               Plan every trip with calm, clear decisions by organizing destinations,
-              budgets, weather, attractions, notes, and checklists in one workspace.
+              budgets, weather, attractions, transport and checklists in one workspace.
             </p>
             <div className="hero-actions">
-              <Link className="primary-action" to="/register">
-                Start planning
+              <Link className="primary-action" to="/login">
+                Login
               </Link>
-              <Link className="secondary-action" to="/login">
-                Explore demo
+              <Link className="secondary-action" to="/register">
+                Sign Up
               </Link>
             </div>
             <dl className="hero-metrics" aria-label="Travel planning highlights">
@@ -355,28 +356,6 @@ function LandingPage() {
         </div>
       </section>
 
-      <section className="landing-cta reveal-on-scroll" id="demo">
-        <div>
-          <p className="section-kicker">
-            <Compass size={18} aria-hidden="true" />
-            Try the preview
-          </p>
-          <h2>Step inside the planner and explore the workspace.</h2>
-          <p>
-            The current preview lets you enter the dashboard instantly while sign-in
-            is being connected behind the scenes.
-          </p>
-        </div>
-        <div className="cta-actions">
-          <Link className="primary-action" to="/login">
-            Login demo
-          </Link>
-          <Link className="secondary-action" to="/register">
-            Sign up demo
-          </Link>
-        </div>
-      </section>
-
       <footer className="landing-footer">
         <div>
           <Link className="brand-mark footer-brand" to="/">
@@ -396,5 +375,5 @@ function LandingPage() {
     </main>
   );
 }
-
+// Default export registers the primary  value.
 export default LandingPage;
