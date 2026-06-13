@@ -569,7 +569,7 @@
 
 .logging-table {
   width: 100%;
-  min-width: 1020px;
+  min-width: 1240px;
   border-collapse: separate;
   border-spacing: 0;
   text-align: left;
@@ -675,6 +675,25 @@
   font-family: var(--font-sans);
   font-size: 12px;
   font-weight: var(--font-weight-bold);
+}
+
+.logging-error-context {
+  min-width: 220px;
+}
+
+.logging-error-context strong {
+  display: block;
+  color: #9f1239;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+
+.logging-error-context small {
+  max-width: 240px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .logging-badge {

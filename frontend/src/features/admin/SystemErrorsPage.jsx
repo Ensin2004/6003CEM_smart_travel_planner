@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getLoggingMonitoring } from '../../api/adminLogApi';
+import { getApiErrorMessage } from '../../utils/apiError';
 import './SystemErrorsPage.css';
 
 const statusOptions = [
@@ -51,7 +52,7 @@ const formatDateTime = (value) => {
   }).format(new Date(value));
 };
 const getErrorMessage = (error) =>
-  error.response?.data?.message || 'Unable to load logging and monitoring data.';
+  getApiErrorMessage(error, 'Unable to load logging and monitoring data.');
 const getActorLabel = (log) => log.actor?.email || log.attemptedEmail || 'System';
 const getActorMeta = (log) => {
   if (log.actor?.role) return log.actor.role;
@@ -71,6 +72,8 @@ function SystemErrorsPage() {
     category: '',
     severity: '',
     service: '',
+    errorCode: '',
+    requestId: '',
   });
   const [monitoring, setMonitoring] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -133,6 +136,8 @@ function SystemErrorsPage() {
       category: '',
       severity: '',
       service: '',
+      errorCode: '',
+      requestId: '',
     });
   };
   return (
@@ -380,6 +385,32 @@ function SystemErrorsPage() {
             />
           </span>
         </label>
+        <label>
+          Error code
+          <span className="logging-search-field">
+            <Search size={16} aria-hidden="true" />
+            <input
+              name="errorCode"
+              placeholder="e.g. INTERNAL_SERVER_ERROR"
+              type="search"
+              value={filters.errorCode}
+              onChange={handleFilterChange}
+            />
+          </span>
+        </label>
+        <label>
+          Request ID
+          <span className="logging-search-field">
+            <Search size={16} aria-hidden="true" />
+            <input
+              name="requestId"
+              placeholder="Trace a request"
+              type="search"
+              value={filters.requestId}
+              onChange={handleFilterChange}
+            />
+          </span>
+        </label>
       </div>
 
       <div className="logging-table-wrap">
@@ -404,6 +435,7 @@ function SystemErrorsPage() {
                 <th>Status</th>
                 <th>Severity</th>
                 <th>Endpoint</th>
+                <th>Error context</th>
                 <th>Message</th>
               </tr>
             </thead>
@@ -435,6 +467,10 @@ function SystemErrorsPage() {
                   <td className="logging-endpoint">
                     <span>{log.method || 'GET'}</span>
                     {log.endpoint || 'Not recorded'}
+                  </td>
+                  <td className="logging-error-context">
+                    <strong>{log.errorCode}</strong>
+                    <small title={log.requestId}>Request: {log.requestId}</small>
                   </td>
                   <td>{log.message || 'No message recorded'}</td>
                 </tr>

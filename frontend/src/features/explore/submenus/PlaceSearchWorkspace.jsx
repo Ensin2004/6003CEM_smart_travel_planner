@@ -186,6 +186,7 @@ function PlaceSearchWorkspace({
                 <span className="sr-only">Country</span>
                 <select
                   value={activeFilters.countryCode}
+                  aria-required="true"
                   onChange={(event) =>
                     handleCountryChange(event.target.value, isHotelsView ? 'hotel' : isFoodView ? 'restaurant' : 'attraction')
                   }

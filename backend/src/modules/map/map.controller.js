@@ -5,6 +5,7 @@
  */
 const catchAsync = require('../../utils/catchAsync');
 const { sendSuccess } = require('../../utils/apiResponse');
+const ensureApiResult = require('../../utils/ensureApiResult');
 const mapService = require('./map.service');
 
 const getMapPlaces = catchAsync(async (req, res) => {
@@ -16,7 +17,9 @@ const getMapPlaces = catchAsync(async (req, res) => {
     limit: req.query.limit,
   });
 
-  sendSuccess(res, 200, { places });
+  sendSuccess(res, 200, { places: ensureApiResult(places, {
+    noResultsMessage: 'No map places found for this search.',
+  }) });
 });
 const getMapPlaceDetails = catchAsync(async (req, res) => {
   const details = await mapService.getMapPlaceDetails({
@@ -50,12 +53,18 @@ const getReverseGeocodeLocation = catchAsync(async (req, res) => {
     longitude: req.query.longitude,
   });
 
-  sendSuccess(res, 200, { location });
+  sendSuccess(res, 200, { location: ensureApiResult(location, {
+    itemPaths: ['available'],
+    noResultsMessage: 'No location found for these coordinates.',
+  }) });
 });
 const getGeocodeLocation = catchAsync(async (req, res) => {
   const location = await mapService.getGeocodeLocation(req.query.query);
 
-  sendSuccess(res, 200, { location });
+  sendSuccess(res, 200, { location: ensureApiResult(location, {
+    itemPaths: ['available'],
+    noResultsMessage: 'No location found for this search.',
+  }) });
 });
 const getMapRoutes = catchAsync(async (req, res) => {
   const routes = await mapService.getMapRoutes({

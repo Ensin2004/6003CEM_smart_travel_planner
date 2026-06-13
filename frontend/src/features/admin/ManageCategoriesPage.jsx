@@ -19,6 +19,7 @@ import {
   getCategories,
   updateCategory,
 } from '../../api/categoryApi';
+import { getApiErrorMessage } from '../../utils/apiError';
 import './ManageCategoriesPage.css';
 
 const typeOptions = [
@@ -29,9 +30,7 @@ const typeOptions = [
 const categoriesPerPage = 10;
 
 const getErrorMessage = (error) =>
-  error.response?.data?.message ||
-  error.response?.data?.errors?.[0]?.message ||
-  'Unable to save category changes.';
+  getApiErrorMessage(error, 'Unable to save category changes.');
 
 const formatDateAdded = (value) => {
   if (!value) return 'Date unavailable';

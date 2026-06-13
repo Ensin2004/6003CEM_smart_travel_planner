@@ -1,11 +1,12 @@
 /**
- * Map module.
- * Business rules, repository access, and external integrations live in this layer.
+ * Map aggregation service for routes, places, geocoding, and weather.
+ * Combines Geoapify, OpenRouteService, Foursquare, Google Maps, and local cache data.
  */
 const axios = require('axios');
 const env = require('../../config/env');
 const logger = require('../../utils/logger');
 const apiLogService = require('../apiLogs/apiLog.service');
+const { classifyExternalApiError } = require('../../utils/externalApiError');
 const weatherService = require('../explore/weather.service');
 const placesService = require('../explore/places.service');
 const hotelsService = require('../explore/hotels.service');
@@ -238,6 +239,11 @@ const normalizeOpenRouteServiceRoute = (feature, index) => ({
   durationSeconds: Number(feature.properties?.summary?.duration || 0),
   coordinates: (feature.geometry?.coordinates || []).map(([longitude, latitude]) => [latitude, longitude]),
 });
+/**
+ * Calculates and ranks routes for map points, with local estimates as fallback.
+ * @param {object} input Ordered map points and travel mode.
+ * @returns {Promise<object>} Route alternatives and optimization metadata.
+ */
 const getMapRoutes = async ({ points = [], mode = 'car' }) => {
   const normalizedPoints = points.map((point) => ({
     lat: Number(point.lat),
@@ -334,7 +340,7 @@ const fallbackLocation = ({ latitude, longitude }, message = 'Current location n
     longitude: Number(longitude),
   },
 });
-const recordMapGeocodeFailure = (message, statusCode, metadata = {}) => {
+const recordMapGeocodeFailure = (message, statusCode, metadata = {}, errorCode) => {
   logger.warn(`Geoapify reverse geocode failed: ${message}`);
   if (env.nodeEnv === 'test') {
     return;
@@ -349,6 +355,7 @@ const recordMapGeocodeFailure = (message, statusCode, metadata = {}) => {
       endpoint: '/v1/geocode/reverse',
       status: 'fail',
       statusCode,
+      errorCode,
       message,
       metadata,
     })
@@ -514,6 +521,11 @@ const setCache = async (cacheKey, data) => {
     // In-memory cache still prevents repeated calls during this process.
   }
 };
+/**
+ * Searches nearby places and merges available provider results.
+ * @param {object} input Category, destination, coordinates, and result limit.
+ * @returns {Promise<object>} Normalized map places with source metadata.
+ */
 const searchMapPlaces = async ({ category, destination, latitude, longitude, limit = 30 }) => {
   const parsedLimit = Math.min(Math.max(Number(limit) || 30, 1), 50);
   const cacheKey = [
@@ -530,7 +542,10 @@ const searchMapPlaces = async ({ category, destination, latitude, longitude, lim
     return cached;
   }
   if ((!env.foursquareApiKey && !env.serpApiKey) || env.nodeEnv === 'test') {
-    return fallbackPlaces(category, 'Foursquare and SerpApi keys are not configured');
+    return {
+      ...fallbackPlaces(category, 'Foursquare and SerpApi keys are not configured'),
+      errorCode: 'INVALID_API_KEY',
+    };
   }
   try {
     const query = mapCategoryQueries[category] || mapCategoryQueries.attractions;
@@ -560,12 +575,12 @@ const searchMapPlaces = async ({ category, destination, latitude, longitude, lim
     const places = mergeProviderPlaces(foursquarePlaces, googlePlaces);
 
     if (foursquareResult.status === 'rejected') {
-      const { message, statusCode } = getFoursquareFailureMessage(foursquareResult.reason);
-      recordFoursquareFailure('map-places', message, statusCode, { category, destination, latitude, longitude });
+      const { errorCode, message, statusCode } = getFoursquareFailureMessage(foursquareResult.reason);
+      recordFoursquareFailure('map-places', message, statusCode, { category, destination, latitude, longitude }, errorCode);
     }
     if (googleResult.status === 'rejected') {
-      const { message, statusCode } = getGoogleMapsFailureMessage(googleResult.reason);
-      recordGoogleMapsFailure('map-places', message, statusCode, { category, destination, latitude, longitude });
+      const { errorCode, message, statusCode } = getGoogleMapsFailureMessage(googleResult.reason);
+      recordGoogleMapsFailure('map-places', message, statusCode, { category, destination, latitude, longitude }, errorCode);
     }
 
     const googleWarning = googleResult.status === 'rejected'
@@ -581,7 +596,8 @@ const searchMapPlaces = async ({ category, destination, latitude, longitude, lim
       category,
       destination,
       items: visiblePlaces,
-      message: googleWarning,
+      message: googleWarning || (visiblePlaces.length ? '' : 'No map places found for this search.'),
+      ...(visiblePlaces.length ? {} : { errorCode: 'NO_RESULTS_FOUND' }),
       lastUpdated: new Date().toISOString(),
     };
 
@@ -593,6 +609,11 @@ const searchMapPlaces = async ({ category, destination, latitude, longitude, lim
     return fallbackPlaces(category, error.message || 'Map places are temporarily unavailable');
   }
 };
+/**
+ * Retrieves and enriches details for a selected map place.
+ * @param {object} input Category, place identity, address, and provider identifiers.
+ * @returns {Promise<object>} Detailed place data, reviews, photos, and description.
+ */
 const getMapPlaceDetails = async ({
   category,
   placeId,
@@ -661,9 +682,9 @@ const getMapPlaceDetails = async ({
           googleWarning = googleDetails.message;
         }
       } catch (error) {
-        const { message, statusCode } = getGoogleMapsFailureMessage(error);
+        const { errorCode, message, statusCode } = getGoogleMapsFailureMessage(error);
         googleWarning = message;
-        recordGoogleMapsFailure('map-place-details', message, statusCode, { category, name, address });
+        recordGoogleMapsFailure('map-place-details', message, statusCode, { category, name, address }, errorCode);
       }
     }
 
@@ -682,14 +703,14 @@ const getMapPlaceDetails = async ({
           foursquarePlace = matchedPlaceId ? await getFoursquarePlace(matchedPlaceId) : null;
         }
       } catch (error) {
-        const { message, statusCode } = getFoursquareFailureMessage(error);
+        const { errorCode, message, statusCode } = getFoursquareFailureMessage(error);
         recordFoursquareFailure('map-place-details', message, statusCode, {
           category,
           placeId,
           foursquarePlaceId,
           name,
           address,
-        });
+        }, errorCode);
       }
     }
 
@@ -718,6 +739,11 @@ const getMapPlaceDetails = async ({
     };
   }
 };
+/**
+ * Delegates map weather lookup using destination text or known coordinates.
+ * @param {object} input Destination, date, coordinates, and display label.
+ * @returns {Promise<object>} Normalized weather result.
+ */
 const getMapWeather = ({ destination, date, latitude, longitude, locationLabel }) =>
   weatherService.getWeatherByDestination(destination, date, {
     latitude,
@@ -746,6 +772,11 @@ const normalizeReverseGeocodeLocation = (feature = {}, coordinates = {}) => {
     },
   };
 };
+/**
+ * Resolves coordinates into a human-readable Geoapify location.
+ * @param {{latitude: number, longitude: number}} coordinates Map coordinates.
+ * @returns {Promise<object>} Normalized location or an availability fallback.
+ */
 const getReverseGeocodeLocation = async ({ latitude, longitude }) => {
   const parsedLatitude = Number(latitude);
   const parsedLongitude = Number(longitude);
@@ -786,6 +817,11 @@ const getReverseGeocodeLocation = async ({ latitude, longitude }) => {
     return fallbackLocation({ latitude: parsedLatitude, longitude: parsedLongitude }, message);
   }
 };
+/**
+ * Resolves a location query into coordinates through Geoapify.
+ * @param {string} query Location name or address.
+ * @returns {Promise<object>} Normalized coordinates and address information.
+ */
 const getGeocodeLocation = async (query) => {
   const normalizedQuery = String(query || '').trim();
   const cacheKey = ['geocode', normalizedQuery.toLowerCase()].join('|');
@@ -793,7 +829,11 @@ const getGeocodeLocation = async (query) => {
 
   if (cached) return cached;
   if (!env.geoapifyApiKey || env.nodeEnv === 'test') {
-    return { available: false, message: 'Location search is not configured' };
+    return {
+      available: false,
+      errorCode: 'INVALID_API_KEY',
+      message: 'Location search is not configured',
+    };
   }
 
   try {
@@ -817,17 +857,24 @@ const getGeocodeLocation = async (query) => {
         latitude: Number(latitude),
         longitude: Number(longitude),
       }
-      : { available: false, message: 'Location not found' };
+      : {
+          available: false,
+          errorCode: 'NO_RESULTS_FOUND',
+          message: 'Location not found',
+        };
 
     await setCache(cacheKey, location);
     return location;
   } catch (error) {
-    const statusCode = error.response?.status || 503;
-    const message = statusCode === 429
-      ? 'Location search is busy. Please try again shortly.'
-      : 'Location search is temporarily unavailable.';
-    recordMapGeocodeFailure(message, statusCode, { query: normalizedQuery });
-    return { available: false, message };
+    const failure = classifyExternalApiError(error, {
+      invalidApiKeyMessage: 'Geoapify API key is invalid or unauthorized.',
+      networkMessage: 'Location search service could not be reached.',
+      rateLimitMessage: 'Location search is busy. Please try again shortly.',
+      timeoutMessage: 'Location search request timed out.',
+      unavailableMessage: 'Location search is temporarily unavailable.',
+    });
+    recordMapGeocodeFailure(failure.message, failure.statusCode, { query: normalizedQuery }, failure.errorCode);
+    return { available: false, errorCode: failure.errorCode, message: failure.message };
   }
 };
 module.exports = {
