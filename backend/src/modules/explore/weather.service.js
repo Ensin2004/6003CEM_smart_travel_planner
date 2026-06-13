@@ -1,11 +1,12 @@
 /**
- * Explore module.
- * Business rules, repository access, and external integrations live in this layer.
+ * Open-Meteo weather service for current, forecast, seasonal, and historical conditions.
+ * Geocoded responses are normalized into one travel-oriented weather contract.
  */
 const axios = require('axios');
 const env = require('../../config/env');
 const logger = require('../../utils/logger');
 const apiLogService = require('../apiLogs/apiLog.service');
+const { classifyExternalApiError } = require('../../utils/externalApiError');
 
 const weatherCache = new Map();
 const CACHE_TTL_MS = 30 * 60 * 1000;
@@ -66,7 +67,7 @@ const consumeDailyQuota = () => {
   dailyUsage.count += 1;
   return true;
 };
-const recordWeatherFailure = (message, statusCode, metadata) =>
+const recordWeatherFailure = (message, statusCode, metadata, errorCode) =>
   env.nodeEnv === 'test'
     ? Promise.resolve()
     : apiLogService
@@ -77,25 +78,21 @@ const recordWeatherFailure = (message, statusCode, metadata) =>
           endpoint: 'weather',
           status: 'fail',
           statusCode,
+          errorCode,
           message,
           metadata,
         })
         .catch((error) => logger.error(`Failed to record weather API event: ${error.message}`));
 const classifyWeatherError = (error) => {
-  if (error.isDailyLimit) {
-    return { message: 'Daily weather API limit reached. Please try again tomorrow.', statusCode: 429 };
-  }
-  if (error.response?.status === 429) {
-    return { message: 'Weather API rate limit reached', statusCode: 429 };
-  }
-  if (error.code === 'ECONNABORTED') {
-    return { message: 'Weather temporarily unavailable. Search results are still available.', statusCode: 503 };
-  }
-  if (!error.response) {
-    return { message: 'Weather temporarily unavailable. Search results are still available.', statusCode: 503 };
-  }
-
-  return { message: 'Weather temporarily unavailable', statusCode: error.response.status || 503 };
+  return classifyExternalApiError(error, {
+    invalidApiKeyMessage: 'Weather API key is invalid or unauthorized.',
+    networkMessage: 'Weather service could not be reached. Search results are still available.',
+    rateLimitMessage: error.isDailyLimit
+      ? 'Daily weather API limit reached. Please try again tomorrow.'
+      : 'Weather API rate limit reached.',
+    timeoutMessage: 'Weather request timed out. Search results are still available.',
+    unavailableMessage: 'Weather is temporarily unavailable.',
+  });
 };
 const getWeatherCondition = (code) => {
   const [condition, icon] = weatherCodeMap[Number(code)] || ['Weather outlook', 'cloud'];
@@ -331,6 +328,13 @@ const normalizeCurrentWeather = ({ destination, date, location, response }) => {
     lastUpdated: new Date().toISOString(),
   };
 };
+/**
+ * Resolves a destination and returns the best weather dataset for the requested date.
+ * @param {string} destination Human-readable destination used for geocoding.
+ * @param {string} date ISO date requested by the traveler.
+ * @param {object} locationInput Optional known coordinates and location label.
+ * @returns {Promise<object>} Normalized weather data or an availability fallback.
+ */
 const getWeatherByDestination = async (destination, date = getTodayKey(), locationInput = {}) => {
   const normalizedDestination = (destination || '').trim();
   const requestedDate = date || getTodayKey();
@@ -358,15 +362,18 @@ const getWeatherByDestination = async (destination, date = getTodayKey(), locati
   if (!consumeDailyQuota()) {
     const error = new Error('Daily weather API limit reached. Please try again tomorrow.');
     error.isDailyLimit = true;
-    const { message, statusCode } = classifyWeatherError(error);
-    recordWeatherFailure(message, statusCode, { destination: normalizedDestination, date: requestedDate });
-    return fallbackWeather(message);
+    const { errorCode, message, statusCode } = classifyWeatherError(error);
+    recordWeatherFailure(message, statusCode, { destination: normalizedDestination, date: requestedDate }, errorCode);
+    return { ...fallbackWeather(message), errorCode };
   }
   try {
     const location = resolvedLocation || (await geocodeDestination(normalizedDestination));
     resolvedLocation = location;
     if (!location) {
-      return fallbackWeather('Destination weather location could not be found. Try a city, state, or country name.');
+      return {
+        ...fallbackWeather('Destination weather location could not be found. Try a city, state, or country name.'),
+        errorCode: 'NO_RESULTS_FOUND',
+      };
     }
 
     const forecastType = daysFromToday < 0 ? 'historical' : daysFromToday === 0 ? 'current' : daysFromToday <= FORECAST_DAYS ? 'forecast' : 'seasonal';
@@ -399,9 +406,9 @@ const getWeatherByDestination = async (destination, date = getTodayKey(), locati
     weatherCache.set(cacheKey, { data: weather, createdAt: Date.now() });
     return weather;
   } catch (error) {
-    const { message, statusCode } = classifyWeatherError(error);
-    recordWeatherFailure(message, statusCode, { destination: normalizedDestination, date: requestedDate });
-    return fallbackWeather(message);
+    const { errorCode, message, statusCode } = classifyWeatherError(error);
+    recordWeatherFailure(message, statusCode, { destination: normalizedDestination, date: requestedDate }, errorCode);
+    return { ...fallbackWeather(message), errorCode };
   }
 };
 

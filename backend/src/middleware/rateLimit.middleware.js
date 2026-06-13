@@ -19,6 +19,8 @@ const rateLimitHandler = (message) => (req, res) => {
       endpoint: req.originalUrl,
       status: 'fail',
       statusCode: 429,
+      errorCode: 'RATE_LIMIT_EXCEEDED',
+      requestId: req.requestId,
       message,
       userId: req.user?.id,
       attemptedEmail: req.originalUrl.includes('/auth/login') ? req.body?.email : undefined,
@@ -27,7 +29,9 @@ const rateLimitHandler = (message) => (req, res) => {
 
   res.status(429).json({
     status: 'fail',
+    code: 'RATE_LIMIT_EXCEEDED',
     message,
+    requestId: req.requestId,
   });
 };
 

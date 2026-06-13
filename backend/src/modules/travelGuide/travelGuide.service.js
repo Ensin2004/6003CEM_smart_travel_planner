@@ -1,6 +1,6 @@
 /**
- * Travel Guide module.
- * Business rules, repository access, and external integrations live in this layer.
+ * Travel guide aggregation service using Geoapify, REST Countries, Wikivoyage,
+ * weather, Explore listings, and AI recommendations.
  */
 const axios = require('axios');
 const env = require('../../config/env');
@@ -10,6 +10,7 @@ const restaurantService = require('../explore/restaurant.service');
 const hotelsService = require('../explore/hotels.service');
 const aiService = require('../explore/exploreAi.service');
 const travelGuideRepository = require('./travelGuide.repository');
+const { classifyExternalApiError } = require('../../utils/externalApiError');
 
 const geoapifyClient = axios.create({
   baseURL: 'https://api.geoapify.com',
@@ -52,6 +53,7 @@ const withCache = async (key, params, fetcher) => {
 };
 const unavailable = (message = 'Geoapify API key is not configured') => ({
   available: false,
+  errorCode: 'INVALID_API_KEY',
   message,
 });
 const requireGeoapifyKey = () => {
@@ -211,6 +213,11 @@ const normalizeCountry = (country = {}) => {
   };
 };
 
+/**
+ * Returns a filtered and paginated country catalogue from REST Countries.
+ * @param {object} input Region, search, current-country, and pagination options.
+ * @returns {Promise<object>} Normalized countries and pagination metadata.
+ */
 const getCountryList = async ({ region = '', search = '', currentCountry = '', currentCountryCode = '', limit = 24, page = 1 }) => {
   const currentPage = Math.max(Number(page) || 1, 1);
   const pageSize = Math.min(Number(limit) || 24, 48);
@@ -250,10 +257,17 @@ const getCountryList = async ({ region = '', search = '', currentCountry = '', c
         hasMore: start + pageSize < filteredCountries.length,
       },
     };
-  } catch {
+  } catch (error) {
+    const failure = classifyExternalApiError(error, {
+      networkMessage: 'Country directory could not be reached.',
+      rateLimitMessage: 'Country directory rate limit exceeded.',
+      timeoutMessage: 'Country directory request timed out.',
+      unavailableMessage: 'Country directory temporarily unavailable.',
+    });
     return {
       available: false,
-      message: 'Country directory temporarily unavailable',
+      errorCode: failure.errorCode,
+      message: failure.message,
       items: [],
       pagination: {
         page: currentPage,
@@ -266,6 +280,11 @@ const getCountryList = async ({ region = '', search = '', currentCountry = '', c
   }
 };
 
+/**
+ * Finds domestic or international destinations through Geoapify.
+ * @param {object} input Country context, travel mode, region, search, and pagination.
+ * @returns {Promise<object>} Normalized destination cards and pagination metadata.
+ */
 const getDestinationList = async ({ country, countryCode, mode = 'domestic', region = '', limit = 24, page = 1, search = '' }) => {
   const currentPage = Math.max(Number(page) || 1, 1);
   const pageSize = Math.min(Number(limit) || 24, 48);
@@ -336,6 +355,11 @@ const getDestinationList = async ({ country, countryCode, mode = 'domestic', reg
   };
 };
 
+/**
+ * Aggregates a destination summary, weather, listings, gallery, and recommendations.
+ * @param {object} input Destination identity, date, coordinates, and listing offsets.
+ * @returns {Promise<object>} Complete travel-guide detail payload.
+ */
 const getDestinationDetails = async ({ destination, country, latitude, longitude, date, attractionStart = 0, restaurantStart = 0, hotelStart = 0 }) => {
   const locationText = [destination, country].filter(Boolean).join(', ');
   const locationFeature = latitude && longitude ? null : env.geoapifyApiKey ? await geocode(locationText) : null;

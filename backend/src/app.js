@@ -12,6 +12,7 @@ const setupSwagger = require('./config/swagger');
 const v1Routes = require('./routes/v1.routes');
 const notFound = require('./middleware/notFound.middleware');
 const errorHandler = require('./middleware/error.middleware');
+const requestContext = require('./middleware/requestContext.middleware');
 const { authRateLimit } = require('./middleware/rateLimit.middleware');
 
 const app = express();
@@ -19,6 +20,7 @@ const app = express();
 // Helmet and CORS run before routes so every response receives the same browser-facing protections.
 app.use(securityHeaders);
 app.use(cors(corsOptions));
+app.use(requestContext);
 
 // Large JSON payloads are allowed for travel tools that may submit generated document content.
 app.use(express.json({ limit: '1400mb' }));

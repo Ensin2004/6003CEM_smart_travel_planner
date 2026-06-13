@@ -16,9 +16,10 @@ import {
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getAdminDashboard } from '../../api/adminDashboardApi';
+import { getApiErrorMessage } from '../../utils/apiError';
 import './AdminDashboard.css';
 const getErrorMessage = (error) =>
-  error.response?.data?.message || 'Unable to load admin dashboard.';
+  getApiErrorMessage(error, 'Unable to load admin dashboard.');
 // Format Chart Label converts raw values into readable display text.
 const formatChartLabel = (value = '') =>
   value

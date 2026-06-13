@@ -1,11 +1,12 @@
 /**
- * Explore module.
- * Business rules, repository access, and external integrations live in this layer.
+ * Shared SerpApi Google Maps adapter used by Explore place services.
+ * Centralizes response normalization, caching, quota checks, reviews, and photos.
  */
 const axios = require('axios');
 const env = require('../../config/env');
 const logger = require('../../utils/logger');
 const apiLogService = require('../apiLogs/apiLog.service');
+const { classifyExternalApiError } = require('../../utils/externalApiError');
 
 const CACHE_TTL_MS = 30 * 60 * 1000;
 const DEFAULT_PAGE_SIZE = 20;
@@ -294,7 +295,7 @@ const normalizePlaceItem = (item = {}, index, defaults = {}) => ({
   coordinates: getCoordinates(item),
   url: buildPublicPlaceUrl(item),
 });
-const recordGoogleMapsFailure = (endpoint, message, statusCode, metadata) =>
+const recordGoogleMapsFailure = (endpoint, message, statusCode, metadata, errorCode) =>
   env.nodeEnv === 'test'
     ? Promise.resolve()
     : apiLogService
@@ -305,28 +306,32 @@ const recordGoogleMapsFailure = (endpoint, message, statusCode, metadata) =>
           endpoint,
           status: 'fail',
           statusCode,
+          errorCode,
           message,
           metadata,
         })
         .catch((error) => logger.error(`Failed to record ${endpoint} API event: ${error.message}`));
 const getGoogleMapsFailureMessage = (error) => {
-  if (error.isDailyLimit) {
-    return { message: 'Daily travel data API limit reached. Please try again tomorrow.', statusCode: 429 };
-  }
-  if (error.response?.status === 401 || error.response?.status === 403) {
-    return { message: 'External service configuration error', statusCode: 502 };
-  }
-  if (error.response?.status === 429) {
-    return { message: 'SerpApi rate limit reached', statusCode: 429 };
-  }
-  if (error.code === 'ECONNABORTED') {
-    return { message: 'External service timeout', statusCode: 503 };
-  }
-  if (!error.response) {
-    return { message: error.message || 'External service network error', statusCode: 503 };
-  }
+  return classifyExternalApiError(error, {
+    // Message shown when API key is missing, expired, or invalid
+    invalidApiKeyMessage: 'SerpApi key is invalid or unauthorized.',
 
-  return { message: error.message || 'External service unavailable', statusCode: error.response.status || 503 };
+    // Message shown for network connectivity issues (DNS failures, connection refused, etc.)
+    networkMessage: 'SerpApi could not be reached.',
+
+    // Rate limit message with conditional logic:
+    // - If error.isDailyLimit flag is true → custom daily limit message
+    // - Otherwise → generic SerpApi rate limit message
+    rateLimitMessage: error.isDailyLimit
+      ? 'Daily travel data API limit reached. Please try again tomorrow.'
+      : 'SerpApi rate limit reached.',
+
+    // Message shown when request exceeds the 8-second timeout threshold
+    timeoutMessage: 'SerpApi request timed out.',
+
+    // Message shown when SerpApi returns 5xx server errors or is under maintenance
+    unavailableMessage: 'SerpApi is temporarily unavailable.',
+  });
 };
 const getLocalResults = (data = {}) => {
   const candidates = [
@@ -338,18 +343,28 @@ const getLocalResults = (data = {}) => {
 
   return candidates.find((candidate) => Array.isArray(candidate)) || [];
 };
+/**
+ * Searches Google Maps through SerpApi and maps provider rows to application records.
+ * @param {object} options Cache, query, pagination, metadata, and item mapper options.
+ * @returns {Promise<object>} Normalized search results with pagination metadata.
+ */
 const searchGoogleMaps = async ({ cache, cacheKey, query, start = 0, metadata = {}, mapItem }) => {
+  // Check cache for existing results before making API call
   const cached = cache.get(cacheKey);
 
+  // Return cached data if it exists and hasn't expired (30-minute TTL)
   if (cached && Date.now() - cached.createdAt < CACHE_TTL_MS) {
     return { ...cached.data, cached: true };
   }
 
+  // Enforce daily API quota - throws error if limit exceeded
   if (!consumeDailyQuota()) {
     const error = new Error('Daily travel data API limit reached. Please try again tomorrow.');
     error.isDailyLimit = true;
     throw error;
   }
+
+  // Execute SerpApi Google Maps search request
   const response = await serpApiClient.get('/search', {
     params: {
       engine: 'google_maps',
@@ -361,11 +376,16 @@ const searchGoogleMaps = async ({ cache, cacheKey, query, start = 0, metadata = 
       api_key: env.serpApiKey,
     },
   });
+
+  // Check for API-level errors (e.g., invalid API key, malformed request)
   if (response.data?.error) {
     throw new Error(response.data.error);
   }
 
+  // Extract local results array from the nested response structure
   const rawItems = getLocalResults(response.data);
+  
+  // Construct normalized response object
   const data = {
     available: rawItems.length > 0,
     ...metadata,
@@ -377,6 +397,8 @@ const searchGoogleMaps = async ({ cache, cacheKey, query, start = 0, metadata = 
     lastUpdated: new Date().toISOString(),
   };
 
+  // Cache successful responses only when results are found
+  // Empty results are not cached to allow retrying later
   if (rawItems.length) {
     cache.set(cacheKey, { data, createdAt: Date.now() });
   }
@@ -398,6 +420,11 @@ const normalizeReview = (review = {}, index = 0) => ({
     text: getText(review.response?.snippet || review.response?.text || review.owner_answer?.snippet || review.owner_answer?.text || review.reply?.text),
   },
 });
+/**
+ * Retrieves a page of normalized Google Maps reviews for a place.
+ * @param {object} options Place identifiers, sort order, locale, and page token.
+ * @returns {Promise<object>} Review items and the next-page token.
+ */
 const searchGoogleMapsReviews = async ({ dataId, placeId, sortBy = 'qualityScore', hl = 'en', nextPageToken = '' }) => {
   if (!dataId && !placeId) {
     return { available: false, message: 'Google review identifier is unavailable', items: [] };
@@ -437,6 +464,11 @@ const searchGoogleMapsReviews = async ({ dataId, placeId, sortBy = 'qualityScore
     lastUpdated: new Date().toISOString(),
   };
 };
+/**
+ * Retrieves and deduplicates Google Maps photo URLs across limited result pages.
+ * @param {object} options Place identifier, locale, and maximum page count.
+ * @returns {Promise<object>} Photo URLs and remaining pagination metadata.
+ */
 const searchGoogleMapsPhotos = async ({ dataId, hl = 'en', maxPages = DEFAULT_PHOTO_PAGE_LIMIT }) => {
   if (!dataId) {
     return { available: false, message: 'Google photo identifier is unavailable', imageUrls: [] };
@@ -481,6 +513,12 @@ const searchGoogleMapsPhotos = async ({ dataId, hl = 'en', maxPages = DEFAULT_PH
     lastUpdated: new Date().toISOString(),
   };
 };
+/**
+ * Proxies an image from an approved Google or SerpApi host.
+ * @param {string} imageUrl Remote HTTPS image URL.
+ * @returns {Promise<object>} Image stream and response headers for the controller.
+ * @throws {Error} When the URL is invalid, disallowed, or not an image response.
+ */
 const fetchGooglePlaceImage = async (imageUrl = '') => {
   let parsedUrl;
 

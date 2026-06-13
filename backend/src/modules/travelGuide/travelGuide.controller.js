@@ -4,6 +4,7 @@
  */
 const catchAsync = require('../../utils/catchAsync');
 const { sendSuccess } = require('../../utils/apiResponse');
+const ensureApiResult = require('../../utils/ensureApiResult');
 const travelGuideService = require('./travelGuide.service');
 const getDestinations = catchAsync(async (req, res) => {
   const guide = await travelGuideService.getDestinationList({
@@ -16,7 +17,9 @@ const getDestinations = catchAsync(async (req, res) => {
     search: req.query.search,
   });
 
-  sendSuccess(res, 200, { guide });
+  sendSuccess(res, 200, { guide: ensureApiResult(guide, {
+    noResultsMessage: 'No travel guide destinations found.',
+  }) });
 });
 const getCountries = catchAsync(async (req, res) => {
   const countries = await travelGuideService.getCountryList({
@@ -28,7 +31,9 @@ const getCountries = catchAsync(async (req, res) => {
     search: req.query.search,
   });
 
-  sendSuccess(res, 200, { countries });
+  sendSuccess(res, 200, { countries: ensureApiResult(countries, {
+    noResultsMessage: 'No countries found.',
+  }) });
 });
 const getDestinationDetails = catchAsync(async (req, res) => {
   const guide = await travelGuideService.getDestinationDetails({

@@ -44,6 +44,14 @@ router.use(protect, restrictTo('admin'));
  *         schema:
  *           type: string
  *       - in: query
+ *         name: errorCode
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: requestId
+ *         schema:
+ *           type: string
+ *       - in: query
  *         name: page
  *         schema:
  *           type: integer
@@ -94,6 +102,14 @@ router.get('/', listLogRules, validate, apiLogController.getLogs);
  *           enum: [info, warning, error, critical]
  *       - in: query
  *         name: service
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: errorCode
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: requestId
  *         schema:
  *           type: string
  *       - in: query

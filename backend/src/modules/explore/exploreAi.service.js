@@ -1,11 +1,12 @@
 /**
- * Explore module.
- * Business rules, repository access, and external integrations live in this layer.
+ * AI recommendation service for Explore results.
+ * Uses Groq when available and deterministic local ranking as a fallback.
  */
 const axios = require('axios');
 const env = require('../../config/env');
 const logger = require('../../utils/logger');
 const apiLogService = require('../apiLogs/apiLog.service');
+const { classifyExternalApiError } = require('../../utils/externalApiError');
 
 const aiCache = new Map();
 const CACHE_TTL_MS = 30 * 60 * 1000;
@@ -72,7 +73,7 @@ const consumeDailyQuota = () => {
   dailyUsage.count += 1;
   return true;
 };
-const recordAiFailure = (message, statusCode, metadata = {}) =>
+const recordAiFailure = (message, statusCode, metadata = {}, errorCode) =>
   env.nodeEnv === 'test'
     ? Promise.resolve()
     : apiLogService
@@ -83,28 +84,21 @@ const recordAiFailure = (message, statusCode, metadata = {}) =>
           endpoint: 'explore/ai-recommendations',
           status: 'fail',
           statusCode,
+          errorCode,
           message,
           metadata,
         })
         .catch((error) => logger.error(`Failed to record AI recommendation event: ${error.message}`));
 const classifyAiError = (error) => {
-  if (error.isDailyLimit) {
-    return { message: 'Daily AI recommendation limit reached. Please try again tomorrow.', statusCode: 429 };
-  }
-  if (error.response?.status === 401 || error.response?.status === 403) {
-    return { message: 'AI recommendations are temporarily unavailable.', statusCode: 502 };
-  }
-  if (error.response?.status === 429) {
-    return { message: 'AI recommendations are busy right now. Please try again later.', statusCode: 429 };
-  }
-  if (error.code === 'ECONNABORTED') {
-    return { message: 'AI recommendations took too long. Please try again.', statusCode: 503 };
-  }
-  if (!error.response) {
-    return { message: 'AI recommendations could not be reached. Please try again.', statusCode: 503 };
-  }
-
-  return { message: 'AI recommendations are temporarily unavailable.', statusCode: error.response.status || 503 };
+  return classifyExternalApiError(error, {
+    invalidApiKeyMessage: 'AI recommendation API key is invalid or unauthorized.',
+    networkMessage: 'AI recommendations could not be reached. Please try again.',
+    rateLimitMessage: error.isDailyLimit
+      ? 'Daily AI recommendation limit reached. Please try again tomorrow.'
+      : 'AI recommendations are busy right now. Please try again later.',
+    timeoutMessage: 'AI recommendations took too long. Please try again.',
+    unavailableMessage: 'AI recommendations are temporarily unavailable.',
+  });
 };
 const getOpenNow = (item) => {
   const openState = String(item.openState || '').toLowerCase();
@@ -268,13 +262,24 @@ const normalizeAiResult = (result, items) => ({
   lastUpdated: new Date().toISOString(),
 });
 
+/**
+ * Builds destination recommendations from the current Explore view and result set.
+ * @param {object} input Destination, weather, view, and candidate item context.
+ * @returns {Promise<object>} AI-generated or locally ranked recommendations.
+ */
 const getAiRecommendations = async ({ view, destination, date, weather, items = [] }) => {
   const usableItems = items.slice(0, MAX_ITEMS_FOR_PROMPT);
   if (!usableItems.length) {
-    return fallbackAiRecommendations('Search results are needed before AI recommendations can be generated.', usableItems);
+    return {
+      ...fallbackAiRecommendations('Search results are needed before AI recommendations can be generated.', usableItems),
+      errorCode: 'NO_RESULTS_FOUND',
+    };
   }
   if (!env.geminiApiKey) {
-    return fallbackAiRecommendations('AI recommendations are not configured yet.', usableItems);
+    return {
+      ...fallbackAiRecommendations('AI recommendations are not configured yet.', usableItems),
+      errorCode: 'INVALID_API_KEY',
+    };
   }
 
   const cacheKey = JSON.stringify({
@@ -293,9 +298,9 @@ const getAiRecommendations = async ({ view, destination, date, weather, items = 
   if (!consumeDailyQuota()) {
     const error = new Error('Daily AI recommendation limit reached. Please try again tomorrow.');
     error.isDailyLimit = true;
-    const { message, statusCode } = classifyAiError(error);
-    recordAiFailure(message, statusCode, { view, destination });
-    return fallbackAiRecommendations(message, usableItems);
+    const { errorCode, message, statusCode } = classifyAiError(error);
+    recordAiFailure(message, statusCode, { view, destination }, errorCode);
+    return { ...fallbackAiRecommendations(message, usableItems), errorCode };
   }
   try {
     const response = await axios.post(
@@ -326,9 +331,9 @@ const getAiRecommendations = async ({ view, destination, date, weather, items = 
     aiCache.set(cacheKey, { data: aiRecommendations, createdAt: Date.now() });
     return aiRecommendations;
   } catch (error) {
-    const { message, statusCode } = classifyAiError(error);
-    recordAiFailure(message, statusCode, { view, destination });
-    return buildLocalRecommendations({ message, view, items: usableItems });
+    const { errorCode, message, statusCode } = classifyAiError(error);
+    recordAiFailure(message, statusCode, { view, destination }, errorCode);
+    return { ...buildLocalRecommendations({ message, view, items: usableItems }), errorCode };
   }
 };
 

@@ -15,6 +15,7 @@ import {
 import {
   defaultPackingCategory,
 } from './travelTools.constants';
+import { getApiErrorMessage } from '../../utils/apiError';
 export const emptyItemForm = {
   name: '',
   category: defaultPackingCategory,
@@ -26,7 +27,7 @@ export const emptyFilters = {
   packed: '',
 };
 export const getErrorMessage = (error) =>
-  error.response?.data?.message || 'Unable to update packing lists right now.';
+  getApiErrorMessage(error, 'Unable to update packing lists right now.');
 // Normalize Name prepares incoming data for consistent storage.
 export const normalizeName = (value = '') => value.trim().replace(/\s+/g, ' ').toLowerCase();
 

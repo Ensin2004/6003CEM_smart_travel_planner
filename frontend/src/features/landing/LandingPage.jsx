@@ -12,9 +12,9 @@ import {
   ListChecks,
   Lock,
   MapPinned,
+  Plane,
   ShieldCheck,
   Sparkles,
-  Users,
   WalletCards,
 } from 'lucide-react';
 import { useEffect } from 'react';
@@ -27,37 +27,37 @@ import logo from '../../assets/logo.png';
 import './LandingPage.css';
 
 const highlights = [
-  [CloudSun, 'Live destination insight', 'See weather and travel context beside each saved trip.'],
-  [ListChecks, 'Everything in one place', 'Keep notes, budgets, checklists, and preferences together.'],
-  [Sparkles, 'Built for real planning', 'Move from idea to itinerary without scattering details across apps.'],
+  [CloudSun, 'Plan Destinations', 'See weather guidance and place suggestions while building each trip.'],
+  [ListChecks, 'Practical travel tools', 'Prepare packing lists and travel document checklists in your account.'],
+  [Sparkles, 'AI-assistance', 'Ask AI for trip ideas, local insights and help comparing search results.'],
 ];
 
 const features = [
-  [CalendarDays, 'Trip planner', 'Save destinations, dates, notes, travel style, and trip status in a clear workspace.'],
-  [CloudSun, 'Weather preview', 'Check destination conditions before you decide what to pack or schedule.'],
-  [MapPinned, 'Attractions', 'Discover nearby places and keep interesting stops close to your itinerary.'],
-  [MapPinned, 'Map', 'View saved places and trip stops together on an interactive map.'],
-  [ListChecks, 'Travel checklist', 'Prepare documents, packing items, bookings, and culture reminders before departure.'],
-  [Heart, 'Favourites', 'Save destinations and ideas you want to return to later.'],
+  [Plane, 'Multi-destination trips', 'Create trips with dates, multiple destinations and a total budget.'],
+  [CalendarDays, 'Day-by-day itinerary', 'Plan activities, food, stays and transportation for each day of a trip.'],
+  [Compass, 'Explore', 'Search attractions, restaurants, hotels and transport with filters and AI insights.'],
+  [MapPinned, 'Map and routes', 'Find places on an interactive map and compare available travel modes and route details.'],
+  [Heart, 'Saved and visited places', 'Keep favourites, mark places as visited and compare options across the planner.'],
+  [ListChecks, 'Travel preparation', 'Use weather guidance, packing lists, travel documents, destination guides and language help.'],
 ];
 
 const workflow = [
-  [MapPinned, 'Choose a destination', 'Start with the place you want to visit and the dates you have in mind.'],
-  [ListChecks, 'Add your plans', 'Attach notes, checklist items, budget details, and the kind of trip you prefer.'],
-  [CheckCircle2, 'Review the full picture', 'See your saved plan together with weather, attractions, and useful reminders.'],
+  [MapPinned, 'Create a trip', 'Choose one or more destinations, set exact or flexible dates, and enter your budget.'],
+  [ListChecks, 'Build the itinerary', 'Add places and plans to each day, then review route, weather, and budget details.'],
+  [CheckCircle2, 'Prepare to travel', 'Save favourites, track visited places, and complete packing and document lists.'],
 ];
 
 const securityItems = [
-  [Lock, 'Private travel space', 'Your trips and preferences are kept in your own account area.'],
+  [Lock, 'Private travel space', 'Your trips, itineraries, lists, and saved places stay in your account area.'],
   [ShieldCheck, 'Clear access control', 'Regular users and administrators see different tools based on their role.'],
   [CheckCircle2, 'Responsible handling', 'The app is designed to avoid exposing sensitive information on public pages.'],
 ];
 
 const travellerTypes = [
-  [CalendarDays, 'Weekend planners', 'Quickly compare weather, notes, and must-see stops for short breaks.'],
-  [WalletCards, 'Budget travellers', 'Keep planned costs visible while building the trip.'],
-  [Compass, 'Culture seekers', 'Add customs, food ideas, etiquette notes, and meaningful local experiences.'],
-  [Users, 'Group organizers', 'Prepare cleaner trip records for sharing during discussion and demos.'],
+  [CalendarDays, 'Flexible dates', 'Plan with exact dates or choose a month and trip length when dates are not fixed.'],
+  [WalletCards, 'Track Budget', 'Set a trip budget and track planned daily and itinerary item costs.'],
+  [Compass, 'Explore Places', 'Research places, stays, food, transport, travel guides and local language resources.'],
+  [CheckCircle2, 'Prepared travellers', 'Keep packing and travel document records ready in one account.'],
 ];
 // LandingPage renders the main screen and handles nearby interactions.
 function LandingPage() {
@@ -113,20 +113,6 @@ function LandingPage() {
                 Sign Up
               </Link>
             </div>
-            <dl className="hero-metrics" aria-label="Travel planning highlights">
-              <div>
-                <dt>Trips</dt>
-                <dd>Organized</dd>
-              </div>
-              <div>
-                <dt>Weather</dt>
-                <dd>Previewed</dd>
-              </div>
-              <div>
-                <dt>Budget</dt>
-                <dd>Visible</dd>
-              </div>
-            </dl>
           </div>
 
           <div className="hero-preview" aria-label="Planner preview">
@@ -149,7 +135,7 @@ function LandingPage() {
               <article>
                 <CloudSun size={18} />
                 <span>Weather</span>
-                <strong>18 C clear</strong>
+                <strong>18 °C clear</strong>
               </article>
               <article>
                 <CreditCard size={18} />
@@ -158,13 +144,13 @@ function LandingPage() {
               </article>
               <article>
                 <Compass size={18} />
-                <span>Stops</span>
+                <span>Destinations</span>
                 <strong>8 saved</strong>
               </article>
               <article>
                 <ListChecks size={18} />
-                <span>Checklist</span>
-                <strong>12 tasks</strong>
+                <span>Itinerary</span>
+                <strong>12 plans</strong>
               </article>
             </div>
             <div className="preview-progress">
@@ -204,8 +190,8 @@ function LandingPage() {
             </p>
             <div className="section-points section-points-left" aria-label="Feature highlights">
               <span>Trip records</span>
-              <span>Weather context</span>
-              <span>Budget notes</span>
+              <span>Daily itinerary</span>
+              <span>Travel tools</span>
             </div>
           </div>
           <div className="section-visual feature-visual" aria-hidden="true">
@@ -222,9 +208,9 @@ function LandingPage() {
               </div>
             </div>
             <div className="visual-list">
-              <span><CloudSun size={16} /> Weather ready</span>
-              <span><WalletCards size={16} /> Budget visible</span>
-              <span><ListChecks size={16} /> Checklist synced</span>
+              <span><CloudSun size={16} /> Weather: Sunny</span>
+              <span><WalletCards size={16} /> Budget: $1,240.00</span>
+              <span><ListChecks size={16} /> Itinerary: 4 destinations</span>
             </div>
           </div>
         </div>
@@ -255,13 +241,13 @@ function LandingPage() {
             </p>
             <h2>From destination idea to organized travel plan.</h2>
             <p>
-              A simple flow helps travellers move from rough ideas to useful plans
-              without jumping between notes, weather pages, and budget lists.
+              Start with a trip record, turn it into a day-by-day itinerary, then use
+              the built-in discovery and preparation tools before departure.
             </p>
             <div className="section-points section-points-left" aria-label="Planning flow">
               <span>Choose</span>
+              <span>Plan</span>
               <span>Prepare</span>
-              <span>Review</span>
             </div>
           </div>
         </div>
@@ -287,7 +273,7 @@ function LandingPage() {
           </p>
           <h2>Designed so personal travel details stay personal.</h2>
           <p>
-            Travel plans can include dates, preferences, notes, and spending estimates.
+            Travel plans can include dates, destinations, itineraries and spending estimates.
             The app keeps that experience account-based and avoids showing private
             planning details on the public website.
           </p>
@@ -319,29 +305,29 @@ function LandingPage() {
         <div className="section-showcase section-showcase-travellers">
           <div className="section-heading section-heading-left">
             <p className="section-kicker section-kicker-dark">
-              <Users size={18} aria-hidden="true" />
+              <Compass size={18} aria-hidden="true" />
               For travellers
             </p>
-            <h2>Flexible enough for quick escapes and detailed itineraries.</h2>
+            <h2>Useful across different ways of planning a trip.</h2>
             <p>
-              Whether the trip is short, careful, cultural, or group-based, the
-              workspace keeps the planning details easy to understand.
+              The same workspace supports flexible dates, budget tracking, destination
+              research, detailed itineraries and pre-travel preparation.
             </p>
             <div className="section-points section-points-left section-points-dark" aria-label="Traveller types">
-              <span>Solo</span>
-              <span>Group</span>
+              <span>Flexible</span>
+              <span>Detailed</span>
               <span>Budget</span>
-              <span>Culture</span>
+              <span>Prepared</span>
             </div>
           </div>
           <div className="traveller-visual" aria-hidden="true">
-            <span>Planning styles</span>
-            <strong>4 traveller modes</strong>
+            <span>Planning support</span>
+            <strong>One connected workspace</strong>
             <div>
-              <small>Weekend</small>
+              <small>Flexible dates</small>
               <small>Budget</small>
-              <small>Culture</small>
-              <small>Group</small>
+              <small>Explore</small>
+              <small>Preparation</small>
             </div>
           </div>
         </div>

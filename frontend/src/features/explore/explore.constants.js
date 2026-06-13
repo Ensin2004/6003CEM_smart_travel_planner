@@ -2,86 +2,23 @@
  * Explore module.
  * Reusable labels, keys, and defaults stay centralized for feature code.
  */
-export const roomTypeOptions = [
-  { value: '', label: 'Any' },
-  { value: 'single room', label: 'Single' },
-  { value: 'double room', label: 'Double' },
-  { value: 'family room', label: 'Family' },
-  { value: 'suite', label: 'Suite' },
-];
-export const attractionCategoryOptions = [
-  { value: '', label: 'Any' },
-  { value: 'tourist attractions', label: 'Tourist attractions' },
-  { value: 'landmarks', label: 'Landmarks' },
-  { value: 'museums', label: 'Museums' },
-  { value: 'theme parks', label: 'Theme parks' },
-  { value: 'nature parks', label: 'Nature parks' },
-  { value: 'beaches', label: 'Beaches' },
-  { value: 'historical sites', label: 'Historical sites' },
-  { value: 'cultural attractions', label: 'Cultural attractions' },
-  { value: 'shopping malls', label: 'Shopping malls' },
-  { value: 'night markets', label: 'Night markets' },
-  { value: 'zoos aquariums', label: 'Zoos / Aquariums' },
-  { value: 'gardens', label: 'Gardens' },
-  { value: 'viewpoints', label: 'Viewpoints' },
-  { value: 'religious sites', label: 'Religious sites' },
-  { value: 'family attractions', label: 'Family attractions' },
-];
-export const foodCategoryOptions = [
-  { value: '', label: 'Any' },
-  { value: 'chinese cuisine', label: 'Chinese cuisine' },
-  { value: 'japanese cuisine', label: 'Japanese cuisine' },
-  { value: 'korean cuisine', label: 'Korean cuisine' },
-  { value: 'thai cuisine', label: 'Thai cuisine' },
-  { value: 'malay cuisine', label: 'Malay cuisine' },
-  { value: 'indian cuisine', label: 'Indian cuisine' },
-  { value: 'western cuisine', label: 'Western cuisine' },
-  { value: 'italian cuisine', label: 'Italian cuisine' },
-  { value: 'french cuisine', label: 'French cuisine' },
-  { value: 'mexican cuisine', label: 'Mexican cuisine' },
-  { value: 'middle eastern cuisine', label: 'Middle Eastern cuisine' },
-  { value: 'mediterranean cuisine', label: 'Mediterranean cuisine' },
-  { value: 'vietnamese cuisine', label: 'Vietnamese cuisine' },
-  { value: 'indonesian cuisine', label: 'Indonesian cuisine' },
-  { value: 'fusion', label: 'Fusion' },
-  { value: 'international', label: 'International' },
-  { value: 'breakfast', label: 'Breakfast' },
-  { value: 'brunch', label: 'Brunch' },
-  { value: 'lunch', label: 'Lunch' },
-  { value: 'dinner', label: 'Dinner' },
-  { value: 'supper', label: 'Supper' },
-  { value: 'dessert', label: 'Dessert' },
-  { value: 'snacks', label: 'Snacks' },
-  { value: 'drinks beverages', label: 'Drinks / Beverages' },
-  { value: 'coffee tea', label: 'Coffee / Tea' },
-  { value: 'fast food', label: 'Fast Food' },
-  { value: 'street food', label: 'Street Food' },
-  { value: 'seafood', label: 'Seafood' },
-  { value: 'bbq grill', label: 'BBQ / Grill' },
-  { value: 'hotpot steamboat', label: 'Hotpot / Steamboat' },
-  { value: 'buffet', label: 'Buffet' },
-  { value: 'fine dining', label: 'Fine Dining' },
-  { value: 'cafe', label: 'Cafe' },
-  { value: 'bakery', label: 'Bakery' },
-  { value: 'vegetarian', label: 'Vegetarian' },
-  { value: 'vegan', label: 'Vegan' },
-  { value: 'halal', label: 'Halal' },
-  { value: 'steakhouse', label: 'Steakhouse' },
-  { value: 'burger', label: 'Burger' },
-  { value: 'pizza', label: 'Pizza' },
-  { value: 'pasta', label: 'Pasta' },
-  { value: 'noodles', label: 'Noodles' },
-  { value: 'rice dishes', label: 'Rice Dishes' },
-  { value: 'sushi', label: 'Sushi' },
-  { value: 'ramen', label: 'Ramen' },
-  { value: 'dim sum', label: 'Dim Sum' },
-  { value: 'dessert shop', label: 'Dessert Shop' },
-  { value: 'ice cream', label: 'Ice Cream' },
-  { value: 'bubble tea', label: 'Bubble Tea' },
-  { value: 'gluten free', label: 'Gluten-Free' },
-  { value: 'dairy free', label: 'Dairy-Free' },
-  { value: 'nut free', label: 'Nut-Free' },
-  { value: 'keto', label: 'Keto' },
-  { value: 'low carb', label: 'Low Carb' },
-  { value: 'healthy food', label: 'Healthy Food' },
-];
+export const emptyCategoryOptions = {
+  hotel: [{ value: '', label: 'Any' }],
+  attraction: [{ value: '', label: 'Any' }],
+  food: [{ value: '', label: 'Any' }],
+};
+
+export const groupCategoryOptions = (categories = []) =>
+  categories.reduce(
+    (groups, category) => {
+      if (groups[category.type]) {
+        groups[category.type].push({ value: category.value, label: category.name });
+      }
+      return groups;
+    },
+    {
+      hotel: [...emptyCategoryOptions.hotel],
+      attraction: [...emptyCategoryOptions.attraction],
+      food: [...emptyCategoryOptions.food],
+    }
+  );

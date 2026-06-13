@@ -8,6 +8,7 @@ const AppError = require('../../utils/AppError');
 const logger = require('../../utils/logger');
 const apiLogService = require('../apiLogs/apiLog.service');
 const currencyRepository = require('./currency.repository');
+const { classifyExternalApiError } = require('../../utils/externalApiError');
 
 const FRANKFURTER_BASE_URL = 'https://api.frankfurter.app';
 const CACHE_TTL_MS = 60 * 60 * 1000;
@@ -37,7 +38,7 @@ const fallbackUsdRates = {
 };
 
 // Failed provider calls are logged for the admin API log view, but logging remains best-effort.
-const recordCurrencyFailure = (message, statusCode, metadata = {}) =>
+const recordCurrencyFailure = (message, statusCode, metadata = {}, errorCode) =>
   apiLogService
     .recordEvent({
       service: 'frankfurter',
@@ -46,11 +47,16 @@ const recordCurrencyFailure = (message, statusCode, metadata = {}) =>
       endpoint: 'currency/convert',
       status: 'fail',
       statusCode,
+      errorCode,
       message,
       metadata,
     })
     .catch((error) => logger.error(`Failed to record currency API event: ${error.message}`));
 
+/**
+ * Returns currencies enabled for conversion in the application repository.
+ * @returns {Promise<Array<object>>} Supported currency records.
+ */
 const getSupportedCurrencies = () => currencyRepository.findSupportedCurrencies();
 
 const getCachedRate = (from, to) => {
@@ -95,7 +101,7 @@ const getExchangeRate = async (from, to) => {
 
     const rate = response.data?.rates?.[to];
     if (!rate) {
-      throw new AppError('Currency rate is temporarily unavailable', 502);
+      throw new AppError('No currency rate was found for this conversion.', 404, 'NO_RESULTS_FOUND');
     }
 
     const exchangeRate = {
@@ -111,12 +117,12 @@ const getExchangeRate = async (from, to) => {
     return exchangeRate;
   } catch (error) {
     if (error instanceof AppError) {
-      recordCurrencyFailure(error.message, error.statusCode, { from, to });
+      recordCurrencyFailure(error.message, error.statusCode, { from, to }, error.code);
       throw error;
     }
     if (error.response?.status === 429) {
-      recordCurrencyFailure('Currency API rate limit reached', 429, { from, to });
-      throw new AppError('Currency conversion is busy. Please try again later.', 429);
+      recordCurrencyFailure('Currency API rate limit reached', 429, { from, to }, 'RATE_LIMIT_EXCEEDED');
+      throw new AppError('Currency conversion is busy. Please try again later.', 429, 'RATE_LIMIT_EXCEEDED');
     }
 
     const fromUsdRate = fallbackUsdRates[from];
@@ -124,7 +130,8 @@ const getExchangeRate = async (from, to) => {
 
     if (fromUsdRate && toUsdRate) {
       const fallbackRate = Number((toUsdRate / fromUsdRate).toFixed(8));
-      recordCurrencyFailure('Currency provider unavailable; approximate fallback rate used', 502, { from, to });
+      const failure = classifyExternalApiError(error);
+      recordCurrencyFailure('Currency provider unavailable; approximate fallback rate used', failure.statusCode, { from, to }, failure.errorCode);
       return {
         available: true,
         base: from,
@@ -136,12 +143,23 @@ const getExchangeRate = async (from, to) => {
       };
     }
 
-    const statusCode = error.response?.status >= 500 ? 503 : 502;
-    recordCurrencyFailure('Currency service temporarily unavailable', statusCode, { from, to });
-    throw new AppError('Currency conversion temporarily unavailable', statusCode);
+    const failure = classifyExternalApiError(error, {
+      invalidApiKeyMessage: 'Currency API credentials are invalid.',
+      networkMessage: 'Currency service could not be reached.',
+      rateLimitMessage: 'Currency API rate limit reached.',
+      timeoutMessage: 'Currency request timed out.',
+      unavailableMessage: 'Currency service temporarily unavailable.',
+    });
+    recordCurrencyFailure(failure.message, failure.statusCode, { from, to }, failure.errorCode);
+    throw new AppError(failure.message, failure.statusCode, failure.errorCode);
   }
 };
 
+/**
+ * Converts an amount using a live, cached, or approximate exchange rate.
+ * @param {{from: string, to: string, amount: number}} input Conversion request.
+ * @returns {Promise<object>} Rate metadata and the converted amount.
+ */
 const convertCurrency = async ({ from, to, amount }) => {
   const exchangeRate = await getExchangeRate(from, to);
   const convertedAmount = Number((amount * exchangeRate.rate).toFixed(2));
