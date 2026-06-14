@@ -12,6 +12,7 @@ const logger = require('../../utils/logger');
 const authRepository = require('./auth.repository');
 const apiLogService = require('../apiLogs/apiLog.service');
 const notificationService = require('../notifications/notification.service');
+const { emitAdminUserCreated } = require('../notifications/notification.socket');
 const { normalizePreferences } = require('../users/user.service');
 const { sendVerificationEmail } = require('../../utils/email.service');
 
@@ -134,6 +135,7 @@ const register = async (data) => {
     isEmailVerified: false,
   });
   const verificationExpiresAt = await sendUserVerificationEmail(user);
+  emitAdminUserCreated(user._id.toString());
   notificationService
     .notifyAdminsOfNewSignup(user)
     .catch((error) => logger.error(`Failed to notify admins about signup: ${error.message}`));

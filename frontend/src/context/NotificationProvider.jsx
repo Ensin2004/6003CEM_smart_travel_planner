@@ -1,7 +1,7 @@
 /**
  * Realtime notification provider with Socket.IO and Toastify.
  */
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { io } from 'socket.io-client';
 import { toast, ToastContainer } from 'react-toastify';
@@ -21,6 +21,9 @@ const NotificationContext = createContext({
   refreshNotifications: () => {},
   markAsRead: () => {},
   markAllAsRead: () => {},
+  subscribeToSettingsContent: () => () => {},
+  subscribeToFeedback: () => () => {},
+  subscribeToAdminUserCreated: () => () => {},
 });
 
 const adminNotificationTypes = new Set(['admin-rate-limit', 'admin-signup', 'admin-error-log', 'admin-login-lock']);
@@ -31,6 +34,9 @@ export function NotificationProvider({ children }) {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [sortOrder, setSortOrder] = useState('desc');
+  const settingsContentSubscribers = useRef(new Set());
+  const feedbackSubscribers = useRef(new Set());
+  const adminUserCreatedSubscribers = useRef(new Set());
 
   const refreshNotifications = useCallback(async (sort = sortOrder) => {
     if (!localStorage.getItem('accessToken')) return;
@@ -52,6 +58,21 @@ export function NotificationProvider({ children }) {
     const response = await markAllNotificationsRead();
     setNotifications((current) => current.map((notification) => ({ ...notification, isRead: true })));
     setUnreadCount(response.data.data.unreadCount || 0);
+  }, []);
+
+  const subscribeToSettingsContent = useCallback((listener) => {
+    settingsContentSubscribers.current.add(listener);
+    return () => settingsContentSubscribers.current.delete(listener);
+  }, []);
+
+  const subscribeToFeedback = useCallback((listener) => {
+    feedbackSubscribers.current.add(listener);
+    return () => feedbackSubscribers.current.delete(listener);
+  }, []);
+
+  const subscribeToAdminUserCreated = useCallback((listener) => {
+    adminUserCreatedSubscribers.current.add(listener);
+    return () => adminUserCreatedSubscribers.current.delete(listener);
   }, []);
 
   useEffect(() => {
@@ -95,6 +116,18 @@ export function NotificationProvider({ children }) {
       setUnreadCount(nextUnreadCount || 0);
     });
 
+    socket.on('settings:content-updated', ({ content }) => {
+      settingsContentSubscribers.current.forEach((listener) => listener(content));
+    });
+
+    socket.on('feedback:submitted', ({ feedback }) => {
+      feedbackSubscribers.current.forEach((listener) => listener(feedback));
+    });
+
+    socket.on('admin:user-created', ({ userId }) => {
+      adminUserCreatedSubscribers.current.forEach((listener) => listener(userId));
+    });
+
     return () => {
       socket.disconnect();
     };
@@ -108,9 +141,22 @@ export function NotificationProvider({ children }) {
       refreshNotifications,
       setSortOrder,
       sortOrder,
+      subscribeToAdminUserCreated,
+      subscribeToFeedback,
+      subscribeToSettingsContent,
       unreadCount,
     }),
-    [markAllAsRead, markAsRead, notifications, refreshNotifications, sortOrder, unreadCount]
+    [
+      markAllAsRead,
+      markAsRead,
+      notifications,
+      refreshNotifications,
+      sortOrder,
+      subscribeToAdminUserCreated,
+      subscribeToFeedback,
+      subscribeToSettingsContent,
+      unreadCount,
+    ]
   );
 
   return (
