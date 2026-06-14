@@ -21,6 +21,29 @@ const axiosClient = axios.create({
   baseURL,
   timeout: 30000,
 });
+
+const redactSensitiveFields = (value) => {
+  if (!value || typeof value !== 'object') return value;
+
+  const sensitiveFields = new Set([
+    'accessToken',
+    'authorization',
+    'confirmPassword',
+    'currentPassword',
+    'newPassword',
+    'password',
+    'refreshToken',
+    'token',
+  ]);
+
+  return Object.fromEntries(
+    Object.entries(value).map(([key, item]) => [
+      key,
+      sensitiveFields.has(key) ? '[REDACTED]' : item,
+    ])
+  );
+};
+
 const clearSessionAndRedirect = () => {
   localStorage.removeItem('accessToken');
   localStorage.removeItem('refreshToken');
@@ -35,15 +58,47 @@ axiosClient.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
+  if (import.meta.env.DEV) {
+    const method = config.method?.toUpperCase() || 'REQUEST';
+    const url = `${config.baseURL || ''}${config.url || ''}`;
+
+    console.groupCollapsed(`[API Request] ${method} ${url}`);
+    if (config.params) console.log('Query parameters:', redactSensitiveFields(config.params));
+    if (config.data) console.log('JSON body:', redactSensitiveFields(config.data));
+    console.groupEnd();
+  }
+
   return config;
 });
 
 axiosClient.interceptors.response.use(
-  (response) => response,
+  (response) => {
+    if (import.meta.env.DEV) {
+      const method = response.config?.method?.toUpperCase() || 'REQUEST';
+      const url = `${response.config?.baseURL || ''}${response.config?.url || ''}`;
+
+      console.groupCollapsed(`[API] ${method} ${url} - ${response.status}`);
+      console.log('JSON response:', response.data);
+      console.groupEnd();
+    }
+
+    return response;
+  },
   async (error) => {
     const originalRequest = error.config;
     const refreshToken = localStorage.getItem('refreshToken');
     const requestUrl = originalRequest?.url || '';
+
+    if (import.meta.env.DEV && error.response) {
+      const method = originalRequest?.method?.toUpperCase() || 'REQUEST';
+      const url = `${originalRequest?.baseURL || ''}${requestUrl}`;
+
+      console.groupCollapsed(`[API Error] ${method} ${url} - ${error.response.status}`);
+      console.log('JSON response:', error.response.data);
+      console.groupEnd();
+    }
+
     const isAuthFormRequest = [
       '/auth/login',
       '/auth/register',

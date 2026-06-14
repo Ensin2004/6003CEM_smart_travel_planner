@@ -33,6 +33,7 @@ app.use('/api/v1/auth', authRateLimit);
 
 setupSwagger(app);
 
+// Give the deployment URL a useful response when opened directly in a browser.
 app.get('/', (req, res) => {
   res.status(200).json({
     status: 'success',

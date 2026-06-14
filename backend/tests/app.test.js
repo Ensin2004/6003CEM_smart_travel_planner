@@ -10,6 +10,16 @@ describe('application routes', () => {
   });
 
   it('reports API and database health information', async () => {
+    expect(response.body).toEqual({
+      status: 'success',
+      message: 'Smart Travel Planner API',
+      health: '/health',
+      documentation: '/api-docs',
+      apiBaseUrl: '/api/v1',
+    });
+  });
+
+  it('reports a healthy API', async () => {
     const response = await request(app).get('/health');
 
     expect(response.status).toBe(200);
