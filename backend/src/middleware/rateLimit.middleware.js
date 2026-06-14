@@ -47,7 +47,7 @@ const authRateLimit = rateLimit({
 // Search and guide endpoints use a broader limit to protect paid or quota-based travel APIs.
 const thirdPartyApiRateLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 150,
+  max: 200,
   standardHeaders: true,
   legacyHeaders: false,
   handler: rateLimitHandler('Too many travel data requests. Please try again later.'),

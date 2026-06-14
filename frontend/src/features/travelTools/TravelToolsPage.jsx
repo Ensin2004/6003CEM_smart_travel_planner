@@ -255,6 +255,10 @@ function PackingListTools() {
     trips,
   } = useTravelToolsPage();
 
+  const activeTrips = useMemo(
+    () => trips.filter((trip) => trip.status === 'active'),
+    [trips]
+  );
   const linkedTrip = selectedList?.tripId
     ? trips.find((trip) => String(trip._id) === String(selectedList.tripId))
     : null;
@@ -445,7 +449,7 @@ function PackingListTools() {
                 }}
               >
                 <option value="">None</option>
-                {trips.map((trip) => {
+                {activeTrips.map((trip) => {
                   const isUnavailable = isTripLinkedToOtherPackingList(trip._id);
                   return (
                     <option key={trip._id} value={trip._id} disabled={isUnavailable}>
@@ -644,7 +648,7 @@ function PackingListTools() {
                       onChange={(event) => setCreateForm((current) => ({ ...current, tripId: event.target.value }))}
                     >
                       <option value="">None</option>
-                      {trips.map((trip) => {
+                      {activeTrips.map((trip) => {
                         const isUnavailable = isTripLinkedToOtherPackingList(trip._id);
                         return (
                           <option key={trip._id} value={trip._id} disabled={isUnavailable}>
@@ -960,7 +964,7 @@ function PackingListTools() {
               Linked trip
               <select value={listTripDraft} onChange={(event) => setListTripDraft(event.target.value)}>
                 <option value="">None</option>
-                {trips.map((trip) => {
+                {activeTrips.map((trip) => {
                   const isUnavailable = isTripLinkedToOtherPackingList(trip._id, selectedList._id);
                   return (
                     <option key={trip._id} value={trip._id} disabled={isUnavailable}>
@@ -1170,6 +1174,10 @@ function TravelDocumentTools() {
   const selectedDocument = useMemo(
     () => documents.find((document) => document.id === selectedDocumentId) || documents[0],
     [documents, selectedDocumentId]
+  );
+  const activeTrips = useMemo(
+    () => trips.filter((trip) => trip.status === 'active'),
+    [trips]
   );
   const selectedDocumentTrip = selectedDocument?.tripId
     ? trips.find((trip) => String(trip._id) === String(selectedDocument.tripId))
@@ -1784,7 +1792,7 @@ function TravelDocumentTools() {
                   onChange={(event) => setCreateForm((current) => ({ ...current, tripId: event.target.value }))}
                 >
                   <option value="">None</option>
-                  {trips.map((trip) => {
+                  {activeTrips.map((trip) => {
                     const isUnavailable = isTripLinkedToOtherDocument(trip._id);
                     return (
                       <option key={trip._id} value={trip._id} disabled={isUnavailable}>
@@ -1976,7 +1984,7 @@ function TravelDocumentTools() {
                       onChange={(event) => setCreateForm((current) => ({ ...current, tripId: event.target.value }))}
                     >
                       <option value="">None</option>
-                      {trips.map((trip) => {
+                      {activeTrips.map((trip) => {
                         const isUnavailable = isTripLinkedToOtherDocument(trip._id);
                         return (
                           <option key={trip._id} value={trip._id} disabled={isUnavailable}>
@@ -2265,7 +2273,7 @@ function TravelDocumentTools() {
               Linked trip
               <select value={documentTripDraft} onChange={(event) => setDocumentTripDraft(event.target.value)}>
                 <option value="">None</option>
-                {trips.map((trip) => {
+                {activeTrips.map((trip) => {
                   const isUnavailable = isTripLinkedToOtherDocument(trip._id, selectedDocument.id);
                   return (
                     <option key={trip._id} value={trip._id} disabled={isUnavailable}>

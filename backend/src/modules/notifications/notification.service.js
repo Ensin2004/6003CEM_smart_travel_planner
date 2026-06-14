@@ -6,6 +6,7 @@ const logger = require('../../utils/logger');
 const AppError = require('../../utils/AppError');
 const { sendNotificationEmail } = require('../../utils/email.service');
 const userRepository = require('../users/user.repository');
+const { packingListRepository } = require('../travelTools/travelTools.repository');
 const notificationRepository = require('./notification.repository');
 const { emitNotification, emitUnreadCount } = require('./notification.socket');
 
@@ -30,12 +31,46 @@ const isNotificationAllowed = (user, type) => {
 
 const dispatchNotification = async (notification) => {
   const user = await userRepository.findById(notification.userId);
-  if (!user) return notification;
+  if (!user) {
+    await notificationRepository.deleteById(notification._id);
+    return null;
+  }
 
   if (!isNotificationAllowed(user, notification.type)) {
-    notification.sentAt = new Date();
-    await notificationRepository.save(notification);
-    return notification;
+    await notificationRepository.deleteById(notification._id);
+    return null;
+  }
+
+  if (notification.type === 'packing-list') {
+    const packingListId = notification.metadata?.packingListId;
+    const packingList = packingListId
+      ? await packingListRepository.findByIdAndUserId(packingListId, notification.userId)
+      : null;
+    const hasUnpackedItems = packingList?.items?.some((item) => !item.isPacked);
+    const expectedScheduledAt = packingList?.tripStartDate
+      ? new Date(packingList.tripStartDate)
+      : null;
+    if (expectedScheduledAt) {
+      expectedScheduledAt.setDate(
+        expectedScheduledAt.getDate() - (packingList.reminder?.daysBeforeTrip ?? 2)
+      );
+    }
+    const hasCurrentSchedule =
+      expectedScheduledAt &&
+      notification.scheduledAt &&
+      expectedScheduledAt.getTime() === new Date(notification.scheduledAt).getTime();
+
+    if (
+      !packingList ||
+      !packingList.tripId ||
+      !packingList.tripStartDate ||
+      packingList.reminder?.enabled === false ||
+      !hasUnpackedItems ||
+      !hasCurrentSchedule
+    ) {
+      await notificationRepository.deleteById(notification._id);
+      return null;
+    }
   }
 
   notification.sentAt = new Date();
@@ -177,11 +212,25 @@ const scheduleTripReminder = async (trip) => {
   });
 };
 
-const notifyPackingList = (packingList) => {
+const schedulePackingListReminder = async (packingList) => {
+  if (!packingList?._id || !packingList?.userId) return null;
+
+  await notificationRepository.deletePendingPackingListReminder(packingList._id, packingList.userId);
+
   const unpackedCount = packingList.items?.filter((item) => !item.isPacked).length || 0;
-  if (!unpackedCount) return null;
+  if (
+    !packingList.tripId ||
+    !packingList.tripStartDate ||
+    packingList.reminder?.enabled === false ||
+    !unpackedCount
+  ) {
+    return null;
+  }
 
   const tripDestination = packingList.destination || 'your destination';
+  const daysBeforeTrip = packingList.reminder?.daysBeforeTrip ?? 2;
+  const scheduledAt = new Date(packingList.tripStartDate);
+  scheduledAt.setDate(scheduledAt.getDate() - daysBeforeTrip);
 
   return createNotification({
     userId: packingList.userId,
@@ -189,8 +238,36 @@ const notifyPackingList = (packingList) => {
     type: 'packing-list',
     title: 'Packing List Reminder',
     message: `There are still unpacked items in your packing list ${packingList.title}, please check your items before the trip to ${tripDestination}.`,
+    scheduledAt,
     metadata: { url: '/packing-lists', packingListId: packingList._id },
   });
+};
+
+const cancelPackingListReminder = (packingList) => {
+  if (!packingList?._id || !packingList?.userId) return null;
+  return notificationRepository.deletePendingPackingListReminder(packingList._id, packingList.userId);
+};
+
+const reschedulePackingListRemindersForTrip = async (trip) => {
+  if (!trip?._id || !trip?.userId) return [];
+
+  const packingLists = await packingListRepository.findByTripIdAndUserId(trip._id, trip.userId);
+  return Promise.all(
+    packingLists.map(async (packingList) => {
+      packingList.destination = trip.destination;
+      packingList.tripStartDate = trip.startDate;
+      packingList.tripEndDate = trip.endDate;
+      const savedPackingList = await packingListRepository.save(packingList);
+      return schedulePackingListReminder(savedPackingList);
+    })
+  );
+};
+
+const cancelPackingListRemindersForTrip = async (trip) => {
+  if (!trip?._id || !trip?.userId) return [];
+
+  const packingLists = await packingListRepository.findByTripIdAndUserId(trip._id, trip.userId);
+  return Promise.all(packingLists.map((packingList) => cancelPackingListReminder(packingList)));
 };
 
 const listNotifications = async (userId, sort = 'desc') => {
@@ -233,7 +310,11 @@ module.exports = {
   markNotificationRead,
   notifyAdminsOfApiLog,
   notifyAdminsOfNewSignup,
-  notifyPackingList,
+  cancelPackingListReminder,
+  cancelPackingListRemindersForTrip,
+  processDueNotifications,
+  reschedulePackingListRemindersForTrip,
+  schedulePackingListReminder,
   scheduleTripReminder,
   startNotificationWorker,
 };

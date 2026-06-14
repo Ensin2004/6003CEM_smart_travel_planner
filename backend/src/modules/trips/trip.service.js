@@ -166,13 +166,17 @@ const updateTrip = async (tripId, userId, data) => {
 
   const trip = await tripRepository.updateByIdAndUserId(tripId, userId, payload);
   if (!trip) throw new AppError('Trip not found', 404);
-  await notificationService.scheduleTripReminder(trip);
+  await Promise.all([
+    notificationService.scheduleTripReminder(trip),
+    notificationService.reschedulePackingListRemindersForTrip(trip),
+  ]);
   return trip;
 };
 
 const deleteTrip = async (tripId, userId) => {
   const trip = await tripRepository.deleteByIdAndUserId(tripId, userId);
   if (!trip) throw new AppError('Trip not found', 404);
+  await notificationService.cancelPackingListRemindersForTrip(trip);
 };
 
 const getTripSummary = async (tripId, userId) => {
