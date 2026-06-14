@@ -7,7 +7,24 @@ const dns = require('dns');
 const mongoose = require('mongoose');
 const env = require('./env');
 
+let connectionPromise;
+
 const connectDatabase = async () => {
+  if (mongoose.connection.readyState === 1) {
+    return mongoose.connection;
+  }
+
+  if (!env.mongoUri) {
+    const error = new Error('MONGODB_URI is not configured');
+    error.statusCode = 503;
+    error.code = 'DATABASE_NOT_CONFIGURED';
+    throw error;
+  }
+
+  if (connectionPromise) {
+    return connectionPromise;
+  }
+
   // Strict query mode prevents accidental filtering by fields missing from schemas.
   mongoose.set('strictQuery', true);
 
@@ -16,8 +33,18 @@ const connectDatabase = async () => {
     dns.setServers(env.mongoDnsServers);
   }
 
-  await mongoose.connect(env.mongoUri);
-  console.log('MongoDB connected');
+  connectionPromise = mongoose
+    .connect(env.mongoUri, { serverSelectionTimeoutMS: 10000 })
+    .then(() => {
+      console.log('MongoDB connected');
+      return mongoose.connection;
+    })
+    .catch((error) => {
+      connectionPromise = undefined;
+      throw error;
+    });
+
+  return connectionPromise;
 };
 
 module.exports = connectDatabase;

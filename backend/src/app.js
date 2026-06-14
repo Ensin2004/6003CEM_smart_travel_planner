@@ -5,14 +5,17 @@
  */
 const express = require('express');
 const cors = require('cors');
+const mongoose = require('mongoose');
 
 const corsOptions = require('./config/cors');
 const securityHeaders = require('./config/security');
+const env = require('./config/env');
 const setupSwagger = require('./config/swagger');
 const v1Routes = require('./routes/v1.routes');
 const notFound = require('./middleware/notFound.middleware');
 const errorHandler = require('./middleware/error.middleware');
 const requestContext = require('./middleware/requestContext.middleware');
+const ensureDatabaseConnection = require('./middleware/database.middleware');
 const { authRateLimit } = require('./middleware/rateLimit.middleware');
 
 const app = express();
@@ -30,14 +33,32 @@ app.use('/api/v1/auth', authRateLimit);
 
 setupSwagger(app);
 
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'success',
+    message: 'Smart Travel Planner API',
+    health: '/health',
+    documentation: '/api-docs',
+    apiBaseUrl: '/api/v1',
+  });
+});
+
 // Health check stays outside the versioned router so uptime monitors can call a simple endpoint.
 app.get('/health', (req, res) => {
   res.status(200).json({
     status: 'success',
     message: 'Smart Travel Planner API is healthy',
+    database: {
+      configured: Boolean(env.mongoUri),
+      state: ['disconnected', 'connected', 'connecting', 'disconnecting'][
+        mongoose.connection.readyState
+      ] || 'unknown',
+    },
   });
 });
 
+// Vercel may load the Express app without running the local server entrypoint.
+app.use('/api/v1', ensureDatabaseConnection);
 app.use('/api/v1', v1Routes);
 
 // The not-found handler must run after all valid routes have had a chance to match.
