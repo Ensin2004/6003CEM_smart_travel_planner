@@ -50,7 +50,7 @@ const buildDefaultDays = (trip, savedDays = []) => {
       },
       notes: '',
       budget: {
-        amount: trip.budget?.dailyLimit || 0,
+        amount: 0,
         currency: trip.budget?.currency || 'MYR',
       },
     };

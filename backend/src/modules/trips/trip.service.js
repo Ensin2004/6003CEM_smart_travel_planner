@@ -24,7 +24,6 @@ const normalizeTripPayload = (data = {}) => {
     payload.budget = {
       ...payload.budget,
       totalAmount: Number(payload.budget.totalAmount) || 0,
-      dailyLimit: Number(payload.budget.dailyLimit) || 0,
       currency: (payload.budget.currency || 'MYR').toString().trim().toUpperCase(),
     };
   }

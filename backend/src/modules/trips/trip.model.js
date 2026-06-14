@@ -21,7 +21,6 @@ const budgetSchema = new mongoose.Schema(
   {
     totalAmount: { type: Number, min: 0, default: 0 },
     currency: { type: String, trim: true, uppercase: true, default: 'MYR' },
-    dailyLimit: { type: Number, min: 0, default: 0 },
   },
   { _id: false }
 );
@@ -92,7 +91,6 @@ const tripSchema = new mongoose.Schema(
     startDate: { type: Date, required: true },
     endDate: { type: Date, required: true },
     budget: { type: budgetSchema, default: () => ({}) },
-    planningMode: { type: String, enum: ['self', 'ai'], default: 'self' },
     travelPreferences: { type: travelPreferenceSchema, default: () => ({}) },
     destinationSegments: { type: [destinationSegmentSchema], default: [] },
     documentChecklist: { type: documentChecklistSchema, default: () => ({}) },
