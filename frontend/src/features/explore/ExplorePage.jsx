@@ -25,6 +25,7 @@ import { getFavorites } from '../../api/favoriteApi';
 import { getReverseGeocodeLocation } from '../../api/mapApi';
 import { getCategories } from '../../api/categoryApi';
 import CurrencyContext from '../../context/currencyContext';
+import useNotifications from '../../hooks/useNotifications';
 import { emptyCategoryOptions, groupCategoryOptions } from './explore.constants';
 import { formatMoney, getDateKey, getErrorMessage, getPriceConversionKey } from './explore.helpers';
 import AttractionsSubmenu from './submenus/Attractions';
@@ -58,6 +59,7 @@ function ExplorePage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const currency = useContext(CurrencyContext);
+  const { subscribeToCategories } = useNotifications();
   const activeView = searchParams.get('view') || 'attractions';
   const destination = searchParams.get('q') || '';
   const restoredAttractionState = location.state?.attractionResults ? location.state : null;
@@ -225,23 +227,31 @@ function ExplorePage() {
   const selectedAttractionCategoryLabel =
     attractionCategoryOptions.find((option) => option.value === selectedAttractionCategory)?.label || 'Any';
 
+  const loadCategoryOptions = useCallback(async () => {
+    const response = await getCategories();
+    return groupCategoryOptions(response.data?.data?.categories || []);
+  }, []);
+
   useEffect(() => {
     let isActive = true;
 
-    getCategories()
-      .then((response) => {
-        if (isActive) {
-          setCategoryOptions(groupCategoryOptions(response.data?.data?.categories || []));
-        }
-      })
-      .catch(() => {
-        if (isActive) setCategoryOptions(emptyCategoryOptions);
-      });
+    const refreshCategoryOptions = async ({ resetOnError = false } = {}) => {
+      try {
+        const nextCategoryOptions = await loadCategoryOptions();
+        if (isActive) setCategoryOptions(nextCategoryOptions);
+      } catch {
+        if (isActive && resetOnError) setCategoryOptions(emptyCategoryOptions);
+      }
+    };
+
+    refreshCategoryOptions({ resetOnError: true });
+    const unsubscribe = subscribeToCategories(refreshCategoryOptions);
 
     return () => {
       isActive = false;
+      unsubscribe();
     };
-  }, []);
+  }, [loadCategoryOptions, subscribeToCategories]);
   const submittedSearchCriteria = isHotelsView
     ? hotelSearchCriteria
     : isFoodView

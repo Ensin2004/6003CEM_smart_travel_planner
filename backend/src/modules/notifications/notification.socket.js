@@ -62,6 +62,11 @@ const emitSettingsContentUpdated = (content) => {
   io.emit('settings:content-updated', { content });
 };
 
+const emitCategoriesUpdated = (action, category) => {
+  if (!io) return;
+  io.emit('categories:updated', { action, category });
+};
+
 const emitFeedbackSubmitted = (feedback) => {
   if (!io) return;
   io.to('role:admin').emit('feedback:submitted', { feedback });
@@ -74,6 +79,7 @@ const emitAdminUserCreated = (userId) => {
 
 module.exports = {
   emitAdminUserCreated,
+  emitCategoriesUpdated,
   emitFeedbackSubmitted,
   emitNotification,
   emitSettingsContentUpdated,

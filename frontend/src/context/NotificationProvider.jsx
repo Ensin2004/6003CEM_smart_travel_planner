@@ -21,6 +21,7 @@ const NotificationContext = createContext({
   refreshNotifications: () => {},
   markAsRead: () => {},
   markAllAsRead: () => {},
+  subscribeToCategories: () => () => {},
   subscribeToSettingsContent: () => () => {},
   subscribeToFeedback: () => () => {},
   subscribeToAdminUserCreated: () => () => {},
@@ -40,6 +41,7 @@ export function NotificationProvider({ children }) {
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [sortOrder, setSortOrder] = useState('desc');
+  const categorySubscribers = useRef(new Set());
   const settingsContentSubscribers = useRef(new Set());
   const feedbackSubscribers = useRef(new Set());
   const adminUserCreatedSubscribers = useRef(new Set());
@@ -69,6 +71,11 @@ export function NotificationProvider({ children }) {
   const subscribeToSettingsContent = useCallback((listener) => {
     settingsContentSubscribers.current.add(listener);
     return () => settingsContentSubscribers.current.delete(listener);
+  }, []);
+
+  const subscribeToCategories = useCallback((listener) => {
+    categorySubscribers.current.add(listener);
+    return () => categorySubscribers.current.delete(listener);
   }, []);
 
   const subscribeToFeedback = useCallback((listener) => {
@@ -126,6 +133,10 @@ export function NotificationProvider({ children }) {
       settingsContentSubscribers.current.forEach((listener) => listener(content));
     });
 
+    socket.on('categories:updated', ({ action, category }) => {
+      categorySubscribers.current.forEach((listener) => listener({ action, category }));
+    });
+
     socket.on('feedback:submitted', ({ feedback }) => {
       feedbackSubscribers.current.forEach((listener) => listener(feedback));
     });
@@ -148,6 +159,7 @@ export function NotificationProvider({ children }) {
       setSortOrder,
       sortOrder,
       subscribeToAdminUserCreated,
+      subscribeToCategories,
       subscribeToFeedback,
       subscribeToSettingsContent,
       unreadCount,
@@ -159,6 +171,7 @@ export function NotificationProvider({ children }) {
       refreshNotifications,
       sortOrder,
       subscribeToAdminUserCreated,
+      subscribeToCategories,
       subscribeToFeedback,
       subscribeToSettingsContent,
       unreadCount,
