@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getAdminUsers, removeAdminUser } from '../../api/adminUserApi';
+import useNotifications from '../../hooks/useNotifications';
 import { getApiErrorMessage } from '../../utils/apiError';
 import './ManageUsersPage.css';
 
@@ -49,6 +50,7 @@ const formatCategoryLabel = (category = 'none') =>
     .join(' ');
 // ManageUsersPage renders the main screen and handles nearby interactions.
 function ManageUsersPage() {
+  const { subscribeToAdminUserCreated } = useNotifications();
   const [users, setUsers] = useState([]);
   const [summary, setSummary] = useState({
     total: 0,
@@ -68,8 +70,8 @@ function ManageUsersPage() {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  const fetchUsers = useCallback(async ({ showSuccess = false } = {}) => {
-    setIsLoading(true);
+  const fetchUsers = useCallback(async ({ showSuccess = false, showLoading = true } = {}) => {
+    if (showLoading) setIsLoading(true);
     setError('');
     setSuccessMessage('');
     try {
@@ -83,7 +85,7 @@ function ManageUsersPage() {
     } catch (requestError) {
       setError(getErrorMessage(requestError));
     } finally {
-      setIsLoading(false);
+      if (showLoading) setIsLoading(false);
     }
   }, []);
   useEffect(() => {
@@ -93,6 +95,11 @@ function ManageUsersPage() {
     // Cleanup prevents state updates after component unmount.
     return () => window.clearTimeout(timeoutId);
   }, [fetchUsers]);
+  useEffect(() => {
+    return subscribeToAdminUserCreated(() => {
+      fetchUsers({ showLoading: false });
+    });
+  }, [fetchUsers, subscribeToAdminUserCreated]);
   const filteredUsers = useMemo(() => {
     const normalizedQuery = filters.query.trim().toLowerCase();
 

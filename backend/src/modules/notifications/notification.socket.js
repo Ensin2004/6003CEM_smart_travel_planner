@@ -29,6 +29,7 @@ const setupNotificationSocket = (server) => {
 
       const decoded = jwt.verify(token, env.jwtSecret);
       socket.userId = decoded.userId;
+      socket.userRole = decoded.role;
       return next();
     } catch (error) {
       return next(new Error('Invalid authentication token'));
@@ -37,6 +38,9 @@ const setupNotificationSocket = (server) => {
 
   io.on('connection', (socket) => {
     socket.join(`user:${socket.userId}`);
+    if (socket.userRole) {
+      socket.join(`role:${socket.userRole}`);
+    }
   });
 
   logger.info('Notification Socket.IO server ready');
@@ -53,8 +57,26 @@ const emitUnreadCount = (userId, unreadCount) => {
   io.to(`user:${userId}`).emit('notification:unread-count', { unreadCount });
 };
 
+const emitSettingsContentUpdated = (content) => {
+  if (!io) return;
+  io.emit('settings:content-updated', { content });
+};
+
+const emitFeedbackSubmitted = (feedback) => {
+  if (!io) return;
+  io.to('role:admin').emit('feedback:submitted', { feedback });
+};
+
+const emitAdminUserCreated = (userId) => {
+  if (!io) return;
+  io.to('role:admin').emit('admin:user-created', { userId });
+};
+
 module.exports = {
+  emitAdminUserCreated,
+  emitFeedbackSubmitted,
   emitNotification,
+  emitSettingsContentUpdated,
   emitUnreadCount,
   setupNotificationSocket,
 };

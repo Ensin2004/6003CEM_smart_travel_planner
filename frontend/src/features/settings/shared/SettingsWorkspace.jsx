@@ -9,6 +9,7 @@ import { getFeedback, submitFeedback } from '../../../api/feedbackApi';
 import { getSettingsContent, updateSettingsContent } from '../../../api/settingsApi';
 import { changeMyPassword, getMe, updateMe } from '../../../api/userApi';
 import AuthContext from '../../../context/authContext';
+import useNotifications from '../../../hooks/useNotifications';
 import { ageGroupOptions, countries, genderOptions, passwordRequirements } from '../../auth/auth.validation';
 import ContentSettings from './components/ContentSettings';
 import FaqSettings from './components/FaqSettings';
@@ -27,6 +28,7 @@ import './SettingsWorkspace.css';
 // SettingsWorkspace renders the main screen and handles nearby interactions.
 function SettingsWorkspace({ role }) {
   const { setUser } = useContext(AuthContext);
+  const { subscribeToFeedback, subscribeToSettingsContent } = useNotifications();
   const location = useLocation();
   const [profile, setProfile] = useState({
     name: '',
@@ -149,6 +151,21 @@ function SettingsWorkspace({ role }) {
 
     loadSettings();
   }, [isAdmin]);
+  useEffect(() => {
+    return subscribeToSettingsContent((nextContent) => {
+      setContent(nextContent);
+    });
+  }, [subscribeToSettingsContent]);
+  useEffect(() => {
+    if (!isAdmin) return undefined;
+
+    return subscribeToFeedback((nextFeedback) => {
+      setFeedbackEntries((current) => [
+        nextFeedback,
+        ...current.filter((entry) => entry._id !== nextFeedback._id),
+      ]);
+    });
+  }, [isAdmin, subscribeToFeedback]);
   const handleProfileChange = (event) => {
     const { name, value } = event.target;
     setProfile((current) => ({ ...current, [name]: value }));
