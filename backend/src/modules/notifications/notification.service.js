@@ -26,6 +26,7 @@ const isNotificationAllowed = (user, type) => {
   if (type === 'packing-list' && preferences.packingReminder === false) return false;
   if (['admin-rate-limit', 'admin-error-log', 'admin-login-lock'].includes(type) && preferences.errorLogs === false) return false;
   if (type === 'admin-signup' && preferences.systemAlerts === false) return false;
+  if (type === 'admin-feedback' && preferences.ratingFeedback === false) return false;
   return true;
 };
 
@@ -193,6 +194,19 @@ const notifyAdminsOfNewSignup = (user) =>
     },
   });
 
+const notifyAdminsOfNewFeedback = (feedback) =>
+  notifyAdmins({
+    type: 'admin-feedback',
+    title: 'New rating submitted',
+    message: `${feedback.userName} submitted a ${feedback.rating}-star rating${feedback.feedback ? ' with feedback' : ''}.`,
+    metadata: {
+      url: '/admin/settings?section=feedback',
+      feedbackId: feedback._id,
+      userId: feedback.userId,
+      rating: feedback.rating,
+    },
+  });
+
 const scheduleTripReminder = async (trip) => {
   if (!trip?.startDate || !trip?.userId) return null;
 
@@ -309,6 +323,7 @@ module.exports = {
   markAllNotificationsRead,
   markNotificationRead,
   notifyAdminsOfApiLog,
+  notifyAdminsOfNewFeedback,
   notifyAdminsOfNewSignup,
   cancelPackingListReminder,
   cancelPackingListRemindersForTrip,

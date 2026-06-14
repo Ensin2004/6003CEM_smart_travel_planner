@@ -18,6 +18,7 @@ const notificationSchema = new mongoose.Schema(
         'budget-alert',
         'admin-rate-limit',
         'admin-signup',
+        'admin-feedback',
         'admin-error-log',
         'admin-login-lock',
         'system',

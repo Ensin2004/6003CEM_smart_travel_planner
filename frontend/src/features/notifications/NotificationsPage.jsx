@@ -1,7 +1,7 @@
 /**
  * Notifications page.
  */
-import { Bell, CheckCheck, Clock3, Gauge, LockKeyhole, Luggage, Mail, Plane, ShieldAlert, UserPlus } from 'lucide-react';
+import { Bell, CheckCheck, Clock3, Gauge, LockKeyhole, Luggage, Mail, Plane, ShieldAlert, Star, UserPlus } from 'lucide-react';
 import { useContext, useMemo, useState } from 'react';
 import AuthContext from '../../context/authContext';
 import useNotifications from '../../hooks/useNotifications';
@@ -20,6 +20,7 @@ const getNotificationIcon = (type) => {
   if (type === 'trip-reminder') return Plane;
   if (type === 'admin-rate-limit') return Gauge;
   if (type === 'admin-signup') return UserPlus;
+  if (type === 'admin-feedback') return Star;
   if (type === 'admin-login-lock') return LockKeyhole;
   if (type === 'admin-error-log') return ShieldAlert;
   return Bell;
@@ -55,7 +56,7 @@ function NotificationsPage() {
           <h1>{isAdmin ? 'Admin Alerts' : 'Travel Alerts'}</h1>
           <p>
             {isAdmin
-              ? 'Review rate limits, new signups, and system log errors in one place.'
+              ? 'Review ratings, rate limits, new signups, and system log errors in one place.'
               : 'Review trip reminders, packing list updates, and account alerts in one place.'}
           </p>
         </div>
@@ -156,7 +157,7 @@ function NotificationsPage() {
         <div className="notifications-empty">
           <Bell size={26} aria-hidden="true" />
           <h2>No notifications yet</h2>
-          <p>{isAdmin ? 'Rate limits, signups, and log errors will appear here.' : 'Trip reminders and packing list alerts will appear here.'}</p>
+          <p>{isAdmin ? 'Ratings, rate limits, signups, and log errors will appear here.' : 'Trip reminders and packing list alerts will appear here.'}</p>
         </div>
       )}
     </section>
