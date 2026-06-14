@@ -43,7 +43,7 @@ const aggregateStatusCounts = async () => {
   // Count inactive trips (end date is before today)
   const [active, inactive] = await Promise.all([
     Trip.countDocuments({ endDate: { $gte: today } }),
-    Trip.countDocuments({ endDate: { $lt: today } }),
+    Trip.countDocuments({ endDate: { $lt: today } }),  // Count inactive trips (end date before today)
   ]);
 
   // Return array of status objects, filtering out any status with zero count
