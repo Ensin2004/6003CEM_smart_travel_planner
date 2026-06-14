@@ -2,12 +2,16 @@
  * Transportation module.
  * Assertions cover expected behavior, error handling, and response shape.
  */
+
+// Import HTTP testing utilities and the application instance
 const request = require('supertest');
 const app = require('../src/app');
-// Test group covers  behavior.
+
+// Test group covers authentication requirements for transportation endpoints.
 describe('Transportation routes', () => {
-  // Scenario verifies one expected outcome or error path.
+  // Scenario verifies that unauthenticated requests to flight lookup endpoint are rejected.
   test('requires authentication for flight lookup', async () => {
+    // Send GET request to flights endpoint without authentication header
     const response = await request(app)
       .get('/api/v1/transportation/flights')
       .query({
@@ -18,23 +22,29 @@ describe('Transportation routes', () => {
         departureDate: '2026-06-01',
       });
 
+    // Verify unauthorized status code is returned
     expect(response.statusCode).toBe(401);
+    // Verify response status indicates operation failure
     expect(response.body.status).toBe('fail');
   });
 });
-// Test group covers  behavior.
+
+// Test group covers flight search functionality using AirLabs API.
 describe('Transportation flight service', () => {
-  // Cleanup resets shared state after assertions.
+  // Cleanup resets shared state after assertions - clears module cache and mocks.
   afterEach(() => {
     jest.resetModules();
     jest.clearAllMocks();
   });
-  // Scenario verifies one expected outcome or error path.
+
+  // Scenario verifies that AirLabs route search normalizes airport, airline, and flight data.
   test('normalizes AirLabs route search using AirLabs airport and airline data', async () => {
     jest.resetModules();
 
+    // Create mock GET function with sequential responses for different AirLabs endpoints
     const get = jest
       .fn()
+      // First call: Search for departure airport (Miami)
       .mockResolvedValueOnce({
         data: {
           response: [
@@ -49,6 +59,7 @@ describe('Transportation flight service', () => {
           ],
         },
       })
+      // Second call: Search for arrival airport (San Francisco)
       .mockResolvedValueOnce({
         data: {
           response: [
@@ -63,6 +74,7 @@ describe('Transportation flight service', () => {
           ],
         },
       })
+      // Third call: Search for airline by name (American Airlines)
       .mockResolvedValueOnce({
         data: {
           response: [
@@ -71,12 +83,13 @@ describe('Transportation flight service', () => {
               iata_code: 'AA',
               icao_code: 'AAL',
               country_code: 'US',
-              is_scheduled: 1,
-              is_passenger: 1,
+              is_scheduled: 1,     // Scheduled airline flag
+              is_passenger: 1,      // Passenger airline flag
             },
           ],
         },
       })
+      // Fourth call: Search for flight schedules between MIA and SFO
       .mockResolvedValueOnce({
         data: {
           response: [
@@ -96,7 +109,7 @@ describe('Transportation flight service', () => {
               arr_terminal: '1',
               arr_gate: 'B24',
               arr_time: '2026-06-01 22:52',
-              duration: 359,
+              duration: 359,        // Duration in minutes (5h 59m)
               status: 'scheduled',
             },
             {
@@ -109,11 +122,12 @@ describe('Transportation flight service', () => {
               arr_iata: 'SFO',
               dep_time: '2026-06-01 13:00',
               arr_time: '2026-06-01 16:00',
-              status: 'landed',
+              status: 'landed',     // Already landed - should be filtered out
             },
           ],
         },
       })
+      // Fifth call: Get real-time flight status updates
       .mockResolvedValueOnce({
         data: {
           response: [
@@ -128,8 +142,8 @@ describe('Transportation flight service', () => {
               arr_icao: 'KSFO',
               airline_iata: 'AA',
               airline_icao: 'AAL',
-              status: 'en-route',
-              updated: 1780320000,
+              status: 'en-route',   // Real-time status
+              updated: 1780320000,   // Unix timestamp
             },
             {
               flag: 'US',
@@ -144,22 +158,27 @@ describe('Transportation flight service', () => {
         },
       });
 
+    // Mock axios with the GET function
     jest.doMock('axios', () => ({
       create: jest.fn(() => ({ get })),
     }));
+    // Mock environment with AirLabs API key
     jest.doMock('../src/config/env', () => ({
       nodeEnv: 'development',
       airlabsApiKey: 'test-key',
       airlabsDailyLimit: 100,
     }));
+    // Mock API log service
     jest.doMock('../src/modules/apiLogs/apiLog.service', () => ({
       recordEvent: jest.fn().mockResolvedValue({}),
     }));
+    // Mock repository to bypass cache
     jest.doMock('../src/modules/transportation/transportation.repository', () => ({
       findValidCache: jest.fn().mockResolvedValue(null),
       upsertCache: jest.fn().mockResolvedValue({}),
     }));
 
+    // Import service after mocks
     const transportationService = require('../src/modules/transportation/transportation.service');
     const result = await transportationService.getFlightsBySearch({
       airlineName: 'American Airlines',
@@ -170,22 +189,34 @@ describe('Transportation flight service', () => {
       departureDate: '2026-06-01',
     });
 
+    // Verify service indicates successful response
     expect(result.available).toBe(true);
+    // Verify airline name is correctly normalized
     expect(result.items[0].airline.name).toBe('American Airlines');
+    // Verify departure airport details
     expect(result.items[0].departure.airport.name).toBe('Miami International Airport');
+    // Verify arrival airport details
     expect(result.items[0].arrival.airport.name).toBe('San Francisco International Airport');
+    // Verify landed flights are filtered out (only scheduled/en-route returned)
     expect(result.items.every((item) => item.status !== 'landed')).toBe(true);
+    // Verify price estimate is available
     expect(result.items[0].priceEstimate.available).toBe(true);
+    // Verify price estimate uses fallback calculation (AI not called)
     expect(result.items[0].priceEstimate.isFallback).toBe(true);
+    // Verify price estimate has proper currency format (MYR)
     expect(result.items[0].priceEstimate.display).toMatch(/^MYR [\d,]+ - [\d,]+$/);
+    // Verify raw API response is not exposed to client
     expect(result).not.toHaveProperty('response');
   });
-  // Scenario verifies one expected outcome or error path.
+
+  // Scenario verifies that flight schedules are searched across country airports and filtered by date.
   test('searches schedules across country airport IATA codes and filters by dep_time date', async () => {
     jest.resetModules();
 
+    // Create mock GET function with responses for multiple Japanese airports and routes
     const get = jest
       .fn()
+      // First call: Get all airports in Japan
       .mockResolvedValueOnce({
         data: {
           response: [
@@ -204,6 +235,7 @@ describe('Transportation flight service', () => {
           ],
         },
       })
+      // Second call: Get flights departing from ITM (Osaka)
       .mockResolvedValueOnce({
         data: {
           response: [
@@ -214,7 +246,7 @@ describe('Transportation flight service', () => {
               dep_iata: 'ITM',
               dep_icao: 'RJOO',
               dep_time: '2026-05-27 14:50',
-              arr_iata: 'OKA',
+              arr_iata: 'OKA',      // Naha, Okinawa
               arr_icao: 'ROAH',
               arr_time: '2026-05-27 17:00',
               duration: 130,
@@ -225,7 +257,7 @@ describe('Transportation flight service', () => {
               flight_number: '2408',
               flight_iata: 'JL2408',
               dep_iata: 'ITM',
-              dep_time: '2026-05-28 14:50',
+              dep_time: '2026-05-28 14:50',  // Next day - should be filtered out
               arr_iata: 'OKA',
               arr_time: '2026-05-28 17:00',
               status: 'scheduled',
@@ -233,6 +265,7 @@ describe('Transportation flight service', () => {
           ],
         },
       })
+      // Third call: Get flights departing from KOJ (Kagoshima)
       .mockResolvedValueOnce({
         data: {
           response: [
@@ -243,7 +276,7 @@ describe('Transportation flight service', () => {
               dep_iata: 'KOJ',
               dep_icao: 'RJFK',
               dep_time: '2026-05-27 16:35',
-              arr_iata: 'FUK',
+              arr_iata: 'FUK',      // Fukuoka
               arr_icao: 'RJFF',
               arr_time: '2026-05-27 17:30',
               duration: 55,
@@ -252,6 +285,7 @@ describe('Transportation flight service', () => {
           ],
         },
       })
+      // Fourth call: Get details for OKA (Naha) airport
       .mockResolvedValueOnce({
         data: {
           response: [
@@ -264,6 +298,7 @@ describe('Transportation flight service', () => {
           ],
         },
       })
+      // Fifth call: Get details for FUK (Fukuoka) airport
       .mockResolvedValueOnce({
         data: {
           response: [
@@ -277,14 +312,17 @@ describe('Transportation flight service', () => {
         },
       });
 
+    // Mock axios with GET function
     jest.doMock('axios', () => ({
       create: jest.fn(() => ({ get })),
     }));
+    // Mock environment with AirLabs API key
     jest.doMock('../src/config/env', () => ({
       nodeEnv: 'development',
       airlabsApiKey: 'test-key',
       airlabsDailyLimit: 100,
     }));
+    // Mock API log service and repository
     jest.doMock('../src/modules/apiLogs/apiLog.service', () => ({
       recordEvent: jest.fn().mockResolvedValue({}),
     }));
@@ -293,32 +331,43 @@ describe('Transportation flight service', () => {
       upsertCache: jest.fn().mockResolvedValue({}),
     }));
 
+    // Import service after mocks
     const transportationService = require('../src/modules/transportation/transportation.service');
     const result = await transportationService.getFlightsBySearch({
       fromCountryCode: 'JP',
       fromCountryName: 'Japan',
-      departureDate: '2026-05-27',
+      departureDate: '2026-05-27',  // Only return flights on this specific date
     });
 
+    // Verify service indicates successful response
     expect(result.available).toBe(true);
+    // Verify only flights on the requested date are returned (2 flights)
     expect(result.items).toHaveLength(2);
+    // Verify correct flight IATA codes are returned
     expect(result.items.map((item) => item.flightIata)).toEqual(['JL2407', 'JL3654']);
+    // Verify all flights depart on the requested date
     expect(result.items.every((item) => item.departure.scheduledTime.startsWith('2026-05-27'))).toBe(true);
+    // Verify first flight departs from Osaka
     expect(result.items[0].departure.airport.name).toBe('Osaka International Airport');
+    // Verify second flight departs from Kagoshima
     expect(result.items[1].departure.airport.name).toBe('Kagoshima Airport');
   });
-  // Scenario verifies one expected outcome or error path.
+
+  // Scenario verifies that graceful fallback is returned when AirLabs API key is missing.
   test('returns graceful fallback when AirLabs key is missing', async () => {
     jest.resetModules();
 
+    // Mock axios (not actually called due to early exit)
     jest.doMock('axios', () => ({
       create: jest.fn(() => ({ get: jest.fn() })),
     }));
+    // Mock environment with empty AirLabs API key
     jest.doMock('../src/config/env', () => ({
       nodeEnv: 'development',
-      airlabsApiKey: '',
+      airlabsApiKey: '',  // Missing API key
       airlabsDailyLimit: 100,
     }));
+    // Mock other dependencies
     jest.doMock('../src/modules/apiLogs/apiLog.service', () => ({
       recordEvent: jest.fn().mockResolvedValue({}),
     }));
@@ -327,6 +376,7 @@ describe('Transportation flight service', () => {
       upsertCache: jest.fn().mockResolvedValue({}),
     }));
 
+    // Import service after mocks
     const transportationService = require('../src/modules/transportation/transportation.service');
     const result = await transportationService.getFlightsBySearch({
       fromCountryCode: 'US',
@@ -336,21 +386,26 @@ describe('Transportation flight service', () => {
       departureDate: '2026-06-01',
     });
 
+    // Verify service indicates API is unavailable
     expect(result.available).toBe(false);
+    // Verify friendly error message is returned
     expect(result.message).toBe('Flight service is not configured yet.');
   });
 });
-// Test group covers  behavior.
+
+// Test group covers train timetable functionality with AI distance and price estimates.
 describe('Transportation train service', () => {
-  // Cleanup resets shared state after assertions.
+  // Cleanup resets shared state after assertions
   afterEach(() => {
     jest.resetModules();
     jest.clearAllMocks();
   });
-  // Scenario verifies one expected outcome or error path.
+
+  // Scenario verifies that AI distance and price estimates are added to station timetable trains.
   test('adds AI distance and price estimates to station timetable trains', async () => {
     jest.resetModules();
 
+    // Mock POST function for Gemini AI API call
     const post = jest.fn().mockResolvedValue({
       data: {
         candidates: [
@@ -378,8 +433,11 @@ describe('Transportation train service', () => {
         ],
       },
     });
+
+    // Mock GET function for Transport API calls
     const get = jest
       .fn()
+      // First call: Get station timetable for London Euston
       .mockResolvedValueOnce({
         data: {
           station_name: 'London Euston',
@@ -388,8 +446,8 @@ describe('Transportation train service', () => {
           departures: {
             all: [
               {
-                service: '1A23',
-                train_uid: 'W12345',
+                service: '1A23',           // Train service number
+                train_uid: 'W12345',       // Unique train identifier
                 operator_name: 'Avanti West Coast',
                 origin_name: 'London Euston',
                 destination_name: 'Manchester Piccadilly',
@@ -404,6 +462,7 @@ describe('Transportation train service', () => {
           },
         },
       })
+      // Second call: Get detailed service timetable with stops
       .mockResolvedValueOnce({
         data: {
           train_uid: 'W12345',
@@ -435,10 +494,12 @@ describe('Transportation train service', () => {
         },
       });
 
+    // Mock axios with POST and GET functions
     jest.doMock('axios', () => ({
       post,
       create: jest.fn(() => ({ get })),
     }));
+    // Mock environment with Transport API and Gemini AI keys
     jest.doMock('../src/config/env', () => ({
       nodeEnv: 'test',
       airlabsDailyLimit: 100,
@@ -448,6 +509,7 @@ describe('Transportation train service', () => {
       geminiModel: 'gemini-test',
       geminiDailyLimit: 100,
     }));
+    // Mock API log service and repository
     jest.doMock('../src/modules/apiLogs/apiLog.service', () => ({
       recordEvent: jest.fn().mockResolvedValue({}),
     }));
@@ -456,18 +518,26 @@ describe('Transportation train service', () => {
       upsertCache: jest.fn().mockResolvedValue({}),
     }));
 
+    // Import service after mocks
     const transportationService = require('../src/modules/transportation/transportation.service');
     const result = await transportationService.getTrainStationTimetable({
-      stationQuery: 'EUS',
+      stationQuery: 'EUS',           // London Euston station code
       departureDate: '2026-06-01',
     });
 
+    // Verify service indicates successful response
     expect(result.available).toBe(true);
+    // Verify distance estimate is available
     expect(result.items[0].distanceEstimate.available).toBe(true);
+    // Verify distance estimate uses AI (not fallback)
     expect(result.items[0].distanceEstimate.isFallback).toBe(false);
+    // Verify distance display format
     expect(result.items[0].distanceEstimate.display).toBe('296 km');
+    // Verify price estimate is available
     expect(result.items[0].priceEstimate.available).toBe(true);
+    // Verify price estimate uses AI (not fallback)
     expect(result.items[0].priceEstimate.isFallback).toBe(false);
+    // Verify price display format (MYR currency)
     expect(result.items[0].priceEstimate.display).toBe('MYR 190 - 360');
   });
 });
