@@ -23,9 +23,9 @@ import { getApiErrorMessage } from '../../utils/apiError';
 import './ManageCategoriesPage.css';
 
 const typeOptions = [
-  { value: 'hotel', label: 'Hotel', example: 'Boutique hotel' },
   { value: 'attraction', label: 'Attraction', example: 'Art museum' },
   { value: 'food', label: 'Food', example: 'Japanese cuisine' },
+  { value: 'hotel', label: 'Hotel', example: 'Boutique hotel' },
 ];
 const categoriesPerPage = 10;
 
@@ -42,8 +42,8 @@ const formatDateAdded = (value) => {
 
 function ManageCategoriesPage() {
   const [categories, setCategories] = useState([]);
-  const [form, setForm] = useState({ type: 'hotel', name: '' });
-  const [activeType, setActiveType] = useState('hotel');
+  const [form, setForm] = useState({ type: 'attraction', name: '' });
+  const [activeType, setActiveType] = useState('attraction');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [editingCategory, setEditingCategory] = useState(null);
