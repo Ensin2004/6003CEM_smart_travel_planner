@@ -30,6 +30,17 @@ app.use('/api/v1/auth', authRateLimit);
 
 setupSwagger(app);
 
+// Give the deployment URL a useful response when opened directly in a browser.
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'success',
+    message: 'Smart Travel Planner API',
+    health: '/health',
+    documentation: '/api-docs',
+    apiBaseUrl: '/api/v1',
+  });
+});
+
 // Health check stays outside the versioned router so uptime monitors can call a simple endpoint.
 app.get('/health', (req, res) => {
   res.status(200).json({
