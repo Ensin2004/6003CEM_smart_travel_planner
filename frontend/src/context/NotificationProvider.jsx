@@ -26,7 +26,13 @@ const NotificationContext = createContext({
   subscribeToAdminUserCreated: () => () => {},
 });
 
-const adminNotificationTypes = new Set(['admin-rate-limit', 'admin-signup', 'admin-error-log', 'admin-login-lock']);
+const adminNotificationTypes = new Set([
+  'admin-rate-limit',
+  'admin-signup',
+  'admin-feedback',
+  'admin-error-log',
+  'admin-login-lock',
+]);
 
 export function NotificationProvider({ children }) {
   const location = useLocation();
