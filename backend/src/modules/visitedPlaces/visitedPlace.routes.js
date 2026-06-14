@@ -17,6 +17,7 @@ const router = express.Router();
 router.use(protect);
 router.get('/', visitedPlaceController.listVisitedPlaces);
 router.get('/calendar', calendarRules, validate, visitedPlaceController.getVisitedCalendar);
+router.post('/enrich-images', visitedPlaceController.enrichVisitedPlaceImages);
 router.post('/', markVisitedPlaceRules, validate, visitedPlaceController.markVisitedPlace);
 router.delete('/:id', visitedPlaceIdRule, validate, visitedPlaceController.removeVisitedPlace);
 

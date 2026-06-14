@@ -119,4 +119,92 @@ describe('Visited places service', () => {
       itineraryItemId: undefined,
     });
   });
+
+  test('stores the image URL supplied when a place is marked as visited', async () => {
+    const addVisitByUserAndPlaceKey = jest.fn().mockResolvedValue({
+      title: 'Museum',
+      imageUrl: 'https://images.example.com/museum.jpg',
+    });
+
+    jest.doMock('../src/modules/visitedPlaces/visitedPlace.repository', () => ({
+      addVisitByUserAndPlaceKey,
+    }));
+
+    const visitedPlaceService = require('../src/modules/visitedPlaces/visitedPlace.service');
+
+    await visitedPlaceService.markVisitedPlace('6655f6f2b1f1f1f1f1f1f111', {
+      type: 'attraction',
+      title: 'Museum',
+      imageUrl: 'https://images.example.com/museum.jpg',
+      imageUrls: [
+        'https://images.example.com/museum.jpg',
+        'https://images.example.com/museum-gallery.jpg',
+      ],
+    });
+
+    expect(addVisitByUserAndPlaceKey.mock.calls[0][2]).toMatchObject({
+      imageUrl: 'https://images.example.com/museum.jpg',
+      imageUrls: [
+        'https://images.example.com/museum.jpg',
+        'https://images.example.com/museum-gallery.jpg',
+      ],
+    });
+  });
+
+  test('enriches an existing visited place with a SerpApi image', async () => {
+    const recordsWithoutImages = [
+      {
+        _id: '6655f6f2b1f1f1f1f1f1f222',
+        title: 'Heritage Museum',
+        address: 'Main Street',
+        type: 'attraction',
+        imageUrl: '',
+        imageUrls: [],
+      },
+    ];
+    const recordsWithImages = [
+      {
+        ...recordsWithoutImages[0],
+        imageUrl: 'https://images.example.com/museum.jpg',
+        imageUrls: ['https://images.example.com/museum.jpg'],
+      },
+    ];
+    const findByUserId = jest
+      .fn()
+      .mockResolvedValueOnce(recordsWithoutImages)
+      .mockResolvedValueOnce(recordsWithImages);
+    const updateImagesByIdAndUserId = jest.fn().mockResolvedValue(recordsWithImages[0]);
+
+    jest.doMock('../src/config/env', () => ({
+      nodeEnv: 'development',
+      serpApiKey: 'test-key',
+    }));
+    jest.doMock('../src/modules/explore/googleMaps.service', () => ({
+      normalizePlaceItem: jest.fn((item) => item),
+      searchGoogleMaps: jest.fn().mockResolvedValue({
+        items: [{
+          imageUrl: 'https://images.example.com/museum.jpg',
+          imageUrls: ['https://images.example.com/museum.jpg'],
+        }],
+      }),
+    }));
+    jest.doMock('../src/modules/visitedPlaces/visitedPlace.repository', () => ({
+      findByUserId,
+      updateImagesByIdAndUserId,
+    }));
+
+    const visitedPlaceService = require('../src/modules/visitedPlaces/visitedPlace.service');
+    const result = await visitedPlaceService.enrichVisitedPlaceImages('6655f6f2b1f1f1f1f1f1f111');
+
+    expect(updateImagesByIdAndUserId).toHaveBeenCalledWith(
+      '6655f6f2b1f1f1f1f1f1f222',
+      '6655f6f2b1f1f1f1f1f1f111',
+      'https://images.example.com/museum.jpg',
+      ['https://images.example.com/museum.jpg']
+    );
+    expect(result).toEqual({
+      enrichedCount: 1,
+      visitedPlaces: recordsWithImages,
+    });
+  });
 });

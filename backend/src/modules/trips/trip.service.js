@@ -42,6 +42,8 @@ const normalizeTripPayload = (data = {}) => {
         city: segment.city.trim(),
         country: segment.country?.trim(),
         placeName: segment.placeName?.trim(),
+        imageUrl: segment.imageUrl?.trim(),
+        imageUrls: Array.isArray(segment.imageUrls) ? segment.imageUrls.slice(0, 10) : undefined,
         startDate: segment.startDate || payload.startDate,
         endDate: segment.endDate || payload.endDate,
         order: Number(segment.order) || index + 1,

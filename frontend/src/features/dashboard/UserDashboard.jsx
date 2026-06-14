@@ -18,7 +18,7 @@ function UserDashboard() {
       <DashboardTopbar user={dashboard.user} />
       <DashboardStats
         favoritesCount={dashboard.favoritesCount}
-        placeToVisitCount={dashboard.placeToVisitCount}
+        totalVisitCount={dashboard.totalVisitCount}
         tripGroups={dashboard.tripGroups}
         tripsThisMonth={dashboard.tripsThisMonth}
         uniquePlaceCount={dashboard.uniquePlaceCount}
@@ -28,7 +28,6 @@ function UserDashboard() {
         error={dashboard.error}
         monthLabel={dashboard.monthLabel}
         moveMonth={dashboard.moveMonth}
-        nextTrip={dashboard.nextTrip}
         recentActivity={dashboard.recentActivity}
         selectToday={dashboard.selectToday}
         selectedDateKey={dashboard.selectedDateKey}
@@ -36,14 +35,11 @@ function UserDashboard() {
         selectedVisits={dashboard.selectedVisits}
         setSelectedDateKey={dashboard.setSelectedDateKey}
         status={dashboard.status}
-        tripGroups={dashboard.tripGroups}
         tripStatus={dashboard.tripStatus}
-        weatherPreview={dashboard.weatherPreview}
-        weatherTemperature={dashboard.weatherTemperature}
+        upcomingTrips={dashboard.upcomingTrips}
       />
       <DashboardPlaceLists
         activePlaceMenu={dashboard.activePlaceMenu}
-        handleDestinationAction={dashboard.handleDestinationAction}
         handleVisitedPlaceAction={dashboard.handleVisitedPlaceAction}
         openCategoryMenu={dashboard.openCategoryMenu}
         placeRows={dashboard.placeRows}
@@ -51,11 +47,7 @@ function UserDashboard() {
         setActivePlaceMenu={dashboard.setActivePlaceMenu}
         setOpenCategoryMenu={dashboard.setOpenCategoryMenu}
         setSearchTerm={dashboard.setSearchTerm}
-        setToVisitCategory={dashboard.setToVisitCategory}
         setVisitedCategory={dashboard.setVisitedCategory}
-        toVisitCategories={dashboard.toVisitCategories}
-        toVisitCategory={dashboard.toVisitCategory}
-        tripPlaceRows={dashboard.tripPlaceRows}
         visitedCategories={dashboard.visitedCategories}
         visitedCategory={dashboard.visitedCategory}
       />

@@ -2,9 +2,9 @@
  * Dashboard stats component.
  * Summary cards keep high-level trip and place totals scannable.
  */
-import { Briefcase, CalendarDays, Camera, Heart, MapPin } from 'lucide-react';
+import { Briefcase, CalendarDays, Footprints, Heart, MapPin } from 'lucide-react';
 
-function DashboardStats({ favoritesCount, placeToVisitCount, tripGroups, tripsThisMonth, uniquePlaceCount }) {
+function DashboardStats({ favoritesCount, totalVisitCount, tripGroups, tripsThisMonth, uniquePlaceCount }) {
   return (
     <section className="dashboard-stat-grid" aria-label="Travel statistics">
       <article>
@@ -23,9 +23,9 @@ function DashboardStats({ favoritesCount, placeToVisitCount, tripGroups, tripsTh
         <small>Saved Places</small>
       </article>
       <article>
-        <span><Camera size={22} aria-hidden="true" /></span>
-        <strong>{placeToVisitCount}</strong>
-        <small>Places to Visit</small>
+        <span><Footprints size={22} aria-hidden="true" /></span>
+        <strong>{totalVisitCount}</strong>
+        <small>Total Visits</small>
       </article>
       <article>
         <span><CalendarDays size={22} aria-hidden="true" /></span>

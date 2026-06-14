@@ -5,8 +5,8 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getFavorites } from '../../../api/favoriteApi';
 import { getTripItinerary } from '../../../api/itineraryApi';
-import { getTrips, getTripSummary } from '../../../api/tripApi';
-import { getVisitedCalendar, getVisitedPlaces } from '../../../api/visitedPlaceApi';
+import { getTrips } from '../../../api/tripApi';
+import { enrichVisitedPlaceImages, getVisitedCalendar, getVisitedPlaces } from '../../../api/visitedPlaceApi';
 import { buildVisitedLookup, getVisitedPlacePayload } from '../../../components/visitedPlaces/visitedPlaceUtils';
 import useAuth from '../../../hooks/useAuth';
 import {
@@ -36,7 +36,6 @@ export function useUserDashboard() {
   const [selectedDateKey, setSelectedDateKey] = useState(() => formatDateKey(new Date()));
   const [searchTerm, setSearchTerm] = useState('');
   const [visitedCategory, setVisitedCategory] = useState('all');
-  const [toVisitCategory, setToVisitCategory] = useState('all');
   const [openCategoryMenu, setOpenCategoryMenu] = useState('');
   const [activePlaceMenu, setActivePlaceMenu] = useState('');
   const [activeReport, setActiveReport] = useState('');
@@ -45,7 +44,6 @@ export function useUserDashboard() {
   const [favorites, setFavorites] = useState([]);
   const [trips, setTrips] = useState([]);
   const [tripItineraryDays, setTripItineraryDays] = useState({});
-  const [weatherPreview, setWeatherPreview] = useState(null);
   const [tripStatus, setTripStatus] = useState('loading');
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState('');
@@ -104,7 +102,10 @@ export function useUserDashboard() {
     () => [...tripGroups.active, ...tripGroups.upcoming].sort((firstTrip, secondTrip) => new Date(firstTrip.startDate) - new Date(secondTrip.startDate)),
     [tripGroups]
   );
-  const nextTrip = sortedUpcomingTrips[0] || null;
+  const upcomingTrips = useMemo(
+    () => sortedUpcomingTrips.filter((trip) => getTripDestinationPlaces(trip).length > 0).slice(0, 3),
+    [sortedUpcomingTrips]
+  );
   const selectedDestinations = useMemo(
     () => allTripDestinationRows.filter((destination) => isDateWithinRange(selectedDateKey, destination.startDate, destination.endDate)),
     [allTripDestinationRows, selectedDateKey]
@@ -139,26 +140,10 @@ export function useUserDashboard() {
         .includes(normalizedSearch)
     );
   }, [searchTerm, visitedCategory, visitedPlaceRows]);
-  const toVisitCategories = useMemo(() => {
-    const tripNames = allTripDestinationRows.map((destination) => destination.tripTitle).filter(Boolean);
-    return ['all', ...new Set(tripNames)];
-  }, [allTripDestinationRows]);
-  const tripPlaceRows = useMemo(() => {
-    const normalizedSearch = searchTerm.trim().toLowerCase();
-    const toVisitRows = allTripDestinationRows.filter((destination) =>
-      !destination.visited && (toVisitCategory === 'all' || destination.tripTitle === toVisitCategory)
-    );
-
-    if (!normalizedSearch) return toVisitRows;
-
-    return toVisitRows.filter((destination) =>
-      [destination.title, destination.address, destination.country, destination.tripTitle]
-        .filter(Boolean)
-        .join(' ')
-        .toLowerCase()
-        .includes(normalizedSearch)
-    );
-  }, [allTripDestinationRows, searchTerm, toVisitCategory]);
+  const tripPlaceRows = useMemo(
+    () => allTripDestinationRows.filter((destination) => !destination.visited),
+    [allTripDestinationRows]
+  );
   const monthLabel = monthDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
   const totalVisitCount = visitedPlaces.reduce((total, place) => total + getVisitCount(place), 0);
   const uniquePlaceCount = visitedPlaces.length;
@@ -167,9 +152,6 @@ export function useUserDashboard() {
     const { start, end } = getMonthBounds(monthDate);
     return new Date(trip.startDate) <= end && new Date(trip.endDate) >= start;
   }).length;
-  const weatherTemperature = weatherPreview?.weather?.temperature?.max || weatherPreview?.weather?.temperature?.mean
-    ? `${Math.round(weatherPreview.weather.temperature.max || weatherPreview.weather.temperature.mean)}${weatherPreview.weather.temperature.unit || 'C'}`
-    : '';
   const recentActivity = useMemo(() => [
     ...placeRows.slice(0, 2).map((place) => ({
       id: `visited-${place._id || place.placeKey}`,
@@ -178,13 +160,6 @@ export function useUserDashboard() {
       title: `Visited ${place.title}`,
       meta: place.latestVisitLabel,
     })),
-    ...tripPlaceRows.slice(0, 1).map((place) => ({
-      id: `to-visit-${place.tripId}-${place.title}`,
-      type: 'to-visit',
-      tone: 'blue',
-      title: `Added ${place.title} to places to visit`,
-      meta: place.tripTitle,
-    })),
     ...sortedUpcomingTrips.slice(0, 1).map((trip) => ({
       id: `trip-${trip._id}`,
       type: 'trip',
@@ -192,7 +167,7 @@ export function useUserDashboard() {
       title: `Created trip ${trip.title || trip.destination}`,
       meta: formatDateRange(trip.startDate, trip.endDate),
     })),
-  ], [placeRows, sortedUpcomingTrips, tripPlaceRows]);
+  ], [placeRows, sortedUpcomingTrips]);
   const visitTypeRows = useMemo(() => {
     const typeCounts = visitedPlaces.reduce((counts, place) => {
       const type = getTypeLabel(place.type);
@@ -344,9 +319,19 @@ export function useUserDashboard() {
     let isActive = true;
 
     getVisitedPlaces()
-      .then((response) => {
+      .then(async (response) => {
         if (!isActive) return;
-        setVisitedPlaces(response.data?.data?.visitedPlaces || []);
+        const loadedVisitedPlaces = response.data?.data?.visitedPlaces || [];
+        setVisitedPlaces(loadedVisitedPlaces);
+
+        if (!loadedVisitedPlaces.some((place) => !place.imageUrl && !place.imageUrls?.length)) return;
+
+        try {
+          const enrichmentResponse = await enrichVisitedPlaceImages();
+          if (isActive) setVisitedPlaces(enrichmentResponse.data?.data?.visitedPlaces || loadedVisitedPlaces);
+        } catch {
+          // Existing records remain usable with the local fallback image.
+        }
       })
       .catch(() => {
         if (isActive) setVisitedPlaces([]);
@@ -380,32 +365,6 @@ export function useUserDashboard() {
     };
   }, []);
 
-  useEffect(() => {
-    let isActive = true;
-
-    if (!nextTrip?._id) {
-      deferStateUpdate(() => {
-        if (isActive) setWeatherPreview(null);
-      });
-      return () => {
-        isActive = false;
-      };
-    }
-
-    getTripSummary(nextTrip._id)
-      .then((response) => {
-        if (!isActive) return;
-        setWeatherPreview(response.data?.data || null);
-      })
-      .catch(() => {
-        if (isActive) setWeatherPreview(null);
-      });
-
-    return () => {
-      isActive = false;
-    };
-  }, [nextTrip?._id]);
-
   const moveMonth = (direction) => {
     setMonthDate((currentDate) => new Date(currentDate.getFullYear(), currentDate.getMonth() + direction, 1));
   };
@@ -422,19 +381,12 @@ export function useUserDashboard() {
     setVisitedCategory(getTypeLabel(place.type));
     setActivePlaceMenu('');
   };
-  const handleDestinationAction = (destination) => {
-    setSearchTerm(destination.title);
-    setToVisitCategory(destination.tripTitle || 'all');
-    setActivePlaceMenu('');
-  };
-
   return {
     activePlaceMenu,
     activeReport,
     calendarCells,
     error,
     favoritesCount: favorites.length,
-    handleDestinationAction,
     handleReportClick,
     countryInsights,
     handleVisitedPlaceAction,
@@ -443,7 +395,6 @@ export function useUserDashboard() {
     monthLabel,
     monthlyTripCounts,
     moveMonth,
-    nextTrip,
     openCategoryMenu,
     placeRows,
     placeToVisitCount,
@@ -457,16 +408,14 @@ export function useUserDashboard() {
     setOpenCategoryMenu,
     setSearchTerm,
     setSelectedDateKey,
-    setToVisitCategory,
     setVisitedCategory,
     status,
-    toVisitCategories,
-    toVisitCategory,
     totalVisitCount,
     tripGroups,
     tripPlaceRows,
     tripsThisMonth,
     tripStatus,
+    upcomingTrips,
     uniquePlaceCount,
     user,
     visitDonutSegments,
@@ -475,7 +424,5 @@ export function useUserDashboard() {
     visitedShare,
     visitedVsToVisitSegments,
     visitTypeRows,
-    weatherPreview,
-    weatherTemperature,
   };
 }

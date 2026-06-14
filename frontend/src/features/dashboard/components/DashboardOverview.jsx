@@ -9,13 +9,11 @@ import {
   ChevronRight,
   LoaderCircle,
   MapPin,
-  Sun,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import {
   formatDateRange,
   formatLongDate,
-  getPlaceImageStyle,
   getTripDestinationPlaces,
 } from '../dashboard.utils';
 
@@ -30,7 +28,6 @@ function DashboardOverview({
   error,
   monthLabel,
   moveMonth,
-  nextTrip,
   recentActivity,
   selectToday,
   selectedDateKey,
@@ -38,33 +35,34 @@ function DashboardOverview({
   selectedVisits,
   setSelectedDateKey,
   status,
-  tripGroups,
   tripStatus,
-  weatherPreview,
-  weatherTemperature,
+  upcomingTrips,
 }) {
   return (
     <section className="dashboard-overview-grid">
       <article className="dashboard-card dashboard-upcoming-card">
         <div className="dashboard-card-heading">
-          <h3><CalendarDays size={18} aria-hidden="true" />Upcoming Trip</h3>
-          {nextTrip ? <Link to={`/trips/${nextTrip._id}`}>View Trip</Link> : null}
+          <div>
+            <h3><CalendarDays size={18} aria-hidden="true" />Upcoming Trip</h3>
+            <small>Showing up to 3 upcoming trips.</small>
+          </div>
+          {upcomingTrips.length ? <Link to="/trips">View All</Link> : null}
         </div>
         {tripStatus === 'loading' ? (
           <p className="dashboard-muted"><LoaderCircle className="dashboard-spin" size={16} aria-hidden="true" />Loading trips...</p>
-        ) : nextTrip ? (
-          <div className="upcoming-trip-body">
-            <div className="trip-photo" style={getPlaceImageStyle(nextTrip.destination)} aria-hidden="true" />
-            <div>
-              <div className="trip-title-row">
-                <h4>{nextTrip.title || nextTrip.destination}</h4>
-                <span>{tripGroups.active.includes(nextTrip) ? 'Now' : 'Upcoming'}</span>
-              </div>
-              <p><CalendarDays size={15} aria-hidden="true" />{formatDateRange(nextTrip.startDate, nextTrip.endDate)}</p>
-              <p><MapPin size={15} aria-hidden="true" />{[nextTrip.destination, nextTrip.country].filter(Boolean).join(', ') || 'Destination pending'}</p>
-              <p><Sun size={15} aria-hidden="true" />{weatherPreview?.weather?.available ? `${weatherPreview.weather.condition}${weatherTemperature ? `, ${weatherTemperature}` : ''}` : 'Weather pending'}</p>
-              <p><MapPin size={15} aria-hidden="true" />{getTripDestinationPlaces(nextTrip).length} places planned</p>
-            </div>
+        ) : upcomingTrips.length ? (
+          <div className="upcoming-trip-list">
+            {upcomingTrips.map((trip, index) => (
+              <Link to={`/trips/${trip._id}`} key={trip._id}>
+                <span className="upcoming-trip-number">{index + 1}</span>
+                <span className="upcoming-trip-details">
+                  <strong>{trip.title || trip.destination}</strong>
+                  <small><CalendarDays size={13} aria-hidden="true" />{formatDateRange(trip.startDate, trip.endDate)}</small>
+                  <small><MapPin size={13} aria-hidden="true" />{[trip.destination, trip.country].filter(Boolean).join(', ')}</small>
+                </span>
+                <span className="upcoming-trip-count">{getTripDestinationPlaces(trip).length} place{getTripDestinationPlaces(trip).length === 1 ? '' : 's'}</span>
+              </Link>
+            ))}
           </div>
         ) : (
           <p className="dashboard-muted">No upcoming trips yet.</p>

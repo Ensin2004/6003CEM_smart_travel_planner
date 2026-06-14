@@ -27,6 +27,7 @@ const listLogRules = [
     .matches(/^[A-Za-z0-9._-]+$/)
     .isLength({ max: 100 })
     .withMessage('Invalid request ID'),
+  query('userId').optional().isMongoId().withMessage('Invalid user ID'),
   query('from').optional().isISO8601().withMessage('From date must be valid'),
   query('to').optional().isISO8601().withMessage('To date must be valid'),
   query('page').optional().isInt({ min: 1 }).withMessage('Page must be one or more'),

@@ -30,6 +30,8 @@ const visitedPlaceSchema = new mongoose.Schema(
     address: { type: String, trim: true, maxlength: 240 },
     source: { type: String, trim: true, maxlength: 80 },
     externalId: { type: String, trim: true, maxlength: 180 },
+    imageUrl: { type: String, trim: true, maxlength: 2000 },
+    imageUrls: [{ type: String, trim: true, maxlength: 2000 }],
     visits: { type: [visitEntrySchema], default: [] },
   },
   {

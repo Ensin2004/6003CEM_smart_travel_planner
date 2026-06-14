@@ -3,6 +3,8 @@
  * Pure helpers centralize date ranges, trip grouping, destination normalization, and chart geometry.
  */
 import { Country } from 'country-state-city';
+import { getPlaceImageSrc } from '../../utils/placeImageProxy';
+import landingHeroImage from '../../assets/landing-hero.png';
 
 export const formatDateKey = (date) => date.toISOString().slice(0, 10);
 
@@ -138,24 +140,34 @@ export const getDisplayName = (user) => user?.name || user?.fullName || user?.us
 
 export const getTripDestinationPlaces = (trip = {}) => {
   if (trip.destinationSegments?.length) {
-    return trip.destinationSegments.map((segment) => ({
-      title: segment.placeName || segment.city,
-      name: segment.placeName || segment.city,
-      address: [segment.city, segment.country].filter(Boolean).join(', '),
-      country: segment.country,
-      startDate: segment.startDate || trip.startDate,
-      endDate: segment.endDate || trip.endDate,
-      tripId: trip._id,
-      tripTitle: trip.title || trip.destination,
-    }));
+    return trip.destinationSegments
+      .filter((segment) => segment.city && normalizeVisitText(segment.city) !== 'not added yet')
+      .map((segment) => ({
+        title: segment.placeName && normalizeVisitText(segment.placeName) !== 'not added yet'
+          ? segment.placeName
+          : segment.city,
+        name: segment.placeName && normalizeVisitText(segment.placeName) !== 'not added yet'
+          ? segment.placeName
+          : segment.city,
+        address: [segment.city, segment.country].filter(Boolean).join(', '),
+        country: segment.country,
+        imageUrl: segment.imageUrl,
+        imageUrls: segment.imageUrls,
+        startDate: segment.startDate || trip.startDate,
+        endDate: segment.endDate || trip.endDate,
+        tripId: trip._id,
+        tripTitle: trip.title || trip.destination,
+      }));
   }
 
-  return trip.destination
+  return trip.destination && normalizeVisitText(trip.destination) !== 'not added yet'
     ? [{
       title: trip.destination,
       name: trip.destination,
       address: [trip.destination, trip.country].filter(Boolean).join(', '),
       country: trip.country,
+      imageUrl: trip.imageUrl,
+      imageUrls: trip.imageUrls,
       startDate: trip.startDate,
       endDate: trip.endDate,
       tripId: trip._id,
@@ -193,9 +205,19 @@ export const getDonutSegments = (items) => {
   });
 };
 
-export const getPlaceImageStyle = (seed = '') => ({
-  backgroundImage: `linear-gradient(135deg, rgba(15, 159, 137, 0.12), rgba(47, 111, 237, 0.18)), url("https://source.unsplash.com/240x180/?travel,${encodeURIComponent(seed || 'destination')}")`,
-});
+export const getPlaceImageStyle = (place = {}) => {
+  const normalizedPlace = typeof place === 'string' ? { title: place } : place;
+  const imageUrl = getPlaceImageSrc(
+    normalizedPlace.imageUrl ||
+    normalizedPlace.imageUrls?.[0] ||
+    normalizedPlace.photoUrl ||
+    normalizedPlace.thumbnail
+  );
+
+  return {
+    backgroundImage: `linear-gradient(135deg, rgba(15, 159, 137, 0.08), rgba(47, 111, 237, 0.12)), url("${imageUrl || landingHeroImage}")`,
+  };
+};
 
 export const deferStateUpdate = (callback) => {
   Promise.resolve().then(callback);

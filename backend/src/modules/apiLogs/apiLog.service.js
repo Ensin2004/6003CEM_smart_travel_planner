@@ -19,6 +19,20 @@ const cleanMetadata = (metadata = {}) =>
     return safeMetadata;
   }, {});
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const getDateBoundary = (value, endOfDay = false) => {
+  const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
+  const date = new Date(isDateOnly ? `${value}T00:00:00.000` : value);
+
+  if (isDateOnly) {
+    if (endOfDay) {
+      date.setHours(23, 59, 59, 999);
+    } else {
+      date.setHours(0, 0, 0, 0);
+    }
+  }
+
+  return date;
+};
 const getDefaultErrorCode = ({ category, service, status, statusCode }) => {
   if (status === 'success') return 'SUCCESS_EVENT';
   if (statusCode === 429 || category === 'rate-limit') return 'RATE_LIMIT_EXCEEDED';
@@ -61,7 +75,7 @@ const formatLog = (log) => {
   };
 };
 // Build Filter transforms source data into the shape required nearby.
-const buildFilter = ({ status, category, severity, service, errorCode, requestId, from, to } = {}) => {
+const buildFilter = ({ status, category, severity, service, errorCode, requestId, userId, from, to } = {}) => {
   const filter = {
     errorCode: { $exists: true, $nin: [null, ''] },
     requestId: { $exists: true, $nin: [null, ''] },
@@ -73,11 +87,12 @@ const buildFilter = ({ status, category, severity, service, errorCode, requestId
   if (service) filter.service = new RegExp(escapeRegex(service.trim()), 'i');
   if (errorCode) filter.errorCode = errorCode.trim().toUpperCase();
   if (requestId) filter.requestId = new RegExp(escapeRegex(requestId.trim()), 'i');
+  if (userId) filter.userId = userId;
 
   if (from || to) {
     filter.createdAt = {};
-    if (from) filter.createdAt.$gte = new Date(from);
-    if (to) filter.createdAt.$lte = new Date(to);
+    if (from) filter.createdAt.$gte = getDateBoundary(from);
+    if (to) filter.createdAt.$lte = getDateBoundary(to, true);
   }
 
   return filter;

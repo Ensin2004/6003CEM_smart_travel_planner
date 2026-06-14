@@ -8,4 +8,5 @@ export const getTrips = () => axiosClient.get('/trips');
 export const createTrip = (payload) => axiosClient.post('/trips', payload);
 // Update Trip applies settings changes while keeping HTTP details out of page components.
 export const updateTrip = (id, payload) => axiosClient.patch(`/trips/${id}`, payload);
+export const deleteTrip = (id) => axiosClient.delete(`/trips/${id}`);
 export const getTripSummary = (id) => axiosClient.get(`/trips/${id}/summary`);

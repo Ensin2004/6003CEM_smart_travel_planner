@@ -210,4 +210,51 @@ describe('API log monitoring service', () => {
       })
     );
   });
+
+  test('filters monitoring logs by user ID for admin account activity', async () => {
+    apiLogRepository.findMany.mockResolvedValue([]);
+    apiLogRepository.countMany.mockResolvedValue(0);
+    apiLogRepository.countSince.mockResolvedValue(0);
+    apiLogRepository.aggregateCategoryCounts.mockResolvedValue([]);
+    apiLogRepository.aggregateStatusCounts.mockResolvedValue([]);
+    apiLogRepository.aggregateSeverityCounts.mockResolvedValue([]);
+    apiLogRepository.aggregateDailyCounts.mockResolvedValue([]);
+
+    await apiLogService.getMonitoring({ userId: '507f1f77bcf86cd799439011' });
+
+    expect(apiLogRepository.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filter: expect.objectContaining({
+          userId: '507f1f77bcf86cd799439011',
+        }),
+      })
+    );
+  });
+
+  test('includes the full selected end date in monitoring filters', async () => {
+    apiLogRepository.findMany.mockResolvedValue([]);
+    apiLogRepository.countMany.mockResolvedValue(0);
+    apiLogRepository.countSince.mockResolvedValue(0);
+    apiLogRepository.aggregateCategoryCounts.mockResolvedValue([]);
+    apiLogRepository.aggregateStatusCounts.mockResolvedValue([]);
+    apiLogRepository.aggregateSeverityCounts.mockResolvedValue([]);
+    apiLogRepository.aggregateDailyCounts.mockResolvedValue([]);
+
+    await apiLogService.getMonitoring({ from: '2026-06-01', to: '2026-06-14' });
+
+    expect(apiLogRepository.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        filter: expect.objectContaining({
+          createdAt: {
+            $gte: expect.any(Date),
+            $lte: expect.any(Date),
+          },
+        }),
+      })
+    );
+
+    const filter = apiLogRepository.findMany.mock.calls[0][0].filter;
+    expect(filter.createdAt.$gte.getHours()).toBe(0);
+    expect(filter.createdAt.$lte.getHours()).toBe(23);
+  });
 });

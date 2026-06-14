@@ -5,14 +5,16 @@
 import {
   Activity,
   AlertTriangle,
+  ChevronDown,
   Clock3,
+  Eye,
   Filter,
+  Info,
   RefreshCw,
   Search,
   ServerCrash,
   ShieldAlert,
   ShieldCheck,
-  UserRound,
   X,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -74,8 +76,12 @@ function SystemErrorsPage() {
     service: '',
     errorCode: '',
     requestId: '',
+    from: '',
+    to: '',
   });
   const [monitoring, setMonitoring] = useState(null);
+  const [isAdvancedFiltersOpen, setIsAdvancedFiltersOpen] = useState(false);
+  const [selectedLog, setSelectedLog] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
@@ -118,12 +124,8 @@ function SystemErrorsPage() {
   const hasActiveFilters = Object.values(filters).some(Boolean);
   const health = summary.health || 'healthy';
   const categoryCounts = summary.categoryCounts || [];
-  const statusCounts = summary.statusCounts || [];
-  const severityCounts = summary.severityCounts || [];
   const dailyCounts = summary.dailyCounts || [];
   const categoryMaxCount = Math.max(...categoryCounts.map((item) => item.count), 1);
-  const statusMaxCount = Math.max(...statusCounts.map((item) => item.count), 1);
-  const severityMaxCount = Math.max(...severityCounts.map((item) => item.count), 1);
   const dailyMaxCount = Math.max(...dailyCounts.map((item) => item.success + item.fail + item.error), 1);
   const latestEventLabel = logs[0]?.createdAt ? formatDateTime(logs[0].createdAt) : 'No events yet';
   const handleFilterChange = (event) => {
@@ -138,6 +140,8 @@ function SystemErrorsPage() {
       service: '',
       errorCode: '',
       requestId: '',
+      from: '',
+      to: '',
     });
   };
   return (
@@ -145,8 +149,8 @@ function SystemErrorsPage() {
       <div className="logging-hero">
         <div>
           <p className="eyebrow">Admin monitoring</p>
-          <h2 id="logging-title">Logging / Monitoring</h2>
-          <p>Review API failures, server issues, rate-limit events, and authentication activity in one place.</p>
+          <h2 id="logging-title">System Activity & Issues</h2>
+          <p>Check the system’s health, find failed activity, and inspect technical details when an issue needs attention.</p>
           <div className="logging-hero-meta" aria-label="Monitoring status">
             <span className={`logging-health logging-health-${health}`}>
               {health === 'healthy' ? <ShieldCheck size={16} /> : <ShieldAlert size={16} />}
@@ -182,84 +186,60 @@ function SystemErrorsPage() {
         <article className="monitoring-metric-total">
           <span className="monitoring-metric-icon"><Activity size={22} aria-hidden="true" /></span>
           <div>
-            <span>Total events</span>
+            <span>Recorded events</span>
             <strong>{summary.totalLogs ?? 0}</strong>
+            <small>All activity matching the filters</small>
           </div>
         </article>
         <article className="monitoring-metric-warning">
           <span className="monitoring-metric-icon"><AlertTriangle size={22} aria-hidden="true" /></span>
           <div>
-            <span>Failures</span>
+            <span>Failed requests</span>
             <strong>{summary.failures ?? 0}</strong>
+            <small>Requests that could not complete</small>
           </div>
         </article>
         <article className="monitoring-metric-danger">
           <span className="monitoring-metric-icon"><ServerCrash size={22} aria-hidden="true" /></span>
           <div>
-            <span>System errors</span>
+            <span>Unexpected errors</span>
             <strong>{summary.errors ?? 0}</strong>
+            <small>Internal problems needing review</small>
           </div>
         </article>
         <article className="monitoring-metric-security">
           <span className="monitoring-metric-icon"><ShieldAlert size={22} aria-hidden="true" /></span>
           <div>
-            <span>24h failures</span>
+            <span>Issues in last 24 hours</span>
             <strong>{summary.recentFailures ?? 0}</strong>
+            <small>Recent failures and errors</small>
           </div>
         </article>
       </div>
 
-      <div className="logging-charts">
-        <section className="logging-chart-panel" aria-labelledby="status-chart-title">
-          <div className="logging-panel-heading">
-            <div>
-              <span>Status chart</span>
-              <h3 id="status-chart-title">Events by status</h3>
-            </div>
+      <section className="logging-guide" aria-labelledby="monitoring-guide-title">
+        <div className="logging-guide-heading">
+          <Info size={20} aria-hidden="true" />
+          <div>
+            <span>How to read this page</span>
+            <h3 id="monitoring-guide-title">Start with the outcome, then check how serious it is.</h3>
           </div>
-          <div className="logging-bar-chart">
-            {statusCounts.length === 0 ? (
-              <p className="logging-muted">No status activity yet.</p>
-            ) : (
-              statusCounts.map((item) => (
-                <div className={`logging-chart-bar logging-chart-bar-${item.status}`} key={item.status}>
-                  <span>{item.status}</span>
-                  <i style={{ '--bar-size': `${Math.max((item.count / statusMaxCount) * 100, 8)}%` }} />
-                  <strong>{item.count}</strong>
-                </div>
-              ))
-            )}
-          </div>
-        </section>
+        </div>
+        <div className="logging-guide-items">
+          <p><strong>Status</strong> tells you the outcome: success completed, failed was rejected, and error was unexpected.</p>
+          <p><strong>Severity</strong> tells you the impact: info is normal, warning needs checking, and error or critical needs attention.</p>
+          <p><strong>Category</strong> tells you where it happened: authentication, API, system, or rate limiting.</p>
+        </div>
+      </section>
 
-        <section className="logging-chart-panel" aria-labelledby="severity-chart-title">
+      <div className="logging-overview">
+        <section className="logging-chart-panel" aria-labelledby="trend-chart-title">
           <div className="logging-panel-heading">
             <div>
-              <span>Severity chart</span>
-              <h3 id="severity-chart-title">Events by severity</h3>
+              <span>Health trend</span>
+              <h3 id="trend-chart-title">Activity during the last 7 days</h3>
             </div>
-          </div>
-          <div className="logging-bar-chart">
-            {severityCounts.length === 0 ? (
-              <p className="logging-muted">No severity activity yet.</p>
-            ) : (
-              severityCounts.map((item) => (
-                <div className={`logging-chart-bar logging-chart-bar-${item.severity}`} key={item.severity}>
-                  <span>{item.severity}</span>
-                  <i style={{ '--bar-size': `${Math.max((item.count / severityMaxCount) * 100, 8)}%` }} />
-                  <strong>{item.count}</strong>
-                </div>
-              ))
-            )}
-          </div>
-        </section>
-
-        <section className="logging-chart-panel logging-chart-panel-wide" aria-labelledby="trend-chart-title">
-          <div className="logging-panel-heading">
-            <div>
-              <span>7-day trend</span>
-              <h3 id="trend-chart-title">Daily event volume</h3>
-            </div>
+            <small>Green: success | Orange: failed | Red: error</small>
           </div>
           <div className="logging-trend-chart">
             {dailyCounts.map((item) => {
@@ -278,14 +258,11 @@ function SystemErrorsPage() {
             })}
           </div>
         </section>
-      </div>
-
-      <div className="logging-insights">
         <section className="logging-insight-panel" aria-labelledby="category-breakdown-title">
           <div className="logging-panel-heading">
             <div>
-              <span>Breakdown</span>
-              <h3 id="category-breakdown-title">Events by category</h3>
+              <span>Issue source</span>
+              <h3 id="category-breakdown-title">Where events happened</h3>
             </div>
           </div>
           {categoryCounts.length === 0 ? (
@@ -308,32 +285,16 @@ function SystemErrorsPage() {
           )}
         </section>
 
-        <section className="logging-insight-panel" aria-labelledby="quick-focus-title">
-          <div className="logging-panel-heading">
-            <div>
-              <span>Focus</span>
-              <h3 id="quick-focus-title">Quick filters</h3>
-            </div>
-          </div>
-          <div className="logging-quick-actions">
-            <button type="button" onClick={() => setFilters((current) => ({ ...current, status: 'error' }))}>
-              Errors
-            </button>
-            <button type="button" onClick={() => setFilters((current) => ({ ...current, category: 'auth' }))}>
-              Auth
-            </button>
-            <button type="button" onClick={() => setFilters((current) => ({ ...current, category: 'rate-limit' }))}>
-              Rate limits
-            </button>
-          </div>
-        </section>
       </div>
 
       <div className="logging-filters">
         <div className="logging-section-title">
           <div>
             <Filter size={17} aria-hidden="true" />
-            <strong>Filter events</strong>
+            <span>
+              <strong>Find an event</strong>
+              <small>Use the main filters first. Open advanced search only when tracing a technical issue.</small>
+            </span>
           </div>
           {hasActiveFilters && (
             <button type="button" onClick={clearFilters}>
@@ -373,51 +334,66 @@ function SystemErrorsPage() {
           </select>
         </label>
         <label>
-          Service
-          <span className="logging-search-field">
-            <Search size={16} aria-hidden="true" />
-            <input
-              name="service"
-              placeholder="Filter by service"
-              type="search"
-              value={filters.service}
-              onChange={handleFilterChange}
-            />
-          </span>
+          From date
+          <input
+            name="from"
+            type="date"
+            value={filters.from}
+            max={filters.to || undefined}
+            onChange={handleFilterChange}
+          />
         </label>
         <label>
-          Error code
-          <span className="logging-search-field">
-            <Search size={16} aria-hidden="true" />
-            <input
-              name="errorCode"
-              placeholder="e.g. INTERNAL_SERVER_ERROR"
-              type="search"
-              value={filters.errorCode}
-              onChange={handleFilterChange}
-            />
-          </span>
+          To date
+          <input
+            name="to"
+            type="date"
+            value={filters.to}
+            min={filters.from || undefined}
+            onChange={handleFilterChange}
+          />
         </label>
-        <label>
-          Request ID
-          <span className="logging-search-field">
-            <Search size={16} aria-hidden="true" />
-            <input
-              name="requestId"
-              placeholder="Trace a request"
-              type="search"
-              value={filters.requestId}
-              onChange={handleFilterChange}
-            />
-          </span>
-        </label>
+        <button
+          className="logging-advanced-toggle"
+          type="button"
+          aria-expanded={isAdvancedFiltersOpen}
+          onClick={() => setIsAdvancedFiltersOpen((current) => !current)}
+        >
+          Advanced search
+          <ChevronDown size={17} aria-hidden="true" />
+        </button>
+        {isAdvancedFiltersOpen && (
+          <div className="logging-advanced-filters">
+            <label>
+              Service
+              <span className="logging-search-field">
+                <Search size={16} aria-hidden="true" />
+                <input name="service" placeholder="Example: auth or weather" type="search" value={filters.service} onChange={handleFilterChange} />
+              </span>
+            </label>
+            <label>
+              Error code
+              <span className="logging-search-field">
+                <Search size={16} aria-hidden="true" />
+                <input name="errorCode" placeholder="Example: INVALID_CREDENTIALS" type="search" value={filters.errorCode} onChange={handleFilterChange} />
+              </span>
+            </label>
+            <label>
+              Request ID
+              <span className="logging-search-field">
+                <Search size={16} aria-hidden="true" />
+                <input name="requestId" placeholder="Trace one exact request" type="search" value={filters.requestId} onChange={handleFilterChange} />
+              </span>
+            </label>
+          </div>
+        )}
       </div>
 
       <div className="logging-table-wrap">
         <div className="logging-table-header">
           <div>
-            <span>Recent activity</span>
-            <h3>Event stream</h3>
+            <span>Investigation list</span>
+            <h3>Recent events</h3>
           </div>
           <small>{monitoring?.pagination?.total ?? 0} matching events</small>
         </div>
@@ -430,13 +406,11 @@ function SystemErrorsPage() {
             <thead>
               <tr>
                 <th>Time</th>
-                <th>Actor</th>
-                <th>Service</th>
+                <th>What happened</th>
+                <th>Source</th>
                 <th>Status</th>
                 <th>Severity</th>
-                <th>Endpoint</th>
-                <th>Error context</th>
-                <th>Message</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -446,16 +420,16 @@ function SystemErrorsPage() {
                     <span className="logging-time">{formatDateTime(log.createdAt)}</span>
                     <small>{formatCategoryLabel(log.category || 'api')}</small>
                   </td>
+                  <td className="logging-event-summary">
+                    <strong>{log.message || 'No message recorded'}</strong>
+                    <small>{log.errorCode || 'No error code'}</small>
+                  </td>
                   <td>
-                    <span className="logging-actor">
-                      <UserRound size={16} aria-hidden="true" />
-                      <span>
-                        <strong>{getActorLabel(log)}</strong>
-                        <small>{getActorMeta(log)}</small>
-                      </span>
+                    <span className="logging-source">
+                      <strong>{formatCategoryLabel(log.category || 'api')}</strong>
+                      <small>{log.service || 'Unknown service'}</small>
                     </span>
                   </td>
-                  <td>{log.service}</td>
                   <td>
                     <span className={`logging-badge logging-badge-${log.status}`}>{log.status}</span>
                   </td>
@@ -464,21 +438,45 @@ function SystemErrorsPage() {
                       {log.severity || 'info'}
                     </span>
                   </td>
-                  <td className="logging-endpoint">
-                    <span>{log.method || 'GET'}</span>
-                    {log.endpoint || 'Not recorded'}
+                  <td>
+                    <button className="logging-view-action" type="button" onClick={() => setSelectedLog(log)}>
+                      <Eye size={15} aria-hidden="true" />
+                      View details
+                    </button>
                   </td>
-                  <td className="logging-error-context">
-                    <strong>{log.errorCode}</strong>
-                    <small title={log.requestId}>Request: {log.requestId}</small>
-                  </td>
-                  <td>{log.message || 'No message recorded'}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         )}
       </div>
+
+      {selectedLog && (
+        <div className="logging-dialog-backdrop" role="presentation" onMouseDown={() => setSelectedLog(null)}>
+          <div className="logging-dialog" role="dialog" aria-modal="true" aria-labelledby="event-detail-title" onMouseDown={(event) => event.stopPropagation()}>
+            <div className="logging-dialog-heading">
+              <div>
+                <p className="eyebrow">Event details</p>
+                <h3 id="event-detail-title">{selectedLog.message || 'Recorded system event'}</h3>
+              </div>
+              <button type="button" aria-label="Close event details" onClick={() => setSelectedLog(null)}><X size={18} /></button>
+            </div>
+            <div className="logging-dialog-badges">
+              <span className={`logging-badge logging-badge-${selectedLog.status}`}>{selectedLog.status}</span>
+              <span className={`logging-severity logging-severity-${selectedLog.severity || 'info'}`}>{selectedLog.severity || 'info'}</span>
+              <span>{formatCategoryLabel(selectedLog.category || 'api')}</span>
+            </div>
+            <dl className="logging-detail-grid">
+              <div><dt>Time</dt><dd>{formatDateTime(selectedLog.createdAt)}</dd></div>
+              <div><dt>Actor</dt><dd>{getActorLabel(selectedLog)} <small>{getActorMeta(selectedLog)}</small></dd></div>
+              <div><dt>Service</dt><dd>{selectedLog.service || 'Not recorded'}</dd></div>
+              <div><dt>Endpoint</dt><dd>{selectedLog.method || 'GET'} {selectedLog.endpoint || 'Not recorded'}</dd></div>
+              <div><dt>Error code</dt><dd>{selectedLog.errorCode || 'Not recorded'}</dd></div>
+              <div><dt>Request ID</dt><dd>{selectedLog.requestId || 'Not recorded'}</dd></div>
+            </dl>
+          </div>
+        </div>
+      )}
     </section>
   );
 }
