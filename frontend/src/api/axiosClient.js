@@ -4,7 +4,9 @@
  */
 import axios from 'axios';
 const getBaseURL = () => {
-  const fallbackBaseURL = 'http://localhost:5000/api/v1';
+  const fallbackBaseURL = import.meta.env.PROD
+    ? 'https://6003-cem-smart-travel-planner-roml.vercel.app/api/v1'
+    : 'http://localhost:5000/api/v1';
   const configuredBaseURL = String(import.meta.env.VITE_API_BASE_URL || '').trim();
 
   if (!configuredBaseURL || ['null', 'undefined'].includes(configuredBaseURL.toLowerCase())) {
