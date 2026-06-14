@@ -10,6 +10,8 @@ describe('application routes', () => {
   });
 
   it('reports API and database health information', async () => {
+    const response = await request(app).get('/');
+
     expect(response.body).toEqual({
       status: 'success',
       message: 'Smart Travel Planner API',
@@ -28,5 +30,12 @@ describe('application routes', () => {
       configured: expect.any(Boolean),
       state: expect.any(String),
     });
+  });
+
+  it('keeps database readiness separate from the basic health route', async () => {
+    const response = await request(app).get('/health');
+
+    expect(response.status).toBe(200);
+    expect(response.body.database.state).toBeDefined();
   });
 });

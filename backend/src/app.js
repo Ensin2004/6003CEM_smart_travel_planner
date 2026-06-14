@@ -10,6 +10,7 @@ const mongoose = require('mongoose');
 const corsOptions = require('./config/cors');
 const securityHeaders = require('./config/security');
 const env = require('./config/env');
+const connectDatabase = require('./config/database');
 const setupSwagger = require('./config/swagger');
 const v1Routes = require('./routes/v1.routes');
 const notFound = require('./middleware/notFound.middleware');
@@ -56,6 +57,32 @@ app.get('/health', (req, res) => {
       ] || 'unknown',
     },
   });
+});
+
+app.get('/health/database', async (req, res) => {
+  try {
+    await connectDatabase();
+    res.status(200).json({
+      status: 'success',
+      message: 'MongoDB connection is healthy',
+      database: {
+        configured: true,
+        state: 'connected',
+      },
+    });
+  } catch (error) {
+    res.status(503).json({
+      status: 'error',
+      message: 'MongoDB connection failed. Check the backend deployment logs.',
+      code: error.code || 'DATABASE_UNAVAILABLE',
+      database: {
+        configured: Boolean(env.mongoUri),
+        state: ['disconnected', 'connected', 'connecting', 'disconnecting'][
+          mongoose.connection.readyState
+        ] || 'unknown',
+      },
+    });
+  }
 });
 
 // Vercel may load the Express app without running the local server entrypoint.
