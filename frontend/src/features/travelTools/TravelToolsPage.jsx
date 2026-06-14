@@ -343,29 +343,6 @@ function PackingListTools() {
     if (didSave) handleClosePackingTemplateEdit();
   };
 
-  if (isLoading) {
-    return (
-      <TravelToolsPageFrame labelledBy="packing-loading-title" className="travel-tools-enhanced-page packing-redesign">
-        <section className="document-loading-page" role="status" aria-live="polite">
-          <span className="document-loading-mark" aria-hidden="true">
-            <ListChecks size={28} />
-            <span className="travel-tools-spinner" />
-          </span>
-          <div>
-            <p>Trip checklist control</p>
-            <h2 id="packing-loading-title">Preparing packing lists</h2>
-            <span>Loading packing lists and templates...</span>
-          </div>
-          <div className="document-loading-lines" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-          </div>
-        </section>
-      </TravelToolsPageFrame>
-    );
-  }
-
   return (
     <TravelToolsPageFrame labelledBy="packing-title" className="travel-tools-enhanced-page packing-redesign">
       <header className="document-command-header">
@@ -1717,29 +1694,6 @@ function TravelDocumentTools() {
       </object>
     );
   };
-
-  if (isLoading) {
-    return (
-      <TravelToolsPageFrame labelledBy="travel-document-loading-title" className="travel-tools-enhanced-page travel-documents-redesign">
-        <section className="document-loading-page" role="status" aria-live="polite">
-          <span className="document-loading-mark" aria-hidden="true">
-            <FileText size={28} />
-            <span className="travel-tools-spinner" />
-          </span>
-          <div>
-            <p>Trip file control</p>
-            <h2 id="travel-document-loading-title">Preparing travel documents</h2>
-            <span>Loading document lists and templates...</span>
-          </div>
-          <div className="document-loading-lines" aria-hidden="true">
-            <span />
-            <span />
-            <span />
-          </div>
-        </section>
-      </TravelToolsPageFrame>
-    );
-  }
 
   return (
     <TravelToolsPageFrame labelledBy="travel-document-title" className="travel-tools-enhanced-page travel-documents-redesign">

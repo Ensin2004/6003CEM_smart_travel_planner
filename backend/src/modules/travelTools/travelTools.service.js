@@ -248,7 +248,6 @@ const addItem = async (listId, userId, data) => {
     isPacked: Boolean(data.isPacked),
   });
   const savedPackingList = await packingListRepository.save(packingList);
-  await notificationService.notifyPackingList(savedPackingList, 'updated');
   return savedPackingList;
 };
 
@@ -267,7 +266,6 @@ const updateItem = async (listId, itemId, userId, data) => {
   });
 
   const savedPackingList = await packingListRepository.save(packingList);
-  await notificationService.notifyPackingList(savedPackingList, 'updated');
   return savedPackingList;
 };
 
