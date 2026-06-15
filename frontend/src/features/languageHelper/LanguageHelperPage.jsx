@@ -386,6 +386,15 @@ function LanguageHelperPage() {
                 placeholder="Type or record a phrase for the trip..."
               />
               <small>{sourceText.length}/1000 characters</small>
+              {isListening ? (
+                <div className="language-helper-listening-status" role="status" aria-live="polite">
+                  <i aria-hidden="true" />
+                  <span>
+                    <strong>Listening now</strong>
+                    Speak clearly in {selectedSourceLanguage?.name || 'the selected language'}. Click Stop recording when finished.
+                  </span>
+                </div>
+              ) : null}
             </label>
 
             <div className="language-helper-text-card language-helper-output">
@@ -399,9 +408,14 @@ function LanguageHelperPage() {
           </div>
 
           <div className="language-helper-actions">
-            <button className="secondary-action" type="button" onClick={handleListen}>
+            <button
+              className={isListening ? 'secondary-action language-helper-record is-listening' : 'secondary-action language-helper-record'}
+              type="button"
+              aria-pressed={isListening}
+              onClick={handleListen}
+            >
               {isListening ? <MicOff size={17} aria-hidden="true" /> : <Mic size={17} aria-hidden="true" />}
-              {isListening ? 'Stop' : 'Record'}
+              {isListening ? 'Stop recording' : 'Start recording'}
             </button>
             <button className="primary-action" type="submit" disabled={isTranslating || !hasLanguages}>
               <Send size={17} aria-hidden="true" />

@@ -28,6 +28,7 @@ import PlaceCard from '../../components/place/PlaceCard';
 import CurrencyContext from '../../context/currencyContext';
 import { buildVisitedLookup, getVisitedPlacePayload } from '../../components/visitedPlaces/visitedPlaceUtils';
 import { getApiErrorMessage } from '../../utils/apiError';
+import { getPlaceImageSrc } from '../../utils/placeImageProxy';
 import { formatMoney, getPriceConversionKey } from '../explore/explore.helpers';
 import './TravelGuidePage.css';
 const getDateKey = () => new Date().toISOString().slice(0, 10);
@@ -66,7 +67,44 @@ const getWeatherScore = (place, scenario, category) => {
 };
 const sortForWeather = (items, scenario, category) =>
   [...items].sort((first, second) => getWeatherScore(second, scenario, category) - getWeatherScore(first, scenario, category));
+const formatTravelDate = (date) => {
+  if (!date) return '';
+  return new Intl.DateTimeFormat(undefined, {
+    day: 'numeric',
+    month: 'short',
+    year: 'numeric',
+  }).format(new Date(`${date}T00:00:00`));
+};
 const getCarouselImageCount = (item) => item.imageUrls?.length || (item.imageUrl ? 1 : 0);
+const fallbackTravelImages = [
+  'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80',
+  'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1200&q=80',
+  'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1200&q=80',
+  'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=1200&q=80',
+];
+const getFallbackTravelImage = (label = '') => {
+  const imageIndex = [...label].reduce((total, character) => total + character.charCodeAt(0), 0)
+    % fallbackTravelImages.length;
+
+  return fallbackTravelImages[imageIndex];
+};
+function ResilientTravelImage({ candidates = [], label = '' }) {
+  const candidateKey = candidates.filter(Boolean).join('|');
+  const imageCandidates = useMemo(
+    () => [...new Set([...candidateKey.split('|'), getFallbackTravelImage(label)].filter(Boolean))],
+    [candidateKey, label]
+  );
+  const [failedImages, setFailedImages] = useState(() => new Set());
+  const imageUrl = imageCandidates.find((candidate) => !failedImages.has(candidate));
+
+  return imageUrl ? (
+    <img
+      src={getPlaceImageSrc(imageUrl)}
+      alt=""
+      onError={() => setFailedImages((currentImages) => new Set([...currentImages, imageUrl]))}
+    />
+  ) : null;
+}
 // GuideCarousel renders destination guide rows with the intro panel and shared Explore place cards.
 function GuideCarousel({
   id,
@@ -167,6 +205,7 @@ function TravelGuideDestinationPage() {
   const gallery = guide?.gallery?.length ? guide.gallery : guide?.heroImageUrl ? [guide.heroImageUrl] : [];
   const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destinationLabel || destination)}`;
   const weatherTip = weatherOptions.find((option) => option.id === weatherScenario)?.tip;
+  const isRefreshingGuide = isLoading && Boolean(guide);
   const categories = useMemo(
     () => ({
       attractions: sortForWeather(guide?.attractions?.items || [], weatherScenario, 'attractions'),
@@ -360,6 +399,10 @@ function TravelGuideDestinationPage() {
       return [visitedPlace, ...withoutCurrent];
     });
   };
+  const handleWeatherScenarioChange = (scenario) => {
+    setWeatherScenario(scenario);
+    setRowIndexes({ things: 0, stays: 0, food: 0 });
+  };
   const handleViewMore = (category = activeCategory) => {
     const targetCategory = category === 'all' ? 'attractions' : category;
     const itemCount = guide?.[targetCategory]?.items?.length || 8;
@@ -468,7 +511,10 @@ function TravelGuideDestinationPage() {
 
           <section className="travel-guide-media-row">
             <div className="travel-guide-gallery">
-              <img src={gallery[galleryIndex] || guide.heroImageUrl} alt="" />
+              <ResilientTravelImage
+                candidates={[gallery[galleryIndex], guide.heroImageUrl]}
+                label={guide.destination}
+              />
               {gallery.length > 1 && (
                 <div className="travel-guide-gallery-controls">
                   <button type="button" aria-label="Previous image" onClick={() => moveGallery(-1)}>
@@ -502,6 +548,12 @@ function TravelGuideDestinationPage() {
             <div className="travel-guide-detail-title">
               <CloudSun size={18} aria-hidden="true" />
               <h3>Weather planner</h3>
+              {isRefreshingGuide ? (
+                <span className="travel-guide-weather-updating" role="status">
+                  <LoaderCircle className="travel-guide-spin" size={14} aria-hidden="true" />
+                  Updating forecast
+                </span>
+              ) : null}
             </div>
             <div className="travel-guide-weather-layout">
               <label>
@@ -521,6 +573,11 @@ function TravelGuideDestinationPage() {
                 <p>{guide.weather?.message || 'Weather is unavailable for this destination.'}</p>
               )}
             </div>
+            <p className="travel-guide-weather-context">
+              {guide.weather?.available
+                ? `${formatTravelDate(guide.weather.requestedDate || travelDate)} · ${guide.weather.source || 'Weather forecast'}`
+                : `Weather requested for ${formatTravelDate(travelDate)}.`}
+            </p>
             <div className="travel-guide-weather-options" aria-label="Weather planning mode">
               {weatherOptions.map((option) => {
                 const OptionIcon = option.icon;
@@ -529,7 +586,8 @@ function TravelGuideDestinationPage() {
                     className={weatherScenario === option.id ? 'active' : ''}
                     type="button"
                     key={option.id}
-                    onClick={() => setWeatherScenario(option.id)}
+                    aria-pressed={weatherScenario === option.id}
+                    onClick={() => handleWeatherScenarioChange(option.id)}
                   >
                     <OptionIcon size={16} aria-hidden="true" />
                     {option.label}
@@ -544,7 +602,10 @@ function TravelGuideDestinationPage() {
               <Sparkles size={18} aria-hidden="true" />
               <h3>{weatherOptions.find((option) => option.id === weatherScenario)?.label} recommendations</h3>
             </div>
-            <p>{weatherTip} {guide.recommendations?.summary || ''}</p>
+            <p>
+              {weatherTip} The place rows below are reranked for this mode.
+              {' '}{guide.recommendations?.summary || ''}
+            </p>
             <div className="travel-guide-weather-recommendations">
               {weatherPickNames.map((name) => (
                 <span key={name}>{name}</span>
@@ -568,7 +629,7 @@ function TravelGuideDestinationPage() {
               { label: `Weather-smart picks for ${guide.destination}`, image: gallery[1] || guide.heroImageUrl, category: 'all' },
             ].map((list) => (
               <button className="travel-guide-list-card" type="button" key={list.label} onClick={() => setActiveCategory(list.category)}>
-                <img src={list.image} alt="" />
+                <ResilientTravelImage candidates={[list.image, guide.heroImageUrl]} label={list.label} />
                 <span>Smart list</span>
                 <strong>{list.label}</strong>
               </button>

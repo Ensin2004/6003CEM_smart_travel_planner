@@ -184,7 +184,14 @@ const fetchDailyForecast = async (location, date) =>
     params: {
       latitude: location.latitude,
       longitude: location.longitude,
-      daily: ['weather_code', 'temperature_2m_max', 'temperature_2m_min', 'precipitation_sum'].join(','),
+      daily: [
+        'weather_code',
+        'temperature_2m_max',
+        'temperature_2m_min',
+        'precipitation_sum',
+        'precipitation_probability_max',
+        'wind_speed_10m_max',
+      ].join(','),
       start_date: date,
       end_date: date,
       timezone: location.timezone || 'auto',

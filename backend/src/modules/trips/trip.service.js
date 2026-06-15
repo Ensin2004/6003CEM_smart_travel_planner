@@ -7,6 +7,7 @@ const AppError = require('../../utils/AppError');
 const tripRepository = require('./trip.repository');
 const exploreService = require('../explore/explore.service');
 const notificationService = require('../notifications/notification.service');
+const itineraryService = require('../itinerary/itinerary.service');
 
 // Request bodies can arrive from manual trip forms, AI-assisted forms, or older payload shapes.
 // This mapper folds those variants into the schema shape expected by the repository.
@@ -162,12 +163,24 @@ const getTripById = async (tripId, userId) => {
 
 const updateTrip = async (tripId, userId, data) => {
   const payload = normalizeTripPayload(data);
+  const previousTrip = await getTripById(tripId, userId);
 
-  // Partial updates validate dates only when both ends of the range are present.
-  if (payload.startDate && payload.endDate) validateTripPayload(payload);
+  const nextStartDate = payload.startDate || previousTrip.startDate;
+  const nextEndDate = payload.endDate || previousTrip.endDate;
+  if (payload.startDate || payload.endDate) {
+    validateTripPayload({
+      ...payload,
+      destination: payload.destination || previousTrip.destination,
+      startDate: nextStartDate,
+      endDate: nextEndDate,
+    });
+  }
 
   const trip = await tripRepository.updateByIdAndUserId(tripId, userId, payload);
   if (!trip) throw new AppError('Trip not found', 404);
+  if (payload.startDate || payload.endDate) {
+    await itineraryService.syncTripDateRange(previousTrip, trip, userId);
+  }
   await Promise.all([
     notificationService.scheduleTripReminder(trip),
     notificationService.reschedulePackingListRemindersForTrip(trip),

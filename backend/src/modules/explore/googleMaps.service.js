@@ -165,6 +165,11 @@ const inferCurrencyFromContext = (context = {}) => {
   const matchedHint = countryCurrencyHints.find(([pattern]) => pattern.test(locationText));
   return matchedHint?.[1] || '';
 };
+const getCurrencyDisplayPrefix = (currency) => {
+  if (currency === 'MYR') return 'RM';
+  if (currency === 'SGD') return 'S$';
+  return currency;
+};
 const parsePriceNumber = (value = '') => {
   const normalizedValue = String(value).replace(/\s/g, '');
 
@@ -200,10 +205,10 @@ const getPriceDetail = (price, context = {}) => {
   const currencyMatchers = [
     [/RM\s*/i, 'MYR'],
     [/MYR\s*/i, 'MYR'],
-    [/S\$\s*/i, 'SGD'],
-    [/SGD\s*/i, 'SGD'],
     [/US\$\s*/i, 'USD'],
     [/USD\s*/i, 'USD'],
+    [/S\$\s*/i, 'SGD'],
+    [/SGD\s*/i, 'SGD'],
     [/ARS\s*/i, 'ARS'],
     [/ARG\$\s*/i, 'ARS'],
     [/R\$\s*/i, 'BRL'],
@@ -238,9 +243,14 @@ const getPriceDetail = (price, context = {}) => {
   const amounts = [...text.matchAll(/\d+(?:[.,]\d+)*/g)]
     .map((result) => parsePriceNumber(result[0]))
     .filter((amount) => Number.isFinite(amount));
+  const hasAmbiguousDollarAmount = /^\$\s*\d/.test(text.trim());
+  const display =
+    hasAmbiguousDollarAmount && contextCurrency && contextCurrency !== 'USD'
+      ? text.replace(/^\$\s*/, `${getCurrencyDisplayPrefix(contextCurrency)} `)
+      : text;
 
   return {
-    display: text,
+    display,
     currency: match?.[1] || '',
     amount: Number.isFinite(amounts[0]) ? amounts[0] : null,
     maxAmount: Number.isFinite(amounts[1]) ? amounts[1] : null,

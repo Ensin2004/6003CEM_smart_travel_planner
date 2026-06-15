@@ -42,7 +42,7 @@ const defaultPreviewPlaces = [
   { city: 'Penang', country: 'Malaysia' },
   { city: 'Singapore', country: 'Singapore' },
 ];
-const tripFilters = ['All Trips', 'Active', 'Upcoming', 'Past', 'Drafts', 'Favorites'];
+const tripFilters = ['All Trips', 'Active', 'Upcoming', 'Past', 'Favorites'];
 
 // Date helpers keep exact-date and flexible-date planning consistent before the payload is built.
 

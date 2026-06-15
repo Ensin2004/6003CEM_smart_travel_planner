@@ -6,7 +6,12 @@ import { Country } from 'country-state-city';
 import { getPlaceImageSrc } from '../../utils/placeImageProxy';
 import landingHeroImage from '../../assets/landing-hero.png';
 
-export const formatDateKey = (date) => date.toISOString().slice(0, 10);
+export const formatDateKey = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
 
 export const parseDateKey = (dateKey) => {
   const [year, month, day] = String(dateKey || '').split('-').map(Number);

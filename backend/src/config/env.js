@@ -37,6 +37,7 @@ module.exports = {
   geoapifyApiKey: process.env.GEOAPIFY_API_KEY || process.env.GEOAPIFY_KEY || '',
   openRouteServiceApiKey: process.env.OPENROUTESERVICE_API_KEY || process.env.ORS_API_KEY || '',
   foursquareApiKey: process.env.FOURSQUARE_API_KEY || '',
+  restCountriesApiKey: process.env.REST_COUNTRIES_API_KEY || '',
   serpApiKey: process.env.SERPAPI_KEY || process.env.SERPAPI_API_KEY || '',
   airlabsApiKey: process.env.AIRLABS_API_KEY || '',
   transportApiAppId: process.env.TRANSPORTAPI_APP_ID || process.env.TAPI_APP_ID || '',

@@ -21,6 +21,7 @@ import {
   X,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { getTrips } from '../../api/tripApi';
 import {
   addTravelDocumentItem,
@@ -183,8 +184,11 @@ const useCloseTravelToolsMenusOnOutsideClick = () => {
 function PackingListTools() {
   useCloseTravelToolsMenusOnOutsideClick();
 
+  const [searchParams] = useSearchParams();
+  const initialRecordId = searchParams.get('recordId') || '';
+  const initialTripId = searchParams.get('tripId') || '';
   const [packingListSearch, setPackingListSearch] = useState('');
-  const [packingView, setPackingView] = useState('create');
+  const [packingView, setPackingView] = useState(initialRecordId ? 'all' : 'create');
   const [previousPackingView, setPreviousPackingView] = useState('create');
   const [openPackingTemplateMenuId, setOpenPackingTemplateMenuId] = useState('');
   const [packingTemplateEditStep, setPackingTemplateEditStep] = useState('details');
@@ -253,7 +257,10 @@ function PackingListTools() {
     templateSaveForm,
     templates,
     trips,
-  } = useTravelToolsPage();
+  } = useTravelToolsPage({
+    initialListId: initialRecordId,
+    initialTripId,
+  });
 
   const activeTrips = useMemo(
     () => trips.filter((trip) => trip.status === 'active'),
@@ -1105,9 +1112,12 @@ function PackingListTools() {
 function TravelDocumentTools() {
   useCloseTravelToolsMenusOnOutsideClick();
 
+  const [searchParams] = useSearchParams();
+  const initialRecordId = searchParams.get('recordId') || '';
+  const initialTripId = searchParams.get('tripId') || '';
   const [documents, setDocuments] = useState([]);
   const [documentTemplates, setDocumentTemplates] = useState([]);
-  const [documentView, setDocumentView] = useState('create');
+  const [documentView, setDocumentView] = useState(initialRecordId ? 'all' : 'create');
   const [previousDocumentView, setPreviousDocumentView] = useState('create');
   const [selectedDocumentId, setSelectedDocumentId] = useState('');
   const [trips, setTrips] = useState([]);
@@ -1154,8 +1164,16 @@ function TravelDocumentTools() {
         const nextTemplates = templatesResponse.data.data.templates || [];
         setDocuments(nextDocuments);
         setDocumentTemplates(nextTemplates);
-        setSelectedDocumentId((current) => current || nextDocuments[0]?.id || '');
+        const requestedDocument = nextDocuments.find(
+          (document) => String(document.id) === String(initialRecordId)
+        ) || nextDocuments.find(
+          (document) => String(document.tripId || '') === String(initialTripId)
+        );
+        setSelectedDocumentId((current) => current || requestedDocument?.id || nextDocuments[0]?.id || '');
         setTrips(tripsResponse.data.data.trips || []);
+        if (initialTripId && !requestedDocument) {
+          setCreateForm((current) => ({ ...current, tripId: initialTripId }));
+        }
         setFormError('');
       } catch (requestError) {
         if (isMounted) setFormError(getErrorMessage(requestError));
@@ -1169,7 +1187,7 @@ function TravelDocumentTools() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [initialRecordId, initialTripId]);
 
   const selectedDocument = useMemo(
     () => documents.find((document) => document.id === selectedDocumentId) || documents[0],

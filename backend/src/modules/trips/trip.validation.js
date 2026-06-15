@@ -57,6 +57,7 @@ const tripBodyRules = [
 
 const updateTripRules = [
   objectIdRule,
+  body('title').optional().trim().isLength({ min: 1, max: 120 }),
   body('destination').optional().trim().isLength({ min: 2, max: 120 }),
   body('country').optional().trim().isLength({ max: 80 }),
   body('startDate').optional().isISO8601(),

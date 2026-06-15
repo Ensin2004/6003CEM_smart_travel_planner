@@ -211,6 +211,8 @@ describe('Weather service Open-Meteo normalization', () => {
             temperature_2m_max: [31],
             temperature_2m_min: [25],
             precipitation_sum: [6],       // 6mm of rain expected
+            precipitation_probability_max: [72],
+            wind_speed_10m_max: [18.4],
           },
         },
       });
@@ -234,13 +236,17 @@ describe('Weather service Open-Meteo normalization', () => {
     // Verify forecast API endpoint was used (not seasonal or archive)
     expect(get.mock.calls[1][0]).toBe('https://api.open-meteo.com/v1/forecast');
     // Verify daily parameters include all needed fields
-    expect(get.mock.calls[1][1].params.daily).toBe('weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum');
+    expect(get.mock.calls[1][1].params.daily).toBe(
+      'weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max,wind_speed_10m_max'
+    );
     // Verify service indicates weather is available
     expect(weather.available).toBe(true);
     // Verify forecast type is identified as forecast (not seasonal)
     expect(weather.forecastType).toBe('forecast');
     // Verify precipitation amount is correctly parsed
     expect(weather.precipitation.amountMm).toBe(6);
+    expect(weather.precipitation.probability).toBe(72);
+    expect(weather.windSpeed.max).toBe(18.4);
   });
 
   // Scenario verifies that future dates beyond 16 days use the Open-Meteo Seasonal API.

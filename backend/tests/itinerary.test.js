@@ -6,10 +6,14 @@ jest.mock('../src/modules/trips/trip.repository', () => ({
 // Mock the itinerary repository to isolate service layer tests from database operations
 jest.mock('../src/modules/itinerary/itinerary.repository', () => ({
   createItem: jest.fn(),
+  deleteDaysAfter: jest.fn(),
   deleteItemByIdAndUserId: jest.fn(),
+  deleteItemsByIds: jest.fn(),
   findDaysByTripId: jest.fn(),
   findItemsByTripId: jest.fn(),
   updateItemByIdAndUserId: jest.fn(),
+  updateDayDate: jest.fn(),
+  updateItemScheduledDate: jest.fn(),
   upsertDay: jest.fn(),
 }));
 
@@ -129,6 +133,40 @@ describe('Itinerary service', () => {
         priceEstimate: { amount: 40, currency: 'JPY' },  // Normalized
       })
     );
+  });
+
+  test('shortens and shifts saved itinerary content with a changed date range', async () => {
+    itineraryRepository.findDaysByTripId.mockResolvedValue([
+      { dayNumber: 1 },
+      { dayNumber: 2 },
+      { dayNumber: 3 },
+    ]);
+    itineraryRepository.findItemsByTripId.mockResolvedValue([
+      { _id: 'item-1', scheduledDate: new Date('2026-07-01T00:00:00.000Z') },
+      { _id: 'item-3', scheduledDate: new Date('2026-07-03T00:00:00.000Z') },
+    ]);
+
+    await itineraryService.syncTripDateRange(
+      {
+        _id: 'trip-1',
+        startDate: new Date('2026-07-01T00:00:00.000Z'),
+      },
+      {
+        _id: 'trip-1',
+        startDate: new Date('2026-08-10T00:00:00.000Z'),
+        endDate: new Date('2026-08-11T00:00:00.000Z'),
+      },
+      'user-1'
+    );
+
+    expect(itineraryRepository.deleteDaysAfter).toHaveBeenCalledWith('trip-1', 'user-1', 2);
+    expect(itineraryRepository.updateDayDate).toHaveBeenCalledTimes(2);
+    expect(itineraryRepository.updateItemScheduledDate).toHaveBeenCalledWith(
+      'item-1',
+      'user-1',
+      new Date('2026-08-10T00:00:00.000Z')
+    );
+    expect(itineraryRepository.deleteItemsByIds).toHaveBeenCalledWith(['item-3'], 'user-1');
   });
 
   // Verify that updating non-existent or unauthorized item throws appropriate error

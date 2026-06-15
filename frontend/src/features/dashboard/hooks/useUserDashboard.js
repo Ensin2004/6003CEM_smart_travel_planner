@@ -79,9 +79,25 @@ export function useUserDashboard() {
         visited: isDestinationVisited(destination),
       }))
     ), [isDestinationVisited, trips]);
+  const calendarTripRows = useMemo(() =>
+    trips.flatMap((trip) => {
+      const destinations = getTripDestinationPlaces(trip);
+      if (destinations.length) return destinations;
+
+      return [{
+        title: trip.title || 'Untitled trip',
+        name: trip.title || 'Untitled trip',
+        address: 'Destination not added yet',
+        country: trip.country,
+        startDate: trip.startDate,
+        endDate: trip.endDate,
+        tripId: trip._id,
+        tripTitle: trip.title || 'Untitled trip',
+      }];
+    }), [trips]);
   const tripDestinationLookup = useMemo(() => {
     const { start, end } = getMonthBounds(monthDate);
-    return allTripDestinationRows.reduce((lookup, destination) => {
+    return calendarTripRows.reduce((lookup, destination) => {
       const startCursor = new Date(destination.startDate);
       const endCursor = new Date(destination.endDate);
       startCursor.setHours(0, 0, 0, 0);
@@ -95,7 +111,7 @@ export function useUserDashboard() {
 
       return lookup;
     }, {});
-  }, [allTripDestinationRows, monthDate]);
+  }, [calendarTripRows, monthDate]);
   const calendarCells = useMemo(() => buildCalendarCells(monthDate, dayLookup, tripDestinationLookup), [dayLookup, monthDate, tripDestinationLookup]);
   const tripGroups = useMemo(() => getTripStatusGroups(trips), [trips]);
   const sortedUpcomingTrips = useMemo(
@@ -107,8 +123,8 @@ export function useUserDashboard() {
     [sortedUpcomingTrips]
   );
   const selectedDestinations = useMemo(
-    () => allTripDestinationRows.filter((destination) => isDateWithinRange(selectedDateKey, destination.startDate, destination.endDate)),
-    [allTripDestinationRows, selectedDateKey]
+    () => calendarTripRows.filter((destination) => isDateWithinRange(selectedDateKey, destination.startDate, destination.endDate)),
+    [calendarTripRows, selectedDateKey]
   );
   const selectedVisits = dayLookup[selectedDateKey] || [];
   const visitedPlaceRows = useMemo(() => visitedPlaces.map((place) => ({
@@ -366,7 +382,11 @@ export function useUserDashboard() {
   }, []);
 
   const moveMonth = (direction) => {
-    setMonthDate((currentDate) => new Date(currentDate.getFullYear(), currentDate.getMonth() + direction, 1));
+    setMonthDate((currentDate) => {
+      const nextMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + direction, 1);
+      setSelectedDateKey(formatDateKey(nextMonth));
+      return nextMonth;
+    });
   };
   const selectToday = () => {
     const today = new Date();

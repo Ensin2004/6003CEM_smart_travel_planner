@@ -18,12 +18,18 @@ jest.mock('../src/modules/trips/trip.repository', () => ({
 
 // Mock the notification service to prevent actual notification scheduling during tests
 jest.mock('../src/modules/notifications/notification.service', () => ({
+  cancelPackingListRemindersForTrip: jest.fn(),
   scheduleTripReminder: jest.fn(),
+  reschedulePackingListRemindersForTrip: jest.fn(),
+}));
+jest.mock('../src/modules/itinerary/itinerary.service', () => ({
+  syncTripDateRange: jest.fn(),
 }));
 
 // Import mocked modules after jest.mock calls for reference in tests
 const tripRepository = require('../src/modules/trips/trip.repository');
 const notificationService = require('../src/modules/notifications/notification.service');
+const itineraryService = require('../src/modules/itinerary/itinerary.service');
 const tripService = require('../src/modules/trips/trip.service');
 
 // Test group covers authentication and authorization behavior for trip endpoints.
@@ -47,6 +53,8 @@ describe('Trip CRUD service', () => {
     jest.clearAllMocks();
     // Configure notification mock to resolve successfully by default
     notificationService.scheduleTripReminder.mockResolvedValue(undefined);
+    notificationService.reschedulePackingListRemindersForTrip.mockResolvedValue([]);
+    notificationService.cancelPackingListRemindersForTrip.mockResolvedValue([]);
   });
 
   // Verify that trip creation normalizes input data and associates with authenticated user
@@ -127,6 +135,13 @@ describe('Trip CRUD service', () => {
   test('updates only the authenticated user trip and reschedules its reminder', async () => {
     // Define updated trip object that repository should return
     const updatedTrip = { id: 'trip-1', userId: 'user-1', destination: 'Kyoto' };
+    tripRepository.findByIdAndUserId.mockResolvedValue({
+      id: 'trip-1',
+      userId: 'user-1',
+      destination: 'Tokyo',
+      startDate: new Date('2026-07-01'),
+      endDate: new Date('2026-07-05'),
+    });
     // Mock repository to return updated trip after successful update
     tripRepository.updateByIdAndUserId.mockResolvedValue(updatedTrip);
 
@@ -145,6 +160,34 @@ describe('Trip CRUD service', () => {
     expect(notificationService.scheduleTripReminder).toHaveBeenCalledWith(updatedTrip);
     // Verify service returns the updated trip object
     expect(result).toBe(updatedTrip);
+  });
+
+  test('synchronizes itinerary content when the trip date range changes', async () => {
+    const previousTrip = {
+      _id: 'trip-1',
+      userId: 'user-1',
+      destination: 'Tokyo',
+      startDate: new Date('2026-07-01'),
+      endDate: new Date('2026-07-05'),
+    };
+    const updatedTrip = {
+      ...previousTrip,
+      startDate: new Date('2026-07-10'),
+      endDate: new Date('2026-07-12'),
+    };
+    tripRepository.findByIdAndUserId.mockResolvedValue(previousTrip);
+    tripRepository.updateByIdAndUserId.mockResolvedValue(updatedTrip);
+
+    await tripService.updateTrip('trip-1', 'user-1', {
+      startDate: '2026-07-10',
+      endDate: '2026-07-12',
+    });
+
+    expect(itineraryService.syncTripDateRange).toHaveBeenCalledWith(
+      previousTrip,
+      updatedTrip,
+      'user-1'
+    );
   });
 
   // Verify that deletion only affects trips owned by the authenticated user

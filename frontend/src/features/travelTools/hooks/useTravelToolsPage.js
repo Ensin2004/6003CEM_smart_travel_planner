@@ -40,7 +40,7 @@ import {
   validateTemplateDraft,
 } from '../travelTools.validation';
 
-export function useTravelToolsPage() {
+export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = {}) {
   // Core workspace state covers loaded lists, templates, trips, selected records, and request feedback.
   const [packingLists, setPackingLists] = useState([]);
   const [templates, setTemplates] = useState([]);
@@ -207,8 +207,13 @@ export function useTravelToolsPage() {
           notificationsOff: Boolean(preferences.notificationsOff),
           packingReminder: preferences.packingReminder !== false,
         });
-        setReminderDays(nextLists[0]?.reminder?.daysBeforeTrip ?? 2);
-        setSelectedListId((current) => current || nextLists[0]?._id || '');
+        const requestedList = nextLists.find((list) => String(list._id) === String(initialListId))
+          || nextLists.find((list) => String(list.tripId || '') === String(initialTripId));
+        setReminderDays(requestedList?.reminder?.daysBeforeTrip ?? nextLists[0]?.reminder?.daysBeforeTrip ?? 2);
+        setSelectedListId((current) => current || requestedList?._id || nextLists[0]?._id || '');
+        if (initialTripId && !requestedList) {
+          setCreateForm((current) => ({ ...current, tripId: initialTripId }));
+        }
         setError('');
       } catch (requestError) {
         if (isMounted) setError(getErrorMessage(requestError));
@@ -223,7 +228,7 @@ export function useTravelToolsPage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [initialListId, initialTripId]);
 
   const replaceList = (updatedList) => {
     const normalizedList = normalizePackingListForUi(updatedList);
