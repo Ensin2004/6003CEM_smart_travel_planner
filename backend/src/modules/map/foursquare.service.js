@@ -6,11 +6,13 @@ const env = require('../../config/env');
 const apiLogService = require('../apiLogs/apiLog.service');
 const { classifyExternalApiError } = require('../../utils/externalApiError');
 
+// Creates an axios client configured with Foursquare Places API base URL and timeout
 const foursquareClient = axios.create({
   baseURL: 'https://places-api.foursquare.com/places',
   timeout: 8000,
 });
 
+// Defines the search field set required for basic place listing
 const SEARCH_FIELDS = [
   'fsq_place_id',
   'name',
@@ -22,6 +24,7 @@ const SEARCH_FIELDS = [
   'link',
 ].join(',');
 
+// Extends search fields with additional detail fields for full place information
 const DETAIL_FIELDS = [
   SEARCH_FIELDS,
   'description',
@@ -34,12 +37,14 @@ const DETAIL_FIELDS = [
   'website',
 ].join(',');
 
+// Constructs the required HTTP headers for Foursquare API authentication and versioning
 const getHeaders = () => ({
   Accept: 'application/json',
   Authorization: `Bearer ${env.foursquareApiKey}`,
   'X-places-api-version': '2025-02-05',
 });
 
+// Transforms API errors into user-friendly failure messages based on error classification
 const getFoursquareFailureMessage = (error) => {
   return classifyExternalApiError(error, {
     invalidApiKeyMessage: 'Foursquare API key is invalid or unauthorized.',
@@ -50,6 +55,7 @@ const getFoursquareFailureMessage = (error) => {
   });
 };
 
+// Records failed Foursquare API calls to the logging service, skipping during test environment
 const recordFoursquareFailure = (endpoint, message, statusCode, metadata, errorCode) =>
   env.nodeEnv === 'test'
     ? Promise.resolve()

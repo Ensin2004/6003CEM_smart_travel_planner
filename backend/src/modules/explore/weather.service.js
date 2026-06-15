@@ -8,17 +8,24 @@ const logger = require('../../utils/logger');
 const apiLogService = require('../apiLogs/apiLog.service');
 const { classifyExternalApiError } = require('../../utils/externalApiError');
 
+// Creates an in-memory cache for weather data to reduce redundant API calls
 const weatherCache = new Map();
+// Sets cache expiration to 30 minutes
 const CACHE_TTL_MS = 30 * 60 * 1000;
+// Defines the maximum number of forecast days available from standard forecast endpoint
 const FORECAST_DAYS = 16;
+// Defines the maximum number of days for seasonal outlook (approximately 7 months)
 const SEASONAL_DAYS = 214;
+// Defines the earliest date for which historical weather data is available
 const HISTORICAL_START_DATE = '2015-01-01';
 
+// Tracks daily API usage count to enforce rate limits
 const dailyUsage = {
   date: '',
   count: 0,
 };
 
+// Maps Open-Meteo weather codes to human-readable conditions and icon names
 const weatherCodeMap = {
   0: ['Clear', 'sun'],
   1: ['Mostly clear', 'sun'],
@@ -42,16 +49,24 @@ const weatherCodeMap = {
   96: ['Thunderstorm with hail', 'cloud-lightning'],
   99: ['Thunderstorm with hail', 'cloud-lightning'],
 };
+
+// Returns today's date in ISO YYYY-MM-DD format for quota tracking and comparisons
 const getTodayKey = () => new Date().toISOString().slice(0, 10);
+
+// Calculates the number of days between a given date and today
 const getDaysFromToday = (date) => {
   const today = new Date(`${getTodayKey()}T00:00:00.000Z`);
   const target = new Date(`${date}T00:00:00.000Z`);
   return Math.round((target - today) / (24 * 60 * 60 * 1000));
 };
+
+// Returns a fallback weather object indicating unavailability with a custom message
 const fallbackWeather = (message = 'Weather temporarily unavailable') => ({
   available: false,
   message,
 });
+
+// Checks and consumes one unit from the daily API quota; returns false if limit exceeded
 const consumeDailyQuota = () => {
   const today = getTodayKey();
   const dailyLimit = Math.max(Number(env.openMeteoDailyLimit) || 500, 0);
@@ -67,6 +82,8 @@ const consumeDailyQuota = () => {
   dailyUsage.count += 1;
   return true;
 };
+
+// Records failed weather API calls to the logging service, skipping during test environment
 const recordWeatherFailure = (message, statusCode, metadata, errorCode) =>
   env.nodeEnv === 'test'
     ? Promise.resolve()
@@ -83,6 +100,8 @@ const recordWeatherFailure = (message, statusCode, metadata, errorCode) =>
           metadata,
         })
         .catch((error) => logger.error(`Failed to record weather API event: ${error.message}`));
+
+// Classifies weather API errors into user-friendly messages based on error type
 const classifyWeatherError = (error) => {
   return classifyExternalApiError(error, {
     invalidApiKeyMessage: 'Weather API key is invalid or unauthorized.',
@@ -94,12 +113,18 @@ const classifyWeatherError = (error) => {
     unavailableMessage: 'Weather is temporarily unavailable.',
   });
 };
+
+// Converts a numeric weather code into a condition description and icon identifier
 const getWeatherCondition = (code) => {
   const [condition, icon] = weatherCodeMap[Number(code)] || ['Weather outlook', 'cloud'];
   return { condition, icon };
 };
+
+// Builds a human-readable location label from available location fields
 const getLocationLabel = (location) =>
   location.label || [location.name, location.admin1, location.country].filter(Boolean).join(', ');
+
+// Generates a travel recommendation based on weather conditions and forecast type
 const getTravelTip = ({ condition, precipitationAmount, precipitationProbability, temperatureMax, forecastType }) => {
   const lowerCondition = condition.toLowerCase();
 
@@ -125,6 +150,8 @@ const getTravelTip = ({ condition, precipitationAmount, precipitationProbability
 
   return 'Good conditions for flexible sightseeing and dining plans.';
 };
+
+// Converts a destination name into geographic coordinates using Open-Meteo geocoding API
 const geocodeDestination = async (destination) => {
   const response = await axios.get('https://geocoding-api.open-meteo.com/v1/search', {
     params: {
@@ -151,6 +178,8 @@ const geocodeDestination = async (destination) => {
     timezone: location.timezone || 'auto',
   };
 };
+
+// Creates a location object from provided coordinates without performing geocoding
 const getCoordinateLocation = ({ latitude, longitude, locationLabel }) => {
   const parsedLatitude = Number(latitude);
   const parsedLongitude = Number(longitude);
@@ -170,6 +199,8 @@ const getCoordinateLocation = ({ latitude, longitude, locationLabel }) => {
     label: locationLabel || `${parsedLatitude.toFixed(4)}, ${parsedLongitude.toFixed(4)}`,
   };
 };
+
+// Fetches current weather conditions from the Open-Meteo forecast API
 const fetchCurrentWeather = async (location) =>
   axios.get('https://api.open-meteo.com/v1/forecast', {
     params: {
@@ -179,6 +210,8 @@ const fetchCurrentWeather = async (location) =>
     },
     timeout: 30000,
   });
+
+// Fetches daily forecast for a specific date from the Open-Meteo forecast API
 const fetchDailyForecast = async (location, date) =>
   axios.get('https://api.open-meteo.com/v1/forecast', {
     params: {
@@ -198,6 +231,8 @@ const fetchDailyForecast = async (location, date) =>
     },
     timeout: 30000,
   });
+
+// Fetches seasonal outlook data from the Open-Meteo seasonal API
 const fetchSeasonalForecast = async (location, date) =>
   axios.get('https://seasonal-api.open-meteo.com/v1/seasonal', {
     params: {
@@ -210,6 +245,8 @@ const fetchSeasonalForecast = async (location, date) =>
     },
     timeout: 30000,
   });
+
+// Fetches historical weather data from the Open-Meteo archive API
 const fetchHistoricalForecast = async (location, date) =>
   axios.get('https://archive-api.open-meteo.com/v1/archive', {
     params: {
@@ -222,6 +259,8 @@ const fetchHistoricalForecast = async (location, date) =>
     },
     timeout: 30000,
   });
+
+// Extracts and formats location information for inclusion in weather responses
 const getWeatherLocation = (location) => ({
   name: location.name,
   label: getLocationLabel(location),
@@ -231,7 +270,8 @@ const getWeatherLocation = (location) => ({
   longitude: location.longitude,
   timezone: location.timezone,
 });
-// Daily Forecast prepares forecast, seasonal, and archive daily data for consistent storage.
+
+// Normalizes daily forecast, seasonal, and archive data into a consistent weather object structure
 const normalizeDailyForecast = ({ destination, date, location, response, forecastType }) => {
   const daily = response.data?.daily || {};
   const index = daily.time?.findIndex((time) => time === date) ?? -1;
@@ -296,6 +336,8 @@ const normalizeDailyForecast = ({ destination, date, location, response, forecas
     lastUpdated: new Date().toISOString(),
   };
 };
+
+// Normalizes current weather data into the standard weather object structure
 const normalizeCurrentWeather = ({ destination, date, location, response }) => {
   const current = response.data?.current_weather || {};
   const temperature = Number(current.temperature);
@@ -335,6 +377,7 @@ const normalizeCurrentWeather = ({ destination, date, location, response }) => {
     lastUpdated: new Date().toISOString(),
   };
 };
+
 /**
  * Resolves a destination and returns the best weather dataset for the requested date.
  * @param {string} destination Human-readable destination used for geocoding.
@@ -349,23 +392,28 @@ const getWeatherByDestination = async (destination, date = getTodayKey(), locati
   const coordinateLocation = getCoordinateLocation(locationInput);
   let resolvedLocation = coordinateLocation;
 
+  // Rejects requests for dates before historical data availability
   if (requestedDate < HISTORICAL_START_DATE) {
     return fallbackWeather('Historical weather is available from 1940-01-01 onward.');
   }
 
+  // Rejects requests for dates beyond seasonal forecast range
   if (daysFromToday > SEASONAL_DAYS) {
     return fallbackWeather('Weather outlook is available up to about 7 months ahead.');
   }
 
+  // Builds a cache key based on coordinates or destination name combined with date
   const cacheKey = coordinateLocation
     ? `${coordinateLocation.latitude}:${coordinateLocation.longitude}|${requestedDate}`
     : `${normalizedDestination.toLowerCase()}|${requestedDate}`;
   const cached = weatherCache.get(cacheKey);
 
+  // Returns cached data if still within TTL
   if (cached && Date.now() - cached.createdAt < CACHE_TTL_MS) {
     return { ...cached.data, cached: true };
   }
 
+  // Enforces daily quota before making API calls
   if (!consumeDailyQuota()) {
     const error = new Error('Daily weather API limit reached. Please try again tomorrow.');
     error.isDailyLimit = true;
@@ -383,6 +431,7 @@ const getWeatherByDestination = async (destination, date = getTodayKey(), locati
       };
     }
 
+    // Determines which forecast type to use based on the requested date relative to today
     const forecastType = daysFromToday < 0 ? 'historical' : daysFromToday === 0 ? 'current' : daysFromToday <= FORECAST_DAYS ? 'forecast' : 'seasonal';
     const response =
       forecastType === 'historical'
