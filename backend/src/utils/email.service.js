@@ -5,7 +5,11 @@
 const nodemailer = require('nodemailer');
 const env = require('../config/env');
 const logger = require('./logger');
+
+// Checks if SMTP configuration is available for real email delivery.
 const hasSmtpConfig = () => Boolean(env.smtpHost && env.smtpUser && env.smtpPass);
+
+// Escapes HTML special characters to prevent injection attacks.
 const escapeHtml = (value = '') =>
   String(value)
     .replace(/&/g, '&amp;')
@@ -13,7 +17,8 @@ const escapeHtml = (value = '') =>
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#39;');
-// Create Transporter builds a new record from validated input.
+
+// Creates a nodemailer transporter with SMTP or fallback JSON transport.
 const createTransporter = () => {
   if (!hasSmtpConfig()) {
     return nodemailer.createTransport({ jsonTransport: true });
@@ -29,6 +34,8 @@ const createTransporter = () => {
     },
   });
 };
+
+// Sends a verification email with an expiring link for email confirmation.
 const sendVerificationEmail = async ({ to, name, verificationUrl, expiresAt }) => {
   const transporter = createTransporter();
   const expiresText = expiresAt.toLocaleString('en-MY', {
@@ -65,6 +72,7 @@ const sendVerificationEmail = async ({ to, name, verificationUrl, expiresAt }) =
   return info;
 };
 
+// Sends a generic notification email with optional action link.
 const sendNotificationEmail = async ({ to, name, title, message, actionUrl }) => {
   const transporter = createTransporter();
   const htmlAction = actionUrl
@@ -95,4 +103,5 @@ const sendNotificationEmail = async ({ to, name, title, message, actionUrl }) =>
   return info;
 };
 
+// Exports email sending functions for use across the application.
 module.exports = { sendNotificationEmail, sendVerificationEmail };

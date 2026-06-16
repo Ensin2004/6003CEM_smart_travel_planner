@@ -17,6 +17,7 @@ const externalApiErrorCodes = {
 const isTimeoutError = (error) =>
   ['ECONNABORTED', 'ETIMEDOUT', 'ESOCKETTIMEDOUT'].includes(error?.code);
 
+// Classifies external API errors into standardized error codes and messages.
 const classifyExternalApiError = (
   error,
   {

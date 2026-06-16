@@ -10,8 +10,37 @@ const validate = require('../../middleware/validate.middleware');
 const { convertCurrencyRules } = require('./currency.validation');
 
 const router = express.Router();
-//  route wires  to validation, access checks, and controller logic.
+
+/**
+ * GET / - Retrieves the list of supported currencies.
+ * Public endpoint - no authentication required.
+ * Returns currency codes and labels for UI selection.
+ * 
+ * route wires endpoint to validation, access checks, and controller logic.
+ */
 router.get('/', currencyController.getCurrencies);
-//  route wires  to validation, access checks, and controller logic.
-router.get('/convert', protect, thirdPartyApiRateLimit, convertCurrencyRules, validate, currencyController.convertCurrency);
+
+/**
+ * GET /convert - Converts an amount from one currency to another.
+ * Requires authentication to track usage and apply rate limits.
+ * Applies third-party API rate limiting to protect external service costs.
+ * 
+ * Middleware chain:
+ * 1. protect - Authentication verification
+ * 2. thirdPartyApiRateLimit - Rate limiting for external API cost protection
+ * 3. convertCurrencyRules - Query parameter validation
+ * 4. validate - Validation result processing
+ * 5. currencyController.convertCurrency - Route handler
+ * 
+ * route wires endpoint to validation, access checks, and controller logic.
+ */
+router.get(
+  '/convert',
+  protect,
+  thirdPartyApiRateLimit,
+  convertCurrencyRules,
+  validate,
+  currencyController.convertCurrency
+);
+
 module.exports = router;

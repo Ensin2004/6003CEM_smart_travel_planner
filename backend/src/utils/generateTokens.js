@@ -17,4 +17,5 @@ const generateRefreshToken = (user) =>
     expiresIn: env.refreshJwtExpiresIn,
   });
 
+// Exports both token generation functions for use in authentication flows.
 module.exports = { generateAccessToken, generateRefreshToken };

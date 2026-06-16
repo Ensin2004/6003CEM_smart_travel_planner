@@ -15,7 +15,15 @@ const {
   searchGoogleMapsReviews,
 } = require('./googleMaps.service');
 
+// In-memory cache for attraction search results
 const attractionsCache = new Map();
+
+/**
+ * Creates a fallback response when attractions cannot be retrieved.
+ * @param {Object} filters - Search filters
+ * @param {string} message - Error message
+ * @returns {Object} Fallback response object
+ */
 const fallbackAttractions = (filters, message = 'Attractions temporarily unavailable') => ({
   available: false,
   ...filters,
@@ -23,7 +31,16 @@ const fallbackAttractions = (filters, message = 'Attractions temporarily unavail
   items: [],
   hasMore: false,
 });
-// Normalize Attraction prepares incoming data for consistent storage.
+
+/**
+ * Normalize Attraction prepares incoming data for consistent storage.
+ * Maps raw attraction data to standardized format with price details.
+ * 
+ * @param {Object} item - Raw attraction item from API
+ * @param {number} index - Index for fallback ID
+ * @param {Object} filters - Search filters for context
+ * @returns {Object} Normalized attraction item
+ */
 const normalizeAttraction = (item = {}, index, filters = {}) => ({
   ...normalizePlaceItem(item, index, {
     name: 'Untitled attraction',
@@ -35,7 +52,16 @@ const normalizeAttraction = (item = {}, index, filters = {}) => ({
     address: item.address,
   }),
 });
+
+/**
+ * Normalize Filters prepares incoming data for consistent storage.
+ * Handles both string and object filter formats.
+ * 
+ * @param {Object|string} filters - Raw filters from request
+ * @returns {Object} Normalized filters
+ */
 const normalizeFilters = (filters = {}) => {
+  // Handle string input (legacy support)
   if (typeof filters === 'string') {
     return {
       destination: filters.trim(),
@@ -54,8 +80,22 @@ const normalizeFilters = (filters = {}) => {
     start: Math.max(Number(filters.start) || 0, 0),
   };
 };
+
+/**
+ * Checks if any attraction search input is provided.
+ * @param {Object} filters - Normalized filters
+ * @returns {boolean} True if at least one search criterion exists
+ */
 const hasAttractionSearchInput = ({ destination, country, state, attractionCategory }) =>
   Boolean(destination || country || state || attractionCategory);
+
+/**
+ * Builds a search query string for attractions.
+ * Combines category, destination, and location context.
+ * 
+ * @param {Object} filters - Normalized filters
+ * @returns {string} Search query for SerpApi
+ */
 const getAttractionQuery = ({ destination, country, state, attractionCategory }) => {
   const category = attractionCategory || 'tourist attractions';
   const location = [state, country].filter(Boolean).join(', ');
@@ -74,6 +114,7 @@ const getAttractionQuery = ({ destination, country, state, attractionCategory })
 
   return category;
 };
+
 /**
  * Searches for attractions matching destination and category filters.
  * @param {object} filters Destination, country, state, category, and pagination input.
@@ -82,15 +123,19 @@ const getAttractionQuery = ({ destination, country, state, attractionCategory })
 const getAttractionsByDestination = async (filters) => {
   const normalizedFilters = normalizeFilters(filters);
 
+  // Validate that search criteria exist
   if (!hasAttractionSearchInput(normalizedFilters)) {
     return fallbackAttractions(normalizedFilters, 'Enter an attraction name, country, location, or category first.');
   }
+  
+  // Check if SerpApi key is configured
   if (!env.serpApiKey || env.nodeEnv === 'test') {
     return {
       ...fallbackAttractions(normalizedFilters, 'SerpApi key is not configured'),
       errorCode: 'INVALID_API_KEY',
     };
   }
+  
   try {
     const attractions = await searchGoogleMaps({
       cache: attractionsCache,
@@ -101,14 +146,23 @@ const getAttractionsByDestination = async (filters) => {
       mapItem: (item, index) => normalizeAttraction(item, index, normalizedFilters),
     });
 
+    // Remove query field from response
     const { query, ...publicAttractions } = attractions;
     return publicAttractions;
   } catch (error) {
+    // Handle and log API failures
     const { errorCode, message, statusCode } = getGoogleMapsFailureMessage(error);
     recordGoogleMapsFailure('attractions', message, statusCode, normalizedFilters, errorCode);
     return { ...fallbackAttractions(normalizedFilters, message), errorCode };
   }
 };
+
+/**
+ * Fetches Wikipedia page summary for a given title.
+ * @param {string} title - Wikipedia page title
+ * @returns {Promise<Object>} Page summary with extract and URL
+ * @throws {Error} If API request fails
+ */
 const getWikipediaPageSummary = async (title) => {
   const normalizedTitle = encodeURIComponent(title.trim().replace(/\s+/g, '_'));
   const response = await axios.get(`https://en.wikipedia.org/api/rest_v1/page/summary/${normalizedTitle}`, {
@@ -126,6 +180,12 @@ const getWikipediaPageSummary = async (title) => {
     url: response.data?.content_urls?.desktop?.page || '',
   };
 };
+
+/**
+ * Searches Wikipedia for a matching page title.
+ * @param {string} query - Search query string
+ * @returns {Promise<string>} First matching page title or empty string
+ */
 const searchWikipediaTitle = async (query) => {
   const response = await axios.get('https://en.wikipedia.org/w/api.php', {
     timeout: 7000,
@@ -145,6 +205,14 @@ const searchWikipediaTitle = async (query) => {
 
   return response.data?.query?.search?.[0]?.title || '';
 };
+
+/**
+ * Extracts location hint from address for better Wikipedia search.
+ * Uses last 3 address parts for location context.
+ * 
+ * @param {string} address - Full address string
+ * @returns {string} Location hint
+ */
 const getAddressSearchHint = (address = '') =>
   address
     .split(',')
@@ -152,13 +220,25 @@ const getAddressSearchHint = (address = '') =>
     .filter(Boolean)
     .slice(-3)
     .join(' ');
+
+/**
+ * Retrieves Wikipedia summary for a place with fallback search.
+ * Tries direct title match first, then falls back to title search with address hint.
+ * 
+ * @param {string} name - Place name
+ * @param {string} address - Place address for context
+ * @returns {Promise<Object>} Wikipedia summary or fallback
+ */
 const getWikipediaSummary = async (name, address = '') => {
   if (!name) {
     return { available: false, extract: '', url: '', title: '' };
   }
+  
   try {
+    // Try direct title match first
     return await getWikipediaPageSummary(name);
   } catch {
+    // Fall back to search with address context
     try {
       const searchHint = getAddressSearchHint(address);
       const title = await searchWikipediaTitle([name, searchHint].filter(Boolean).join(' '));
@@ -171,6 +251,7 @@ const getWikipediaSummary = async (name, address = '') => {
     }
   }
 
+  // Return fallback when Wikipedia article is not found
   return {
     available: false,
     title: name,
@@ -179,6 +260,7 @@ const getWikipediaSummary = async (name, address = '') => {
     url: '',
   };
 };
+
 /**
  * Enriches an attraction with listing data, photos, reviews, and a Wikipedia description.
  * @param {object} input Attraction identity and provider identifiers.
@@ -186,6 +268,8 @@ const getWikipediaSummary = async (name, address = '') => {
  */
 const getAttractionDetail = async ({ name, address, dataId, placeId }) => {
   const fallbackName = name || 'Selected attraction';
+  
+  // Base attraction object with fallback values
   const baseAttraction = {
     available: Boolean(name),
     item: {
@@ -203,34 +287,42 @@ const getAttractionDetail = async ({ name, address, dataId, placeId }) => {
       items: [],
     },
   };
+  
+  // Check if SerpApi key is configured
   if (!env.serpApiKey || env.nodeEnv === 'test') {
     return {
       ...baseAttraction,
       message: 'SerpApi key is not configured',
     };
   }
+  
   try {
+    // Search for attraction details
     const query = [fallbackName, address].filter(Boolean).join(' ');
     const details = await searchGoogleMaps({
-      cache: new Map(),
+      cache: new Map(), // Don't cache detail lookups
       cacheKey: `attraction-detail:${query}:${dataId || ''}:${placeId || ''}`.toLowerCase(),
       query,
       metadata: { category: 'Attraction' },
       mapItem: normalizeAttraction,
     });
+    
     const item = details.items?.[0] || baseAttraction.item;
     let imageEnrichedItem = item;
 
+    // Fetch additional photos if dataId is available
     try {
       const photos = await searchGoogleMapsPhotos({
         dataId: dataId || item.dataId,
       });
       imageEnrichedItem = mergePlaceImages(item, photos.imageUrls);
     } catch (photoError) {
+      // Log photo fetch failure but continue with available data
       const photoFailure = getGoogleMapsFailureMessage(photoError);
       recordGoogleMapsFailure('attraction-detail-photos', photoFailure.message, photoFailure.statusCode, { name, address, dataId: dataId || item.dataId }, photoFailure.errorCode);
     }
 
+    // Fetch reviews
     const reviews = await searchGoogleMapsReviews({
       dataId: dataId || item.dataId,
       placeId: placeId || item.placeId,
@@ -247,6 +339,7 @@ const getAttractionDetail = async ({ name, address, dataId, placeId }) => {
       lastUpdated: new Date().toISOString(),
     };
   } catch (error) {
+    // Handle and log API failures
     const { errorCode, message, statusCode } = getGoogleMapsFailureMessage(error);
     recordGoogleMapsFailure('attraction-detail', message, statusCode, { name, address, dataId, placeId }, errorCode);
     return {
@@ -256,4 +349,5 @@ const getAttractionDetail = async ({ name, address, dataId, placeId }) => {
     };
   }
 };
+
 module.exports = { getAttractionDetail, getAttractionsByDestination };

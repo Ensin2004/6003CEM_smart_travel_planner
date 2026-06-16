@@ -14,12 +14,14 @@ const itineraryService = require('../itinerary/itinerary.service');
 const normalizeTripPayload = (data = {}) => {
   const payload = { ...data };
 
+  // Normalize budget from number/string to object format
   if (typeof payload.budget === 'number' || typeof payload.budget === 'string') {
     payload.budget = {
       totalAmount: Number(payload.budget) || 0,
     };
   }
 
+  // Ensure budget has proper numeric and currency fields
   if (payload.budget && typeof payload.budget === 'object') {
     payload.budget = {
       ...payload.budget,
@@ -28,12 +30,13 @@ const normalizeTripPayload = (data = {}) => {
     };
   }
 
-  // Older clients may still send preferences; the model now stores the same values as travelPreferences.
+  // Handle legacy preferences field (now called travelPreferences)
   if (payload.preferences && !payload.travelPreferences) {
     payload.travelPreferences = payload.preferences;
     delete payload.preferences;
   }
 
+  // Normalize destination segments
   if (Array.isArray(payload.destinationSegments)) {
     payload.destinationSegments = payload.destinationSegments
       .filter((segment) => segment?.city?.trim())
@@ -57,15 +60,20 @@ const normalizeTripPayload = (data = {}) => {
 
   return payload;
 };
+
+// Validate trip payload for required fields and date consistency
 const validateTripPayload = (payload) => {
+  // Ensure at least one destination is provided
   if (!payload.destination && !payload.destinationSegments?.length) {
     throw new AppError('Add at least one trip destination.', 400);
   }
 
+  // Validate date range
   if (new Date(payload.endDate) < new Date(payload.startDate)) {
     throw new AppError('End date cannot be before start date.', 400);
   }
 
+  // Validate each segment's date range
   payload.destinationSegments?.forEach((segment) => {
     if (new Date(segment.endDate) < new Date(segment.startDate)) {
       throw new AppError('Destination end date cannot be before its start date.', 400);
@@ -73,7 +81,9 @@ const validateTripPayload = (payload) => {
   });
 };
 
+// Generate weather-based guidance for trip planning
 const getWeatherGuidance = (weather) => {
+  // Handle unavailable weather data
   if (!weather?.available) {
     return {
       available: false,
@@ -88,9 +98,12 @@ const getWeatherGuidance = (weather) => {
     };
   }
 
+  // Extract weather conditions
   const condition = String(weather.condition || '').toLowerCase();
   const precipitation = weather.precipitation || {};
   const temperature = weather.temperature || {};
+  
+  // Determine rain likelihood
   const rainLikely =
     condition.includes('rain') ||
     condition.includes('drizzle') ||
@@ -101,6 +114,7 @@ const getWeatherGuidance = (weather) => {
   const hotDay = Number(temperature.max || temperature.mean || 0) >= 30;
   const coldDay = Number(temperature.min || temperature.mean || 99) <= 10;
 
+  // Return guidance based on weather conditions
   if (rainLikely) {
     return {
       available: true,
@@ -134,6 +148,7 @@ const getWeatherGuidance = (weather) => {
     };
   }
 
+  // Default comfortable weather guidance
   return {
     available: true,
     mode: 'comfortable',
@@ -144,6 +159,7 @@ const getWeatherGuidance = (weather) => {
   };
 };
 
+// Create a new trip for a user
 const createTrip = async (userId, data) => {
   const payload = normalizeTripPayload(data);
   validateTripPayload(payload);
@@ -152,18 +168,22 @@ const createTrip = async (userId, data) => {
   return trip;
 };
 
+// Get all trips for a user
 const getMyTrips = (userId) => tripRepository.findByUserId(userId);
 
+// Get a specific trip by ID with ownership verification
 const getTripById = async (tripId, userId) => {
   const trip = await tripRepository.findByIdAndUserId(tripId, userId);
   if (!trip) throw new AppError('Trip not found', 404);
   return trip;
 };
 
+// Update an existing trip with ownership verification
 const updateTrip = async (tripId, userId, data) => {
   const payload = normalizeTripPayload(data);
   const previousTrip = await getTripById(tripId, userId);
 
+  // Validate date ranges if dates are being updated
   const nextStartDate = payload.startDate || previousTrip.startDate;
   const nextEndDate = payload.endDate || previousTrip.endDate;
   if (payload.startDate || payload.endDate) {
@@ -175,24 +195,32 @@ const updateTrip = async (tripId, userId, data) => {
     });
   }
 
+  // Update the trip
   const trip = await tripRepository.updateByIdAndUserId(tripId, userId, payload);
   if (!trip) throw new AppError('Trip not found', 404);
+  
+  // Sync itinerary if dates changed
   if (payload.startDate || payload.endDate) {
     await itineraryService.syncTripDateRange(previousTrip, trip, userId);
   }
+  
+  // Update notifications
   await Promise.all([
     notificationService.scheduleTripReminder(trip),
     notificationService.reschedulePackingListRemindersForTrip(trip),
   ]);
+  
   return trip;
 };
 
+// Delete a trip with ownership verification
 const deleteTrip = async (tripId, userId) => {
   const trip = await tripRepository.deleteByIdAndUserId(tripId, userId);
   if (!trip) throw new AppError('Trip not found', 404);
   await notificationService.cancelPackingListRemindersForTrip(trip);
 };
 
+// Get trip summary with weather and attractions
 const getTripSummary = async (tripId, userId) => {
   const trip = await getTripById(tripId, userId);
 
@@ -205,6 +233,7 @@ const getTripSummary = async (tripId, userId) => {
   return { trip, weather, weatherGuidance: getWeatherGuidance(weather), attractions };
 };
 
+// Export all service functions
 module.exports = {
   createTrip,
   getMyTrips,

@@ -13,26 +13,38 @@ const aiService = require('../explore/exploreAi.service');
 const travelGuideRepository = require('./travelGuide.repository');
 const { classifyExternalApiError } = require('../../utils/externalApiError');
 
+// Create Geoapify HTTP client
 const geoapifyClient = axios.create({
   baseURL: 'https://api.geoapify.com',
   timeout: 10000,
 });
 
+// Create REST Countries HTTP client
 const restCountriesClient = axios.create({
   baseURL: 'https://api.restcountries.com',
   timeout: 10000,
 });
 
+// In-memory cache storage
 const cache = new Map();
+
+// Cache time-to-live in milliseconds
 const CACHE_TTL_MS = 15 * 60 * 1000;
+
+// Generate cache key from parameters
 const getCacheKey = (key, params) => `${key}:${JSON.stringify(params)}`.toLowerCase();
+
+// Wrapper for caching with fallback to database
 const withCache = async (key, params, fetcher) => {
   const cacheKey = getCacheKey(key, params);
   const cached = cache.get(cacheKey);
 
+  // Return from memory cache if valid
   if (cached && Date.now() - cached.createdAt < CACHE_TTL_MS) {
     return cached.value;
   }
+  
+  // Check database cache in non-test environment
   if (env.nodeEnv !== 'test') {
     const storedCache = await travelGuideRepository.findValidCache(cacheKey).catch(() => null);
 
@@ -42,8 +54,11 @@ const withCache = async (key, params, fetcher) => {
     }
   }
 
+  // Fetch fresh data
   const value = await fetcher();
   cache.set(cacheKey, { createdAt: Date.now(), value });
+  
+  // Store in database cache in non-test environment
   if (env.nodeEnv !== 'test') {
     travelGuideRepository
       .upsertCache(cacheKey, key, value, new Date(Date.now() + CACHE_TTL_MS))
@@ -52,11 +67,15 @@ const withCache = async (key, params, fetcher) => {
 
   return value;
 };
+
+// Generate unavailable response
 const unavailable = (message = 'Geoapify API key is not configured') => ({
   available: false,
   errorCode: 'INVALID_API_KEY',
   message,
 });
+
+// Validate Geoapify API key
 const requireGeoapifyKey = () => {
   if (!env.geoapifyApiKey || env.nodeEnv === 'test') {
     return unavailable();
@@ -64,6 +83,8 @@ const requireGeoapifyKey = () => {
 
   return null;
 };
+
+// Make request to Geoapify API
 const requestGeoapify = async (path, params) => {
   const response = await geoapifyClient.get(path, {
     params: {
@@ -74,6 +95,8 @@ const requestGeoapify = async (path, params) => {
 
   return response.data;
 };
+
+// Extract feature name from properties
 const getFeatureName = (properties = {}) =>
   properties.name ||
   properties.address_line1 ||
@@ -82,6 +105,8 @@ const getFeatureName = (properties = {}) =>
   properties.country ||
   properties.formatted ||
   'Unnamed place';
+
+// Fallback travel images for destinations
 const fallbackTravelImages = [
   'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80',
   'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=900&q=80',
@@ -90,12 +115,15 @@ const fallbackTravelImages = [
   'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=900&q=80',
   'https://images.unsplash.com/photo-1527631746610-bca00a040d60?auto=format&fit=crop&w=900&q=80',
 ];
+
+// Get deterministic image based on name
 const getFeatureImage = (name = '', type = '') => {
   const imageIndex = [...`${name}${type}`].reduce((total, character) => total + character.charCodeAt(0), 0)
     % fallbackTravelImages.length;
 
   return fallbackTravelImages[imageIndex];
 };
+
 // Normalize Feature prepares incoming data for consistent storage.
 const normalizeFeature = (feature = {}, index = 0, fallbackType = 'Destination') => {
   const properties = feature.properties || {};
@@ -118,19 +146,25 @@ const normalizeFeature = (feature = {}, index = 0, fallbackType = 'Destination')
     },
   };
 };
+
+// Generate bounding box filter string
 const getBoundingBox = (properties = {}) => {
   const bbox = properties.bbox;
 
+  // Use rectangle if bbox available
   if (bbox?.lon1 && bbox?.lat1 && bbox?.lon2 && bbox?.lat2) {
     return `rect:${bbox.lon1},${bbox.lat1},${bbox.lon2},${bbox.lat2}`;
   }
 
+  // Use circle if coordinates available
   if (properties.lon && properties.lat) {
     return `circle:${properties.lon},${properties.lat},35000`;
   }
 
   return '';
 };
+
+// Geocode location text
 const geocode = async (text) =>
   withCache('geocode', { text }, async () => {
     const data = await requestGeoapify('/v1/geocode/search', {
@@ -141,6 +175,8 @@ const geocode = async (text) =>
 
     return data.features?.[0] || null;
   });
+
+// Get places from Geoapify
 const getPlaces = async ({ filter, categories, limit = 20, offset = 0, bias, name }) =>
   withCache('places', { filter, categories, limit, offset, bias, name }, async () => {
     const data = await requestGeoapify('/v2/places', {
@@ -155,6 +191,8 @@ const getPlaces = async ({ filter, categories, limit = 20, offset = 0, bias, nam
 
     return data.features || [];
   });
+
+// Fetch summary from Wikivoyage
 const fetchSummary = async (destination) => {
   try {
     const title = encodeURIComponent(destination.replace(/\s+/g, '_'));
@@ -182,6 +220,7 @@ const fetchSummary = async (destination) => {
     };
   }
 };
+
 // Normalize Guide Item prepares incoming data for consistent storage.
 const normalizeGuideItem = (item = {}, index = 0, fallbackType = 'Destination') => ({
   id: item.id || `${item.name}-${index}`,
@@ -199,9 +238,14 @@ const normalizeGuideItem = (item = {}, index = 0, fallbackType = 'Destination') 
   imageUrls: item.imageUrls || (item.imageUrl ? [item.imageUrl] : []),
   coordinates: item.coordinates,
 });
+
+// Get country code filter string
 const getCountryCodeFilter = (countryCode) => (countryCode ? `countrycode:${countryCode.toLowerCase()}` : '');
 
+// Set of valid region names
 const regionFilters = new Set(['Asia', 'Europe', 'North America', 'South America', 'Oceania', 'Africa', 'Antarctica', 'Other']);
+
+// Normalize country from REST Countries v5 API
 const normalizeV5Country = (country = {}) => {
   const name = country.names?.common || '';
   const countryCode = country.codes?.alpha_2 || '';
@@ -225,12 +269,15 @@ const normalizeV5Country = (country = {}) => {
     },
   };
 };
+
+// Determine region from country timezone data
 const getLocalCountryRegion = (country = {}) => {
   const zones = country.timezones || [];
   const zoneNames = zones.map((timezone) => timezone.zoneName || '');
   const timezoneNames = zones.map((timezone) => timezone.tzName || '');
   const latitude = Number(country.latitude);
 
+  // Determine region based on timezone patterns
   if (zoneNames.some((zoneName) => zoneName.startsWith('Antarctica/')) || country.isoCode === 'AQ') return 'Antarctica';
   if (zoneNames.some((zoneName) => zoneName.startsWith('Europe/'))) return 'Europe';
   if (zoneNames.some((zoneName) => zoneName.startsWith('Africa/'))) return 'Africa';
@@ -244,6 +291,8 @@ const getLocalCountryRegion = (country = {}) => {
 
   return 'Other';
 };
+
+// Normalize country from local country-state-city library
 const normalizeLocalCountry = (country = {}) => {
   const region = getLocalCountryRegion(country);
   const flagUrl = country.isoCode ? `https://flagcdn.com/w320/${country.isoCode.toLowerCase()}.png` : '';
@@ -265,8 +314,13 @@ const normalizeLocalCountry = (country = {}) => {
     },
   };
 };
+
+// Get country list from local library
 const getLocalCountryList = () => Country.getAllCountries().map(normalizeLocalCountry);
+
+// Fetch countries from REST Countries API with pagination
 const fetchRestCountries = async () => {
+  // Validate API key
   if (!env.restCountriesApiKey) {
     throw Object.assign(new Error('REST Countries API key is not configured'), { isMissingKey: true });
   }
@@ -275,6 +329,7 @@ const fetchRestCountries = async () => {
   let offset = 0;
   let hasMore = true;
 
+  // Paginate through all countries
   while (hasMore) {
     const response = await restCountriesClient.get('/countries/v5', {
       headers: {
@@ -288,6 +343,7 @@ const fetchRestCountries = async () => {
     const objects = response.data?.data?.objects;
     const metadata = response.data?.data?.meta;
 
+    // Validate response
     if (!Array.isArray(objects) || response.data?.data?._demo) {
       throw new Error('REST Countries returned an incomplete country catalogue');
     }
@@ -315,17 +371,21 @@ const getCountryList = async ({ region = '', search = '', currentCountry = '', c
   const excludedCountryCode = currentCountryCode.trim().toUpperCase();
   let countries;
   let source = 'REST Countries';
+  
+  // Try REST Countries API first
   try {
     countries = await withCache('countries', { source: 'restcountries-v5' }, fetchRestCountries);
     countries = countries
       .map(normalizeV5Country)
       .filter((country) => country.countryCode && country.name);
   } catch {
+    // Fallback to local library
     countries = getLocalCountryList();
     source = 'Local country catalogue';
   }
 
   try {
+    // Apply filters and pagination
     const filteredCountries = countries
       .filter((country) => country.countryCode !== excludedCountryCode && country.name.toLowerCase() !== excludedCountry)
       .filter((country) => !normalizedRegion || country.continent === normalizedRegion)
@@ -347,6 +407,7 @@ const getCountryList = async ({ region = '', search = '', currentCountry = '', c
       },
     };
   } catch (error) {
+    // Classify and return error
     const failure = classifyExternalApiError(error, {
       networkMessage: 'Country directory could not be reached.',
       rateLimitMessage: 'Country directory rate limit exceeded.',
@@ -378,6 +439,8 @@ const getDestinationList = async ({ country, countryCode, mode = 'domestic', reg
   const currentPage = Math.max(Number(page) || 1, 1);
   const pageSize = Math.min(Number(limit) || 24, 48);
   const start = (currentPage - 1) * pageSize;
+  
+  // Try SERP API if available
   if (env.serpApiKey && env.nodeEnv !== 'test') {
     const attractions = await placesService.getAttractionsByDestination({
       destination: `popular tourist destinations in ${country}`,
@@ -403,21 +466,28 @@ const getDestinationList = async ({ country, countryCode, mode = 'domestic', reg
     };
   }
 
+  // Validate Geoapify key
   const keyError = requireGeoapifyKey();
   if (keyError) return { ...keyError, items: [] };
 
+  // Geocode location
   const locationQuery = mode === 'domestic' ? country : region || country || 'world';
   const locationFeature = await geocode(locationQuery);
   const fallbackFilter = countryCode ? getCountryCodeFilter(countryCode) : '';
   const filter = getBoundingBox(locationFeature?.properties) || fallbackFilter;
+  
+  // Validate filter
   if (!filter) {
     return { available: false, message: 'Unable to find this guide location.', items: [] };
   }
 
+  // Determine categories based on mode
   const categories =
     mode === 'domestic'
       ? 'tourism.sights,tourism.attraction,entertainment.museum,natural'
       : 'tourism.sights,tourism.attraction,entertainment.museum';
+  
+  // Fetch places from Geoapify
   const features = await getPlaces({
     filter,
     categories,
@@ -425,6 +495,7 @@ const getDestinationList = async ({ country, countryCode, mode = 'domestic', reg
     offset: start,
   });
 
+  // Normalize results
   const items = features
     .map((feature, index) => normalizeFeature(feature, index, 'Destination'))
     .filter((item) => item.name && item.name !== 'Unnamed place');
@@ -457,9 +528,13 @@ const getDestinationDetails = async ({ destination, country, latitude, longitude
   const locationFeature = latitude && longitude ? null : env.geoapifyApiKey ? await geocode(locationText) : null;
   const lon = Number(longitude || locationFeature?.properties?.lon);
   const lat = Number(latitude || locationFeature?.properties?.lat);
+  
+  // Prepare weather location
   const weatherLocation = Number.isFinite(lat) && Number.isFinite(lon)
     ? { latitude: lat, longitude: lon, locationLabel: locationText }
     : {};
+  
+  // Fetch all data in parallel
   const [summary, weather, attractions, restaurants, hotels] = await Promise.all([
     fetchSummary(destination),
     weatherService.getWeatherByDestination(locationText || destination, date, weatherLocation),
@@ -467,11 +542,15 @@ const getDestinationDetails = async ({ destination, country, latitude, longitude
     restaurantService.getRestaurantsByDestination({ destination, country, start: restaurantStart }),
     hotelsService.getHotelsByDestination({ destination, country, start: hotelStart }),
   ]);
+  
+  // Combine items for AI recommendations
   const allRecommendationItems = [
     ...(attractions.items || []).slice(0, 4),
     ...(restaurants.items || []).slice(0, 4),
     ...(hotels.items || []).slice(0, 4),
   ];
+  
+  // Get AI recommendations
   const recommendations = await aiService.getAiRecommendations({
     view: 'attractions',
     destination: locationText || destination,
@@ -479,6 +558,8 @@ const getDestinationDetails = async ({ destination, country, latitude, longitude
     weather,
     items: allRecommendationItems,
   });
+  
+  // Build gallery from all sources
   const gallery = [
     ...(attractions.items || []),
     ...(restaurants.items || []),
@@ -488,6 +569,7 @@ const getDestinationDetails = async ({ destination, country, latitude, longitude
     .filter(Boolean)
     .slice(0, 8);
 
+  // Return complete destination details
   return {
     available: true,
     destination,
@@ -516,6 +598,7 @@ const getDestinationDetails = async ({ destination, country, latitude, longitude
   };
 };
 
+// Export service functions
 module.exports = {
   getCountryList,
   getDestinationList,

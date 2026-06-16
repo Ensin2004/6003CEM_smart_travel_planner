@@ -19,7 +19,11 @@ const app = express();
 
 // Helmet and CORS run before routes so every response receives the same browser-facing protections.
 app.use(securityHeaders);
+
+// Enables Cross-Origin Resource Sharing with configured options.
 app.use(cors(corsOptions));
+
+// Attaches request context for tracking and logging.
 app.use(requestContext);
 
 // Large JSON payloads are allowed for travel tools that may submit generated document content.
@@ -28,6 +32,7 @@ app.use(express.json({ limit: '1400mb' }));
 // Authentication routes receive a tighter limiter before joining the main versioned router.
 app.use('/api/v1/auth', authRateLimit);
 
+// Sets up Swagger API documentation endpoint.
 setupSwagger(app);
 
 // Health check stays outside the versioned router so uptime monitors can call a simple endpoint.
@@ -38,6 +43,7 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Mounts all version 1 API routes under the /api/v1 prefix.
 app.use('/api/v1', v1Routes);
 
 // The not-found handler must run after all valid routes have had a chance to match.
@@ -46,4 +52,5 @@ app.use(notFound);
 // Final error middleware centralizes response formatting for controller and middleware failures.
 app.use(errorHandler);
 
+// Exports the configured Express application.
 module.exports = app;

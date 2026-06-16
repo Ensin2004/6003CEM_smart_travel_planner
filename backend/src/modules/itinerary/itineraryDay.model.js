@@ -49,7 +49,8 @@ const itineraryDaySchema = new mongoose.Schema(
   { timestamps: true }  // Automatically add createdAt and updatedAt fields
 );
 
-// Ensure each trip has at most one day with a given day number
+// Indexes for query performance and data integrity
+// Ensure each trip has at most one day with a given day number (unique constraint)
 itineraryDaySchema.index({ tripId: 1, dayNumber: 1 }, { unique: true });
 
 // Enable efficient queries for finding all days belonging to a user on a specific date

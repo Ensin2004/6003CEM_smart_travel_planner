@@ -8,14 +8,23 @@ const logger = require('../../utils/logger');
 const apiLogService = require('../apiLogs/apiLog.service');
 const { classifyExternalApiError } = require('../../utils/externalApiError');
 
+// In-memory cache for AI recommendations
 const aiCache = new Map();
-const CACHE_TTL_MS = 30 * 60 * 1000;
+const CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes cache lifetime
+
+// Maximum items sent to AI for processing
 const MAX_ITEMS_FOR_PROMPT = 8;
+
+// Daily usage tracking for AI quota management
 const dailyUsage = {
   date: '',
   count: 0,
 };
-// Response Schema groups database fields before model registration.
+
+/**
+ * Response Schema groups database fields before model registration.
+ * Defines the expected JSON structure for AI-generated recommendations.
+ */
 const responseSchema = {
   type: 'object',
   properties: {
@@ -57,25 +66,50 @@ const responseSchema = {
   },
   required: ['summary', 'recommendationMode', 'stats', 'picks', 'tips', 'nextActions'],
 };
+
+/**
+ * Gets today's date in YYYY-MM-DD format for daily quota tracking.
+ * @returns {string} Current date string
+ */
 const getTodayKey = () => new Date().toISOString().slice(0, 10);
+
+/**
+ * Checks and consumes daily quota for AI recommendation calls.
+ * Resets counter if the date has changed since last check.
+ * 
+ * @returns {boolean} True if quota is available and consumed, false if limit reached
+ */
 const consumeDailyQuota = () => {
   const today = getTodayKey();
   const dailyLimit = Math.max(Number(env.geminiDailyLimit) || 100, 0);
+  
+  // Reset counter when date changes
   if (dailyUsage.date !== today) {
     dailyUsage.date = today;
     dailyUsage.count = 0;
   }
 
+  // Check if daily limit has been reached
   if (dailyUsage.count >= dailyLimit) {
     return false;
   }
 
+  // Increment counter and allow the request
   dailyUsage.count += 1;
   return true;
 };
+
+/**
+ * Records AI recommendation failures to the API log system.
+ * @param {string} message - Error message to log
+ * @param {number} statusCode - HTTP status code or error classification
+ * @param {Object} metadata - Additional contextual metadata
+ * @param {string} errorCode - Standardized error code
+ * @returns {Promise<void>}
+ */
 const recordAiFailure = (message, statusCode, metadata = {}, errorCode) =>
   env.nodeEnv === 'test'
-    ? Promise.resolve()
+    ? Promise.resolve() // Skip logging in test environment
     : apiLogService
         .recordEvent({
           service: 'ai-recommendation',
@@ -89,6 +123,12 @@ const recordAiFailure = (message, statusCode, metadata = {}, errorCode) =>
           metadata,
         })
         .catch((error) => logger.error(`Failed to record AI recommendation event: ${error.message}`));
+
+/**
+ * Classifies AI API errors into standardized error responses.
+ * @param {Error} error - The error object from axios or application
+ * @returns {Object} Classified error with errorCode, message, and statusCode
+ */
 const classifyAiError = (error) => {
   return classifyExternalApiError(error, {
     invalidApiKeyMessage: 'AI recommendation API key is invalid or unauthorized.',
@@ -100,15 +140,29 @@ const classifyAiError = (error) => {
     unavailableMessage: 'AI recommendations are temporarily unavailable.',
   });
 };
+
+/**
+ * Determines if a place is currently open based on openState text.
+ * @param {Object} item - Place item with openState field
+ * @returns {boolean} True if the place is open
+ */
 const getOpenNow = (item) => {
   const openState = String(item.openState || '').toLowerCase();
 
+  // Marked as closed - not open
   if (openState.includes('closed')) {
     return false;
   }
 
+  // Contains 'open' - likely open
   return openState.includes('open');
 };
+
+/**
+ * Calculates local statistics from a set of items.
+ * @param {Array} items - Array of place items
+ * @returns {Object} Statistics including counts and average rating
+ */
 const getLocalStats = (items) => {
   const ratedItems = items.filter((item) => Number(item.rating));
   const ratingSum = ratedItems.reduce((sum, item) => sum + Number(item.rating), 0);
@@ -121,6 +175,13 @@ const getLocalStats = (items) => {
     bestValueCount: items.filter((item) => Number(item.rating) >= 4.3 && (item.price || item.priceDetail?.display)).length,
   };
 };
+
+/**
+ * Creates a fallback recommendation response when AI is unavailable.
+ * @param {string} message - Fallback message
+ * @param {Array} items - Items to include in stats
+ * @returns {Object} Fallback recommendation object
+ */
 const fallbackAiRecommendations = (message, items = []) => ({
   available: false,
   message,
@@ -131,14 +192,26 @@ const fallbackAiRecommendations = (message, items = []) => ({
   tips: [],
   nextActions: [],
 });
+
+/**
+ * Calculates a score for an item based on rating, reviews, price, and open status.
+ * @param {Object} item - Place item
+ * @returns {number} Score between 0 and 100
+ */
 const getItemScore = (item) => {
-  const ratingScore = (Number(item.rating) || 0) * 14;
-  const reviewScore = Math.min(Math.log10((Number(item.reviewCount) || 0) + 1) * 7, 24);
+  const ratingScore = (Number(item.rating) || 0) * 14; // Up to 70 points
+  const reviewScore = Math.min(Math.log10((Number(item.reviewCount) || 0) + 1) * 7, 24); // Up to 24 points
   const priceScore = item.price || item.priceDetail?.display ? 8 : 0;
   const openScore = getOpenNow(item) ? 8 : 0;
 
   return Math.max(0, Math.min(Math.round(ratingScore + reviewScore + priceScore + openScore), 100));
 };
+
+/**
+ * Generates a reason string for a locally-ranked item.
+ * @param {Object} item - Place item
+ * @returns {string} Human-readable reason
+ */
 const getLocalReason = (item) => {
   const reasons = [];
 
@@ -160,18 +233,37 @@ const getLocalReason = (item) => {
 
   return reasons.length ? `Strong choice because it has ${reasons.join(', ')}.` : 'Useful option from the loaded results.';
 };
+
+/**
+ * Generates a caution string for a locally-ranked item.
+ * @param {Object} item - Place item
+ * @returns {string} Caution message or empty string
+ */
 const getLocalCaution = (item) => {
   if (!item.openState) return 'Opening hours are not available.';
   if (!item.price && !item.priceDetail?.display) return 'Price is not available.';
   if (!Number(item.rating)) return 'Rating is not available.';
   return '';
 };
+
+/**
+ * Determines the best use case based on view type.
+ * @param {string} view - View type (attractions, food, hotels)
+ * @returns {string} Best-for description
+ */
 const getLocalBestFor = (view) => {
   if (view === 'food') return 'easy dining shortlist';
   if (view === 'hotels') return 'quick room comparison';
   return 'practical sightseeing shortlist';
 };
-// Build Local Recommendations transforms source data into the shape required nearby.
+
+/**
+ * Build Local Recommendations transforms source data into the shape required nearby.
+ * Creates recommendations using local deterministic ranking.
+ * 
+ * @param {Object} params - Recommendation parameters
+ * @returns {Object} Local recommendations object
+ */
 const buildLocalRecommendations = ({ message, view, items = [] }) => {
   const rankedItems = [...items]
     .sort((firstItem, secondItem) => getItemScore(secondItem) - getItemScore(firstItem))
@@ -199,6 +291,14 @@ const buildLocalRecommendations = ({ message, view, items = [] }) => {
     lastUpdated: new Date().toISOString(),
   };
 };
+
+/**
+ * Sanitizes an item for AI prompt consumption.
+ * Removes sensitive or excessive data and truncates strings.
+ * 
+ * @param {Object} item - Raw item
+ * @returns {Object} Sanitized item
+ */
 const sanitizeItem = (item = {}) => ({
   name: String(item.name || '').slice(0, 90),
   category: String(item.category || '').slice(0, 50),
@@ -209,7 +309,13 @@ const sanitizeItem = (item = {}) => ({
   address: String(item.address || '').slice(0, 90),
 });
 
-// Build Prompt transforms source data into the shape required nearby.
+/**
+ * Build Prompt transforms source data into the shape required nearby.
+ * Creates a structured prompt for AI recommendation generation.
+ * 
+ * @param {Object} params - Prompt parameters
+ * @returns {string} Formatted prompt for the AI model
+ */
 const buildPrompt = ({ view, destination, date, weather, items }) => `
 You are helping a traveler choose from search results in a smart travel planner.
 Use only the supplied result data. Do not invent places, prices, phone numbers, opening hours, or ratings.
@@ -230,6 +336,12 @@ Guidance:
 - For attractions, prioritize rating, weather fit, price clarity, and opening status.
 `;
 
+/**
+ * Parses JSON from the AI response.
+ * @param {Object} response - Axios response object
+ * @returns {Object} Parsed JSON
+ * @throws {Error} If response is empty or invalid
+ */
 const parseAiJson = (response) => {
   const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) {
@@ -238,6 +350,15 @@ const parseAiJson = (response) => {
 
   return JSON.parse(text);
 };
+
+/**
+ * Normalizes and validates AI result data.
+ * Ensures all fields are properly formatted and within constraints.
+ * 
+ * @param {Object} result - Raw AI result
+ * @param {Array} items - Original items for stats
+ * @returns {Object} Normalized recommendation object
+ */
 const normalizeAiResult = (result, items) => ({
   available: true,
   summary: String(result.summary || 'AI recommendations are ready.').slice(0, 520),
@@ -269,12 +390,16 @@ const normalizeAiResult = (result, items) => ({
  */
 const getAiRecommendations = async ({ view, destination, date, weather, items = [] }) => {
   const usableItems = items.slice(0, MAX_ITEMS_FOR_PROMPT);
+  
+  // Check if there are items to recommend
   if (!usableItems.length) {
     return {
       ...fallbackAiRecommendations('Search results are needed before AI recommendations can be generated.', usableItems),
       errorCode: 'NO_RESULTS_FOUND',
     };
   }
+  
+  // Check if Gemini API key is configured
   if (!env.geminiApiKey) {
     return {
       ...fallbackAiRecommendations('AI recommendations are not configured yet.', usableItems),
@@ -282,6 +407,7 @@ const getAiRecommendations = async ({ view, destination, date, weather, items = 
     };
   }
 
+  // Generate cache key from request parameters
   const cacheKey = JSON.stringify({
     view,
     destination,
@@ -289,12 +415,14 @@ const getAiRecommendations = async ({ view, destination, date, weather, items = 
     items: usableItems.map((item) => item.id || item.name),
     weather: weather?.condition,
   }).toLowerCase();
+  
+  // Check cache for existing recommendations
   const cached = aiCache.get(cacheKey);
-
   if (cached && Date.now() - cached.createdAt < CACHE_TTL_MS) {
     return { ...cached.data, cached: true };
   }
 
+  // Check daily quota before making API call
   if (!consumeDailyQuota()) {
     const error = new Error('Daily AI recommendation limit reached. Please try again tomorrow.');
     error.isDailyLimit = true;
@@ -302,7 +430,9 @@ const getAiRecommendations = async ({ view, destination, date, weather, items = 
     recordAiFailure(message, statusCode, { view, destination }, errorCode);
     return { ...fallbackAiRecommendations(message, usableItems), errorCode };
   }
+  
   try {
+    // Make API call to Gemini for structured recommendations
     const response = await axios.post(
       `https://generativelanguage.googleapis.com/v1beta/models/${env.geminiModel}:generateContent`,
       {
@@ -312,10 +442,10 @@ const getAiRecommendations = async ({ view, destination, date, weather, items = 
           },
         ],
         generationConfig: {
-          temperature: 0.25,
-          maxOutputTokens: 700,
-          responseMimeType: 'application/json',
-          responseJsonSchema: responseSchema,
+          temperature: 0.25, // Lower temperature for consistent, deterministic output
+          maxOutputTokens: 700, // Limit response length
+          responseMimeType: 'application/json', // Enforce JSON response
+          responseJsonSchema: responseSchema, // Validate against schema
         },
       },
       {
@@ -323,14 +453,17 @@ const getAiRecommendations = async ({ view, destination, date, weather, items = 
           'Content-Type': 'application/json',
           'x-goog-api-key': env.geminiApiKey,
         },
-        timeout: 25000,
+        timeout: 25000, // 25-second timeout
       }
     );
+    
     const aiRecommendations = normalizeAiResult(parseAiJson(response), usableItems);
 
+    // Cache successful response
     aiCache.set(cacheKey, { data: aiRecommendations, createdAt: Date.now() });
     return aiRecommendations;
   } catch (error) {
+    // Handle any API errors and return local fallback
     const { errorCode, message, statusCode } = classifyAiError(error);
     recordAiFailure(message, statusCode, { view, destination }, errorCode);
     return { ...buildLocalRecommendations({ message, view, items: usableItems }), errorCode };

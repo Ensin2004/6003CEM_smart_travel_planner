@@ -12,6 +12,18 @@ const { thirdPartyApiRateLimit } = require('../../middleware/rateLimit.middlewar
 const router = express.Router();
 
 // Route section connects URL patterns with validation, authentication, and controller actions.
+
+/**
+ * GET /flights - Searches for flights by airline and route.
+ * Requires authentication and applies rate limiting for API cost protection.
+ * 
+ * Middleware chain:
+ * 1. protect - Authentication verification
+ * 2. thirdPartyApiRateLimit - Rate limiting for API cost protection
+ * 3. flightLookupRules - Query parameter validation
+ * 4. validate - Validation result processing
+ * 5. transportationController.getFlight - Route handler
+ */
 router.get(
   '/flights',
   protect,
@@ -22,6 +34,19 @@ router.get(
 );
 
 // Route section connects URL patterns with validation, authentication, and controller actions.
+
+/**
+ * GET /trains/station-timetable or /trains/station_timetable - Retrieves train timetable for a station.
+ * Supports both hyphen and underscore naming for API compatibility.
+ * Requires authentication and applies rate limiting.
+ * 
+ * Middleware chain:
+ * 1. protect - Authentication verification
+ * 2. thirdPartyApiRateLimit - Rate limiting for API cost protection
+ * 3. trainStationTimetableRules - Query parameter validation
+ * 4. validate - Validation result processing
+ * 5. transportationController.getTrainStationTimetable - Route handler
+ */
 router.get(
   ['/trains/station-timetable', '/trains/station_timetable'],
   protect,
@@ -32,6 +57,20 @@ router.get(
 );
 
 // Route section connects URL patterns with validation, authentication, and controller actions.
+
+/**
+ * GET /trains/service-timetable or /trains/service_timetable - Retrieves detailed timetable for a specific train service.
+ * Includes calling points and stop details.
+ * Supports both hyphen and underscore naming for API compatibility.
+ * Requires authentication and applies rate limiting.
+ * 
+ * Middleware chain:
+ * 1. protect - Authentication verification
+ * 2. thirdPartyApiRateLimit - Rate limiting for API cost protection
+ * 3. trainServiceTimetableRules - Query parameter validation
+ * 4. validate - Validation result processing
+ * 5. transportationController.getTrainServiceTimetable - Route handler
+ */
 router.get(
   ['/trains/service-timetable', '/trains/service_timetable'],
   protect,
@@ -40,4 +79,5 @@ router.get(
   validate,
   transportationController.getTrainServiceTimetable
 );
+
 module.exports = router;

@@ -4,6 +4,7 @@
  */
 const express = require('express');
 
+// Import all module route handlers.
 const authRoutes = require('../modules/auth/auth.routes');
 const aiAssistantRoutes = require('../modules/aiAssistant/aiAssistant.routes');
 const userRoutes = require('../modules/users/user.routes');
@@ -27,7 +28,8 @@ const comparisonRoutes = require('../modules/comparison/comparison.routes');
 const categoryRoutes = require('../modules/categories/category.routes');
 
 const router = express.Router();
-//  route wires  to validation, access checks, and controller logic.
+
+// Root endpoint provides API version information and available endpoints.
 router.get('/', (req, res) => {
   res.status(200).json({
     status: 'success',
@@ -60,12 +62,17 @@ router.get('/', (req, res) => {
 
 // Route section connects URL patterns with validation, authentication, and controller actions.
 router.use('/auth', authRoutes);
+
+// Route section connects URL patterns with validation, authentication, and controller actions.
 router.use('/ai', aiAssistantRoutes);
+
+// Route section connects URL patterns with validation, authentication, and controller actions.
 router.use('/users', userRoutes);
 
 // Route section connects URL patterns with validation, authentication, and controller actions.
 router.use('/trips', tripRoutes);
 
+// Route section connects URL patterns with validation, authentication, and controller actions.
 router.use('/notifications', notificationRoutes);
 
 // Route section connects URL patterns with validation, authentication, and controller actions.
@@ -115,5 +122,9 @@ router.use('/visited-places', visitedPlaceRoutes);
 
 // Route section connects URL patterns with validation, authentication, and controller actions.
 router.use('/comparison', comparisonRoutes);
+
+// Route section connects URL patterns with validation, authentication, and controller actions.
 router.use('/categories', categoryRoutes);
+
+// Exports the configured router for use in the main application.
 module.exports = router;
