@@ -3,6 +3,7 @@
  * Exports and local helpers keep related behavior in a single module.
  */
 import { Link } from 'react-router-dom';
+
 // SubmenuPanel renders the main screen and handles nearby interactions.
 function SubmenuPanel({
   activeId,
@@ -18,6 +19,8 @@ function SubmenuPanel({
       {items.map((item) => {
         const ItemIcon = item.icon;
         const isActive = activeId === item.id;
+        
+        // Renders the icon and label together as the item content
         const content = (
           <>
             <ItemIcon size={18} aria-hidden="true" />
@@ -25,6 +28,7 @@ function SubmenuPanel({
           </>
         );
 
+        // Renders as a router link when mode is 'link'
         if (mode === 'link') {
           return (
             <Link key={item.id} to={item.to} className={isActive ? 'active' : ''} onClick={onNavigate}>
@@ -32,6 +36,8 @@ function SubmenuPanel({
             </Link>
           );
         }
+        
+        // Renders as a button when mode is 'button' (default)
         return (
           <button
             key={item.id}
@@ -46,5 +52,6 @@ function SubmenuPanel({
     </aside>
   );
 }
-// Default export registers the primary  value.
+
+// Default export registers the primary value.
 export default SubmenuPanel;

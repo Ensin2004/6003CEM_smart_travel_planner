@@ -2,6 +2,8 @@
  * Shared visual system for login, registration, verification, and password recovery screens.
  * The layout pairs a branded travel showcase with compact form panels.
  */
+
+/* Main container for all authentication pages */
 .auth-page {
   display: grid;
   grid-template-rows: 1fr;
@@ -16,6 +18,8 @@
     linear-gradient(135deg, rgba(248, 250, 252, 0.94), rgba(236, 253, 245, 0.86)),
     url("../../assets/landing-hero.png") center / cover;
 }
+
+/* Subtle overlay gradient on the authentication page background */
 .auth-page::before {
   content: "";
   position: absolute;
@@ -25,12 +29,14 @@
     rgba(255, 255, 255, 0.22);
 }
 
+/* Position relative for all auth sub-components */
 .auth-card,
 .auth-brand,
 .auth-panel,
 .auth-showcase {
   position: relative;
 }
+
 /* Main auth card keeps the showcase and form side by side on desktop. */
 .auth-card {
   display: grid;
@@ -46,6 +52,8 @@
   backdrop-filter: blur(18px);
   animation: authPanelIn 0.45s ease both;
 }
+
+/* Login layout: panel on left, showcase on right */
 .auth-login .auth-panel {
   order: 1;
 }
@@ -54,6 +62,7 @@
   order: 2;
 }
 
+/* Register layout: showcase on left, panel on right */
 .auth-register .auth-showcase {
   order: 1;
 }
@@ -61,6 +70,8 @@
 .auth-register .auth-panel {
   order: 2;
 }
+
+/* Showcase section with travel imagery and branded content */
 .auth-showcase {
   display: flex;
   flex-direction: column;
@@ -74,6 +85,8 @@
     url("../../assets/landing-hero.png") center / cover;
   animation: authShowcaseIn 0.6s ease 0.08s both;
 }
+
+/* Decorative border overlay on showcase section */
 .auth-showcase::after {
   content: "";
   position: absolute;
@@ -84,22 +97,29 @@
   background:
     linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
 }
+
+/* Brand container within showcase */
 .auth-brand {
   color: #ffffff;
 }
+
+/* Public topbar styling */
 .auth-page .public-topbar {
   flex: 0 0 auto;
 }
 
+/* Copy text container in showcase */
 .showcase-copy {
   width: min(460px, 100%);
   animation: authPanelIn 0.65s ease 0.2s both;
 }
 
+/* Eyebrow text in showcase */
 .showcase-copy .eyebrow {
   color: #99f6e4;
 }
 
+/* Main heading in showcase */
 .showcase-copy h1 {
   margin: 0;
   color: #ffffff;
@@ -108,6 +128,7 @@
   letter-spacing: 0;
 }
 
+/* Description paragraph in showcase */
 .showcase-copy p:not(.eyebrow) {
   margin: 16px 0 0;
   color: #dbeafe;
@@ -115,6 +136,7 @@
   line-height: 1.65;
 }
 
+/* Feature points container */
 .showcase-points {
   display: flex;
   flex-wrap: wrap;
@@ -122,6 +144,7 @@
   margin-top: 24px;
 }
 
+/* Individual feature point badges */
 .showcase-points span {
   display: inline-flex;
   align-items: center;
@@ -136,10 +159,12 @@
   font-weight: var(--font-weight-medium);
 }
 
+/* Icon styling in feature points */
 .showcase-points svg {
   color: #99f6e4;
 }
 
+/* Testimonial or promotional card in showcase */
 .showcase-card {
   width: min(420px, 100%);
   padding: 20px;
@@ -151,6 +176,7 @@
   animation: authPanelIn 0.65s ease 0.3s both;
 }
 
+/* Card label styling */
 .showcase-card span {
   color: #a7f3d0;
   font-size: 12px;
@@ -158,6 +184,7 @@
   text-transform: uppercase;
 }
 
+/* Card title */
 .showcase-card strong {
   display: block;
   margin-top: 8px;
@@ -165,12 +192,14 @@
   font-size: 20px;
 }
 
+/* Card description */
 .showcase-card p {
   margin: 8px 0 0;
   color: #dbeafe;
   line-height: 1.6;
 }
 
+/* Form panel containing authentication forms */
 .auth-panel {
   display: flex;
   flex-direction: column;
@@ -185,28 +214,34 @@
   animation: authPanelIn 0.55s ease 0.12s both;
 }
 
+/* Registration panel specific alignment */
 .auth-register .auth-panel {
   justify-content: flex-start;
   padding-top: clamp(44px, 6vw, 68px);
 }
 
+/* Registration page alignment */
 .auth-register {
   align-items: start;
 }
 
+/* Registration card minimum height */
 .auth-register .auth-card {
   min-height: 880px;
 }
 
+/* Heading section of the authentication panel */
 .auth-heading {
   margin-bottom: 24px;
 }
 
+/* Eyebrow text in heading */
 .auth-heading .eyebrow {
   margin-bottom: 10px;
   font-size: 15px;
 }
 
+/* Main heading */
 .auth-heading h2 {
   margin: 0;
   color: var(--navy);
@@ -214,23 +249,27 @@
   line-height: var(--line-height-tight);
 }
 
+/* Description text in heading */
 .auth-heading p:not(.eyebrow) {
   margin: 10px 0 0;
   color: var(--muted);
   line-height: 1.6;
 }
 
+/* Authentication form container */
 .auth-form {
   display: grid;
   gap: 18px;
 }
 
+/* Two-column form row */
 .auth-form-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
 }
 
+/* Form label styling */
 .auth-form label {
   display: grid;
   gap: 8px;
@@ -240,6 +279,7 @@
   line-height: 1.4;
 }
 
+/* Label with character counter */
 .label-with-counter {
   display: flex;
   align-items: center;
@@ -247,6 +287,7 @@
   gap: 12px;
 }
 
+/* Counter text styling */
 .label-with-counter span {
   flex: 0 0 auto;
   color: var(--muted);
@@ -254,6 +295,7 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/* Form input and select styling */
 .auth-form input,
 .auth-form select {
   width: 100%;
@@ -266,23 +308,27 @@
   outline: none;
 }
 
+/* Placeholder text styling */
 .auth-form input::placeholder,
 .auth-form select.select-placeholder,
 .country-picker-button.select-placeholder {
   color: #7b8794;
 }
 
+/* Focus state for form inputs */
 .auth-form input:focus,
 .auth-form select:focus {
   border-color: var(--teal);
   box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.16);
 }
 
+/* Country selector field containers */
 .country-select-field,
 .country-picker {
   position: relative;
 }
 
+/* Country picker button styling */
 .country-picker-button {
   display: flex;
   align-items: center;
@@ -300,22 +346,26 @@
   outline: none;
 }
 
+/* Country name text */
 .country-picker-button span {
   min-width: 0;
   flex: 1;
 }
 
+/* Icon in country picker */
 .country-picker-icon {
   flex: 0 0 auto;
   color: var(--muted);
 }
 
+/* Focus and hover states for country picker */
 .country-picker-button:focus,
 .country-picker-button:hover {
   border-color: var(--teal);
   box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.16);
 }
 
+/* Country flag image styling */
 .country-select-flag {
   width: 24px;
   height: 18px;
@@ -325,6 +375,7 @@
   flex: 0 0 auto;
 }
 
+/* Country picker dropdown menu */
 .country-picker-menu {
   position: absolute;
   top: calc(100% + 6px);
@@ -340,6 +391,7 @@
   box-shadow: 0 18px 40px rgba(16, 42, 67, 0.18);
 }
 
+/* Individual country option in dropdown */
 .country-picker-option {
   display: flex;
   align-items: center;
@@ -356,6 +408,7 @@
   text-align: left;
 }
 
+/* Flag in country option */
 .country-picker-option img {
   width: 24px;
   height: 18px;
@@ -365,20 +418,24 @@
   flex: 0 0 auto;
 }
 
+/* Hover and active states for country options */
 .country-picker-option:hover,
 .country-picker-option.active {
   background: var(--color-primary-soft);
   color: var(--color-primary);
 }
 
+/* Password field container with toggle button */
 .password-field {
   position: relative;
 }
 
+/* Password input with space for toggle button */
 .password-field input {
   padding-right: 48px;
 }
 
+/* Password visibility toggle button */
 .password-toggle {
   position: absolute;
   top: 50%;
@@ -395,11 +452,13 @@
   transform: translateY(-50%);
 }
 
+/* Hover state for password toggle */
 .password-toggle:hover {
   background: #f1f5f9;
   color: var(--teal);
 }
 
+/* Password requirements list */
 .password-requirements {
   display: grid;
   gap: 5px;
@@ -411,6 +470,7 @@
   line-height: 1.35;
 }
 
+/* Password match message styling */
 .password-match-message {
   margin: 0;
   font-size: 13px;
@@ -418,14 +478,17 @@
   line-height: 1.35;
 }
 
+/* Error state for password match */
 .password-match-message-error {
   color: #b91c1c;
 }
 
+/* Success state for password match */
 .password-match-message-success {
   color: var(--color-success);
 }
 
+/* Form error message */
 .form-error {
   margin: 0;
   color: #b91c1c;
@@ -434,6 +497,7 @@
   line-height: 1.45;
 }
 
+/* Form success message */
 .form-success {
   margin: 0;
   color: var(--color-success);
@@ -442,6 +506,7 @@
   line-height: 1.45;
 }
 
+/* Modal backdrop overlay */
 .auth-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -453,6 +518,7 @@
   backdrop-filter: blur(6px);
 }
 
+/* Modal container */
 .auth-modal {
   display: grid;
   gap: 14px;
@@ -465,6 +531,7 @@
   color: var(--ink);
 }
 
+/* Icon container in modal and verification status */
 .auth-modal-icon,
 .verify-status-icon {
   display: grid;
@@ -476,44 +543,52 @@
   color: var(--teal);
 }
 
+/* Warning state for modal icons */
 .auth-modal-icon.warning,
 .verify-status-icon.error {
   background: rgba(245, 158, 11, 0.14);
   color: #b45309;
 }
 
+/* Success state for verification icons */
 .verify-status-icon.success {
   background: rgba(34, 197, 94, 0.14);
   color: var(--color-success);
 }
 
+/* Spinning animation for loading verification status */
 .verify-status-icon:not(.success):not(.error) svg {
   animation: verifySpin 1.1s linear infinite;
 }
 
+/* Modal heading */
 .auth-modal h3 {
   margin: 0;
   color: var(--navy);
   font-size: 24px;
 }
 
+/* Modal paragraph text */
 .auth-modal p {
   margin: 0;
   color: var(--muted);
   line-height: 1.6;
 }
 
+/* Bold text in modal and verification email */
 .auth-modal strong,
 .verify-email {
   color: var(--ink);
 }
 
+/* Note section in modal */
 .auth-modal-note {
   padding: 10px 12px;
   border-radius: 8px;
   background: #f8fafc;
 }
 
+/* Modal action buttons container */
 .auth-modal-actions {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -521,6 +596,7 @@
   margin-top: 4px;
 }
 
+/* Secondary button styling in auth modals */
 .auth-secondary-button {
   min-height: 48px;
   border: 1px solid var(--line);
@@ -531,42 +607,50 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/* Hover state for secondary buttons */
 .auth-secondary-button:hover {
   border-color: var(--teal);
   color: var(--teal);
 }
 
+/* Disabled state for secondary buttons */
 .auth-secondary-button:disabled {
   cursor: not-allowed;
   opacity: 0.65;
 }
 
+/* Verification card single column layout */
 .verify-card {
   grid-template-columns: minmax(0, 1fr);
   width: min(560px, 100%);
   min-height: auto;
 }
 
+/* Verification panel layout */
 .verify-panel {
   align-items: start;
   gap: 20px;
 }
 
+/* Verification heading margin override */
 .verify-heading {
   margin-bottom: 0;
 }
 
+/* Full width for resend form and link button */
 .verify-resend-form,
 .auth-link-button {
   width: 100%;
 }
 
+/* Authentication link button as grid */
 .auth-link-button {
   display: grid;
   place-items: center;
   text-decoration: none;
 }
 
+/* Keyframe animation for spinning verification status */
 @keyframes verifySpin {
   to {
     transform: rotate(360deg);

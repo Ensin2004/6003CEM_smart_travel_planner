@@ -2,15 +2,20 @@
  * Admin styles.
  * Layout, spacing, and interaction rules support the matching React view.
  */
+
+/* Main container for the logging and monitoring page */
 .logging-page {
   display: grid;
   gap: 18px;
   width: 100%;
 }
+
+/* Status message container */
 .logging-status {
   margin: 0;
 }
 
+/* Shared styling for hero, panels, guides, filters, tables, and metric cards */
 .logging-hero,
 .logging-insight-panel,
 .logging-guide,
@@ -23,6 +28,8 @@
   background: #ffffff;
   box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
 }
+
+/* Hero section with gradient background and grid pattern overlay */
 .logging-hero {
   position: relative;
   display: flex;
@@ -36,6 +43,8 @@
     #0f172a;
   color: #dbeafe;
 }
+
+/* Decorative grid pattern overlay on hero section */
 .logging-hero::before {
   content: "";
   position: absolute;
@@ -47,25 +56,35 @@
   mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.7), transparent 76%);
   pointer-events: none;
 }
+
+/* Ensures hero content appears above background overlay */
 .logging-hero > * {
   position: relative;
   z-index: 1;
 }
+
+/* Eyebrow text styling in hero section */
 .logging-hero .eyebrow {
   color: #7dd3fc;
 }
+
+/* Main heading in hero section */
 .logging-hero h2 {
   margin: 0 0 10px;
   color: #ffffff;
   font-size: var(--font-size-3xl);
   letter-spacing: 0;
 }
+
+/* Description paragraph in hero section */
 .logging-hero p:not(.eyebrow) {
   max-width: 760px;
   margin-bottom: 0;
   color: rgba(226, 232, 240, 0.86);
   line-height: 1.65;
 }
+
+/* Container for health status badges and metadata */
 .logging-hero-meta {
   display: flex;
   align-items: center;
@@ -74,6 +93,7 @@
   margin-top: 18px;
 }
 
+/* Shared styling for status badges and health indicators */
 .logging-hero-meta span,
 .logging-health {
   display: inline-flex;
@@ -89,18 +109,22 @@
   font-weight: var(--font-weight-semibold);
   backdrop-filter: blur(12px);
 }
+
+/* Healthy status color scheme */
 .logging-health-healthy {
   border-color: rgba(52, 211, 153, 0.36);
   background: rgba(6, 78, 59, 0.42);
   color: #bbf7d0;
 }
 
+/* Warning status color scheme */
 .logging-health-warning {
   border-color: rgba(248, 113, 113, 0.38);
   background: rgba(127, 29, 29, 0.4);
   color: #fecaca;
 }
 
+/* Actions container in hero section */
 .logging-hero-actions {
   display: grid;
   align-content: space-between;
@@ -109,6 +133,7 @@
   min-width: 250px;
 }
 
+/* Live stats card displaying latest event information */
 .logging-live-card {
   display: grid;
   gap: 6px;
@@ -121,6 +146,7 @@
   backdrop-filter: blur(16px);
 }
 
+/* Label styling for live card */
 .logging-live-card span {
   color: #93c5fd;
   font-size: 12px;
@@ -128,12 +154,14 @@
   text-transform: uppercase;
 }
 
+/* Value display for live card */
 .logging-live-card strong {
   color: #ffffff;
   font-size: var(--font-size-sm);
   line-height: 1.35;
 }
 
+/* Action button styling */
 .admin-icon-action {
   display: inline-flex;
   align-items: center;
@@ -150,22 +178,26 @@
   box-shadow: 0 14px 28px rgba(15, 23, 42, 0.2);
 }
 
+/* Hover state for action buttons */
 .admin-icon-action:hover {
   background: #ccfbf1;
   color: #115e59;
 }
 
+/* Disabled state for action buttons */
 .admin-icon-action:disabled {
   cursor: not-allowed;
   opacity: 0.65;
 }
 
+/* Metrics grid container */
 .monitoring-metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
 }
 
+/* Individual metric card styling */
 .monitoring-metrics article {
   position: relative;
   display: flex;
@@ -176,6 +208,7 @@
   padding: 18px;
 }
 
+/* Left accent bar for metric cards */
 .monitoring-metrics article::before {
   content: "";
   position: absolute;
@@ -184,6 +217,7 @@
   background: var(--metric-accent, var(--color-primary));
 }
 
+/* Theme variants for different metric types */
 .monitoring-metric-total {
   --metric-accent: #0f766e;
   --metric-bg: #ccfbf1;
@@ -208,6 +242,7 @@
   --metric-fg: #1d4ed8;
 }
 
+/* Icon container within metric cards */
 .monitoring-metric-icon {
   display: grid;
   flex: 0 0 auto;
@@ -219,30 +254,35 @@
   color: var(--metric-fg, var(--color-primary));
 }
 
+/* Content wrapper for metric card text */
 .monitoring-metrics article > div {
   display: grid;
   gap: 6px;
   min-width: 0;
 }
 
+/* Metric label styling */
 .monitoring-metrics article > div span {
   color: var(--muted);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
 }
 
+/* Metric description text */
 .monitoring-metrics article > div small {
   color: #7b8794;
   font-size: 12px;
   line-height: 1.35;
 }
 
+/* Metric value styling */
 .monitoring-metrics strong {
   color: #0f172a;
   font-size: var(--font-size-3xl);
   line-height: 1;
 }
 
+/* Guide section explaining how to read monitoring data */
 .logging-guide {
   display: grid;
   grid-template-columns: minmax(240px, 0.75fr) minmax(0, 1.25fr);
@@ -251,17 +291,20 @@
   background: linear-gradient(135deg, #f0fdfa, #ffffff);
 }
 
+/* Guide heading container */
 .logging-guide-heading {
   display: flex;
   align-items: flex-start;
   gap: 12px;
 }
 
+/* Icon styling in guide heading */
 .logging-guide-heading > svg {
   flex: 0 0 auto;
   color: var(--color-primary);
 }
 
+/* Category label in guide heading */
 .logging-guide-heading span {
   display: block;
   margin-bottom: 4px;
@@ -271,17 +314,20 @@
   text-transform: uppercase;
 }
 
+/* Guide title */
 .logging-guide-heading h3 {
   margin: 0;
   color: #0f172a;
   font-size: var(--font-size-lg);
 }
 
+/* Guide items container */
 .logging-guide-items {
   display: grid;
   gap: 8px;
 }
 
+/* Individual guide item */
 .logging-guide-items p {
   margin: 0;
   padding: 8px 12px;
@@ -292,10 +338,12 @@
   line-height: 1.5;
 }
 
+/* Bold text in guide items */
 .logging-guide-items strong {
   color: #0f172a;
 }
 
+/* Overview section with charts and insights */
 .logging-overview {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
@@ -303,33 +351,39 @@
   align-items: start;
 }
 
+/* Small text in panel headings */
 .logging-panel-heading small {
   color: #64748b;
   font-size: 12px;
   font-weight: var(--font-weight-medium);
 }
 
+/* Charts grid container */
 .logging-charts {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
 }
 
+/* Chart panel styling */
 .logging-chart-panel {
   display: grid;
   gap: 16px;
   padding: 18px;
 }
 
+/* Full-width chart panel spanning both columns */
 .logging-chart-panel-wide {
   grid-column: 1 / -1;
 }
 
+/* Bar chart container */
 .logging-bar-chart {
   display: grid;
   gap: 12px;
 }
 
+/* Individual bar chart row */
 .logging-chart-bar {
   display: grid;
   grid-template-columns: 90px minmax(0, 1fr) 42px;
@@ -341,6 +395,7 @@
   text-transform: capitalize;
 }
 
+/* Bar track styling */
 .logging-chart-bar i {
   display: block;
   height: 12px;
@@ -349,6 +404,7 @@
   background: #e2e8f0;
 }
 
+/* Bar fill using CSS custom property */
 .logging-chart-bar i::before {
   content: "";
   display: block;
@@ -358,11 +414,13 @@
   background: var(--bar-color, #0f766e);
 }
 
+/* Bar value display */
 .logging-chart-bar strong {
   color: #0f172a;
   text-align: right;
 }
 
+/* Color theme variants for different bar types */
 .logging-chart-bar-success,
 .logging-chart-bar-info {
   --bar-color: #0f766e;
@@ -378,6 +436,7 @@
   --bar-color: #dc2626;
 }
 
+/* Container for 7-day trend chart */
 .logging-trend-chart {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -387,6 +446,7 @@
   padding-top: 10px;
 }
 
+/* Individual day column in trend chart */
 .logging-trend-day {
   display: grid;
   grid-template-rows: auto 1fr auto;
@@ -398,6 +458,7 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/* Bar container for each trend day */
 .logging-trend-day > i {
   display: flex;
   width: 100%;
@@ -411,11 +472,13 @@
   background: #e2e8f0;
 }
 
+/* Segment within trend bars */
 .logging-trend-day b {
   display: block;
   height: var(--segment-size);
 }
 
+/* Color coding for trend segments */
 .logging-trend-success {
   background: #0f766e;
 }
@@ -428,10 +491,12 @@
   background: #dc2626;
 }
 
+/* Day label and count in trend chart */
 .logging-trend-day strong {
   color: #0f172a;
 }
 
+/* Insights grid container */
 .logging-insights {
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(280px, 0.75fr);
@@ -439,6 +504,7 @@
   align-items: start;
 }
 
+/* Insight panel styling */
 .logging-insight-panel {
   display: grid;
   gap: 16px;
@@ -446,6 +512,7 @@
   align-self: start;
 }
 
+/* Shared heading styles for panels, table headers, and sections */
 .logging-panel-heading,
 .logging-table-header,
 .logging-section-title {
@@ -455,6 +522,7 @@
   gap: 14px;
 }
 
+/* Category label in headings */
 .logging-panel-heading span,
 .logging-table-header span {
   display: block;
@@ -465,6 +533,7 @@
   text-transform: uppercase;
 }
 
+/* Title in headings */
 .logging-panel-heading h3,
 .logging-table-header h3 {
   margin: 0;
@@ -472,21 +541,25 @@
   font-size: var(--font-size-lg);
 }
 
+/* Muted text for empty states */
 .logging-muted {
   margin: 0;
   color: var(--muted);
 }
 
+/* Category list container */
 .logging-category-list {
   display: grid;
   gap: 10px;
 }
 
+/* Individual category item */
 .logging-category-list > span {
   display: grid;
   gap: 8px;
 }
 
+/* Category label and count row */
 .logging-category-list > span > span {
   display: flex;
   align-items: center;
@@ -497,10 +570,12 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/* Category count value */
 .logging-category-list strong {
   color: #0f172a;
 }
 
+/* Category progress bar track */
 .logging-category-list i {
   display: block;
   height: 8px;
@@ -509,6 +584,7 @@
   background: #e2e8f0;
 }
 
+/* Category progress bar fill */
 .logging-category-list i::before {
   content: "";
   display: block;
@@ -518,12 +594,14 @@
   background: linear-gradient(90deg, #0f766e, #38bdf8);
 }
 
+/* Quick actions button container */
 .logging-quick-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
 }
 
+/* Quick action button styling */
 .logging-quick-actions button {
   display: inline-flex;
   align-items: center;
@@ -539,12 +617,14 @@
   font-weight: var(--font-weight-bold);
 }
 
+/* Hover state for quick action buttons */
 .logging-quick-actions button:hover {
   border-color: rgba(14, 116, 144, 0.34);
   background: #ecfeff;
   color: #0e7490;
 }
 
+/* Filters section styling */
 .logging-filters {
   display: grid;
   grid-template-columns: repeat(4, minmax(140px, 1fr));
@@ -554,10 +634,12 @@
   background: linear-gradient(180deg, #ffffff, #f8fafc);
 }
 
+/* Section title spanning full width */
 .logging-section-title {
   grid-column: 1 / -1;
 }
 
+/* Section title content and button styling */
 .logging-section-title > div,
 .logging-section-title button {
   display: flex;
@@ -566,21 +648,25 @@
   color: #0f172a;
 }
 
+/* Section title text group */
 .logging-section-title > div > span {
   display: grid;
   gap: 3px;
 }
 
+/* Small helper text in section title */
 .logging-section-title > div small {
   color: #7b8794;
   font-size: 12px;
   font-weight: var(--font-weight-medium);
 }
 
+/* Icon styling in section titles */
 .logging-section-title svg {
   color: #0f766e;
 }
 
+/* Clear filters button styling */
 .logging-section-title button {
   min-height: 34px;
   padding: 0 10px;
@@ -593,12 +679,14 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/* Hover state for clear filters button */
 .logging-section-title button:hover {
   border-color: rgba(180, 35, 24, 0.2);
   background: #fef2f2;
   color: #b42318;
 }
 
+/* Filter label styling */
 .logging-filters label {
   display: grid;
   gap: 7px;
@@ -607,11 +695,13 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/* Search field container with icon positioning */
 .logging-search-field {
   position: relative;
   display: block;
 }
 
+/* Search icon positioning */
 .logging-search-field svg {
   position: absolute;
   top: 50%;
@@ -620,6 +710,7 @@
   transform: translateY(-50%);
 }
 
+/* Form input and select styling */
 .logging-filters select,
 .logging-filters input {
   width: 100%;
@@ -632,24 +723,29 @@
   box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.03);
 }
 
+/* Select padding */
 .logging-filters select {
   padding: 0 12px;
 }
 
+/* Input padding with space for search icon */
 .logging-filters input {
   padding: 0 12px 0 38px;
 }
 
+/* Date input padding */
 .logging-filters input[type="date"] {
   padding: 0 12px;
 }
 
+/* Focus state for form inputs */
 .logging-filters input:focus,
 .logging-filters select:focus {
   border-color: #0f766e;
   box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.16);
 }
 
+/* Advanced toggle button styling */
 .logging-advanced-toggle {
   display: inline-flex;
   min-height: 44px;
@@ -666,10 +762,12 @@
   font-weight: var(--font-weight-bold);
 }
 
+/* Rotate chevron when advanced filters are expanded */
 .logging-advanced-toggle[aria-expanded="true"] svg {
   transform: rotate(180deg);
 }
 
+/* Advanced filters container - expanded state */
 .logging-advanced-filters {
   grid-column: 1 / -1;
   display: grid;
@@ -679,11 +777,13 @@
   border-top: 1px solid var(--line);
 }
 
+/* Table wrapper with scroll for horizontal overflow */
 .logging-table-wrap {
   overflow-x: auto;
   padding: 18px;
 }
 
+/* Log table styling */
 .logging-table {
   width: 100%;
   min-width: 920px;
@@ -692,22 +792,26 @@
   text-align: left;
 }
 
+/* Event summary and source grid layouts */
 .logging-event-summary,
 .logging-source {
   display: grid;
   gap: 4px;
 }
 
+/* Minimum width for event summary column */
 .logging-event-summary {
   min-width: 280px;
 }
 
+/* Bold text in event summary and source */
 .logging-event-summary strong,
 .logging-source strong {
   color: #0f172a;
   font-weight: var(--font-weight-semibold);
 }
 
+/* View details action button */
 .logging-view-action {
   display: inline-flex;
   min-height: 34px;
@@ -723,6 +827,7 @@
   font-weight: var(--font-weight-bold);
 }
 
+/* Dialog backdrop overlay */
 .logging-dialog-backdrop {
   position: fixed;
   inset: 66px 0 0;
@@ -735,6 +840,7 @@
   backdrop-filter: blur(5px);
 }
 
+/* Dialog container */
 .logging-dialog {
   display: grid;
   gap: 16px;
@@ -748,6 +854,7 @@
   box-shadow: 0 30px 80px rgba(15, 23, 42, 0.28);
 }
 
+/* Dialog heading */
 .logging-dialog-heading {
   display: flex;
   align-items: flex-start;
@@ -755,17 +862,20 @@
   gap: 16px;
 }
 
+/* Eyebrow text in dialog heading */
 .logging-dialog-heading .eyebrow {
   margin-bottom: 5px;
   color: var(--color-primary);
 }
 
+/* Dialog title */
 .logging-dialog-heading h3 {
   margin: 0;
   color: #0f172a;
   font-size: var(--font-size-xl);
 }
 
+/* Close button in dialog */
 .logging-dialog-heading button {
   display: grid;
   width: 36px;
@@ -778,12 +888,14 @@
   color: #475569;
 }
 
+/* Badges container in dialog */
 .logging-dialog-badges {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
+/* Category badge in dialog */
 .logging-dialog-badges > span:last-child {
   display: inline-flex;
   align-items: center;
@@ -796,6 +908,7 @@
   font-weight: var(--font-weight-bold);
 }
 
+/* Detail grid in dialog */
 .logging-detail-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -803,6 +916,7 @@
   margin: 0;
 }
 
+/* Detail item container */
 .logging-detail-grid div {
   display: grid;
   gap: 5px;
@@ -813,6 +927,7 @@
   background: #f8fafc;
 }
 
+/* Detail label */
 .logging-detail-grid dt {
   color: #64748b;
   font-size: 12px;
@@ -820,6 +935,7 @@
   text-transform: uppercase;
 }
 
+/* Detail value */
 .logging-detail-grid dd {
   margin: 0;
   overflow-wrap: anywhere;
@@ -828,21 +944,25 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/* Sub-detail text */
 .logging-detail-grid dd small {
   display: block;
   margin-top: 3px;
   color: #7b8794;
 }
 
+/* Table header styling */
 .logging-table-header {
   margin-bottom: 14px;
 }
 
+/* Result count in table header */
 .logging-table-header small {
   color: var(--muted);
   font-weight: var(--font-weight-semibold);
 }
 
+/* Table cell padding and borders */
 .logging-table th,
 .logging-table td {
   padding: 14px 12px;
@@ -850,6 +970,7 @@
   vertical-align: middle;
 }
 
+/* Table header styling with sticky position */
 .logging-table th {
   position: sticky;
   top: 0;
@@ -861,6 +982,7 @@
   text-transform: uppercase;
 }
 
+/* Rounded corners for table header */
 .logging-table th:first-child {
   border-top-left-radius: 8px;
 }
@@ -869,11 +991,13 @@
   border-top-right-radius: 8px;
 }
 
+/* Table cell text color */
 .logging-table td {
   color: #52616f;
   font-size: var(--font-size-sm);
 }
 
+/* Table row hover state */
 .logging-table tbody tr {
   transition: background 0.16s ease;
 }
@@ -882,6 +1006,7 @@
   background: #f8fafc;
 }
 
+/* Small text in table cells */
 .logging-table td small,
 .logging-actor small {
   display: block;
@@ -891,6 +1016,7 @@
   font-weight: var(--font-weight-medium);
 }
 
+/* Time and actor name styling */
 .logging-time,
 .logging-actor strong {
   display: block;
@@ -898,10 +1024,12 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/* Remove bottom border from last row */
 .logging-table tbody tr:last-child td {
   border-bottom: 0;
 }
 
+/* Actor column styling */
 .logging-actor {
   display: flex;
   align-items: center;
@@ -909,11 +1037,13 @@
   min-width: 210px;
 }
 
+/* Icon in actor column */
 .logging-actor svg {
   flex: 0 0 auto;
   color: #0f766e;
 }
 
+/* Endpoint information styling */
 .logging-endpoint {
   max-width: 260px;
   overflow-wrap: anywhere;
@@ -922,6 +1052,7 @@
   font-size: 13px;
 }
 
+/* HTTP method badge in endpoint */
 .logging-endpoint span {
   display: inline-flex;
   align-items: center;
@@ -936,10 +1067,12 @@
   font-weight: var(--font-weight-bold);
 }
 
+/* Error context column styling */
 .logging-error-context {
   min-width: 220px;
 }
 
+/* Error code styling */
 .logging-error-context strong {
   display: block;
   color: #9f1239;
@@ -948,6 +1081,7 @@
   overflow-wrap: anywhere;
 }
 
+/* Error message with truncation */
 .logging-error-context small {
   max-width: 240px;
   overflow: hidden;
@@ -955,6 +1089,7 @@
   white-space: nowrap;
 }
 
+/* Status badge styling */
 .logging-badge {
   display: inline-flex;
   align-items: center;
@@ -966,51 +1101,62 @@
   text-transform: capitalize;
 }
 
+/* Success badge */
 .logging-badge-success {
   background: #dcfce7;
   color: #047857;
 }
 
+/* Failed badge */
 .logging-badge-fail {
   background: #fef3c7;
   color: #b45309;
 }
 
+/* Error badge */
 .logging-badge-error {
   background: #fee2e2;
   color: #b42318;
 }
 
+/* Severity text styling */
 .logging-severity {
   color: #334155;
   font-weight: var(--font-weight-semibold);
   text-transform: capitalize;
 }
 
+/* Warning and critical severity colors */
 .logging-severity-warning,
 .logging-severity-critical {
   color: #b45309;
 }
 
+/* Error severity color */
 .logging-severity-error {
   color: #b42318;
 }
 
+/* Mobile responsive styles for screens up to 760px */
 @media (max-width: 760px) {
+  /* Reduced padding for hero on mobile */
   .logging-hero {
     padding: 22px;
   }
 
+  /* Full-width actions on mobile */
   .logging-hero-actions {
     width: 100%;
     min-width: 0;
     justify-items: stretch;
   }
 
+  /* Single column charts on mobile */
   .logging-charts {
     grid-template-columns: 1fr;
   }
 
+  /* Single column layouts for guide, overview, advanced filters, and detail grid */
   .logging-guide,
   .logging-overview,
   .logging-advanced-filters,
@@ -1018,14 +1164,17 @@
     grid-template-columns: 1fr;
   }
 
+  /* Reduced padding for dialog backdrop on mobile */
   .logging-dialog-backdrop {
     padding: 12px;
   }
 
+  /* Full-width action button on mobile */
   .admin-icon-action {
     width: 100%;
   }
 
+  /* Reduced padding for metric cards on mobile */
   .monitoring-metrics article {
     padding: 16px;
   }

@@ -2,6 +2,8 @@
  * Trip Map Preview styles.
  * Layout, spacing, and interaction rules support the matching React view.
  */
+
+/* Main map container with light blue background and overflow control */
 .shared-trip-map {
   position: relative;
   z-index: 0;
@@ -10,6 +12,8 @@
   overflow: hidden;
   background: #cfe8f7;
 }
+
+/* Leaflet map instance with full dimensions and inherited font */
 .shared-trip-leaflet-map {
   z-index: 0;
   width: 100%;
@@ -17,6 +21,8 @@
   min-height: inherit;
   font: inherit;
 }
+
+/* Base pin marker with circular design and primary color */
 .shared-trip-map-pin {
   display: grid;
   width: 34px;
@@ -31,6 +37,7 @@
   font-weight: var(--font-weight-bold);
 }
 
+/* Location pin with rotated square shape for map markers */
 .shared-trip-map-pin-location {
   width: 30px;
   height: 30px;
@@ -39,6 +46,7 @@
   box-shadow: -7px 8px 18px rgba(16, 42, 67, 0.25);
 }
 
+/* Dot inside the location pin marker */
 .shared-trip-map-pin-dot {
   width: 10px;
   height: 10px;
@@ -47,14 +55,17 @@
   background: #ffffff;
 }
 
+/* Numbered pin variant with standard rounding */
 .shared-trip-map-pin-numbered {
   border-radius: 999px;
 }
 
+/* Idea or suggestion pin with purple color */
 .shared-trip-map-pin-idea {
   background: #7c3aed;
 }
 
+/* Highlighted pin for the current location with pulsing animation */
 .shared-trip-map-pin-highlighted {
   width: 48px;
   height: 48px;
@@ -68,6 +79,7 @@
   animation: shared-trip-map-highlight-pulse 1.8s ease-in-out infinite;
 }
 
+/* Tooltip label for highlighted pins with max width constraints */
 .shared-trip-map-highlight-label.leaflet-tooltip {
   width: max-content;
   min-width: 220px;
@@ -80,10 +92,12 @@
   color: var(--color-heading);
 }
 
+/* Tooltip arrow pointing to the pin */
 .shared-trip-map-highlight-label.leaflet-tooltip::before {
   border-top-color: #ffffff;
 }
 
+/* Content wrapper inside the tooltip with grid layout */
 .shared-trip-map-highlight-label span {
   display: grid;
   gap: 5px;
@@ -91,12 +105,14 @@
   text-align: center;
 }
 
+/* Highlight label title with red color */
 .shared-trip-map-highlight-label strong {
   color: #dc2626;
   font-size: 12px;
   letter-spacing: 0.06em;
 }
 
+/* Highlight label subtitle with heading color */
 .shared-trip-map-highlight-label small {
   color: var(--color-heading);
   font-size: 12px;
@@ -106,6 +122,7 @@
   white-space: normal;
 }
 
+/* Pulsing animation for highlighted pins */
 @keyframes shared-trip-map-highlight-pulse {
   0%,
   100% {
@@ -121,6 +138,7 @@
   }
 }
 
+/* Day-based pin colors for itinerary stops */
 .shared-trip-map-pin-day-1 {
   background: #0f766e;
 }

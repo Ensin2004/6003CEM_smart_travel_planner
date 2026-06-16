@@ -4,6 +4,7 @@
  */
 import { useContext } from 'react';
 import CurrencyContext from '../../context/currencyContext';
+
 // CurrencyAmount renders the main screen and handles nearby interactions.
 function CurrencyAmount({ amount, sourceCurrency = 'USD' }) {
   const currency = useContext(CurrencyContext);
@@ -11,5 +12,6 @@ function CurrencyAmount({ amount, sourceCurrency = 'USD' }) {
 
   return <>{formattedAmount || `${sourceCurrency} ${amount}`}</>;
 }
-// Default export registers the primary  value.
+
+// Default export registers the primary value.
 export default CurrencyAmount;

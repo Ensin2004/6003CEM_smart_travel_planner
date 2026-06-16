@@ -2,11 +2,19 @@
  * Travel Guide styles.
  * Layout, spacing, and interaction rules support the matching React view.
  */
+
+/* ============================================================
+ * PAGE CONTAINER
+ * ============================================================ */
 .travel-guide-page {
   display: grid;
   gap: 16px;
   text-align: left;
 }
+
+/* ============================================================
+ * HERO SECTION
+ * ============================================================ */
 .travel-guide-hero {
   position: relative;
   display: grid;
@@ -22,6 +30,8 @@
   padding: 28px;
   box-shadow: 0 18px 42px rgba(16, 42, 67, 0.08);
 }
+
+/* Hero accent bar — decorative bottom strip */
 .travel-guide-hero::after {
   position: absolute;
   right: 22px;
@@ -33,6 +43,9 @@
   content: '';
 }
 
+/* ============================================================
+ * EYEBROW & BADGE STYLES
+ * ============================================================ */
 .travel-guide-eyebrow,
 .travel-guide-section-heading span,
 .travel-guide-hero-card span {
@@ -41,6 +54,8 @@
   font-weight: 700;
   line-height: 1.4;
 }
+
+/* Eyebrow label with pill styling */
 .travel-guide-eyebrow {
   display: inline-flex;
   gap: 7px;
@@ -51,6 +66,10 @@
   background: rgba(255, 255, 255, 0.7);
   padding: 6px 10px;
 }
+
+/* ============================================================
+ * HERO TYPOGRAPHY
+ * ============================================================ */
 .travel-guide-hero h2 {
   margin: 10px 0 8px;
   max-width: 760px;
@@ -70,10 +89,15 @@
   font-size: 14px;
   line-height: 1.6;
 }
+
 .travel-guide-hero p {
   max-width: 720px;
   margin: 0;
 }
+
+/* ============================================================
+ * HERO SIDECARD
+ * ============================================================ */
 .travel-guide-hero-card {
   display: grid;
   gap: 7px;
@@ -83,6 +107,7 @@
   padding: 14px;
   box-shadow: 0 14px 30px rgba(16, 42, 67, 0.08);
 }
+
 .travel-guide-hero-card strong {
   overflow: hidden;
   color: var(--navy);
@@ -92,6 +117,10 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ============================================================
+ * TOOLBAR — tabs, region filters, search
+ * ============================================================ */
 .travel-guide-toolbar {
   display: grid;
   gap: 10px;
@@ -110,6 +139,7 @@
   gap: 8px;
 }
 
+/* Shared button & search input base */
 .travel-guide-tabs button,
 .travel-guide-region-tabs button,
 .travel-guide-search {
@@ -120,6 +150,7 @@
   color: #475569;
 }
 
+/* Search band — combines input with a label */
 .travel-guide-search-band {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -141,6 +172,7 @@
   white-space: nowrap;
 }
 
+/* Tab and region button interactions */
 .travel-guide-tabs button,
 .travel-guide-region-tabs button {
   display: inline-flex;
@@ -161,6 +193,9 @@
   color: var(--teal);
 }
 
+/* ============================================================
+ * SEARCH INPUT
+ * ============================================================ */
 .travel-guide-search {
   display: flex;
   gap: 9px;
@@ -187,6 +222,9 @@
   outline: none;
 }
 
+/* ============================================================
+ * MAIN LAYOUT — destinations + detail sidebar
+ * ============================================================ */
 .travel-guide-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(330px, 430px);
@@ -202,6 +240,9 @@
   box-shadow: 0 8px 20px rgba(16, 42, 67, 0.035);
 }
 
+/* ============================================================
+ * DESTINATIONS LIST
+ * ============================================================ */
 .travel-guide-destinations {
   display: grid;
   gap: 14px;
@@ -213,6 +254,9 @@
   margin: 0;
 }
 
+/* ============================================================
+ * SECTION HEADING
+ * ============================================================ */
 .travel-guide-section-heading {
   display: flex;
   gap: 12px;
@@ -243,12 +287,18 @@
   font-weight: 750;
 }
 
+/* ============================================================
+ * DESTINATION GRID
+ * ============================================================ */
 .travel-guide-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
   gap: 12px;
 }
 
+/* ============================================================
+ * DESTINATION CARD
+ * ============================================================ */
 .travel-guide-card {
   position: relative;
   display: grid;
@@ -267,15 +317,18 @@
   cursor: pointer;
 }
 
+/* Allows popover to break out of card overflow */
 .travel-guide-card:has(.visited-place-control.is-open) {
   z-index: 10;
 }
 
+/* Card hover lift effect */
 .travel-guide-card:hover {
   box-shadow: 0 14px 30px rgba(16, 42, 67, 0.16);
   transform: translateY(-2px);
 }
 
+/* Visited state — green border accent */
 .travel-guide-card.is-visited {
   border-color: rgba(74, 222, 128, 0.72);
   box-shadow: inset 0 0 0 1px rgba(240, 253, 244, 0.28);
@@ -287,6 +340,9 @@
     0 14px 30px rgba(16, 42, 67, 0.16);
 }
 
+/* ============================================================
+ * VIEW MORE & PAGINATION
+ * ============================================================ */
 .travel-guide-view-more {
   display: inline-flex;
   gap: 8px;
@@ -333,6 +389,9 @@
   opacity: 0.55;
 }
 
+/* ============================================================
+ * CARD GRADIENT OVERLAY & IMAGE
+ * ============================================================ */
 .travel-guide-card::after {
   position: absolute;
   inset: 0;
@@ -353,16 +412,21 @@
   transition: transform 0.24s ease;
 }
 
+/* Image zoom on hover or active state */
 .travel-guide-card:hover img,
 .travel-guide-card.active img {
   transform: scale(1.04);
 }
 
+/* Active card — sun-colored border ring */
 .travel-guide-card.active {
   border-color: var(--sun);
   box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.18);
 }
 
+/* ============================================================
+ * CARD CONTENT — all elements sit above overlay
+ * ============================================================ */
 .travel-guide-card span,
 .travel-guide-card strong,
 .travel-guide-card small,
@@ -372,6 +436,7 @@
   z-index: 1;
 }
 
+/* Category badge on card */
 .travel-guide-card span {
   width: fit-content;
   max-width: 100%;
@@ -403,6 +468,9 @@
   white-space: nowrap;
 }
 
+/* ============================================================
+ * VISITED PLACE CONTROL (within card)
+ * ============================================================ */
 .travel-guide-card .visited-place-control {
   margin-top: 9px;
 }
@@ -414,12 +482,14 @@
   left: 0;
 }
 
+/* Compare button inside card */
 .travel-guide-card .compare-button {
   justify-self: start;
   margin-top: 8px;
   background: rgba(255, 255, 255, 0.92);
 }
 
+/* Visited watermark badge — top-right corner */
 .travel-guide-card .visited-place-watermark {
   position: absolute;
   top: 10px;
@@ -442,6 +512,9 @@
   white-space: nowrap;
 }
 
+/* ============================================================
+ * DETAIL SIDEBAR
+ * ============================================================ */
 .travel-guide-detail {
   position: sticky;
   top: 86px;
@@ -462,6 +535,7 @@
   padding: 18px;
 }
 
+/* Location pill */
 .travel-guide-location {
   display: inline-flex;
   gap: 6px;
@@ -489,6 +563,9 @@
   margin: 0;
 }
 
+/* ============================================================
+ * TAGS
+ * ============================================================ */
 .travel-guide-tags {
   display: flex;
   flex-wrap: wrap;
@@ -506,6 +583,9 @@
   line-height: 1.2;
 }
 
+/* ============================================================
+ * DETAIL INFO CARDS
+ * ============================================================ */
 .travel-guide-detail-grid {
   display: grid;
   gap: 10px;
@@ -554,6 +634,9 @@
   line-height: 1.25;
 }
 
+/* ============================================================
+ * EXPLORE LINK / CTA
+ * ============================================================ */
 .travel-guide-explore-link {
   display: inline-flex;
   gap: 7px;
@@ -573,6 +656,9 @@
   background: var(--color-primary-hover);
 }
 
+/* ============================================================
+ * EMPTY STATES
+ * ============================================================ */
 .travel-guide-empty {
   display: grid;
   justify-items: center;
@@ -587,10 +673,16 @@
   margin: 0;
 }
 
+/* ============================================================
+ * SPINNER ANIMATION
+ * ============================================================ */
 .travel-guide-spin {
   animation: travel-guide-spin 0.8s linear infinite;
 }
 
+/* ============================================================
+ * BACK LINK
+ * ============================================================ */
 .travel-guide-back-link {
   display: inline-flex;
   gap: 7px;
@@ -606,6 +698,9 @@
   font-weight: 750;
 }
 
+/* ============================================================
+ * DESTINATION HERO (detail view)
+ * ============================================================ */
 .travel-guide-destination-hero {
   display: grid;
   grid-template-columns: minmax(280px, 0.95fr) minmax(300px, 1fr) minmax(260px, 0.8fr);
@@ -618,6 +713,9 @@
   box-shadow: 0 8px 20px rgba(16, 42, 67, 0.035);
 }
 
+/* ============================================================
+ * GALLERY & MAP PANEL
+ * ============================================================ */
 .travel-guide-gallery,
 .travel-guide-map-panel {
   position: relative;
@@ -637,6 +735,7 @@
   object-fit: cover;
 }
 
+/* Gallery navigation controls overlay */
 .travel-guide-gallery-controls {
   position: absolute;
   right: 12px;
@@ -663,6 +762,9 @@
   color: #ffffff;
 }
 
+/* ============================================================
+ * HERO COPY
+ * ============================================================ */
 .travel-guide-hero-copy {
   display: grid;
   align-content: center;
@@ -688,6 +790,9 @@
   line-height: 1.7;
 }
 
+/* ============================================================
+ * TRIP PULSE / WEATHER / AI CARDS
+ * ============================================================ */
 .travel-guide-trip-pulse,
 .travel-guide-place-section,
 .travel-guide-weather-card,
@@ -698,6 +803,7 @@
   box-shadow: 0 8px 20px rgba(16, 42, 67, 0.035);
 }
 
+/* Trip pulse — quick status indicator */
 .travel-guide-trip-pulse {
   display: flex;
   gap: 12px;
@@ -723,18 +829,27 @@
   line-height: 1.5;
 }
 
+/* ============================================================
+ * PLACE SECTION
+ * ============================================================ */
 .travel-guide-place-section {
   display: grid;
   gap: 14px;
   padding: 18px;
 }
 
+/* ============================================================
+ * INTELLIGENCE GRID — weather + AI side by side
+ * ============================================================ */
 .travel-guide-intelligence-grid {
   display: grid;
   grid-template-columns: minmax(260px, 0.75fr) minmax(0, 1.25fr);
   gap: 14px;
 }
 
+/* ============================================================
+ * WEATHER CARD
+ * ============================================================ */
 .travel-guide-weather-card,
 .travel-guide-ai-card {
   display: grid;
@@ -775,6 +890,7 @@
   line-height: 1.55;
 }
 
+/* Updating indicator */
 .travel-guide-weather-updating {
   display: inline-flex;
   gap: 6px;
@@ -794,6 +910,9 @@
   font-weight: 650;
 }
 
+/* ============================================================
+ * AI PICKS
+ * ============================================================ */
 .travel-guide-ai-picks {
   display: grid;
   gap: 8px;
@@ -811,6 +930,7 @@
   line-height: 1.45;
 }
 
+/* AI picks inside wide variant — softer styling */
 .travel-guide-ai-wide .travel-guide-ai-picks span {
   border-color: rgba(245, 158, 11, 0.16);
   background: rgba(255, 255, 255, 0.84);
@@ -821,6 +941,9 @@
   color: var(--navy);
 }
 
+/* ============================================================
+ * CATEGORY FILTER PANEL
+ * ============================================================ */
 .travel-guide-category-panel {
   display: flex;
   flex-wrap: wrap;
@@ -848,18 +971,25 @@
   color: var(--teal);
 }
 
+/* Section heading with icon support */
 .travel-guide-place-section .travel-guide-section-heading span {
   display: inline-flex;
   gap: 6px;
   align-items: center;
 }
 
+/* ============================================================
+ * PLACE GRID
+ * ============================================================ */
 .travel-guide-place-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   gap: 12px;
 }
 
+/* ============================================================
+ * PLACE CARD
+ * ============================================================ */
 .travel-guide-place-card {
   overflow: hidden;
   border: 1px solid rgba(217, 226, 236, 0.86);
@@ -892,6 +1022,7 @@
   padding: 12px;
 }
 
+/* Category badge on place card */
 .travel-guide-place-card span {
   width: fit-content;
   max-width: 100%;
@@ -924,6 +1055,9 @@
   line-height: 1.45;
 }
 
+/* ============================================================
+ * PLACE META — tags like "outdoor", "family", etc.
+ * ============================================================ */
 .travel-guide-place-meta {
   display: flex;
   flex-wrap: wrap;
@@ -943,6 +1077,9 @@
   font-weight: 700;
 }
 
+/* ============================================================
+ * RATING DISPLAY
+ * ============================================================ */
 .travel-guide-card-rating {
   display: flex;
   flex-wrap: wrap;
@@ -958,6 +1095,7 @@
   font-weight: 750;
 }
 
+/* Star rating container */
 .travel-guide-star-rating {
   display: inline-flex;
   gap: 1px;
@@ -967,6 +1105,7 @@
   white-space: nowrap;
 }
 
+/* Individual star — base and filled overlay */
 .travel-guide-star {
   position: relative;
   display: inline-flex;
@@ -985,6 +1124,9 @@
   color: var(--sun);
 }
 
+/* ============================================================
+ * PRICE & STATUS ROWS
+ * ============================================================ */
 .travel-guide-card-facts {
   display: grid;
   gap: 6px;
@@ -1042,6 +1184,9 @@
   line-height: 1.35;
 }
 
+/* ============================================================
+ * PLACE CARD — additional inline elements
+ * ============================================================ */
 .travel-guide-place-card p {
   display: flex;
   gap: 6px;
@@ -1054,6 +1199,9 @@
   color: var(--teal);
 }
 
+/* ============================================================
+ * WEATHER RECOMMENDATIONS
+ * ============================================================ */
 .travel-guide-weather-recommendations {
   display: flex;
   flex-wrap: wrap;
@@ -1070,6 +1218,9 @@
   font-weight: 750;
 }
 
+/* ============================================================
+ * PLACE CARD LINK
+ * ============================================================ */
 .travel-guide-place-card a {
   display: inline-flex;
   gap: 5px;
@@ -1080,6 +1231,9 @@
   font-weight: 750;
 }
 
+/* ============================================================
+ * MINI EMPTY STATE
+ * ============================================================ */
 .travel-guide-mini-empty {
   border: 1px dashed rgba(100, 116, 139, 0.24);
   border-radius: 8px;
@@ -1091,6 +1245,9 @@
   min-height: 480px;
 }
 
+/* ============================================================
+ * DESTINATION TITLE (detail header)
+ * ============================================================ */
 .travel-guide-destination-title {
   display: grid;
   gap: 10px;
@@ -1120,6 +1277,9 @@
   line-height: 1.65;
 }
 
+/* ============================================================
+ * MEDIA ROW — gallery + map side by side
+ * ============================================================ */
 .travel-guide-media-row {
   display: grid;
   grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
@@ -1136,6 +1296,9 @@
   min-height: 250px;
 }
 
+/* ============================================================
+ * MAP PANEL — decorative grid + content overlay
+ * ============================================================ */
 .travel-guide-map-panel {
   display: grid;
   align-content: end;
@@ -1185,6 +1348,9 @@
   font-weight: 750;
 }
 
+/* ============================================================
+ * WIDE VARIANTS — weather & AI with decorative accents
+ * ============================================================ */
 .travel-guide-weather-wide,
 .travel-guide-ai-wide {
   position: relative;
@@ -1206,6 +1372,7 @@
     #ffffff;
 }
 
+/* Decorative circles in top-right corner */
 .travel-guide-weather-wide::after,
 .travel-guide-ai-wide::after {
   position: absolute;
@@ -1220,12 +1387,16 @@
   pointer-events: none;
 }
 
+/* Ensure content sits above decoration */
 .travel-guide-weather-wide > *,
 .travel-guide-ai-wide > * {
   position: relative;
   z-index: 1;
 }
 
+/* ============================================================
+ * WEATHER LAYOUT — icon + stats
+ * ============================================================ */
 .travel-guide-weather-layout {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -1261,6 +1432,9 @@
   font-weight: 700;
 }
 
+/* ============================================================
+ * AI WIDE — description with light background
+ * ============================================================ */
 .travel-guide-ai-wide > p {
   border: 1px solid rgba(245, 158, 11, 0.16);
   border-radius: 8px;
@@ -1269,6 +1443,9 @@
   color: #334155;
 }
 
+/* ============================================================
+ * WEATHER OPTIONS — toggle buttons
+ * ============================================================ */
 .travel-guide-weather-options {
   display: flex;
   flex-wrap: wrap;
@@ -1296,6 +1473,9 @@
   color: var(--teal);
 }
 
+/* ============================================================
+ * SMART LISTS — curated destination cards
+ * ============================================================ */
 .travel-guide-smart-lists {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1316,6 +1496,7 @@
   text-align: left;
 }
 
+/* Overlay gradient for text readability */
 .travel-guide-list-card::after {
   position: absolute;
   inset: 0;
@@ -1352,6 +1533,9 @@
   line-height: 1.2;
 }
 
+/* ============================================================
+ * CAROUSEL ROW — intro panel + scrollable cards
+ * ============================================================ */
 .travel-guide-carousel-row {
   display: grid;
   grid-template-columns: 170px minmax(0, 1fr);
@@ -1359,6 +1543,7 @@
   align-items: stretch;
 }
 
+/* Intro panel — dark gradient background */
 .travel-guide-row-intro {
   display: grid;
   align-content: space-between;
@@ -1398,6 +1583,7 @@
   font-weight: 750;
 }
 
+/* Carousel with left/right arrow controls */
 .travel-guide-row-carousel {
   display: grid;
   grid-template-columns: 38px minmax(0, 1fr) 38px;
@@ -1417,6 +1603,7 @@
   height: 100%;
 }
 
+/* Arrow buttons */
 .travel-guide-row-arrow {
   display: grid;
   width: 38px;
@@ -1434,12 +1621,18 @@
   opacity: 0.38;
 }
 
+/* ============================================================
+ * KEYFRAMES — spinner rotation
+ * ============================================================ */
 @keyframes travel-guide-spin {
   to {
     transform: rotate(360deg);
   }
 }
 
+/* ============================================================
+ * ACCESSIBILITY — screen reader only
+ * ============================================================ */
 .travel-guide-page .sr-only {
   position: absolute;
   width: 1px;
@@ -1449,6 +1642,11 @@
   white-space: nowrap;
 }
 
+/* ============================================================
+ * RESPONSIVE BREAKPOINTS
+ * ============================================================ */
+
+/* Tablets and smaller desktops */
 @media (max-width: 1080px) {
   .travel-guide-layout {
     grid-template-columns: 1fr;
@@ -1477,6 +1675,7 @@
   }
 }
 
+/* Mobile devices */
 @media (max-width: 760px) {
   .travel-guide-page {
     max-width: calc(100vw - 44px);

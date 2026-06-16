@@ -35,42 +35,84 @@ import TransportationSubmenu from './submenus/Transportation';
 import ExploreAiPanel from './submenus/ExploreAiPanel';
 import './ExplorePage.css';
 
+/**
+ * Available view options for the explore page
+ * Each option defines an ID, display label, and associated icon
+ */
 const viewOptions = [
   { id: 'attractions', label: 'Attractions', icon: MapPinned },
   { id: 'food', label: 'Restaurants / Food', icon: Utensils },
   { id: 'hotels', label: 'Hotels / Rooms', icon: Building2 },
   { id: 'transport', label: 'Transportation', icon: Compass },
 ];
+
+/**
+ * Generates a unique favorite key for a hotel item.
+ * 
+ * @param {Object} hotel - The hotel object
+ * @returns {string} A unique key string for favorite lookup
+ */
 const getHotelFavoriteKey = (hotel = {}) =>
   String(hotel.dataId || hotel.placeId || hotel.id || hotel.name || '')
     .trim()
     .toLowerCase();
+
+/**
+ * Generates a unique favorite key for a restaurant item.
+ * 
+ * @param {Object} restaurant - The restaurant object
+ * @returns {string} A unique key string for favorite lookup
+ */
 const getRestaurantFavoriteKey = (restaurant = {}) =>
   String(restaurant.dataId || restaurant.placeId || restaurant.id || restaurant.name || '')
     .trim()
     .toLowerCase();
+
+/**
+ * Generates a unique favorite key for an attraction item.
+ * 
+ * @param {Object} attraction - The attraction object
+ * @returns {string} A unique key string for favorite lookup
+ */
 const getAttractionFavoriteKey = (attraction = {}) =>
   String(attraction.dataId || attraction.placeId || attraction.id || attraction.name || '')
     .trim()
     .toLowerCase();
-// ExplorePage renders the main screen and handles nearby interactions.
+
+/**
+ * ExplorePage renders the main screen and handles nearby interactions.
+ * Manages state for all explore views including attractions, hotels, restaurants, and transportation.
+ * 
+ * @returns {JSX.Element} The rendered explore page
+ */
 function ExplorePage() {
+  // Navigation and routing hooks
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const currency = useContext(CurrencyContext);
   const { subscribeToCategories } = useNotifications();
+  
+  // Extract current view and destination from URL parameters
   const activeView = searchParams.get('view') || 'attractions';
   const destination = searchParams.get('q') || '';
+  
+  // Restore state from location if available (navigation from detail pages)
   const restoredAttractionState = location.state?.attractionResults ? location.state : null;
   const restoredHotelState = location.state?.hotelResults ? location.state : null;
   const restoredRestaurantState = location.state?.restaurantResults ? location.state : null;
   const restoredTravelDate =
     restoredAttractionState?.travelDate || restoredHotelState?.travelDate || restoredRestaurantState?.travelDate || getDateKey();
+  
+  // Travel date state
   const [travelDate, setTravelDate] = useState(restoredTravelDate);
+  
+  // Results state for each view type
   const [attractions, setAttractions] = useState(restoredAttractionState?.attractionResults || []);
   const [hotels, setHotels] = useState(restoredHotelState?.hotelResults || []);
   const [restaurants, setRestaurants] = useState(restoredRestaurantState?.restaurantResults || []);
+  
+  // Weather and AI state by view
   const [weatherByView, setWeatherByView] = useState({
     attractions: restoredAttractionState?.attractionWeather || null,
     food: restoredRestaurantState?.restaurantWeather || null,
@@ -86,7 +128,11 @@ function ExplorePage() {
     food: '',
     hotels: '',
   });
+  
+  // Price conversion cache
   const [priceConversions, setPriceConversions] = useState({});
+  
+  // Filter state for each view type
   const [attractionFilters, setAttractionFilters] = useState({
     country: restoredAttractionState?.attractionFilters?.country || '',
     countryCode: restoredAttractionState?.attractionFilters?.countryCode || '',
@@ -105,15 +151,21 @@ function ExplorePage() {
     state: restoredRestaurantState?.restaurantFilters?.state || '',
     foodCategory: restoredRestaurantState?.restaurantFilters?.foodCategory || '',
   });
+  
+  // Search criteria state for each view type
   const [attractionSearchCriteria, setAttractionSearchCriteria] = useState(restoredAttractionState?.attractionSearchCriteria || null);
   const [hotelSearchCriteria, setHotelSearchCriteria] = useState(restoredHotelState?.hotelSearchCriteria || null);
+  const [restaurantSearchCriteria, setRestaurantSearchCriteria] = useState(restoredRestaurantState?.restaurantSearchCriteria || null);
+  
+  // Favorite keys and records
   const [favoriteAttractionKeys, setFavoriteAttractionKeys] = useState(restoredAttractionState?.favoriteAttractionKeys || []);
   const [favoriteHotelKeys, setFavoriteHotelKeys] = useState(restoredHotelState?.favoriteHotelKeys || []);
   const [favoriteRestaurantKeys, setFavoriteRestaurantKeys] = useState(restoredRestaurantState?.favoriteRestaurantKeys || []);
   const [favoriteAttractionRecords, setFavoriteAttractionRecords] = useState({});
   const [favoriteHotelRecords, setFavoriteHotelRecords] = useState({});
   const [favoriteRestaurantRecords, setFavoriteRestaurantRecords] = useState({});
-  const [restaurantSearchCriteria, setRestaurantSearchCriteria] = useState(restoredRestaurantState?.restaurantSearchCriteria || null);
+  
+  // Transportation-specific state
   const restoredTrainState = location.state?.trainResults ? location.state : null;
   const [activeTransportTab, setActiveTransportTab] = useState(restoredTrainState ? 'trains' : 'flights');
   const [flightSearch, setFlightSearch] = useState({
@@ -132,12 +184,16 @@ function ExplorePage() {
     departureDate: restoredTrainState?.trainSearch?.departureDate || '',
   });
   const [trainResults, setTrainResults] = useState(restoredTrainState?.trainResults || null);
+  
+  // Pagination state for infinite scrolling
   const [nextAttractionStart, setNextAttractionStart] = useState(restoredAttractionState?.nextAttractionStart || 0);
   const [nextHotelStart, setNextHotelStart] = useState(restoredHotelState?.nextHotelStart || 0);
   const [nextRestaurantStart, setNextRestaurantStart] = useState(restoredRestaurantState?.nextRestaurantStart || 0);
   const [hasMoreAttractions, setHasMoreAttractions] = useState(restoredAttractionState?.hasMoreAttractions || false);
   const [hasMoreHotels, setHasMoreHotels] = useState(restoredHotelState?.hasMoreHotels || false);
   const [hasMoreRestaurants, setHasMoreRestaurants] = useState(restoredRestaurantState?.hasMoreRestaurants || false);
+  
+  // UI state for status, errors, and loading
   const [status, setStatus] = useState(
     restoredAttractionState?.attractionResults?.length
       ? `${restoredAttractionState.attractionResults.length} attraction match${restoredAttractionState.attractionResults.length === 1 ? '' : 'es'} restored.`
@@ -166,6 +222,8 @@ function ExplorePage() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [weatherLoadingView, setWeatherLoadingView] = useState('');
   const [aiLoadingView, setAiLoadingView] = useState('');
+  
+  // Current location state from geolocation
   const [currentLocation, setCurrentLocation] = useState({
     label: 'current area',
     state: '',
@@ -174,15 +232,21 @@ function ExplorePage() {
     longitude: null,
     available: false,
   });
+  
+  // Search result summary statistics
   const [lastSearchSummary, setLastSearchSummary] = useState({
     attractions: { loaded: 0, priced: 0, rated: 0, topRated: 0 },
     food: { loaded: 0, priced: 0, rated: 0, topRated: 0 },
     hotels: { loaded: 0, priced: 0, rated: 0, topRated: 0 },
   });
+  
+  // Category options state
   const [categoryOptions, setCategoryOptions] = useState(emptyCategoryOptions);
   const roomTypeOptions = categoryOptions.hotel;
   const attractionCategoryOptions = categoryOptions.attraction;
   const foodCategoryOptions = categoryOptions.food;
+  
+  // Memoized active option and view flags
   const activeOption = useMemo(
     () => viewOptions.find((option) => option.id === activeView) || viewOptions[0],
     [activeView]
@@ -193,12 +257,16 @@ function ExplorePage() {
   const isTransportationView = activeOption.id === 'transport';
   const isFilteredSearchView = isAttractionsView || isHotelsView || isFoodView;
   const isSearchView = isAttractionsView || isFilteredSearchView;
+  
+  // Active data based on current view
   const activeItems = isHotelsView ? hotels : isFoodView ? restaurants : attractions;
   const activeFilters = isHotelsView ? hotelFilters : isFoodView ? restaurantFilters : attractionFilters;
   const activeWeather = weatherByView[activeOption.id];
   const activeAi = aiByView[activeOption.id];
   const isWeatherLoading = weatherLoadingView === activeOption.id;
   const isAiLoading = aiLoadingView === activeOption.id;
+  
+  // Currency and formatting
   const selectedCurrency = currency?.selectedCurrency || 'USD';
   const supportedCurrencyCodes = useMemo(() => currency?.currencies?.map((option) => option.code) || [], [currency?.currencies]);
   const currentSummary = lastSearchSummary[activeOption.id] || {
@@ -208,16 +276,19 @@ function ExplorePage() {
     topRated: 0,
   };
   const transportScope = `transport:${activeTransportTab}`;
+  
+  // Country and state options
   const countryOptions = useMemo(() => Country.getAllCountries(), []);
   const currentLocationName = useMemo(() => {
     const stateCountryLabel = [currentLocation.state, currentLocation.country].filter(Boolean).join(', ');
-
     return stateCountryLabel || currentLocation.label || 'current area';
   }, [currentLocation.country, currentLocation.label, currentLocation.state]);
   const stateOptions = useMemo(
     () => (activeFilters.countryCode ? State.getStatesOfCountry(activeFilters.countryCode) : []),
     [activeFilters.countryCode]
   );
+  
+  // Selected category labels for display
   const selectedHotelRoomType = hotelSearchCriteria?.roomType ?? hotelFilters.roomType;
   const selectedRoomLabel = roomTypeOptions.find((option) => option.value === selectedHotelRoomType)?.label || 'Any';
   const selectedRestaurantFoodCategory = restaurantSearchCriteria?.foodCategory ?? restaurantFilters.foodCategory;
@@ -227,11 +298,19 @@ function ExplorePage() {
   const selectedAttractionCategoryLabel =
     attractionCategoryOptions.find((option) => option.value === selectedAttractionCategory)?.label || 'Any';
 
+  /**
+   * Loads category options from the API and groups them by type.
+   * 
+   * @returns {Object} Grouped category options
+   */
   const loadCategoryOptions = useCallback(async () => {
     const response = await getCategories();
     return groupCategoryOptions(response.data?.data?.categories || []);
   }, []);
 
+  /**
+   * Effect hook that loads category options on mount and subscribes to updates
+   */
   useEffect(() => {
     let isActive = true;
 
@@ -252,6 +331,8 @@ function ExplorePage() {
       unsubscribe();
     };
   }, [loadCategoryOptions, subscribeToCategories]);
+  
+  // Computed display values for search results
   const submittedSearchCriteria = isHotelsView
     ? hotelSearchCriteria
     : isFoodView
@@ -276,6 +357,11 @@ function ExplorePage() {
   const hasResults = resultCount > 0;
   const destinationLabel = isFilteredSearchView ? filteredSearchLabel || 'None' : destination.trim() || 'None';
   const aiDestination = (isFilteredSearchView ? filteredSearchLabel : destination.trim()) || destination.trim();
+  
+  /**
+   * Memoized AI request key for caching AI recommendations
+   * Changes when search results or filters change
+   */
   const aiRequestKey = useMemo(() => {
     if (!isSearchView || !activeItems.length) {
       return '';
@@ -294,6 +380,10 @@ function ExplorePage() {
       })),
     });
   }, [activeItems, activeOption.id, activeWeather, aiDestination, isSearchView, travelDate]);
+  
+  /**
+   * Search configuration for the current view
+   */
   const searchConfig = isHotelsView
     ? {
         finderLabel: 'Hotel finder',
@@ -323,6 +413,10 @@ function ExplorePage() {
         readyText: 'Search text or filters can begin',
         matchesLabel: 'curated matches',
       };
+
+  /**
+   * Effect hook that gets the user's current location using geolocation API
+   */
   useEffect(() => {
     let isActive = true;
     const controller = new AbortController();
@@ -397,6 +491,10 @@ function ExplorePage() {
       controller.abort();
     };
   }, []);
+
+  /**
+   * Effect hook that handles currency conversion for items with prices
+   */
   useEffect(() => {
     const convertibleItems = activeItems.filter((item) => {
       const detail = item.priceDetail;
@@ -468,7 +566,12 @@ function ExplorePage() {
     };
   }, [activeItems, priceConversions, selectedCurrency, supportedCurrencyCodes]);
 
-  // Update Destination Query applies allowed changes to an existing record.
+  /**
+   * Update Destination Query applies allowed changes to an existing record.
+   * Updates the URL search parameter for destination query
+   * 
+   * @param {string} value - The new destination query value
+   */
   const updateDestinationQuery = (value) => {
     setSearchParams((currentParams) => {
       const nextParams = new URLSearchParams(currentParams);
@@ -483,7 +586,13 @@ function ExplorePage() {
     });
   };
 
-  // Update Search Summary applies allowed changes to an existing record.
+  /**
+   * Update Search Summary applies allowed changes to an existing record.
+   * Updates the search summary statistics for a given view
+   * 
+   * @param {string} viewId - The view identifier
+   * @param {Array} items - The items to summarize
+   */
   const updateSearchSummary = (viewId, items) => {
     setLastSearchSummary((currentSummary) => ({
       ...currentSummary,
@@ -495,18 +604,30 @@ function ExplorePage() {
       },
     }));
   };
+  
+  /**
+   * Handles filter field changes for attractions
+   */
   const handleAttractionFilterChange = (field, value) => {
     setAttractionFilters((currentFilters) => ({
       ...currentFilters,
       [field]: value,
     }));
   };
+  
+  /**
+   * Handles filter field changes for hotels
+   */
   const handleHotelFilterChange = (field, value) => {
     setHotelFilters((currentFilters) => ({
       ...currentFilters,
       [field]: value,
     }));
   };
+  
+  /**
+   * Handles filter field changes for restaurants
+   */
   const handleRestaurantFilterChange = (field, value) => {
     setRestaurantFilters((currentFilters) => ({
       ...currentFilters,
@@ -514,6 +635,12 @@ function ExplorePage() {
     }));
   };
 
+  /**
+   * Handles country selection changes for filters
+   * 
+   * @param {string} countryCode - The selected country code
+   * @param {string} filterType - The type of filter ('hotel', 'restaurant', 'attraction')
+   */
   const handleCountryChange = (countryCode, filterType = 'hotel') => {
     const selectedCountry = countryOptions.find((country) => country.isoCode === countryCode);
     const updateFilters =
@@ -531,6 +658,11 @@ function ExplorePage() {
     }));
   };
 
+  /**
+   * Handles travel date changes and clears cached weather/AI data
+   * 
+   * @param {string} value - The new travel date
+   */
   const handleTravelDateChange = (value) => {
     setTravelDate(value);
     setWeatherByView({
@@ -545,10 +677,23 @@ function ExplorePage() {
     });
   };
 
+  /**
+   * Builds weather destination string from search criteria
+   * 
+   * @param {Object} criteria - The search criteria object
+   * @returns {string} The weather destination string
+   */
   const getWeatherDestination = (criteria) =>
     [criteria.destination, criteria.state, criteria.country].filter(Boolean).join(', ');
 
-  const getWeatherRequest = (criteria, items = []) => {
+  /**
+   * Builds weather request object from search criteria and items
+   * 
+   * @param {Object} criteria - The search criteria
+   * @param {Array} items - The search results items
+   * @returns {Object} Weather request configuration
+   */
+  const getWeatherRequest = useCallback((criteria, items = []) => {
     const weatherDestination = getWeatherDestination(criteria);
     const locatedItem = items.find((item) => item.coordinates?.latitude && item.coordinates?.longitude);
     const coordinateLabel = locatedItem ? locatedItem.address || locatedItem.name || 'Selected search area' : '';
@@ -563,8 +708,15 @@ function ExplorePage() {
       longitude: locatedItem?.coordinates?.longitude ?? (weatherDestination ? undefined : hasCurrentCoordinates ? currentLongitude : undefined),
       locationLabel: coordinateLabel || weatherDestination || currentLocationLabel,
     };
-  };
-  const fetchDestinationWeather = async (viewId, weatherRequest) => {
+  }, [currentLocation.latitude, currentLocation.longitude, currentLocationName, destination]);
+
+  /**
+   * Fetches weather data for a specific view
+   * 
+   * @param {string} viewId - The view identifier
+   * @param {Object} weatherRequest - The weather request configuration
+   */
+  const fetchDestinationWeather = useCallback(async (viewId, weatherRequest) => {
     const weatherDestination = weatherRequest?.destination;
     const hasCoordinates = Number.isFinite(Number(weatherRequest?.latitude)) && Number.isFinite(Number(weatherRequest?.longitude));
 
@@ -601,8 +753,11 @@ function ExplorePage() {
     } finally {
       setWeatherLoadingView('');
     }
-  };
+  }, [travelDate]);
 
+  /**
+   * Effect hook that fetches weather when the view has results
+   */
   useEffect(() => {
     if (!isSearchView || hasResults || activeWeather || isWeatherLoading) {
       return;
@@ -629,12 +784,19 @@ function ExplorePage() {
     currentLocation.latitude,
     currentLocation.longitude,
     currentLocation.state,
+    fetchDestinationWeather,
+    getWeatherRequest,
     hasResults,
     isSearchView,
     isWeatherLoading,
     travelDate,
   ]);
 
+  /**
+   * Gets the current attraction search criteria
+   * 
+   * @returns {Object} Attraction search criteria
+   */
   const getAttractionCriteria = () => ({
     destination: destination.trim(),
     country: attractionFilters.country.trim(),
@@ -642,6 +804,11 @@ function ExplorePage() {
     attractionCategory: attractionFilters.attractionCategory,
   });
 
+  /**
+   * Gets the current hotel search criteria
+   * 
+   * @returns {Object} Hotel search criteria
+   */
   const getHotelCriteria = () => ({
     destination: destination.trim(),
     country: hotelFilters.country.trim(),
@@ -649,6 +816,11 @@ function ExplorePage() {
     roomType: hotelFilters.roomType,
   });
 
+  /**
+   * Gets the current restaurant search criteria
+   * 
+   * @returns {Object} Restaurant search criteria
+   */
   const getRestaurantCriteria = () => ({
     destination: destination.trim(),
     country: restaurantFilters.country.trim(),
@@ -656,6 +828,22 @@ function ExplorePage() {
     foodCategory: restaurantFilters.foodCategory,
   });
 
+  /**
+   * Generic function to fetch filtered items for any view type
+   * 
+   * @param {Object} params - Fetch parameters
+   * @param {Object} params.criteria - Search criteria
+   * @param {number} params.start - Starting index for pagination
+   * @param {boolean} params.append - Whether to append to existing results
+   * @param {Function} params.search - Search API function
+   * @param {string} params.responseKey - Key in response data
+   * @param {Function} params.setItems - State setter for items
+   * @param {Function} params.setSearchCriteria - State setter for search criteria
+   * @param {Function} params.setNextStart - State setter for next start index
+   * @param {Function} params.setHasMore - State setter for has more flag
+   * @param {string} params.noun - Singular noun for display
+   * @param {string} params.viewId - View identifier
+   */
   const fetchFilteredItems = async ({
     criteria,
     start = 0,
@@ -720,6 +908,9 @@ function ExplorePage() {
     }
   };
 
+  /**
+   * Fetches attractions with the given criteria
+   */
   const fetchAttractions = async ({ criteria, start = 0, append = false }) =>
     fetchFilteredItems({
       criteria,
@@ -735,11 +926,17 @@ function ExplorePage() {
       viewId: 'attractions',
     });
 
+  /**
+   * Handles attraction search form submission
+   */
   const handleAttractionsSearch = async (event) => {
     event.preventDefault();
     await fetchAttractions({ criteria: getAttractionCriteria() });
   };
 
+  /**
+   * Fetches hotels with the given criteria
+   */
   const fetchHotels = async ({ criteria, start = 0, append = false }) =>
     fetchFilteredItems({
       criteria,
@@ -755,11 +952,17 @@ function ExplorePage() {
       viewId: 'hotels',
     });
 
+  /**
+   * Handles hotel search form submission
+   */
   const handleHotelsSearch = async (event) => {
     event.preventDefault();
     await fetchHotels({ criteria: getHotelCriteria() });
   };
 
+  /**
+   * Fetches restaurants with the given criteria
+   */
   const fetchRestaurants = async ({ criteria, start = 0, append = false }) =>
     fetchFilteredItems({
       criteria,
@@ -775,26 +978,39 @@ function ExplorePage() {
       viewId: 'food',
     });
 
+  /**
+   * Handles restaurant search form submission
+   */
   const handleRestaurantsSearch = async (event) => {
     event.preventDefault();
     await fetchRestaurants({ criteria: getRestaurantCriteria() });
   };
 
+  /**
+   * Handles loading more hotels (infinite scroll)
+   */
   const handleLoadMoreHotels = () => {
     if (!hotelSearchCriteria) return;
     fetchHotels({ criteria: hotelSearchCriteria, start: nextHotelStart, append: true });
   };
 
+  /**
+   * Handles loading more attractions (infinite scroll)
+   */
   const handleLoadMoreAttractions = () => {
     if (!attractionSearchCriteria) return;
     fetchAttractions({ criteria: attractionSearchCriteria, start: nextAttractionStart, append: true });
   };
 
+  /**
+   * Handles loading more restaurants (infinite scroll)
+   */
   const handleLoadMoreRestaurants = () => {
     if (!restaurantSearchCriteria) return;
     fetchRestaurants({ criteria: restaurantSearchCriteria, start: nextRestaurantStart, append: true });
   };
 
+  // Search handler delegation based on current view
   const handleSearch = isHotelsView ? handleHotelsSearch : isFoodView ? handleRestaurantsSearch : handleAttractionsSearch;
   const hasMoreFilteredItems = isHotelsView ? hasMoreHotels : isFoodView ? hasMoreRestaurants : hasMoreAttractions;
   const handleLoadMoreFilteredItems = isHotelsView
@@ -803,6 +1019,9 @@ function ExplorePage() {
       ? handleLoadMoreRestaurants
       : handleLoadMoreAttractions;
 
+  /**
+   * Handles flight search field changes
+   */
   const handleFlightSearchChange = (field, value) => {
     setFlightSearch((currentSearch) => ({
       ...currentSearch,
@@ -810,6 +1029,9 @@ function ExplorePage() {
     }));
   };
 
+  /**
+   * Handles flight country selection changes
+   */
   const handleFlightCountryChange = (fieldPrefix, countryCode) => {
     const selectedCountry = countryOptions.find((country) => country.isoCode === countryCode);
 
@@ -820,6 +1042,9 @@ function ExplorePage() {
     }));
   };
 
+  /**
+   * Clears a flight country selection
+   */
   const clearFlightCountry = (fieldPrefix) => {
     setFlightSearch((currentSearch) => ({
       ...currentSearch,
@@ -828,6 +1053,9 @@ function ExplorePage() {
     }));
   };
 
+  /**
+   * Clears a flight search field
+   */
   const clearFlightSearchField = (field) => {
     setFlightSearch((currentSearch) => ({
       ...currentSearch,
@@ -835,6 +1063,9 @@ function ExplorePage() {
     }));
   };
 
+  /**
+   * Handles flight search form submission
+   */
   const handleFlightSearch = async (event) => {
     event.preventDefault();
 
@@ -868,6 +1099,9 @@ function ExplorePage() {
     }
   };
 
+  /**
+   * Clears a train search field
+   */
   const clearTrainSearchField = (field) => {
     setTrainSearch((currentSearch) => ({
       ...currentSearch,
@@ -875,6 +1109,9 @@ function ExplorePage() {
     }));
   };
 
+  /**
+   * Handles train search field changes
+   */
   const handleTrainSearchChange = (field, value) => {
     setTrainSearch((currentSearch) => ({
       ...currentSearch,
@@ -882,6 +1119,9 @@ function ExplorePage() {
     }));
   };
 
+  /**
+   * Handles train station search form submission
+   */
   const handleTrainStationSearch = async (event) => {
     event.preventDefault();
 
@@ -936,6 +1176,9 @@ function ExplorePage() {
     }
   };
 
+  /**
+   * Handles selecting a train to view its timetable
+   */
   const handleTrainSelect = async (train) => {
     const trainUid = train.trainUid || train.train_uid || '';
     const serviceIdentifier =
@@ -964,15 +1207,24 @@ function ExplorePage() {
     });
   };
 
+  /**
+   * Gets country name from country code
+   */
   const getCountryName = (countryCode) =>
     countryOptions.find((country) => country.isoCode === countryCode)?.name || countryCode || '';
 
+  /**
+   * Gets airport location label for display
+   */
   const getAirportLocationLabel = (airport = {}) => {
     const countryName = getCountryName(airport.countryCode);
     const airportName = airport.name && !airport.name.includes('unavailable') ? airport.name : '';
     return airport.city || countryName || airportName || 'Location unavailable';
   };
 
+  /**
+   * Gets airport detail label for display
+   */
   const getAirportDetailLabel = (airport = {}) => {
     const airportCode = airport.iata || airport.icao || '';
     const airportName = airport.name && !airport.name.includes('unavailable') ? airport.name : '';
@@ -980,17 +1232,26 @@ function ExplorePage() {
     return detail || 'Airport details unavailable';
   };
 
+  /**
+   * Gets flight code label for display
+   */
   const getFlightCodeLabel = (flight = {}) => {
     const flightCode = flight.flightIata || (flight.airline?.iata && flight.flightNumber ? `${flight.airline.iata}${flight.flightNumber}` : '');
     return flightCode || (flight.type === 'live' ? 'Live flight' : 'Schedule');
   };
 
+  /**
+   * Formats flight time for display
+   */
   const formatFlightTime = (value) => {
     if (!value) return '--:--';
     const time = value.match(/\b\d{2}:\d{2}\b/)?.[0];
     return time || value;
   };
 
+  /**
+   * Formats flight duration in minutes to human-readable string
+   */
   const formatFlightDuration = (minutes) => {
     const totalMinutes = Number(minutes);
 
@@ -1008,11 +1269,17 @@ function ExplorePage() {
     return remainingMinutes ? `${hours} hr ${remainingMinutes} min` : `${hours} hr`;
   };
 
+  /**
+   * Gets the flight search title for display
+   */
   const getFlightSearchTitle = () =>
     [flightSearch.fromCountryName, flightSearch.toCountryName].filter(Boolean).join(' to ') ||
     flightSearch.airlineName ||
     'Flight matches';
 
+  /**
+   * Gets converted price text for an item
+   */
   const getConvertedPriceText = (item) => {
     const conversion = priceConversions[getPriceConversionKey(item, selectedCurrency)];
 
@@ -1027,7 +1294,12 @@ function ExplorePage() {
     return convertedMaxAmount ? `${convertedAmount} - ${convertedMaxAmount}` : convertedAmount;
   };
 
+  /**
+   * Gets original price text for an item
+   */
   const getOriginalPriceText = (item) => item.priceDetail?.display || item.price || 'Price unavailable';
+  
+  // Transportation-specific computed values
   const transportItems = activeTransportTab === 'flights' ? flightResults?.items || [] : trainResults?.items || [];
   const transportResultCount = transportItems.length;
   const transportAiSummary = transportResultCount
@@ -1038,6 +1310,9 @@ function ExplorePage() {
   const aiPanelSummary = isTransportationView ? transportAiSummary : '';
   const aiPanelCanRefresh = isTransportationView ? false : hasResults;
 
+  /**
+   * Handles generating AI recommendations for the current view
+   */
   const handleGenerateAiRecommendations = useCallback(async ({ manual = false } = {}) => {
     if (!activeItems.length) {
       setAiByView((currentAi) => ({
@@ -1085,6 +1360,9 @@ function ExplorePage() {
     }
   }, [activeItems, activeOption.id, activeWeather, aiDestination, aiRequestKey, aiRequestKeys, travelDate]);
 
+  /**
+   * Effect hook that triggers AI recommendations when search results change
+   */
   useEffect(() => {
     if (!isSearchView || !hasResults || isSearching || isLoadingMore || isWeatherLoading || isAiLoading || !aiRequestKey) {
       return;
@@ -1108,11 +1386,18 @@ function ExplorePage() {
     isWeatherLoading,
   ]);
 
+  /**
+   * Updates the active filter field based on current view
+   */
   const updateActiveFilterField = isHotelsView
     ? handleHotelFilterChange
     : isFoodView
       ? handleRestaurantFilterChange
       : handleAttractionFilterChange;
+
+  /**
+   * Effect hook that loads user favorites on component mount
+   */
   useEffect(() => {
     let isActive = true;
 
@@ -1157,6 +1442,10 @@ function ExplorePage() {
       isActive = false;
     };
   }, []);
+
+  /**
+   * Handles attraction favorite changes
+   */
   const handleAttractionFavoriteChange = (attraction, result = {}) => {
     const favoriteKey = getAttractionFavoriteKey(attraction);
     if (!favoriteKey) return;
@@ -1176,6 +1465,10 @@ function ExplorePage() {
       setFavoriteAttractionRecords((currentRecords) => ({ ...currentRecords, [favoriteKey]: result.favorite }));
     }
   };
+
+  /**
+   * Handles hotel favorite changes
+   */
   const handleHotelFavoriteChange = (hotel, result = {}) => {
     const favoriteKey = getHotelFavoriteKey(hotel);
     if (!favoriteKey) return;
@@ -1195,6 +1488,10 @@ function ExplorePage() {
       setFavoriteHotelRecords((currentRecords) => ({ ...currentRecords, [favoriteKey]: result.favorite }));
     }
   };
+
+  /**
+   * Handles restaurant favorite changes
+   */
   const handleRestaurantFavoriteChange = (restaurant, result = {}) => {
     const favoriteKey = getRestaurantFavoriteKey(restaurant);
     if (!favoriteKey) return;
@@ -1215,6 +1512,7 @@ function ExplorePage() {
     }
   };
 
+  // Detail page return state for each view type
   const attractionDetailReturnState = {
     attractionResults: attractions,
     attractionFilters,
@@ -1258,6 +1556,10 @@ function ExplorePage() {
       : isAttractionsView
         ? attractionDetailReturnState
         : null;
+
+  /**
+   * Props for the search submenu components
+   */
   const searchSubmenuProps = {
     activeAi,
     activeFilters,
@@ -1324,6 +1626,11 @@ function ExplorePage() {
     updateFilterField: updateActiveFilterField,
   };
 
+  /**
+   * Renders the appropriate submenu based on the current view
+   * 
+   * @returns {JSX.Element} The rendered submenu component
+   */
   const renderSubmenu = () => {
     if (isTransportationView) {
       return (
@@ -1376,6 +1683,7 @@ function ExplorePage() {
     <section className="explore-page">
       <div className="explore-shell">
         <div className="explore-main-column">
+          {/* Hero section */}
           <div className="explore-hero">
             <div>
               <span className="explore-eyebrow">
@@ -1385,6 +1693,7 @@ function ExplorePage() {
               <h2>{activeOption.label}</h2>
               <p> Browse real-time availability and transit durations from live transport data to ensure a seamless connection for the rest of your trip.</p>
             </div>
+            {/* Search view panel */}
             {isSearchView && (
               <div className="explore-hero-panel" aria-label={`${activeOption.label} search summary`}>
                 <div>
@@ -1397,6 +1706,7 @@ function ExplorePage() {
                 </div>
               </div>
             )}
+            {/* Transportation view panel */}
             {isTransportationView && (
               <div className="explore-hero-panel" aria-label="Transportation search summary">
                 <div>
@@ -1411,8 +1721,10 @@ function ExplorePage() {
             )}
           </div>
 
+          {/* Render the appropriate submenu */}
           {renderSubmenu()}
         </div>
+        {/* AI panel sidebar */}
         <ExploreAiPanel
           activeAi={isTransportationView ? null : activeAi}
           activeOption={activeOption}

@@ -4,8 +4,10 @@
  */
 import axiosClient from './axiosClient';
 
+// Requests AI-generated recommendations for comparing items within a given context
 export const getComparisonRecommendation = ({ items, context }) =>
   axiosClient.post('/comparison/recommendation', {
     items,
     context,
   });
+  

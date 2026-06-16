@@ -26,12 +26,26 @@ import heroImage from '../../assets/landing-hero.png';
 import logo from '../../assets/logo.png';
 import './LandingPage.css';
 
+// ============================================================
+// CONFIGURATION DATA
+// ============================================================
+
+/**
+ * Highlights data for the landing strip section.
+ * Each entry contains an icon component, title, and descriptive copy.
+ * These highlights appear immediately below the hero section.
+ */
 const highlights = [
   [CloudSun, 'Plan Destinations', 'See weather guidance and place suggestions while building each trip.'],
   [ListChecks, 'Practical travel tools', 'Prepare packing lists and travel document checklists in your account.'],
   [Sparkles, 'AI-assistance', 'Ask AI for trip ideas, local insights and help comparing search results.'],
 ];
 
+/**
+ * Core features data for the feature grid section.
+ * Each entry pairs an icon with a feature title and explanatory description.
+ * These represent the primary functionality offered by the application.
+ */
 const features = [
   [Plane, 'Multi-destination trips', 'Create trips with dates, multiple destinations and a total budget.'],
   [CalendarDays, 'Day-by-day itinerary', 'Plan activities, food, stays and transportation for each day of a trip.'],
@@ -41,64 +55,126 @@ const features = [
   [ListChecks, 'Travel preparation', 'Use weather guidance, packing lists, travel documents, destination guides and language help.'],
 ];
 
+/**
+ * Workflow steps data for the "How it works" section.
+ * Each entry describes a phase in the trip planning journey.
+ * The order represents the sequential flow from creation to preparation.
+ */
 const workflow = [
   [MapPinned, 'Create a trip', 'Choose one or more destinations, set exact or flexible dates, and enter your budget.'],
   [ListChecks, 'Build the itinerary', 'Add places and plans to each day, then review route, weather, and budget details.'],
   [CheckCircle2, 'Prepare to travel', 'Save favourites, track visited places, and complete packing and document lists.'],
 ];
 
+/**
+ * Security features data for the safety section.
+ * Each entry describes a privacy or access control measure.
+ * These highlight the application's approach to data protection.
+ */
 const securityItems = [
   [Lock, 'Private travel space', 'Your trips, itineraries, lists, and saved places stay in your account area.'],
   [ShieldCheck, 'Clear access control', 'Regular users and administrators see different tools based on their role.'],
   [CheckCircle2, 'Responsible handling', 'The app is designed to avoid exposing sensitive information on public pages.'],
 ];
 
+/**
+ * Traveller types data for the "For travellers" section.
+ * Each entry represents a different planning approach or user need.
+ * This demonstrates the versatility of the application.
+ */
 const travellerTypes = [
   [CalendarDays, 'Flexible dates', 'Plan with exact dates or choose a month and trip length when dates are not fixed.'],
   [WalletCards, 'Track Budget', 'Set a trip budget and track planned daily and itinerary item costs.'],
   [Compass, 'Explore Places', 'Research places, stays, food, transport, travel guides and local language resources.'],
   [CheckCircle2, 'Prepared travellers', 'Keep packing and travel document records ready in one account.'],
 ];
-// LandingPage renders the main screen and handles nearby interactions.
+
+// ============================================================
+// COMPONENT DEFINITION
+// ============================================================
+
+/**
+ * LandingPage component renders the main marketing and information screen.
+ * This serves as the public-facing entry point for the application.
+ * The component manages scroll-triggered animations and hash-based navigation.
+ */
 function LandingPage() {
+  // ============================================================
+  // EFFECT: SCROLL REVEAL ANIMATIONS
+  // ============================================================
+
+  /**
+   * Sets up an Intersection Observer to animate elements into view.
+   * Elements with the 'reveal-on-scroll' class become visible when scrolled into view.
+   * The observer is disconnected during cleanup to prevent memory leaks.
+   */
   useEffect(() => {
+    // Select all elements that should animate on scroll
     const revealElements = document.querySelectorAll('.reveal-on-scroll');
 
+    // Create an observer that triggers when elements enter the viewport
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting) {
+            // Add visibility class and stop observing once revealed
             entry.target.classList.add('is-visible');
             observer.unobserve(entry.target);
           }
         });
       },
-      { threshold: 0.16 }
+      { threshold: 0.16 } // Trigger when 16% of the element is visible
     );
 
+    // Start observing each element
     revealElements.forEach((element) => observer.observe(element));
-    // Cleanup prevents state updates after component unmount.
+    
+    // Cleanup to prevent state updates after component unmount
     return () => observer.disconnect();
-  }, []);
+  }, []); // Empty dependency array ensures this runs once on mount
+
+  // ============================================================
+  // EFFECT: HASH-BASED SCROLL NAVIGATION
+  // ============================================================
+
+  /**
+   * Handles navigation from hash URLs (e.g., #features, #how-it-works).
+   * When the component mounts with a hash in the URL, this scrolls smoothly
+   * to the corresponding section element.
+   */
   useEffect(() => {
+    // Exit early if no hash is present in the URL
     if (!window.location.hash) {
       return;
     }
 
+    // Find the target section using the hash value (removing the # character)
     const section = document.getElementById(window.location.hash.slice(1));
     if (!section) {
-      return;
+      return; // Exit if no matching element is found
     }
 
+    // Schedule the scroll in the next animation frame for smooth rendering
     window.requestAnimationFrame(() => {
       section.scrollIntoView({ behavior: 'smooth', block: 'start' });
     });
-  }, []);
+  }, []); // Empty dependency array ensures this runs once on mount
+
+  // ============================================================
+  // RENDER: LANDING PAGE UI
+  // ============================================================
+
   return (
     <main className="landing-page">
+      {/* ===== TOP NAVIGATION BAR ===== */}
+      {/* PublicTopbar provides navigation links for unauthenticated users */}
       <PublicTopbar />
+
+      {/* ===== HERO SECTION ===== */}
+      {/* Main banner with background image, headline, call-to-action buttons, and preview card */}
       <section className="landing-hero" id="home" style={{ backgroundImage: `url(${heroImage})` }}>
         <div className="hero-layout">
+          {/* Left side: Text content and actions */}
           <div className="hero-content">
             <h1>Smart Travel Planner</h1>
             <p className="hero-copy">
@@ -106,16 +182,20 @@ function LandingPage() {
               budgets, weather, attractions, transport and checklists in one workspace.
             </p>
             <div className="hero-actions">
+              {/* Primary CTA: Login for existing users */}
               <Link className="primary-action" to="/login">
                 Login
               </Link>
+              {/* Secondary CTA: Register for new users */}
               <Link className="secondary-action" to="/register">
                 Sign Up
               </Link>
             </div>
           </div>
 
+          {/* Right side: Interactive preview card showing a sample trip overview */}
           <div className="hero-preview" aria-label="Planner preview">
+            {/* Preview header with window controls and title */}
             <div className="preview-header">
               <div>
                 <span className="preview-dot" />
@@ -124,6 +204,8 @@ function LandingPage() {
               </div>
               <strong>Trip overview</strong>
             </div>
+            
+            {/* Destination summary section */}
             <div className="preview-destination">
               <div>
                 <p>Upcoming plan</p>
@@ -131,6 +213,8 @@ function LandingPage() {
               </div>
               <span>Ready</span>
             </div>
+            
+            {/* Quick stats grid: Weather, Budget, Destinations, Itinerary */}
             <div className="preview-grid">
               <article>
                 <CloudSun size={18} />
@@ -153,6 +237,8 @@ function LandingPage() {
                 <strong>12 plans</strong>
               </article>
             </div>
+            
+            {/* Progress bar showing planning completion */}
             <div className="preview-progress">
               <div>
                 <span>Planning progress</span>
@@ -166,6 +252,8 @@ function LandingPage() {
         </div>
       </section>
 
+      {/* ===== HIGHLIGHTS STRIP ===== */}
+      {/* Three key selling points displayed as cards in a horizontal strip */}
       <section className="landing-strip reveal-on-scroll" aria-label="Platform highlights">
         {highlights.map(([Icon, title, copy]) => (
           <article className="highlight-card" key={title}>
@@ -176,8 +264,12 @@ function LandingPage() {
         ))}
       </section>
 
+      {/* ===== FEATURES SECTION ===== */}
+      {/* Comprehensive grid of all application features with visual showcase */}
       <section className="landing-section feature-section reveal-on-scroll" id="features">
+        {/* Showcase area: Visual representation of features */}
         <div className="section-showcase section-showcase-feature">
+          {/* Section heading with description and keyword tags */}
           <div className="section-heading section-heading-left">
             <p className="section-kicker">
               <Sparkles size={18} aria-hidden="true" />
@@ -194,6 +286,8 @@ function LandingPage() {
               <span>Travel tools</span>
             </div>
           </div>
+          
+          {/* Visual mockup showing a sample trip card and details */}
           <div className="section-visual feature-visual" aria-hidden="true">
             <div className="visual-toolbar">
               <span />
@@ -214,6 +308,8 @@ function LandingPage() {
             </div>
           </div>
         </div>
+        
+        {/* Feature grid: All individual features displayed as tiles */}
         <div className="feature-grid">
           {features.map(([Icon, title, copy]) => (
             <article className="feature-tile" key={title}>
@@ -225,8 +321,12 @@ function LandingPage() {
         </div>
       </section>
 
+      {/* ===== HOW IT WORKS SECTION ===== */}
+      {/* Three-step workflow guide from trip creation to preparation */}
       <section className="landing-section workflow-section reveal-on-scroll" id="how-it-works">
+        {/* Showcase area with visual map pins and section heading */}
         <div className="section-showcase section-showcase-workflow">
+          {/* Visual map with pin markers representing the workflow steps */}
           <div className="workflow-map" aria-hidden="true">
             <span className="map-pin map-pin-one"><MapPinned size={18} /></span>
             <span className="map-route" />
@@ -234,6 +334,8 @@ function LandingPage() {
             <span className="map-route map-route-second" />
             <span className="map-pin map-pin-three"><CheckCircle2 size={18} /></span>
           </div>
+          
+          {/* Section heading with description and keyword tags */}
           <div className="section-heading section-heading-left">
             <p className="section-kicker">
               <ListChecks size={18} aria-hidden="true" />
@@ -251,6 +353,8 @@ function LandingPage() {
             </div>
           </div>
         </div>
+        
+        {/* Timeline: Sequential steps with step numbers */}
         <div className="timeline">
           {workflow.map(([Icon, title, copy], index) => (
             <article className="timeline-step" key={title}>
@@ -265,7 +369,10 @@ function LandingPage() {
         </div>
       </section>
 
+      {/* ===== SAFETY SECTION ===== */}
+      {/* Security and privacy features with trust signals */}
       <section className="landing-section split-section reveal-on-scroll" id="safety">
+        {/* Section heading with security messaging */}
         <div className="section-heading section-heading-left">
           <p className="section-kicker">
             <ShieldCheck size={18} aria-hidden="true" />
@@ -283,6 +390,8 @@ function LandingPage() {
             <span>Private by default</span>
           </div>
         </div>
+        
+        {/* Security list: Individual security features displayed as cards */}
         <div className="security-list">
           <div className="security-summary" aria-hidden="true">
             <ShieldCheck size={28} />
@@ -301,8 +410,12 @@ function LandingPage() {
         </div>
       </section>
 
+      {/* ===== FOR TRAVELLERS SECTION ===== */}
+      {/* Different traveller personas and their supported workflows */}
       <section className="landing-section stack-section reveal-on-scroll" id="travellers">
+        {/* Showcase area with visual representation of planning support */}
         <div className="section-showcase section-showcase-travellers">
+          {/* Section heading with traveller-focused messaging */}
           <div className="section-heading section-heading-left">
             <p className="section-kicker section-kicker-dark">
               <Compass size={18} aria-hidden="true" />
@@ -320,6 +433,8 @@ function LandingPage() {
               <span>Prepared</span>
             </div>
           </div>
+          
+          {/* Visual tag cloud showing planning support categories */}
           <div className="traveller-visual" aria-hidden="true">
             <span>Planning support</span>
             <strong>One connected workspace</strong>
@@ -331,6 +446,8 @@ function LandingPage() {
             </div>
           </div>
         </div>
+        
+        {/* Stack row: All traveller types displayed as pill cards */}
         <div className="stack-row">
           {travellerTypes.map(([Icon, title, copy]) => (
             <article className="traveller-pill" key={title}>
@@ -342,14 +459,19 @@ function LandingPage() {
         </div>
       </section>
 
+      {/* ===== FOOTER ===== */}
+      {/* Site footer with brand information and navigation links */}
       <footer className="landing-footer">
         <div>
+          {/* Brand mark with logo image */}
           <Link className="brand-mark footer-brand" to="/">
             <img className="brand-logo" src={logo} alt="" aria-hidden="true" />
             Smart Travel Planner
           </Link>
           <p>6003CEM Web API Development group project.</p>
         </div>
+        
+        {/* Footer navigation: Links to page sections */}
         <nav aria-label="Footer navigation">
           {publicNavItems.map(([, label, sectionId]) => (
             <a href={`#${sectionId}`} key={sectionId}>
@@ -361,5 +483,13 @@ function LandingPage() {
     </main>
   );
 }
-// Default export registers the primary  value.
+
+// ============================================================
+// EXPORT
+// ============================================================
+
+/**
+ * Default export registers the primary LandingPage component.
+ * This is the main export consumed by the router or parent components.
+ */
 export default LandingPage;

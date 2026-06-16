@@ -34,6 +34,7 @@ import AuthContext from '../context/authContext';
 import CurrencyContext from '../context/currencyContext';
 import useNotifications from '../hooks/useNotifications';
 import './AppLayout.css';
+
 // AppLayout renders the main screen and handles nearby interactions.
 function AppLayout({ role, menuItems }) {
   const isAdmin = role === 'admin';
@@ -42,6 +43,8 @@ function AppLayout({ role, menuItems }) {
   const { logout, user } = useContext(AuthContext);
   const currency = useContext(CurrencyContext);
   const { unreadCount } = useNotifications();
+
+  // State for UI controls: submenu collapse, mobile navigation, pickers, profile menu, AI chat
   const [collapsedSubmenuTo, setCollapsedSubmenuTo] = useState(null);
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState(() => getSavedTranslateLanguage());
@@ -53,15 +56,20 @@ function AppLayout({ role, menuItems }) {
   const [aiMessages, setAiMessages] = useState([]);
   const [aiError, setAiError] = useState('');
   const [isAiSubmitting, setIsAiSubmitting] = useState(false);
+
+  // Refs for detecting clicks outside dropdown components
   const languagePickerRef = useRef(null);
   const currencyPickerRef = useRef(null);
   const profileMenuRef = useRef(null);
+
+  // Memoized available languages and current selections
   const availableLanguages = useMemo(() => getAvailableLanguages(), []);
   const activeLanguage =
     availableLanguages.find((language) => language.value === selectedLanguage) ?? availableLanguages[0];
   const availableCurrencies = currency?.currencies ?? [];
   const activeCurrency = currency?.activeCurrency ?? { code: currency?.selectedCurrency || 'USD', label: currency?.selectedCurrency || 'USD' };
 
+  // Filters menu items into categories: main, bottom, account settings, logout, header items
   const mainMenuItems = menuItems.filter((item) => !item.bottom && !item.hidden && !item.header);
   const accountSettingsItem = menuItems.find((item) => item.bottom && item.children?.length && !item.hidden);
   const accountLogoutItem = menuItems.find((item) => item.action === 'logout' && !item.hidden);
@@ -70,10 +78,13 @@ function AppLayout({ role, menuItems }) {
   );
   const headerMenuItems = menuItems.filter((item) => item.header && !item.hidden);
   const allMenuItems = [...mainMenuItems, ...bottomMenuItems, accountSettingsItem].filter(Boolean);
+
+  // Extracts specific header items for quick access
   const favouriteItem = headerMenuItems.find((item) => /favou?rite/i.test(item.label));
   const profileItem = accountSettingsItem?.children?.find((item) => /profile/i.test(item.label));
   const settingsDropdownItems = accountSettingsItem?.children?.filter((item) => item !== profileItem) ?? [];
 
+  // User display information from authentication context
   const displayName = user?.name || user?.email || (isAdmin ? 'Admin user' : 'Traveller');
   const displayRole = isAdmin ? 'Admin' : 'Traveller';
   const avatarUrl = user?.avatarUrl || user?.profileImage;
@@ -89,11 +100,14 @@ function AppLayout({ role, menuItems }) {
     [displayName]
   );
 
+  // Determines current URL and whether AI assistant should be visible
   const currentUrl = `${location.pathname}${location.search}${location.hash}`;
   const isTravelToolsExperience =
     location.pathname === '/packing-lists' ||
     location.pathname === '/travel-documents';
   const showGlobalAiAssistant = !isAdmin && isTravelToolsExperience;
+
+  // Helper functions for determining active navigation state
   const isItemActive = (item, isExactMatch = false) => {
     const itemUrl = item.to;
     const [itemPath] = itemUrl.split(/[?#]/);
@@ -108,20 +122,26 @@ function AppLayout({ role, menuItems }) {
 
     return item.end ? location.pathname === itemPath : location.pathname.startsWith(itemPath);
   };
+
+  // Checks if a menu item or any of its children is active
   const isMenuItemActive = (item) =>
     isItemActive(item) || item.children?.some((child) => isItemActive(child, true));
 
+  // Determines active submenu and its collapse state
   const activeSubmenu = allMenuItems.find(
     (item) => item.children?.length && isMenuItemActive(item)
   );
   const isSubmenuCollapsed = activeSubmenu?.to === collapsedSubmenuTo;
 
+  // Prepares active submenu items with IDs
   const activeSubmenuItems = activeSubmenu?.children.map((child) => ({
     ...child,
     id: child.to,
   }));
 
   const activeSubmenuId = activeSubmenuItems?.find((child) => isItemActive(child, true))?.id;
+
+  // Navigation handlers
   const closeMobileNav = () => setIsMobileNavOpen(false);
   const handleNavigate = (item, event) => {
     if (item.action === 'logout') {
@@ -132,12 +152,18 @@ function AppLayout({ role, menuItems }) {
 
     closeMobileNav();
   };
+
+  // Loads translation client on language selection change
   useEffect(() => {
     loadTranslateClient(selectedLanguage).catch(() => {});
   }, [selectedLanguage]);
+
+  // Refreshes translated content when language or picker state changes
   useEffect(() => {
     refreshTranslatedContent();
   }, [selectedLanguage, isLanguagePickerOpen]);
+
+  // Sets up click-outside and escape key handlers for dropdowns
   useEffect(() => {
     const handlePointerDown = (event) => {
       const clickedOutsideLanguage =
@@ -178,19 +204,24 @@ function AppLayout({ role, menuItems }) {
       document.removeEventListener('keydown', handleKeyDown);
     };
   }, [isCurrencyPickerOpen, isLanguagePickerOpen, isProfileMenuOpen]);
+
+  // Handlers for language, currency, and profile menu changes
   const handleLanguageChange = (language) => {
     setSelectedLanguage(language.value);
     setIsLanguagePickerOpen(false);
     changeTranslateLanguage(language.value);
   };
+
   const handleCurrencyChange = (currencyOption) => {
     currency?.changeCurrency(currencyOption.code);
     setIsCurrencyPickerOpen(false);
   };
+
   const handleProfileMenuNavigate = (item, event) => {
     handleNavigate(item, event);
     setIsProfileMenuOpen(false);
   };
+
   const handleSubmenuToggle = () => {
     if (!activeSubmenu) {
       return;
@@ -198,12 +229,15 @@ function AppLayout({ role, menuItems }) {
 
     setCollapsedSubmenuTo((current) => (current === activeSubmenu.to ? null : activeSubmenu.to));
   };
+
+  // AI Chat handlers: open, close, submit, and manage messages
   const openNewAiChat = () => {
     setAiPrompt('');
     setAiMessages([]);
     setAiError('');
     setIsAiChatOpen(true);
   };
+
   const handleAiFloatingClick = () => {
     if (isAiChatOpen) {
       setIsAiChatOpen(false);
@@ -212,6 +246,7 @@ function AppLayout({ role, menuItems }) {
 
     openNewAiChat();
   };
+
   const handleAiChatSubmit = async (event) => {
     event.preventDefault();
     const prompt = aiPrompt.trim();
@@ -249,6 +284,8 @@ function AppLayout({ role, menuItems }) {
       setIsAiSubmitting(false);
     }
   };
+
+  // Renders the complete application layout with sidebar, topbar, workspace, and AI chat
   return (
     <div
       className={[
@@ -260,6 +297,7 @@ function AppLayout({ role, menuItems }) {
         .filter(Boolean)
         .join(' ')}
     >
+      {/* Topbar: brand, navigation controls, actions, language/currency pickers, profile */}
       <header className="topbar">
         {activeSubmenu && (
           <button
@@ -288,6 +326,7 @@ function AppLayout({ role, menuItems }) {
         </Link>
 
         <div className="topbar-actions">
+          {/* Currency picker for non-admin users */}
           {!isAdmin && (
             <div className="currency-picker ignore notranslate" ref={currencyPickerRef} translate="no">
               <button
@@ -348,6 +387,7 @@ function AppLayout({ role, menuItems }) {
             </div>
           )}
 
+          {/* Language picker */}
           <div className="language-picker ignore notranslate" ref={languagePickerRef} translate="no">
             <button
               className="language-trigger"
@@ -412,6 +452,7 @@ function AppLayout({ role, menuItems }) {
             )}
           </div>
 
+          {/* Favorites link */}
           {favouriteItem && (
             <Link
               className="header-icon-button"
@@ -422,6 +463,7 @@ function AppLayout({ role, menuItems }) {
             </Link>
           )}
 
+          {/* Notifications bell with unread count badge */}
           <Link
             className="header-icon-button notification-bell-button"
             to={isAdmin ? '/admin/notifications' : '/notifications'}
@@ -435,6 +477,7 @@ function AppLayout({ role, menuItems }) {
             )}
           </Link>
 
+          {/* Profile menu with avatar, name, and dropdown options */}
           <div className="profile-menu" ref={profileMenuRef}>
             <button
               className="profile-menu-trigger"
@@ -523,6 +566,7 @@ function AppLayout({ role, menuItems }) {
         </div>
       </header>
 
+      {/* Mobile navigation overlay */}
       <button
         className="mobile-nav-overlay"
         type="button"
@@ -530,6 +574,7 @@ function AppLayout({ role, menuItems }) {
         onClick={closeMobileNav}
       />
 
+      {/* Sidebar navigation and submenu panel */}
       <div className="app-navigation">
         <aside className="sidebar">
           <div className="sidebar-menu">
@@ -566,14 +611,17 @@ function AppLayout({ role, menuItems }) {
         )}
       </div>
 
+      {/* Main content area where routes render */}
       <div className="workspace">
         <main className="main-panel">
           <Outlet />
         </main>
       </div>
 
+      {/* Compare tray for side-by-side item comparison */}
       <CompareTray />
 
+      {/* AI Assistant floating button and chat panel (visible only in travel tools) */}
       {showGlobalAiAssistant && (
         <>
           <button

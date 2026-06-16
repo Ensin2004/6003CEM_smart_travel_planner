@@ -52,6 +52,8 @@ import './MapPage.css';
 const defaultCenter = [5.4141, 100.3288];
 const defaultZoom = 11;
 
+// Configuration object that maps each category identifier to its display properties
+// Each entry includes a human-readable label, a Lucide icon component reference, and a hex color code
 const categoryConfig = {
   hotels: { label: 'Hotels', icon: BedDouble, color: '#2563eb' },
   airports: { label: 'Airport', icon: Plane, color: '#7c3aed' },
@@ -63,8 +65,15 @@ const categoryConfig = {
   saved: { label: 'Saved', icon: Heart, color: '#ef4444' },
 };
 
+// Defines the sequential order in which category filters appear in the UI
+// This array references the keys from categoryConfig to maintain consistent ordering
 const filterOrder = ['hotels', 'airports', 'train', 'food', 'attractions', 'shopping', 'custom', 'saved'];
+
+// Storage key used for persisting user-created markers in the browser's localStorage
 const userMarkersStorageKey = 'smartTravelPlanner.map.userMarkers';
+
+// Fallback location object used when the user's actual location cannot be determined
+// Contains default coordinates and a flag to identify it as a fallback rather than a real location
 const fallbackUserLocation = {
   id: 'user-location',
   name: 'My location',
@@ -73,6 +82,8 @@ const fallbackUserLocation = {
   isFallback: true,
 };
 
+// Available transportation modes for route planning between destinations
+// Each mode includes an identifier and a display label for the UI
 const routeModeOptions = [
   { id: 'car', label: 'Car' },
   { id: 'walking', label: 'Walking' },
@@ -81,6 +92,8 @@ const routeModeOptions = [
   { id: 'plane', label: 'Plane' },
 ];
 
+// Configuration object for different map tile layer sources
+// Each layer specifies the tile URL pattern and attribution text required by the tile provider
 const mapTileLayers = {
   default: {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
@@ -92,6 +105,8 @@ const mapTileLayers = {
   },
 };
 
+// Represents the category panel as a special place object with a panelMode flag
+// This object is used to display a list of search results in a side panel rather than a single marker
 const categoryPanelPlace = {
   id: 'category-panel',
   name: 'Map results',
@@ -100,7 +115,13 @@ const categoryPanelPlace = {
   zoom: defaultZoom,
   panelMode: 'category',
 };
+
+// Extracts the address from a place object, checking multiple possible property names
+// Returns a fallback string if no address information is available
 const getPlaceAddress = (place) => place.address || place.displayName || 'Location details unavailable';
+
+// Determines whether a place object contains rich detail data beyond basic coordinates and name
+// Checks for properties like images, ratings, reviews, operating hours, and price information
 const hasRichPlaceDetails = (place = {}) =>
   place.detailSource === 'serpapi' ||
   Boolean(
@@ -111,6 +132,9 @@ const hasRichPlaceDetails = (place = {}) =>
     (place.hours && place.hours !== 'Hours unavailable') ||
     place.priceDetail
   );
+
+// Merges two place objects while preserving rich detail data from the base place
+// Coordinates and categoryId from the next place take precedence over the base place's values
 const mergePreservingRichPlace = (basePlace = {}, nextPlace = {}) => {
   if (!hasRichPlaceDetails(basePlace)) return { ...basePlace, ...nextPlace };
 
@@ -122,7 +146,9 @@ const mergePreservingRichPlace = (basePlace = {}, nextPlace = {}) => {
     categoryId: nextPlace.categoryId || basePlace.categoryId,
   };
 };
-// Format Category Place converts raw values into readable display text.
+
+// Transforms raw place data into a standardized format with consistent property names
+// Converts coordinate values to numbers, extracts addresses, and normalizes optional fields
 const formatCategoryPlace = (place, categoryId) => ({
   ...place,
   lat: Number(place.lat ?? place.coordinates?.latitude),
@@ -141,19 +167,35 @@ const formatCategoryPlace = (place, categoryId) => ({
   url: place.url || '',
   summary: place.summary || place.category || 'Place result from map data.',
 });
+
+// Converts a date object to a string key in YYYY-MM-DD format
+// Used for grouping or caching data by date
 const getDateKey = (date = new Date()) => date.toISOString().slice(0, 10);
-// Format Temperature converts raw values into readable display text.
+
+// Formats a numeric temperature value with the Celsius symbol
+// Returns a placeholder string if the value is not a valid number
 const formatTemperature = (value) => (Number.isFinite(Number(value)) ? `${Math.round(Number(value))} C` : '--');
-// Format Money converts raw values into readable display text.
+
+// Formats a monetary amount using the specified currency code and locale-aware formatting
+// Uses the Intl.NumberFormat API for proper currency display with two decimal places
 const formatMoney = (amount, currencyCode) =>
   new Intl.NumberFormat(undefined, {
     style: 'currency',
     currency: currencyCode,
     maximumFractionDigits: 2,
   }).format(amount);
+
+// Generates a unique cache key for price conversion based on item ID and target currency
+// Includes price details in the key to invalidate cache when price information changes
 const getPriceConversionKey = (item, targetCurrency) =>
   `${item.id}:${item.priceDetail?.display || item.price || 'price'}:${targetCurrency}`;
+
+// Extracts the original price text from a place item, checking multiple possible properties
+// Returns a fallback string if no price information is found
 const getOriginalPriceText = (item) => item.priceDetail?.display || item.price || 'Price unavailable';
+
+// Parses an open state string and returns a normalized status object with label and tone
+// The tone is used for styling (e.g., 'open' for green, 'closed' for red, 'unknown' for gray)
 const getOpenStatus = (openState = '') => {
   const normalizedState = openState.toLowerCase();
 
@@ -167,6 +209,9 @@ const getOpenStatus = (openState = '') => {
 
   return { label: 'Hours unknown', tone: 'unknown' };
 };
+
+// Generates a human-readable note about a route's reliability based on its mode
+// Train and plane routes are noted as estimated, while other modes indicate mapping status
 const getRouteModeNote = (route) => {
   if (!route) return 'Not calculated';
   if (route.mode === 'train' || route.mode === 'plane') {
@@ -174,10 +219,18 @@ const getRouteModeNote = (route) => {
   }
   return route.estimated ? 'Estimated route' : 'Mapped route';
 };
+
+// Checks if an error object indicates a canceled request (AbortError or CanceledError)
+// Used to prevent unnecessary error handling when requests are intentionally aborted
 const isCanceledRequest = (error) => error.name === 'AbortError' || error.name === 'CanceledError';
+
+// Creates a unique string key for a place request using place ID or coordinates
+// Coordinates are rounded to 4 decimal places to group nearby requests and enable caching
 const getPlaceRequestKey = (placeId, lat, lng) =>
   `${placeId || 'place'}:${Number(lat).toFixed(4)}:${Number(lng).toFixed(4)}`;
-// Format Distance converts raw values into readable display text.
+
+// Converts distance in meters to a human-readable string with appropriate units
+// Returns meters for distances under 1km, otherwise converts to kilometers with one decimal
 const formatDistance = (meters) => {
   if (!Number.isFinite(meters)) {
     return 'Distance unavailable';
@@ -189,7 +242,9 @@ const formatDistance = (meters) => {
 
   return `${(meters / 1000).toFixed(1)} km`;
 };
-// Format Duration converts raw values into readable display text.
+
+// Converts duration in seconds to a human-readable string with minutes or hours
+// Returns minutes for durations under 1 hour, otherwise shows hours and remaining minutes
 const formatDuration = (seconds) => {
   if (!Number.isFinite(seconds)) {
     return 'Time unavailable';
@@ -206,6 +261,9 @@ const formatDuration = (seconds) => {
 
   return remainingMinutes ? `${hours} hr ${remainingMinutes} min` : `${hours} hr`;
 };
+
+// Retrieves user-created markers from localStorage and parses the JSON data
+// Returns an empty array if no valid data exists or if parsing fails
 const loadUserMarkers = () => {
   try {
     const savedMarkers = JSON.parse(localStorage.getItem(userMarkersStorageKey) || '[]');
@@ -214,14 +272,22 @@ const loadUserMarkers = () => {
     return [];
   }
 };
-// Save User Markers applies allowed changes to an existing record.
+
+// Persists an array of user markers to localStorage after serializing to JSON
+// Overwrites any existing markers stored under the same key
 const saveUserMarkers = (markers) => {
   localStorage.setItem(userMarkersStorageKey, JSON.stringify(markers));
 };
+
+// Determines whether a place result represents a country or administrative boundary
+// Checks category and type fields for boundary-related keywords
 const isCountryResult = (place) => (
   place?.category === 'boundary' ||
   ['country', 'state', 'province', 'administrative'].includes(place?.type)
 );
+
+// Infers the most appropriate category from a search query and place data
+// Uses keyword matching on the query, category, and type fields to determine category
 const inferCategoryFromSearch = (query, place) => {
   const text = `${query} ${place?.category || ''} ${place?.type || ''}`.toLowerCase();
 
@@ -234,7 +300,8 @@ const inferCategoryFromSearch = (query, place) => {
   return 'attractions';
 };
 
-// Favorite records use GeoJSON coordinates, so map navigation converts longitude and latitude into Leaflet fields.
+// Transforms a favorite record from GeoJSON coordinate format into a map place object
+// Extracts coordinates from the nested location structure and maps favorite types to category IDs
 const favoriteToMapPlace = (favorite = {}) => {
   const coordinates = favorite.location?.coordinates?.coordinates || [];
   const categoryId = {
@@ -261,9 +328,12 @@ const favoriteToMapPlace = (favorite = {}) => {
   };
 };
 
+// Validates that a place object contains finite latitude and longitude values
+// Returns true only when both coordinates are valid numbers
 const hasMapCoordinates = (place) => Number.isFinite(place?.lat) && Number.isFinite(place?.lng);
 
-// Create Map Icon builds a new record from validated input.
+// Constructs a Leaflet divIcon for a map marker with category-based styling
+// Renders the appropriate category icon and applies color from the category configuration
 const createMapIcon = (pin, categoryId) => {
   const category = categoryConfig[categoryId] || categoryConfig.attractions;
   const PinIcon = category.icon;
@@ -283,6 +353,8 @@ const createMapIcon = (pin, categoryId) => {
   });
 };
 
+// Creates a specialized Leaflet divIcon for representing the user's current location
+// Uses a distinct CSS class for the user location pin styling
 const createUserLocationIcon = () => (
   L.divIcon({
     className: '',
@@ -293,6 +365,8 @@ const createUserLocationIcon = () => (
   })
 );
 
+// React component that handles map focus animation when a place is selected
+// Flies the map view to the place's coordinates when the place prop changes
 function MapFocus({ place }) {
   const map = useMap();
   useEffect(() => {
@@ -304,7 +378,8 @@ function MapFocus({ place }) {
   return null;
 }
 
-// Favorite-origin reset restores the default viewport without changing normal map focus behavior.
+// React component that resets the map view to default center and zoom level
+// Triggers animation when the resetCount prop increases, preserving normal focus behavior
 function FavoriteMapReset({ resetCount }) {
   const map = useMap();
   useEffect(() => {
@@ -316,6 +391,9 @@ function FavoriteMapReset({ resetCount }) {
   return null;
 }
 
+// React component that renders a stack of map control buttons with tooltips
+// Includes zoom controls, recenter, marker placement toggle, and layer selection
+// Adapts positioning based on whether the panel is open or closed
 function MapToolControls({
   isAddingMarker,
   isLayerMenuOpen,
@@ -373,6 +451,8 @@ function MapToolControls({
   );
 }
 
+// React component that listens for map click events and triggers marker creation
+// Only processes clicks when the marker placement mode is active
 function MapClickHandler({ isAddingMarker, onAddMarker }) {
   useMapEvents({
     click(event) {
@@ -385,6 +465,8 @@ function MapClickHandler({ isAddingMarker, onAddMarker }) {
   return null;
 }
 
+// React component that tracks and reports map viewport changes to parent components
+// Provides initial viewport data on mount and updates on every moveend event
 function MapViewportTracker({ onViewportChange }) {
   const map = useMap();
   useEffect(() => {
@@ -466,11 +548,17 @@ function PlaceDetails({
   onRouteAlternativeChange,
   onRouteModeChange,
 }) {
+    // Retrieves the category configuration for the given categoryId, falling back to attractions if not found
   const category = categoryConfig[categoryId] || categoryConfig.attractions;
+  // Extracts the icon component from the category configuration for rendering
   const CategoryIcon = category.icon;
+  // Formats the raw place data into a standardized structure with consistent property names
   const details = formatCategoryPlace(place || {}, categoryId);
+  // Determines the open/closed status from the place's open state or hours information
   const openStatus = getOpenStatus(details.openState || details.hours);
+  // Gets the converted price text in the user's preferred currency if available
   const convertedPriceText = getConvertedPriceText(details);
+  // Creates a comparison-ready item with normalized properties for the CompareButton component
   const compareItem = {
     ...details,
     category: category.label,
@@ -482,6 +570,7 @@ function PlaceDetails({
   };
   return (
     <div className="map-place-details">
+      {/* Image section with fallback placeholder and favorite toggle button */}
       <div className="map-detail-image-wrap">
         {details.imageUrl ? (
           <img className="map-detail-image" src={details.imageUrl} alt="" loading="lazy" />
@@ -505,21 +594,25 @@ function PlaceDetails({
         </button>
       </div>
 
+      {/* Category badge displaying the category icon and label with color coding */}
       <div className="map-detail-category" style={{ '--detail-color': category.color }}>
         <CategoryIcon size={17} aria-hidden="true" />
         {category.label}
       </div>
 
+      {/* Loading indicator shown while rich place details are being fetched */}
       {detailStatus === 'loading' ? (
         <p className="map-detail-loading">
           <LoaderCircle size={15} aria-hidden="true" />
           Loading richer place details...
         </p>
       ) : null}
+      {/* Warning message displayed when enrichment fails or provides limited data */}
       {details.enrichmentMessage ? (
         <p className="map-detail-provider-warning" role="status">{details.enrichmentMessage}</p>
       ) : null}
 
+      {/* Rating section showing star rating, numeric rating, and review count */}
       <div className="map-detail-rating">
         <StarRating rating={details.rating} size={17} />
         <strong>{details.rating && details.rating !== 'N/A' ? `${Number(details.rating).toFixed(1)} stars` : 'No rating'}</strong>
@@ -528,8 +621,10 @@ function PlaceDetails({
         </span>
       </div>
 
+      {/* Summary description of the place */}
       <p>{details.summary}</p>
 
+      {/* Review highlights section showing up to 3 Google reviews with author and rating */}
       {details.reviewItems.length ? (
         <section className="map-review-list" aria-label="Google review highlights">
           <h3>Google review highlights</h3>
@@ -545,6 +640,7 @@ function PlaceDetails({
         </section>
       ) : null}
 
+      {/* Facts section displaying price information and operating hours with status badge */}
       <div className="map-detail-facts">
         <span>
           <DollarSign size={15} aria-hidden="true" />
@@ -564,6 +660,7 @@ function PlaceDetails({
         </span>
       </div>
 
+      {/* Weather card showing current conditions and travel tip for the place location */}
       <section className="map-weather-card" aria-label={`${details.name} weather`}>
         <div>
           <CloudSun size={18} aria-hidden="true" />
@@ -587,6 +684,7 @@ function PlaceDetails({
         )}
       </section>
 
+      {/* Custom marker name editor that saves changes on blur or Enter key press */}
       {details.custom ? (
         <label className="map-custom-marker-name">
           <span>
@@ -606,6 +704,7 @@ function PlaceDetails({
         </label>
       ) : null}
 
+      {/* Route planner section with stop management and multi-mode route calculation */}
       <section className="map-route-planner" aria-label="Route planner">
         <div className="map-route-header">
           <div>
@@ -642,6 +741,7 @@ function PlaceDetails({
           </button>
         </div>
 
+        {/* List of selected route stops with order numbers and remove buttons */}
         <div className="map-route-point-list">
           {routePoints.map((point, index) => (
             <div className="map-route-point" key={`${point.id}-${index}`}>
@@ -661,6 +761,7 @@ function PlaceDetails({
           ) : null}
         </div>
 
+        {/* Grid of route mode options showing duration, distance, and status for each mode */}
         <div className="map-route-mode-grid" aria-label="Route options">
           {routeModeOptions.map((mode) => {
             const modeRoute = routeResults[mode.id];
@@ -681,6 +782,7 @@ function PlaceDetails({
             );
           })}
         </div>
+        {/* Alternative routes section showing different route options with rankings and characteristics */}
         {route?.alternatives?.length ? (
           <div className="map-route-alternatives" aria-label={`${routeMode} route alternatives`}>
             <strong>Possible {routeMode} routes</strong>
@@ -740,55 +842,95 @@ function PlaceDetails({
   );
 }
 
+// Main map page component that orchestrates all map functionality including search, markers, and routing
 function MapPage() {
+  // Retrieves the currency context for price conversions and display
   const currency = useContext(CurrencyContext);
+  // Accesses the current location state passed from navigation
   const location = useLocation();
+  // Extracts a selected favorite from the location state if present
   const selectedFavorite = location.state?.selectedFavorite;
+  // Converts the selected favorite to a map place format, memoized to prevent recalculation
   const initialFavoritePlace = useMemo(
     () => (selectedFavorite ? favoriteToMapPlace(selectedFavorite) : null),
     [selectedFavorite]
   );
+  // Reference set tracking which place details have already been loaded to prevent duplicate requests
   const loadedPlaceDetailsRef = useRef(new Set());
+  // Cache map for storing weather data by place and date to reduce API calls
   const placeWeatherCacheRef = useRef(new Map());
+  // State for the search query input
   const [query, setQuery] = useState(selectedFavorite?.title || selectedFavorite?.location?.address || 'Penang');
+  // State for the destination label used in search contexts
   const [mapDestination, setMapDestination] = useState(selectedFavorite?.location?.address || selectedFavorite?.title || 'Penang');
+  // State for the list of active category filters
   const [activeCategories, setActiveCategories] = useState(initialFavoritePlace ? [initialFavoritePlace.categoryId] : []);
+  // State storing all category search results keyed by category ID
   const [categoryResults, setCategoryResults] = useState({});
+  // State for search suggestions displayed in the autocomplete dropdown
   const [suggestions, setSuggestions] = useState([]);
+  // State controlling whether the suggestion dropdown is open
   const [isSuggestionOpen, setIsSuggestionOpen] = useState(false);
+  // State for custom markers created by the user, initialized from localStorage
   const [customMarkers, setCustomMarkers] = useState(() => loadUserMarkers());
+  // State controlling whether the side panel is open or closed
   const [isPanelOpen, setIsPanelOpen] = useState(true);
+  // State tracking whether marker placement mode is active
   const [isAddingMarker, setIsAddingMarker] = useState(false);
+  // State controlling whether the layer selection menu is open
   const [isLayerMenuOpen, setIsLayerMenuOpen] = useState(false);
+  // State for the current map tile layer type (default or satellite)
   const [mapType, setMapType] = useState('default');
+  // State for the current map center coordinates
   const [mapCenter, setMapCenter] = useState(defaultCenter);
+  // State for the current map bounds
   const [mapBounds, setMapBounds] = useState(null);
+  // State for the currently selected place object
   const [selectedPlace, setSelectedPlace] = useState(
     hasMapCoordinates(initialFavoritePlace) ? initialFavoritePlace : categoryPanelPlace
   );
+  // State for the user's geolocation, defaults to fallback location
   const [userLocation, setUserLocation] = useState(fallbackUserLocation);
+  // State for the current route object
   const [route, setRoute] = useState(null);
+  // State for the current selected route mode (car, walking, bike, train, plane)
   const [routeMode, setRouteMode] = useState('car');
+  // State for the list of route points/stops
   const [routePoints, setRoutePoints] = useState([]);
+  // State for route results for each mode type
   const [routeResults, setRouteResults] = useState({});
+  // State for the route calculation status
   const [routeStatus, setRouteStatus] = useState('idle');
+  // State for price conversion results keyed by item
   const [priceConversions, setPriceConversions] = useState({});
+  // State for the status of loading place details
   const [placeDetailStatus, setPlaceDetailStatus] = useState('idle');
+  // State for the weather data of the selected place
   const [placeWeather, setPlaceWeather] = useState(null);
+  // State for the weather loading status
   const [placeWeatherStatus, setPlaceWeatherStatus] = useState('idle');
+  // State for the general API request status
   const [status, setStatus] = useState('idle');
+  // State for general messages displayed to the user
   const [message, setMessage] = useState('');
+  // State controlling whether the favorite marker label is visible
   const [isFavoriteMarkerLabelVisible, setIsFavoriteMarkerLabelVisible] = useState(Boolean(selectedFavorite));
+  // State for the list of favorites fetched from the API
   const [favorites, setFavorites] = useState(() => (selectedFavorite?._id ? [selectedFavorite] : []));
+  // State tracking which favorite is currently being saved
   const [savingFavoriteKey, setSavingFavoriteKey] = useState('');
+  // State for triggering a map reset when a favorite is selected
   const [favoriteMapResetCount, setFavoriteMapResetCount] = useState(0);
 
+  // Derived values for panel mode and selected category
   const panelMode = selectedPlace?.panelMode || 'category';
   const selectedCategory = selectedPlace?.categoryId || activeCategories[0] || 'attractions';
+  // Comma-separated labels for active categories for display purposes
   const selectedCategoryLabels = activeCategories.length
     ? activeCategories.map((categoryId) => categoryConfig[categoryId].label).join(', ')
     : 'No categories selected';
 
+  // Memoized calculation of all markers visible on the map
   const visibleMarkers = useMemo(() => {
     const selectedCategoryPlaces = activeCategories.flatMap((categoryId) => categoryResults[categoryId] || []);
     const mapPlaces = [...selectedCategoryPlaces, ...customMarkers];
@@ -801,6 +943,7 @@ function MapPage() {
     return mapPlaces;
   }, [activeCategories, categoryResults, customMarkers, panelMode, selectedPlace]);
 
+  // Memoized object of visible category results excluding custom and saved categories
   const visibleCategoryResults = useMemo(() => (
     Object.fromEntries(
       activeCategories
@@ -809,6 +952,7 @@ function MapPage() {
     )
   ), [activeCategories, categoryResults]);
 
+  // Memoized array of category result groups for panel display
   const categoryResultGroups = useMemo(
     () => activeCategories.map((categoryId) => ({
       categoryId,
@@ -816,13 +960,18 @@ function MapPage() {
     })),
     [activeCategories, customMarkers, visibleCategoryResults]
   );
+  // Total count of category results
   const categoryResultCount = categoryResultGroups.reduce(
     (total, group) => total + group.places.length,
     0
   );
+  // Active tile layer configuration based on selected map type
   const activeTileLayer = mapTileLayers[mapType];
+  // Selected currency from context
   const selectedCurrency = currency?.selectedCurrency || 'USD';
+  // List of supported currency codes from context
   const supportedCurrencyCodes = useMemo(() => currency?.currencies?.map((option) => option.code) || [], [currency?.currencies]);
+  // Destructured selected place properties for cleaner code below
   const selectedPlaceId = selectedPlace?.id;
   const selectedPlaceFoursquareId = selectedPlace?.foursquarePlaceId;
   const selectedPlaceGoogleId = selectedPlace?.placeId;
@@ -834,7 +983,9 @@ function MapPage() {
   const selectedPlaceLng = selectedPlace?.lng;
   const selectedPlaceIsCustom = selectedPlace?.custom;
   const selectedPlaceHasRichDetails = hasRichPlaceDetails(selectedPlace);
+  // Lookup object for quickly checking if a place is in favorites
   const favoriteLookup = useMemo(() => buildFavoriteLookup(favorites), [favorites]);
+  // Creates a favorite payload for the selected place if applicable
   const selectedPlaceFavoritePayload = useMemo(() => {
     if (panelMode !== 'place' || !selectedPlace?.name) return null;
 
@@ -852,9 +1003,12 @@ function MapPage() {
       visitedSource: 'map',
     });
   }, [panelMode, selectedPlace]);
+  // Key for the selected place in the favorite lookup
   const selectedPlaceFavoriteKey = selectedPlaceFavoritePayload ? getFavoriteKey(selectedPlaceFavoritePayload) : '';
+  // Favorite record for the selected place if it exists
   const selectedPlaceFavoriteRecord = selectedPlaceFavoriteKey ? favoriteLookup[selectedPlaceFavoriteKey] : null;
 
+  // Effect to fetch favorites from the API on component mount
   useEffect(() => {
     let isActive = true;
 
@@ -871,6 +1025,7 @@ function MapPage() {
     };
   }, [selectedFavorite?._id]);
 
+  // Effect to resolve a selected favorite's location if coordinates are missing
   useEffect(() => {
     if (!selectedFavorite || hasMapCoordinates(initialFavoritePlace)) return undefined;
 
@@ -910,11 +1065,13 @@ function MapPage() {
     return () => controller.abort();
   }, [initialFavoritePlace, selectedFavorite]);
 
+  // Callback for handling viewport changes from the map component
   const handleViewportChange = useCallback((viewport) => {
     setMapCenter(viewport.center);
     setMapBounds(viewport.bounds);
   }, [setMapBounds, setMapCenter]);
 
+  // Effect for debounced search suggestions based on query input
   useEffect(() => {
     const trimmedQuery = query.trim();
     if (trimmedQuery.length < 2) {
@@ -942,6 +1099,7 @@ function MapPage() {
     };
   }, [query]);
 
+  // Effect to watch the user's geolocation with watchPosition API
   useEffect(() => {
     if (!navigator.geolocation) {
       return undefined;
@@ -962,6 +1120,7 @@ function MapPage() {
     return () => navigator.geolocation.clearWatch(watchId);
   }, []);
 
+  // Effect to fetch category results when active categories or map viewport changes
   useEffect(() => {
     const searchableCategories = activeCategories.filter((categoryId) => (
       categoryId !== 'saved' && categoryId !== 'custom'
@@ -1080,10 +1239,12 @@ function MapPage() {
     };
   }, [activeCategories, mapBounds, mapCenter, mapDestination]);
 
+  // Effect to persist custom markers to localStorage whenever they change
   useEffect(() => {
     saveUserMarkers(customMarkers);
   }, [customMarkers]);
 
+  // Effect to handle currency conversion for price display on visible markers
   useEffect(() => {
     const convertibleItems = visibleMarkers.filter((item) => {
       const detail = item.priceDetail;
@@ -1154,6 +1315,7 @@ function MapPage() {
     };
   }, [priceConversions, selectedCurrency, supportedCurrencyCodes, visibleMarkers]);
 
+  // Effect to fetch rich place details when a place is selected
   useEffect(() => {
     if (panelMode !== 'place' || !selectedPlaceName || selectedPlaceIsCustom) {
       return undefined;
@@ -1238,6 +1400,7 @@ function MapPage() {
     selectedPlaceHasRichDetails,
   ]);
 
+  // Effect to fetch weather data for the selected place
   useEffect(() => {
     if (panelMode !== 'place' || !selectedPlaceName || !selectedPlaceLat || !selectedPlaceLng) {
       return undefined;
@@ -1306,6 +1469,7 @@ function MapPage() {
     selectedPlaceName,
   ]);
 
+  // Handler for executing a search with the current query
   const handleSearch = async (event) => {
     event.preventDefault();
     const trimmedQuery = query.trim();
@@ -1354,6 +1518,7 @@ function MapPage() {
     }
   };
 
+  // Handler for toggling a category filter on or off
   const handleSelectCategory = (categoryId) => {
     setActiveCategories((currentCategories) => {
       if (currentCategories.includes(categoryId)) {
@@ -1376,6 +1541,7 @@ function MapPage() {
     setPlaceDetailStatus('idle');
   };
 
+  // Handler for selecting a marker from the map or results list
   const handleSelectMarker = (marker) => {
     setSelectedPlace((currentPlace) => ({
       ...(
@@ -1502,19 +1668,24 @@ function MapPage() {
     }
   };
 
+    // Handler for adding a place as a stop in the route planner
+  // Accepts optional configuration to calculate from the user's current location
   const handleAddRoutePoint = (place, options = {}) => {
+    // Validates that the place has valid coordinates before adding to route
     if (!place?.lat || !place?.lng) {
       setStatus('error');
       setMessage('Select a valid place before adding it to the route.');
       return;
     }
 
+    // Creates a standardized route point object from the place data
     const routePoint = {
       id: place.id,
       name: place.name,
       lat: place.lat,
       lng: place.lng,
     };
+    // Builds the next route points array, optionally prepending the user's location
     const nextPoints = options.calculateFromUserLocation
       ? [
         {
@@ -1527,19 +1698,23 @@ function MapPage() {
       ]
       : [...routePoints, routePoint];
 
+    // Updates the route points state and clears any existing route results
     setRoutePoints(nextPoints);
     setRoute(null);
     setRouteResults({});
 
+    // Automatically calculates the route if starting from user location
     if (options.calculateFromUserLocation) {
       calculateRoute(nextPoints);
     }
   };
 
+  // Handler that triggers route calculation with the current route points
   const handleCalculateRoute = () => {
     calculateRoute(routePoints);
   };
 
+  // Clears all route data, points, and resets the route status
   const handleClearRoute = () => {
     setRoute(null);
     setRouteResults({});
@@ -1547,6 +1722,7 @@ function MapPage() {
     setRouteStatus('idle');
   };
 
+  // Removes a specific route point by index and clears related route data
   const handleRemoveRoutePoint = (pointIndex) => {
     setRoutePoints((points) => points.filter((_, index) => index !== pointIndex));
     setRoute(null);
@@ -1555,10 +1731,13 @@ function MapPage() {
     setMessage('');
   };
 
+  // Switches the active route mode and updates the displayed route
   const handleRouteModeChange = (nextMode) => {
     setRouteMode(nextMode);
     setRoute(routeResults[nextMode] || route);
   };
+  
+  // Switches to an alternative route within the current mode
   const handleRouteAlternativeChange = (alternative) => {
     const modeRoute = routeResults[routeMode];
 
@@ -1573,6 +1752,7 @@ function MapPage() {
     });
   };
 
+  // Adds a custom marker at the clicked map coordinates
   const handleAddCustomMarker = (latlng) => {
     const markerNumber = customMarkers.length + 1;
     const nextMarker = {
@@ -1591,6 +1771,7 @@ function MapPage() {
       zoom: 14,
     };
 
+    // Adds the new marker to the custom markers list and selects it
     setCustomMarkers((markers) => [...markers, nextMarker]);
     setSelectedPlace(nextMarker);
     setMapCenter([nextMarker.lat, nextMarker.lng]);
@@ -1604,6 +1785,7 @@ function MapPage() {
     setPlaceDetailStatus('idle');
   };
 
+  // Removes a custom marker and cleans up any associated route data
   const handleRemoveCustomMarker = (markerId) => {
     setCustomMarkers((markers) => markers.filter((marker) => marker.id !== markerId));
     setRoute((currentRoute) => (
@@ -1622,6 +1804,7 @@ function MapPage() {
     ));
   };
 
+  // Renames a custom marker and updates all references including route points
   const handleRenameCustomMarker = (markerId, nextName) => {
     const trimmedName = nextName.trim();
 
@@ -1642,6 +1825,7 @@ function MapPage() {
     ));
   };
 
+  // Handles selection of a suggestion from the search autocomplete dropdown
   const handleSelectSuggestion = (place) => {
     const nextCategory = inferCategoryFromSearch(query, place);
 
@@ -1665,6 +1849,8 @@ function MapPage() {
     setPlaceDetailStatus('idle');
   };
 
+  // Memoized function that formats converted price text for display
+  // Returns an empty string if no conversion is needed or available
   const getConvertedPriceText = useCallback(
     (item) => {
       const detail = item.priceDetail;
@@ -1692,9 +1878,12 @@ function MapPage() {
     [priceConversions, selectedCurrency]
   );
 
+  // Main render function for the MapPage component
   return (
     <section className="map-page map-discovery-page" aria-labelledby="map-page-title">
+      {/* Top overlay containing search bar and category filters */}
       <div className="map-overlay-top">
+        {/* Search form with autocomplete suggestions */}
         <form className="map-search-card" onSubmit={handleSearch}>
           <label htmlFor="map-search-input" className="sr-only">Search destination</label>
           <Search size={17} aria-hidden="true" />
@@ -1715,6 +1904,7 @@ function MapPage() {
             placeholder="Search country, city, place, or restaurant"
             autoComplete="off"
           />
+          {/* Clear button for the search input */}
           {query ? (
             <button
               className="map-search-clear"
@@ -1729,6 +1919,7 @@ function MapPage() {
               <X size={15} aria-hidden="true" />
             </button>
           ) : null}
+          {/* Search suggestions dropdown */}
           {isSuggestionOpen && suggestions.length ? (
             <div className="map-search-suggestions" role="listbox" aria-label="Search results">
               {suggestions.map((place) => (
@@ -1750,6 +1941,7 @@ function MapPage() {
           ) : null}
         </form>
 
+        {/* Horizontal strip of category filter buttons */}
         <div className="map-filter-strip" aria-label="Map filters">
           {filterOrder.map((categoryId) => {
             const category = categoryConfig[categoryId];
@@ -1771,18 +1963,21 @@ function MapPage() {
         </div>
       </div>
 
+      {/* Floating status message for loading, errors, and informational states */}
       {message ? (
         <p className={`map-floating-status map-status-${status}`} role={status === 'error' ? 'alert' : 'status'}>
           {message}
         </p>
       ) : null}
 
+      {/* Hint displayed when marker placement mode is active */}
       {isAddingMarker ? (
         <p className="map-add-marker-hint" role="status">
           Click anywhere on the map to place your marker.
         </p>
       ) : null}
 
+      {/* Main map container with Leaflet MapContainer component */}
       <div className="map-canvas" aria-label="Interactive travel map">
         <MapContainer
           center={defaultCenter}
@@ -1791,14 +1986,20 @@ function MapPage() {
           zoomControl={false}
           className="leaflet-map"
         >
+          {/* Base tile layer for the map */}
           <TileLayer
             attribution={activeTileLayer.attribution}
             url={activeTileLayer.url}
           />
+          {/* Component that handles map focus animation to selected place */}
           <MapFocus place={selectedPlace} />
+          {/* Component that resets the map view when a favorite is selected */}
           <FavoriteMapReset resetCount={favoriteMapResetCount} />
+          {/* Component that handles click events for adding custom markers */}
           <MapClickHandler isAddingMarker={isAddingMarker} onAddMarker={handleAddCustomMarker} />
+          {/* Component that tracks viewport changes */}
           <MapViewportTracker onViewportChange={handleViewportChange} />
+          {/* Tool controls for zoom, recenter, marker placement, and layer selection */}
           <MapToolControls
             isAddingMarker={isAddingMarker}
             isLayerMenuOpen={isLayerMenuOpen}
@@ -1811,6 +2012,7 @@ function MapPage() {
             onToggleAddMarker={() => setIsAddingMarker((currentValue) => !currentValue)}
             onToggleLayerMenu={() => setIsLayerMenuOpen((currentValue) => !currentValue)}
           />
+          {/* User location marker with tooltip */}
           {userLocation ? (
             <Marker
               position={[userLocation.lat, userLocation.lng]}
@@ -1822,6 +2024,7 @@ function MapPage() {
               </Tooltip>
             </Marker>
           ) : null}
+          {/* Route polylines showing main route and alternatives */}
           {route?.coordinates?.length ? (
             <>
               {(route.alternatives || [])
@@ -1839,6 +2042,7 @@ function MapPage() {
               />
             </>
           ) : null}
+          {/* Renders all visible markers on the map */}
           {visibleMarkers.map((pin) => (
             <Marker
               key={pin.id}
@@ -1853,6 +2057,7 @@ function MapPage() {
                 },
               }}
             >
+              {/* Popup showing basic place information and remove button for custom markers */}
               <Popup closeButton={false}>
                 <strong>{pin.name}</strong>
                 <span>{pin.address}</span>
@@ -1869,6 +2074,7 @@ function MapPage() {
                   </button>
                 ) : null}
               </Popup>
+              {/* Permanent tooltip for favorite origin markers */}
               {pin.favoriteOrigin && isFavoriteMarkerLabelVisible ? (
                 <Tooltip
                   className="map-favorite-origin-label"
@@ -1889,12 +2095,14 @@ function MapPage() {
         </MapContainer>
       </div>
 
+      {/* Button to reopen the panel when closed */}
       {!isPanelOpen ? (
         <button className="map-panel-open-button" type="button" onClick={() => setIsPanelOpen(true)}>
           Open map panel
         </button>
       ) : null}
 
+      {/* Side panel showing search results or place details */}
       {isPanelOpen ? (
       <aside className="map-destination-panel" aria-label="Map results">
         <div className="map-panel-header">
@@ -1914,6 +2122,7 @@ function MapPage() {
           </p>
         </div>
 
+        {/* Category view showing all results grouped by category */}
         {panelMode === 'category' ? (
           <>
             <div className="map-panel-section">
@@ -1922,18 +2131,21 @@ function MapPage() {
             </div>
 
             <div className="map-city-list">
+              {/* Empty state when no categories are selected */}
               {!activeCategories.length ? (
                 <div className="map-empty-selection">
                   Select a category to show places and markers on the map.
                 </div>
               ) : null}
 
+              {/* Loading state when results are not yet available */}
               {activeCategories.length && !categoryResultCount && status !== 'loading' ? (
                 <div className="map-empty-selection">
                   Markers are still loading or temporarily unavailable. Move the map slightly or try again shortly.
                 </div>
               ) : null}
 
+              {/* Renders each category group with its results */}
               {categoryResultGroups.map((group) => {
                 const category = categoryConfig[group.categoryId];
                 const GroupIcon = category.icon;
@@ -1945,6 +2157,7 @@ function MapPage() {
                       {category.label}
                     </h4>
 
+                    {/* Individual place cards within each category group */}
                     {group.places.map((place) => {
                       const PlaceIcon = categoryConfig[place.categoryId].icon;
                       const hasImage = Boolean(place.imageUrl);
@@ -1958,6 +2171,7 @@ function MapPage() {
                           type="button"
                           onClick={() => handleSelectMarker(place)}
                         >
+                          {/* Place image or icon placeholder */}
                           {hasImage ? (
                             <span className="map-city-image-wrap">
                               <img src={place.imageUrl} alt="" loading="lazy" />
@@ -1970,6 +2184,7 @@ function MapPage() {
                               <PlaceIcon size={22} aria-hidden="true" />
                             </span>
                           )}
+                          {/* Place details including name, rating, hours, price, and address */}
                           <span className="map-city-content">
                             <span className="map-city-title">{place.name}</span>
                             <span className="map-city-rating">
@@ -2000,6 +2215,7 @@ function MapPage() {
             </div>
           </>
         ) : (
+          /* Place details view showing comprehensive information about a single place */
           <PlaceDetails
             place={selectedPlace}
             categoryId={selectedCategory}

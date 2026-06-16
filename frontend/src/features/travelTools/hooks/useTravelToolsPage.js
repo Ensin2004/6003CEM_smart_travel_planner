@@ -40,54 +40,104 @@ import {
   validateTemplateDraft,
 } from '../travelTools.validation';
 
+/**
+ * Primary custom hook for the Travel Tools workspace.
+ * Manages all packing list state, template state, CRUD operations, and UI interactions.
+ */
 export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = {}) {
-  // Core workspace state covers loaded lists, templates, trips, selected records, and request feedback.
+  // ============================================================
+  // CORE WORKSPACE STATE
+  // ============================================================
+  // Holds all loaded packing lists, templates, and trips for the current user.
   const [packingLists, setPackingLists] = useState([]);
   const [templates, setTemplates] = useState([]);
   const [trips, setTrips] = useState([]);
+  
+  // Currently selected records that determine what content displays in the UI.
   const [selectedListId, setSelectedListId] = useState('');
   const [selectedTemplateId, setSelectedTemplateId] = useState('');
+  
+  // Request status flags and feedback messages.
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [statusScope, setStatusScope] = useState('packing');
+
+  // ============================================================
+  // CREATE LIST FORM STATE
+  // ============================================================
+  // Manages the form for creating new packing lists from scratch or from templates.
   const [createMode, setCreateMode] = useState('manual');
   const [createForm, setCreateForm] = useState({ title: '', destination: '', tripId: '', templateKey: '' });
   const [createFormError, setCreateFormError] = useState('');
+  
+  // Pagination for template selection carousel.
   const [templatePage, setTemplatePage] = useState(0);
+
+  // ============================================================
+  // ITEM FORM STATE (for adding/editing items)
+  // ============================================================
   const [itemForm, setItemForm] = useState(emptyItemForm);
+  const [itemFormError, setItemFormError] = useState('');
+  const [itemModalMode, setItemModalMode] = useState(''); // 'add', 'edit', 'template-add', 'template-edit'
+  const [editingItemId, setEditingItemId] = useState('');
+
+  // ============================================================
+  // TEMPLATE FORM STATE
+  // ============================================================
   const [templateSaveForm, setTemplateSaveForm] = useState({ title: '', description: '' });
   const [templateSaveError, setTemplateSaveError] = useState('');
   const [templateEditForm, setTemplateEditForm] = useState({ title: '', description: '', items: [] });
   const [templateEditError, setTemplateEditError] = useState('');
-  const [itemFormError, setItemFormError] = useState('');
-  const [itemModalMode, setItemModalMode] = useState('');
   const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
-  const [editingItemId, setEditingItemId] = useState('');
+  const [editingTemplateItemIndex, setEditingTemplateItemIndex] = useState(-1);
+
+  // ============================================================
+  // INLINE EDITING STATE (list and template titles/descriptions)
+  // ============================================================
   const [isEditingListTitle, setIsEditingListTitle] = useState(false);
   const [listTitleDraft, setListTitleDraft] = useState('');
   const [listTripDraft, setListTripDraft] = useState('');
+  
   const [isEditingTemplateTitle, setIsEditingTemplateTitle] = useState(false);
   const [templateTitleDraft, setTemplateTitleDraft] = useState('');
   const [isEditingTemplateDescription, setIsEditingTemplateDescription] = useState(false);
   const [templateDescriptionDraft, setTemplateDescriptionDraft] = useState('');
-  const [editingTemplateItemIndex, setEditingTemplateItemIndex] = useState(-1);
+
+  // ============================================================
+  // CONFIRMATION DIALOG STATE
+  // ============================================================
+  // Stores pending destructive or duplicate actions until user confirms.
   const [confirmAction, setConfirmAction] = useState(null);
+
+  // ============================================================
+  // NOTIFICATION PREFERENCES
+  // ============================================================
   const [notificationPreferences, setNotificationPreferences] = useState({
     notificationsOff: false,
     packingReminder: true,
   });
   const [reminderDays, setReminderDays] = useState(2);
+
+  // ============================================================
+  // FILTER STATE
+  // ============================================================
   const [filters, setFilters] = useState(emptyFilters);
   const [templateFilters, setTemplateFilters] = useState(emptyFilters);
 
-  // The selected list falls back to the first available list so the workspace always has a target.
+  // ============================================================
+  // DERIVED STATE: SELECTED LIST
+  // ============================================================
+  // Automatically falls back to the first available list so the workspace always has a target.
   const selectedList = useMemo(
     () => packingLists.find((list) => list._id === selectedListId) || packingLists[0],
     [packingLists, selectedListId]
   );
 
+  // ============================================================
+  // DERIVED STATE: PROGRESS CALCULATIONS
+  // ============================================================
   const progress = selectedList?.progress || {
     packedItems: selectedList?.items?.filter((item) => item.isPacked).length || 0,
     totalItems: selectedList?.items?.length || 0,
@@ -103,6 +153,9 @@ export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = 
   const isPackingReminderEnabled =
     !notificationPreferences.notificationsOff && notificationPreferences.packingReminder !== false;
 
+  // ============================================================
+  // DERIVED STATE: TEMPLATES
+  // ============================================================
   // Built-in templates stay available separately, but only custom templates can be edited.
   const customTemplates = useMemo(
     () => templates.filter((template) => template.source === 'custom'),
@@ -114,7 +167,10 @@ export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = 
     [customTemplates, selectedTemplateId]
   );
 
-  // Category filters include defaults plus any custom categories already used in lists or templates.
+  // ============================================================
+  // DERIVED STATE: CATEGORY OPTIONS
+  // ============================================================
+  // Includes defaults plus any custom categories already used in lists or templates.
   const categoryOptions = useMemo(() => {
     const categories = new Set(packingCategories);
     packingLists.forEach((list) => list.items?.forEach((item) => item.category && categories.add(item.category)));
@@ -122,7 +178,10 @@ export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = 
     return Array.from(categories);
   }, [packingLists, templates]);
 
-  // Template cards rotate in a fixed-size window so the page can browse many templates compactly.
+  // ============================================================
+  // DERIVED STATE: VISIBLE TEMPLATES (carousel pagination)
+  // ============================================================
+  // Rotates in a fixed-size window so the page can browse many templates compactly.
   const visibleTemplates = useMemo(() => {
     if (templates.length <= 3) return templates;
     return Array.from({ length: 3 }, (_, index) => templates[(templatePage + index) % templates.length]);
@@ -130,7 +189,10 @@ export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = 
 
   const maxTemplatePage = Math.max(templates.length - 1, 0);
 
-  // Item filtering combines text, category, and packed status while keeping the original list order.
+  // ============================================================
+  // DERIVED STATE: FILTERED ITEMS
+  // ============================================================
+  // Combines text, category, and packed status while keeping the original list order.
   const filteredItems = useMemo(() => {
     const items = selectedList?.items || [];
     return items.filter((item) => {
@@ -144,7 +206,10 @@ export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = 
     });
   }, [filters, selectedList]);
 
-  // Template item filtering preserves original item indexes so edits still update the correct row.
+  // ============================================================
+  // DERIVED STATE: FILTERED TEMPLATE ITEMS
+  // ============================================================
+  // Preserves original item indexes so edits still update the correct row.
   const filteredTemplateItems = useMemo(() => {
     const items = templateEditForm.items || [];
     return items
@@ -160,7 +225,10 @@ export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = 
       });
   }, [templateEditForm.items, templateFilters]);
 
-  // Duplicate checks normalize casing and whitespace so visually identical names are blocked.
+  // ============================================================
+  // DUPLICATE CHECKS
+  // ============================================================
+  // Normalize casing and whitespace so visually identical names are blocked.
   const hasDuplicateListTitle = (title, excludedListId = '') => {
     const normalizedTitle = normalizeName(title);
     return packingLists.some(
@@ -182,7 +250,10 @@ export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = 
     );
   };
 
-  // Initial load gathers packing lists, templates, trips, and profile preferences in one request batch.
+  // ============================================================
+  // DATA LOADING (initial fetch)
+  // ============================================================
+  // Gathers packing lists, templates, trips, and profile preferences in one request batch.
   useEffect(() => {
     let isMounted = true;
 
@@ -207,10 +278,13 @@ export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = 
           notificationsOff: Boolean(preferences.notificationsOff),
           packingReminder: preferences.packingReminder !== false,
         });
+        
+        // Attempt to select the requested list or fall back to the first available.
         const requestedList = nextLists.find((list) => String(list._id) === String(initialListId))
           || nextLists.find((list) => String(list.tripId || '') === String(initialTripId));
         setReminderDays(requestedList?.reminder?.daysBeforeTrip ?? nextLists[0]?.reminder?.daysBeforeTrip ?? 2);
         setSelectedListId((current) => current || requestedList?._id || nextLists[0]?._id || '');
+        
         if (initialTripId && !requestedList) {
           setCreateForm((current) => ({ ...current, tripId: initialTripId }));
         }
@@ -230,6 +304,9 @@ export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = 
     };
   }, [initialListId, initialTripId]);
 
+  // ============================================================
+  // STATE UPDATE HELPERS
+  // ============================================================
   const replaceList = (updatedList) => {
     const normalizedList = normalizePackingListForUi(updatedList);
     setPackingLists((current) =>
@@ -237,6 +314,9 @@ export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = 
     );
   };
 
+  // ============================================================
+  // MODAL CONTROLS
+  // ============================================================
   const closeItemModal = () => {
     setItemModalMode('');
     setEditingItemId('');
@@ -251,6 +331,9 @@ export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = 
     setTemplateSaveError('');
   };
 
+  // ============================================================
+  // LIST CREATION HANDLER
+  // ============================================================
   const handleCreateList = async (event) => {
     event.preventDefault();
     setStatusScope('packing');
@@ -286,6 +369,9 @@ export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = 
     }
   };
 
+  // ============================================================
+  // TEMPLATE SELECTION HANDLERS
+  // ============================================================
   const handleTemplateSelect = (template) => {
     setCreateMode('template');
     setCreateForm({
@@ -307,6 +393,9 @@ export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = 
     setTemplateFilters(emptyFilters);
   };
 
+  // ============================================================
+  // TRIP LINKING HANDLER
+  // ============================================================
   const handlePackingListTripChange = async (event) => {
     if (!selectedList) return;
     const tripId = event.target.value;
@@ -327,6 +416,9 @@ export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = 
     }
   };
 
+  // ============================================================
+  // TEMPLATE CAROUSEL NAVIGATION
+  // ============================================================
   const handleTemplatePageChange = (direction) => {
     setTemplatePage((current) => {
       if (direction === 'previous') return current === 0 ? maxTemplatePage : current - 1;
@@ -334,6 +426,9 @@ export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = 
     });
   };
 
+  // ============================================================
+  // ITEM FORM HANDLERS
+  // ============================================================
   const handleItemFormChange = (event) => {
     const { name, value } = event.target;
     setItemFormError('');
@@ -343,6 +438,9 @@ export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = 
     }));
   };
 
+  // ============================================================
+  // TEMPLATE SAVE HELPER
+  // ============================================================
   const saveTemplateDraft = async (draft, successText = 'Packing template updated.') => {
     if (!selectedTemplate) return false;
     setStatusScope('template');
@@ -380,6 +478,9 @@ export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = 
     }
   };
 
+  // ============================================================
+  // TEMPLATE ITEM CRUD OPERATIONS
+  // ============================================================
   const handleOpenAddTemplateItem = () => {
     setItemForm(emptyItemForm);
     setEditingTemplateItemIndex(-1);
@@ -398,6 +499,9 @@ export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = 
     setSuccessMessage('');
   };
 
+  // ============================================================
+  // SAVE LIST AS TEMPLATE HANDLERS
+  // ============================================================
   const handleOpenSaveTemplateModal = () => {
     setStatusScope('packing');
     if (!selectedList) return;
@@ -465,6 +569,9 @@ export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = 
     }
   };
 
+  // ============================================================
+  // LIST ITEM CRUD OPERATIONS
+  // ============================================================
   const handleOpenAddItem = () => {
     setItemForm(emptyItemForm);
     setEditingItemId('');
@@ -481,6 +588,9 @@ export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = 
     setSuccessMessage('');
   };
 
+  // ============================================================
+  // SAVE ITEM HANDLER (handles both list items and template items)
+  // ============================================================
   const handleSaveItem = async (event) => {
     event.preventDefault();
     const isTemplateItemModal = itemModalMode === 'template-add' || itemModalMode === 'template-edit';
@@ -504,6 +614,7 @@ export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = 
       return;
     }
 
+    // Handle template item save (add or edit)
     if (isTemplateItemModal) {
       const nextItem = {
         id: itemModalMode === 'template-edit' ? templateEditForm.items[editingTemplateItemIndex]?.id : `new-${Date.now()}`,
@@ -525,6 +636,7 @@ export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = 
       return;
     }
 
+    // Handle packing list item save (add or edit)
     setIsSaving(true);
     setError('');
     setSuccessMessage('');
@@ -548,6 +660,9 @@ export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = 
     }
   };
 
+  // ============================================================
+  // TOGGLE PACKED STATUS HANDLER
+  // ============================================================
   const handleTogglePacked = async (item) => {
     setStatusScope('packing');
     try {
@@ -558,6 +673,9 @@ export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = 
     }
   };
 
+  // ============================================================
+  // INLINE EDIT HANDLERS — LIST TITLE
+  // ============================================================
   const handleStartListTitleEdit = () => {
     if (!selectedList) return;
     setListTitleDraft(selectedList.title);
@@ -606,6 +724,9 @@ export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = 
     }
   };
 
+  // ============================================================
+  // INLINE EDIT HANDLERS — TEMPLATE TITLE
+  // ============================================================
   const handleStartTemplateTitleEdit = () => {
     if (!selectedTemplate) return;
     setTemplateTitleDraft(templateEditForm.title);
@@ -629,6 +750,9 @@ export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = 
     }
   };
 
+  // ============================================================
+  // INLINE EDIT HANDLERS — TEMPLATE DESCRIPTION
+  // ============================================================
   const handleStartTemplateDescriptionEdit = () => {
     if (!selectedTemplate) return;
     setTemplateDescriptionDraft(templateEditForm.description);
@@ -652,6 +776,9 @@ export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = 
     }
   };
 
+  // ============================================================
+  // REMINDER SETTINGS HANDLER
+  // ============================================================
   const handleReminderDaysChange = async (event) => {
     setStatusScope('packing');
     const daysBeforeTrip = Number(event.target.value);
@@ -667,12 +794,16 @@ export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = 
     }
   };
 
+  // ============================================================
+  // CONFIRMATION DIALOG EXECUTION
+  // ============================================================
   const runConfirmedAction = async () => {
     if (!confirmAction) return;
     setIsSaving(true);
     setError('');
     setSuccessMessage('');
     try {
+      // DUPLICATE PACKING LIST
       if (confirmAction.type === 'duplicate-list') {
         setStatusScope('packing');
         const title = getUniqueName(confirmAction.list.title, (candidate) => hasDuplicateListTitle(candidate));
@@ -683,6 +814,7 @@ export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = 
         setSuccessMessage('Packing list duplicated.');
       }
 
+      // DELETE PACKING LIST
       if (confirmAction.type === 'delete-list') {
         setStatusScope('packing');
         await deletePackingList(confirmAction.list._id);
@@ -694,6 +826,7 @@ export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = 
         setError('Packing list deleted.');
       }
 
+      // DELETE PACKING ITEM
       if (confirmAction.type === 'delete-item') {
         setStatusScope('packing');
         const response = await deletePackingItem(confirmAction.list._id, confirmAction.item._id);
@@ -701,6 +834,7 @@ export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = 
         setError('Packing item deleted.');
       }
 
+      // DUPLICATE TEMPLATE
       if (confirmAction.type === 'duplicate-template') {
         setStatusScope('template');
         const sourceTemplate = selectedTemplate?.key === confirmAction.template.key
@@ -725,6 +859,7 @@ export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = 
         setSuccessMessage('Packing template duplicated.');
       }
 
+      // DELETE TEMPLATE
       if (confirmAction.type === 'delete-template') {
         setStatusScope('template');
         await deletePackingListTemplate(confirmAction.template.key);
@@ -733,6 +868,7 @@ export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = 
         setError('Packing template deleted.');
       }
 
+      // DELETE TEMPLATE ITEM
       if (confirmAction.type === 'delete-template-item') {
         setStatusScope('template');
         const nextForm = {
@@ -755,6 +891,9 @@ export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = 
     }
   };
 
+  // ============================================================
+  // CONFIRMATION DIALOG COPY
+  // ============================================================
   const confirmTitle =
     confirmAction?.type === 'duplicate-list'
       ? 'Duplicate packing list?'
@@ -781,6 +920,9 @@ export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = 
               ? `Delete "${confirmAction?.item?.name}" from this packing template.`
               : `Delete "${confirmAction?.item?.name}" from this packing list.`;
 
+  // ============================================================
+  // RETURN: ALL STATE AND HANDLERS EXPOSED TO COMPONENT
+  // ============================================================
   return {
     categoryOptions,
     closeItemModal,

@@ -2,6 +2,15 @@
  * Explore styles.
  * Layout, spacing, and interaction rules support the matching React view.
  */
+
+/* ============================================
+   TRANSPORTATION TOOLBAR
+   ============================================ */
+
+/**
+ * Main toolbar container for transportation search
+ * Contains tabs and search forms
+ */
 .explore-transport-toolbar {
   display: grid;
   gap: 10px;
@@ -12,11 +21,19 @@
   padding: 12px;
   box-shadow: 0 8px 18px rgba(16, 42, 67, 0.035);
 }
+
+/**
+ * Tab navigation for switching between transport modes
+ */
 .explore-transport-tabs {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
+
+/**
+ * Individual tab button styling
+ */
 .explore-transport-tabs button {
   display: inline-flex;
   gap: 7px;
@@ -33,12 +50,19 @@
   cursor: pointer;
 }
 
+/**
+ * Active and hover states for tab buttons
+ */
 .explore-transport-tabs button.active,
 .explore-transport-tabs button:hover {
   border-color: rgba(15, 118, 110, 0.26);
   background: var(--color-primary-soft);
   color: var(--teal);
 }
+
+/**
+ * Search panel container for transport search forms
+ */
 .explore-transport-search-panel {
   display: grid;
   gap: 16px;
@@ -50,6 +74,9 @@
   box-shadow: none;
 }
 
+/**
+ * Form layout containers
+ */
 .explore-transport-form-heading,
 .explore-transport-route-row,
 .explore-transport-secondary-row {
@@ -58,11 +85,17 @@
   min-width: 0;
 }
 
+/**
+ * Form heading with search description
+ */
 .explore-transport-form-heading {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: start;
 }
 
+/**
+ * Heading copy container with icon and text
+ */
 .explore-transport-heading-copy {
   display: flex;
   gap: 12px;
@@ -70,18 +103,27 @@
   min-width: 0;
 }
 
+/**
+ * Icon styling in heading
+ */
 .explore-transport-heading-copy > svg {
   flex: 0 0 auto;
   color: var(--teal);
   margin-top: 2px;
 }
 
+/**
+ * Text container in heading
+ */
 .explore-transport-heading-copy div {
   display: grid;
   gap: 4px;
   min-width: 0;
 }
 
+/**
+ * Heading title text
+ */
 .explore-transport-heading-copy strong {
   color: var(--navy);
   font-size: 17px;
@@ -89,6 +131,9 @@
   line-height: 1.25;
 }
 
+/**
+ * Heading subtitle text
+ */
 .explore-transport-heading-copy span {
   color: #64748b;
   font-size: 13px;
@@ -96,6 +141,9 @@
   line-height: 1.4;
 }
 
+/**
+ * Helper text with clock icon
+ */
 .explore-transport-form-heading p {
   display: inline-flex;
   gap: 8px;
@@ -111,16 +159,25 @@
   line-height: 1.35;
 }
 
+/**
+ * Route row grid layout for origin/destination fields
+ */
 .explore-transport-route-row {
   grid-template-columns: minmax(220px, 1fr) 40px minmax(220px, 1fr) 154px;
   align-items: end;
 }
 
+/**
+ * Secondary row grid layout for additional search fields
+ */
 .explore-transport-secondary-row {
   grid-template-columns: minmax(220px, 1fr) 40px minmax(220px, 1fr) 154px;
   align-items: end;
 }
 
+/**
+ * Grid column positioning for form fields
+ */
 .explore-transport-route-row .explore-transport-form-field:first-child,
 .explore-transport-secondary-row .explore-transport-form-field:first-child {
   grid-column: 1;
@@ -138,12 +195,18 @@
   grid-column: 4;
 }
 
+/**
+ * Form field container with label and input
+ */
 .explore-transport-form-field {
   display: grid;
   gap: 7px;
   min-width: 0;
 }
 
+/**
+ * Form field label
+ */
 .explore-transport-form-field > span {
   color: #0f172a;
   font-size: 13px;
@@ -151,12 +214,18 @@
   line-height: 1.35;
 }
 
+/**
+ * Optional label text
+ */
 .explore-transport-form-field small {
   color: #64748b;
   font-size: 12px;
   font-weight: 500;
 }
 
+/**
+ * Input shell container with icon and input
+ */
 .explore-transport-input-shell {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto auto;
@@ -171,11 +240,17 @@
   transition: border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
+/**
+ * Input shell focus state
+ */
 .explore-transport-input-shell:focus-within {
   border-color: rgba(15, 118, 110, 0.48);
   box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.1);
 }
 
+/**
+ * Select and input elements within shell
+ */
 .explore-transport-input-shell select,
 .explore-transport-input-shell input {
   width: 100%;
@@ -190,15 +265,24 @@
   outline: none;
 }
 
+/**
+ * Placeholder text styling
+ */
 .explore-transport-input-shell input::placeholder {
   color: #94a3b8;
   font-weight: 500;
 }
 
+/**
+ * Date input styling
+ */
 .explore-transport-input-shell input[type='date'] {
   color: #64748b;
 }
 
+/**
+ * Clear button within input shell
+ */
 .explore-transport-input-shell button {
   display: inline-grid;
   place-items: center;
@@ -218,6 +302,9 @@
   color: var(--color-primary-hover);
 }
 
+/**
+ * Country select field with custom styling
+ */
 .explore-transport-country-field {
   display: flex;
   align-items: center;
@@ -230,12 +317,18 @@
   transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
 }
 
+/**
+ * Country field focus state
+ */
 .explore-transport-country-field:focus-within {
   border-color: rgba(15, 118, 110, 0.48);
   background: #ffffff;
   box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.1);
 }
 
+/**
+ * Country select element
+ */
 .explore-transport-country-field select {
   width: 100%;
   min-width: 0;
@@ -256,6 +349,9 @@
   outline: none;
 }
 
+/**
+ * Swap icon between origin and destination
+ */
 .explore-transport-swap {
   display: grid;
   place-items: center;
@@ -269,6 +365,9 @@
   color: var(--teal);
 }
 
+/**
+ * Primary search action button
+ */
 .explore-transport-search-button {
   display: inline-flex;
   gap: 8px;
@@ -289,25 +388,44 @@
   box-shadow: 0 6px 14px rgba(15, 118, 110, 0.13);
 }
 
+/**
+ * Disabled state for search button
+ */
 .explore-transport-search-button:disabled {
   cursor: not-allowed;
   opacity: 0.72;
 }
 
+/* ============================================
+   RESULTS LAYOUT
+   ============================================ */
+
+/**
+ * Container for search results
+ */
 .explore-results-layout {
   display: grid;
   grid-template-columns: 1fr;
   align-items: start;
 }
 
+/**
+ * Flight results specific layout
+ */
 .explore-results-layout--flight {
   gap: 16px;
 }
 
+/**
+ * Train results specific layout
+ */
 .explore-results-layout--train {
   gap: 12px;
 }
 
+/**
+ * Train results grid with sidebar
+ */
 .explore-train-results-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(320px, 0.9fr);
@@ -315,6 +433,9 @@
   align-items: start;
 }
 
+/**
+ * Results board and shell containers
+ */
 .explore-results-board,
 .explore-results-shell {
   overflow: hidden;
@@ -324,12 +445,18 @@
   box-shadow: 0 8px 20px rgba(16, 42, 67, 0.035);
 }
 
+/**
+ * Results shell with padding for non-board results
+ */
 .explore-results-shell {
   display: grid;
   gap: 16px;
   padding: 18px;
 }
 
+/**
+ * Results board title header
+ */
 .explore-results-board-title {
   display: flex;
   gap: 16px;
@@ -342,17 +469,26 @@
   padding: 16px;
 }
 
+/**
+ * Transport-specific board title styling
+ */
 .explore-results-board-title--transport {
   background: #ffffff;
   padding: 18px 20px;
 }
 
+/**
+ * Title text container
+ */
 .explore-results-board-title div {
   display: grid;
   gap: 5px;
   min-width: 0;
 }
 
+/**
+ * Title typography
+ */
 .explore-results-board-title span,
 .explore-results-board-title h3,
 .explore-results-board-title strong {
@@ -378,12 +514,18 @@
   font-size: 14px;
 }
 
+/**
+ * Transport-specific title metadata
+ */
 .explore-results-board-title--transport span {
   color: #64748b;
   font-size: 13px;
   font-weight: 500;
 }
 
+/**
+ * Sort control for results
+ */
 .explore-result-sort {
   display: inline-flex;
   gap: 10px;
@@ -405,16 +547,29 @@
   outline: none;
 }
 
+/**
+ * Result list container
+ */
 .explore-transport-result-list {
   display: grid;
   gap: 14px;
 }
 
+/**
+ * Flight and train result lists with no gap
+ */
 .explore-transport-result-list--flight,
 .explore-transport-result-list--train {
   gap: 0;
 }
 
+/* ============================================
+   RESULT CARDS
+   ============================================ */
+
+/**
+ * Individual result card
+ */
 .explore-transport-result-card {
   display: grid;
   align-items: center;
@@ -422,6 +577,9 @@
   background: #ffffff;
 }
 
+/**
+ * Flight and train card grid layouts
+ */
 .explore-transport-result-card--flight,
 .explore-transport-result-card--train {
   grid-template-columns: minmax(150px, 0.85fr) minmax(145px, 0.7fr) minmax(190px, 1fr) minmax(145px, 0.7fr) minmax(150px, auto);
@@ -429,6 +587,9 @@
   padding: 24px 20px;
 }
 
+/**
+ * Train card interactive states
+ */
 .explore-transport-result-card--train {
   column-gap: 22px;
   cursor: pointer;
@@ -448,6 +609,9 @@
   box-shadow: inset 4px 0 0 var(--teal);
 }
 
+/**
+ * Card section containers
+ */
 .explore-transport-carrier,
 .explore-transport-time,
 .explore-transport-action {
@@ -456,6 +620,9 @@
   min-width: 0;
 }
 
+/**
+ * Carrier section with icon and text
+ */
 .explore-transport-carrier {
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
@@ -466,6 +633,9 @@
   color: var(--teal);
 }
 
+/**
+ * Flight carrier icon badge
+ */
 .explore-flight-carrier-mark {
   display: inline-grid;
   place-items: center;
@@ -481,12 +651,18 @@
   text-transform: uppercase;
 }
 
+/**
+ * Flight carrier badge in results
+ */
 .explore-flight-carrier-mark--result {
   border-color: rgba(15, 118, 110, 0.18);
   background: rgba(15, 118, 110, 0.1);
   color: var(--teal);
 }
 
+/**
+ * Train carrier icon
+ */
 .explore-train-carrier-mark {
   display: inline-grid;
   place-items: center;
@@ -498,12 +674,18 @@
   color: var(--teal);
 }
 
+/**
+ * Carrier text container
+ */
 .explore-transport-carrier > div {
   display: grid;
   gap: 4px;
   min-width: 0;
 }
 
+/**
+ * Typography for carrier, time, and action sections
+ */
 .explore-transport-carrier strong,
 .explore-transport-time strong,
 .explore-transport-action strong {
@@ -536,6 +718,9 @@
   font-weight: 700;
 }
 
+/**
+ * Platform badge for trains
+ */
 .explore-transport-carrier small {
   width: fit-content;
   border-radius: 4px;
@@ -553,6 +738,9 @@
   padding: 0;
 }
 
+/**
+ * Time display in results
+ */
 .explore-transport-time strong {
   font-size: 22px;
   font-weight: 700;
@@ -564,6 +752,13 @@
   font-weight: 600;
 }
 
+/* ============================================
+   TRANSPORT PATH INDICATOR
+   ============================================ */
+
+/**
+ * Path visualization between origin and destination
+ */
 .explore-transport-path {
   display: grid;
   gap: 6px;
@@ -574,6 +769,9 @@
   font-size: 12px;
 }
 
+/**
+ * Path line with markers
+ */
 .explore-transport-path div {
   position: relative;
   width: 100%;
@@ -589,10 +787,16 @@
   transform: translate(-50%, -50%);
 }
 
+/**
+ * Flight path icon rotation
+ */
 .explore-transport-path--flight div svg {
   transform: translate(-50%, -50%) rotate(90deg);
 }
 
+/**
+ * Path line end markers
+ */
 .explore-transport-path div::before,
 .explore-transport-path div::after {
   position: absolute;
@@ -613,6 +817,9 @@
   right: 0;
 }
 
+/**
+ * Path text and labels
+ */
 .explore-transport-path span {
   overflow: hidden;
   max-width: 100%;
@@ -628,6 +835,9 @@
   font-weight: 500;
 }
 
+/**
+ * Train path specific styling
+ */
 .explore-transport-path--train {
   align-self: center;
   justify-self: stretch;
@@ -636,6 +846,9 @@
   text-align: center;
 }
 
+/**
+ * Path width constraints
+ */
 .explore-transport-path--flight div {
   width: min(100%, 190px);
 }
@@ -644,12 +857,22 @@
   width: min(100%, 260px);
 }
 
+/* ============================================
+   ACTION BUTTONS AND PRICE DISPLAY
+   ============================================ */
+
+/**
+ * Action container with buttons
+ */
 .explore-transport-action {
   gap: 10px;
   justify-items: end;
   text-align: right;
 }
 
+/**
+ * Action button styling
+ */
 .explore-transport-action button {
   min-height: 38px;
   border: 1px solid rgba(15, 118, 110, 0.35);
@@ -667,6 +890,9 @@
   background: var(--color-primary-soft);
 }
 
+/**
+ * Price display component
+ */
 .explore-flight-price {
   display: grid;
   gap: 2px;
@@ -688,6 +914,9 @@
   line-height: 1.2;
 }
 
+/**
+ * Price badge with tooltip
+ */
 .explore-transport-price-badge {
   position: relative;
   display: grid;
@@ -703,6 +932,9 @@
   padding: 5px 9px;
 }
 
+/**
+ * Price badge layout
+ */
 .explore-transport-price-badge span {
   grid-column: 2;
   color: #92400e;
@@ -721,6 +953,9 @@
   grid-row: 1 / span 2;
 }
 
+/**
+ * Tooltip for price badge
+ */
 .explore-transport-price-badge::after {
   position: absolute;
   right: 0;
@@ -746,12 +981,18 @@
   transition: opacity 0.16s ease, transform 0.16s ease;
 }
 
+/**
+ * Tooltip visible on hover/focus
+ */
 .explore-transport-price-badge:hover::after,
 .explore-transport-price-badge:focus-visible::after {
   opacity: 1;
   transform: translateY(0);
 }
 
+/**
+ * Price badge icon and text styling
+ */
 .explore-transport-price-badge svg {
   flex: 0 0 auto;
 }
@@ -766,6 +1007,13 @@
   white-space: nowrap;
 }
 
+/* ============================================
+   FLIGHT DETAIL DIALOG
+   ============================================ */
+
+/**
+ * Backdrop overlay for flight detail dialog
+ */
 .explore-flight-dialog-backdrop {
   position: fixed;
   inset: 0;
@@ -776,6 +1024,9 @@
   padding: 20px;
 }
 
+/**
+ * Dialog container
+ */
 .explore-flight-dialog {
   display: grid;
   gap: 18px;
@@ -789,6 +1040,9 @@
   box-shadow: 0 24px 48px rgba(15, 23, 42, 0.22);
 }
 
+/**
+ * Dialog header with carrier info and close button
+ */
 .explore-flight-dialog-header {
   display: flex;
   gap: 16px;
@@ -796,6 +1050,9 @@
   justify-content: space-between;
 }
 
+/**
+ * Close button styling
+ */
 .explore-flight-dialog-header > button {
   display: inline-grid;
   place-items: center;
@@ -813,6 +1070,9 @@
   color: var(--teal);
 }
 
+/**
+ * Carrier info in dialog header
+ */
 .explore-flight-dialog-carrier {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -843,6 +1103,9 @@
   line-height: 1.2;
 }
 
+/**
+ * Dialog summary cards
+ */
 .explore-flight-dialog-summary {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -858,6 +1121,9 @@
   padding: 12px;
 }
 
+/**
+ * Dialog typography
+ */
 .explore-flight-dialog-summary span,
 .explore-flight-dialog-route span,
 .explore-flight-detail-grid h4,
@@ -875,6 +1141,9 @@
   font-weight: 700;
 }
 
+/**
+ * Route visualization in dialog
+ */
 .explore-flight-dialog-route {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(120px, 0.65fr) minmax(0, 1fr);
@@ -921,6 +1190,9 @@
   font-size: 12px;
 }
 
+/**
+ * Route line with flight icon
+ */
 .explore-flight-dialog-route-line {
   position: relative;
   height: 2px;
@@ -955,6 +1227,9 @@
   transform: translate(-50%, -50%) rotate(90deg);
 }
 
+/**
+ * Detail grid for departure/arrival information
+ */
 .explore-flight-detail-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -975,6 +1250,9 @@
   margin: 0;
 }
 
+/**
+ * Definition lists for detail data
+ */
 .explore-flight-detail-grid dl,
 .explore-flight-live-detail dl {
   display: grid;
@@ -1011,6 +1289,9 @@
   white-space: nowrap;
 }
 
+/**
+ * Dialog note about AI estimates
+ */
 .explore-flight-dialog-note {
   margin: 0;
   border-radius: 8px;
@@ -1022,12 +1303,22 @@
   line-height: 1.4;
 }
 
+/* ============================================
+   TRAIN STOP LIST
+   ============================================ */
+
+/**
+ * Train stop list container
+ */
 .explore-train-stop-list {
   display: grid;
   gap: 0;
   background: #ffffff;
 }
 
+/**
+ * Individual train stop item
+ */
 .explore-train-stop {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(70px, auto) minmax(70px, auto);
@@ -1063,6 +1354,9 @@
   font-size: 12px;
 }
 
+/**
+ * Train performance note
+ */
 .explore-train-performance-note {
   margin: 0;
   border-top: 1px solid rgba(217, 226, 236, 0.82);
@@ -1073,6 +1367,9 @@
   font-weight: 700;
 }
 
+/**
+ * Train status text
+ */
 .explore-train-status-text {
   font-size: 13px;
   font-weight: 850;
@@ -1087,6 +1384,9 @@
   color: #b91c1c;
 }
 
+/**
+ * Back link for train service
+ */
 .explore-train-back-link {
   display: inline-flex;
   gap: 8px;
@@ -1105,6 +1405,9 @@
   cursor: pointer;
 }
 
+/**
+ * Train title with back button
+ */
 .explore-train-title-with-back {
   display: inline-flex;
   gap: 8px;
@@ -1129,6 +1432,9 @@
   background: var(--color-primary-soft);
 }
 
+/**
+ * Train service layout
+ */
 .explore-train-service-layout {
   display: grid;
   grid-template-columns: 1fr;
@@ -1136,6 +1442,9 @@
   align-items: start;
 }
 
+/**
+ * Detailed train stop with multiple columns
+ */
 .explore-train-stop-detail {
   grid-template-columns: minmax(160px, 1fr) minmax(90px, 0.55fr) minmax(90px, 0.55fr) minmax(105px, 0.58fr) minmax(110px, 0.6fr) minmax(110px, 0.6fr);
 }
@@ -1144,6 +1453,13 @@
   min-width: 0;
 }
 
+/* ============================================
+   RESPONSIVE DESIGN
+   ============================================ */
+
+/**
+ * Tablet and smaller screens
+ */
 @media (max-width: 900px) {
   .explore-transport-search-panel,
   .explore-transport-form-heading,
@@ -1215,4 +1531,3 @@
     bottom: 0;
   }
 }
-

@@ -22,12 +22,14 @@ import {
 import { sections as settingsSections } from '../features/settings/shared/settings.constants';
 import AppLayout from './AppLayout';
 
+// Transforms settings section definitions into user navigation child items with profile routes
 const settingsChildren = settingsSections.map((section) => ({
   to: section.id === 'profile' ? '/profile' : `/profile?section=${section.id}`,
   label: section.label,
   icon: section.icon,
 }));
 
+// Defines the complete user navigation menu structure with icons and routing for the application
 const userMenu = [
   { to: '/dashboard', label: 'Dashboard', icon: Home, end: true },
   {
@@ -62,9 +64,11 @@ const userMenu = [
   { to: '/profile', label: 'Settings', icon: Settings, bottom: true, children: settingsChildren },
   { to: '/login', label: 'Logout', icon: LogOut, bottom: true, action: 'logout' },
 ];
+
 // UserLayout renders the main screen and handles nearby interactions.
 function UserLayout() {
   return <AppLayout role="user" menuItems={userMenu} />;
 }
-// Default export registers the primary  value.
+
+// Default export registers the primary value.
 export default UserLayout;

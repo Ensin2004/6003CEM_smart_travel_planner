@@ -2,11 +2,29 @@
  * Trips styles.
  * Layout, spacing, and interaction rules support the matching React view.
  */
+
+/* ============================================================
+   PAGE CONTAINER
+   ============================================================ */
+
+/**
+ * Main container for the trips page.
+ * Uses grid layout with consistent spacing between sections.
+ */
 .trips-page {
   display: grid;
   gap: 22px;
   text-align: left;
 }
+
+/* ============================================================
+   HEADER SECTION
+   ============================================================ */
+
+/**
+ * Header container that aligns the title and actions.
+ * Uses flexbox for responsive alignment of header elements.
+ */
 .trips-header {
   display: flex;
   align-items: flex-end;
@@ -14,6 +32,10 @@
   gap: 18px;
 }
 
+/**
+ * Removes default margin from heading elements.
+ * Ensures consistent spacing across different heading levels.
+ */
 .trips-header h2,
 .trip-preview-heading h3,
 .trip-list-header h3,
@@ -21,6 +43,10 @@
   margin: 0;
 }
 
+/**
+ * Paragraph text in headers and preview sections.
+ * Limited width for readability and consistent margin.
+ */
 .trips-header p,
 .trip-preview-heading p {
   max-width: 720px;
@@ -28,6 +54,10 @@
   color: var(--color-muted);
 }
 
+/**
+ * Eyebrow text and section labels.
+ * Small, uppercase text with primary color for visual hierarchy.
+ */
 .eyebrow,
 .trip-section-heading span,
 .trip-list-header span,
@@ -40,6 +70,14 @@
   text-transform: uppercase;
 }
 
+/* ============================================================
+   BUTTON GROUPS AND TOGGLES
+   ============================================================ */
+
+/**
+ * Button groups for header actions and mode toggles.
+ * Uses bordered container with rounded corners and padding.
+ */
 .trips-header-actions,
 .trip-mode-toggle {
   display: inline-flex;
@@ -51,6 +89,10 @@
   padding: 5px;
 }
 
+/**
+ * Base styles for all interactive buttons and links.
+ * Consistent min-height, gap, and typography for accessibility.
+ */
 .trips-header-actions button,
 .trip-mode-toggle button,
 .trip-choice-grid button,
@@ -72,40 +114,80 @@
   font-weight: var(--font-weight-bold);
 }
 
+/**
+ * Active state for toggle buttons.
+ * Uses soft primary background with primary text color.
+ */
 .trips-header-actions button.active,
 .trip-mode-toggle button.active,
 .trip-choice-grid button.active {
   background: var(--color-primary-soft);
   color: var(--color-primary);
 }
+
+/* ============================================================
+   WORKSPACE LAYOUTS
+   ============================================================ */
+
+/**
+ * Two-column workspace layout for trip creation.
+ * Form takes more space, preview takes less with minimum width.
+ */
 .trips-workspace {
   display: grid;
   grid-template-columns: minmax(0, 1.25fr) minmax(360px, 0.75fr);
   gap: 18px;
   align-items: start;
 }
+
+/**
+ * Comfortable layout variant with slightly different proportions.
+ * Provides a more spacious feel for the form.
+ */
 .trip-comfort-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(330px, 420px);
   gap: 18px;
   align-items: start;
 }
+
+/**
+ * Form container with border, background, and subtle shadow.
+ * Creates visual separation from the rest of the page.
+ */
 .trip-create-form-comfort {
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-surface);
   box-shadow: 0 14px 38px rgba(16, 42, 67, 0.07);
 }
+
+/**
+ * Side rail container for preview and benefits.
+ * Uses grid gap for consistent spacing between sections.
+ */
 .trip-side-rail {
   display: grid;
   gap: 16px;
   align-self: start;
 }
 
+/**
+ * Override for preview panel positioning.
+ * Ensures the preview panel stays in normal document flow.
+ */
 .trip-side-rail .trip-preview-panel {
   position: static;
 }
 
+/* ============================================================
+   DATE SELECTION COMPONENTS
+   ============================================================ */
+
+/**
+ * Date input box with border, background, and padding.
+ * Provides visual grouping for date-related inputs.
+ */
 .trip-date-box {
   display: grid;
   gap: 12px;
@@ -115,6 +197,10 @@
   padding: 12px;
 }
 
+/**
+ * Toggle container for date mode selection.
+ * Uses pill-style rounded background with inline-flex.
+ */
 .trip-date-toggle {
   display: inline-flex;
   width: fit-content;
@@ -124,6 +210,10 @@
   padding: 4px;
 }
 
+/**
+ * Individual toggle buttons within the date toggle.
+ * Rounded pill style with active state for selected option.
+ */
 .trip-date-toggle button {
   min-height: 32px;
   border: 0;
@@ -135,17 +225,33 @@
   font-weight: var(--font-weight-bold);
 }
 
+/**
+ * Active state for date toggle buttons.
+ * Uses primary background with white text for contrast.
+ */
 .trip-date-toggle button.active {
   background: var(--color-primary);
   color: #ffffff;
 }
 
+/* ============================================================
+   OPTIONAL DETAILS ACCORDION
+   ============================================================ */
+
+/**
+ * Container for optional trip details.
+ * Uses border, background, and rounded corners.
+ */
 .trip-optional-details {
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: #ffffff;
 }
 
+/**
+ * Summary element that acts as the accordion header.
+ * Custom cursor and typography for better UX.
+ */
 .trip-optional-details summary {
   cursor: pointer;
   color: var(--color-heading);
@@ -154,6 +260,10 @@
   font-weight: var(--font-weight-bold);
 }
 
+/**
+ * Inner section of the optional details.
+ * Removes redundant borders and shadows from nested sections.
+ */
 .trip-optional-details .trip-create-section {
   border: 0;
   border-top: 1px solid var(--color-border);
@@ -161,14 +271,30 @@
   box-shadow: none;
 }
 
+/* ============================================================
+   TRIP LIST AND CARDS
+   ============================================================ */
+
+/**
+ * Container for recent trip list.
+ * Provides padding for content separation.
+ */
 .trip-recent-list {
   padding: 14px;
 }
 
+/**
+ * Compact card grid for smaller screens.
+ * Uses single column layout for narrow viewports.
+ */
 .trip-card-grid-compact {
   grid-template-columns: 1fr;
 }
 
+/**
+ * Shared styles for main panels and sections.
+ * Consistent border, background, and shadow across components.
+ */
 .trips-main-panel,
 .trip-preview-panel,
 .trip-create-section,
@@ -179,6 +305,10 @@
   box-shadow: 0 14px 38px rgba(16, 42, 67, 0.07);
 }
 
+/**
+ * Form and list workspace containers.
+ * Uses grid with consistent padding for content organization.
+ */
 .trip-create-form,
 .trip-list-workspace {
   display: grid;
@@ -186,6 +316,14 @@
   padding: 18px;
 }
 
+/* ============================================================
+   HEADER AND TOOLBAR COMPONENTS
+   ============================================================ */
+
+/**
+ * Toolbar and header sections with flex layout.
+ * Aligns items with space between for action placement.
+ */
 .trip-create-toolbar,
 .trip-section-heading,
 .trip-list-header,
@@ -196,6 +334,10 @@
   gap: 14px;
 }
 
+/**
+ * Save button with minimum height and padding.
+ * Consistent with other form buttons.
+ */
 .trip-save-button {
   min-height: 38px;
   border: 0;
@@ -203,6 +345,14 @@
   padding: 0 14px;
 }
 
+/* ============================================================
+   FORM GRID LAYOUTS
+   ============================================================ */
+
+/**
+ * Grid layouts for form sections.
+ * Two-column grid with consistent gaps for form fields.
+ */
 .trip-form-grid,
 .trip-segment-fields,
 .trip-preference-grid {
@@ -211,6 +361,10 @@
   gap: 12px;
 }
 
+/**
+ * Form field labels and inputs.
+ * Uses grid with gap for label-content separation.
+ */
 .trip-form-grid label,
 .trip-segment-fields label,
 .trip-preference-grid label,
@@ -219,6 +373,10 @@
   gap: 6px;
 }
 
+/**
+ * Label text styling.
+ * Consistent color, size, and weight for form labels.
+ */
 .trip-form-grid span,
 .trip-segment-fields span,
 .trip-preference-grid label span,
@@ -229,6 +387,10 @@
   font-weight: var(--font-weight-bold);
 }
 
+/**
+ * Input and select field styling.
+ * Full width, consistent height, border, and padding.
+ */
 .trip-form-grid input,
 .trip-segment-fields input,
 .trip-preference-grid select,
@@ -245,18 +407,34 @@
   font-size: 14px;
 }
 
+/**
+ * Textarea for AI prompts.
+ * Taller minimum height with vertical resize capability.
+ */
 .trip-ai-prompt textarea {
   min-height: 92px;
   resize: vertical;
   padding-top: 10px;
 }
 
+/* ============================================================
+   SECTION AND CARD COMPONENTS
+   ============================================================ */
+
+/**
+ * Section container with consistent spacing and padding.
+ * Used for grouping related form elements.
+ */
 .trip-create-section {
   display: grid;
   gap: 14px;
   padding: 16px;
 }
 
+/**
+ * Action buttons in section headers.
+ * Uses primary color with soft background for visibility.
+ */
 .trip-section-heading button,
 .trip-list-header button,
 .trip-empty-state button,
@@ -266,11 +444,23 @@
   color: var(--color-primary);
 }
 
+/* ============================================================
+   TRIP SEGMENT CARDS
+   ============================================================ */
+
+/**
+ * Container for segment list.
+ * Uses grid with consistent gap between segments.
+ */
 .trip-segment-list {
   display: grid;
   gap: 12px;
 }
 
+/**
+ * Individual segment card.
+ * Grid layout with number, fields, and remove button.
+ */
 .trip-segment-card {
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr) auto;
@@ -282,6 +472,10 @@
   padding: 12px;
 }
 
+/**
+ * Segment number badge and map pin indicator.
+ * Centered content with rounded background.
+ */
 .trip-segment-number,
 .trip-map-pin {
   display: grid;
@@ -293,11 +487,19 @@
   font-weight: var(--font-weight-bold);
 }
 
+/**
+ * Segment number badge dimensions.
+ * Fixed size for consistent appearance.
+ */
 .trip-segment-number {
   width: 30px;
   height: 30px;
 }
 
+/**
+ * Map pin indicator with shadow for depth.
+ * Larger size with white border and shadow.
+ */
 .trip-map-pin {
   width: 34px;
   height: 34px;
@@ -305,10 +507,18 @@
   box-shadow: 0 8px 18px rgba(16, 42, 67, 0.22);
 }
 
+/**
+ * Segment note spanning full width.
+ * Used for additional information below the segment.
+ */
 .trip-segment-note {
   grid-column: 1 / -1;
 }
 
+/**
+ * Remove segment button with danger styling.
+ * Red border and background for destructive action.
+ */
 .trip-remove-segment {
   min-height: 30px;
   border: 1px solid #fecaca;
@@ -320,10 +530,22 @@
   font-weight: var(--font-weight-bold);
 }
 
+/* ============================================================
+   PREFERENCE AND CHOICE GRIDS
+   ============================================================ */
+
+/**
+ * Preference grid for travel options.
+ * Aligns items to the start for consistent positioning.
+ */
 .trip-preference-grid {
   align-items: start;
 }
 
+/**
+ * Choice grid for multi-select options.
+ * Wraps buttons with consistent spacing.
+ */
 .trip-choice-grid {
   display: flex;
   flex-wrap: wrap;
@@ -331,22 +553,42 @@
   margin-top: 8px;
 }
 
+/**
+ * Individual choice buttons.
+ * White background with border for unselected state.
+ */
 .trip-choice-grid button {
   min-height: 34px;
   border-color: var(--color-border);
   background: #ffffff;
 }
 
+/**
+ * Wide choice grid variant.
+ * Additional margin for visual separation.
+ */
 .trip-choice-grid-wide {
   margin-top: 10px;
 }
 
+/* ============================================================
+   TOOL CARDS
+   ============================================================ */
+
+/**
+ * Grid layout for tool cards.
+ * Two-column grid with consistent gaps.
+ */
 .trip-tool-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
 
+/**
+ * Individual tool card with checkbox and description.
+ * Grid layout with icon column and content column.
+ */
 .trip-tool-card {
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr);
@@ -358,17 +600,29 @@
   padding: 13px;
 }
 
+/**
+ * Checkbox input within tool card.
+ * Fixed size with top margin for alignment.
+ */
 .trip-tool-card input {
   width: 16px;
   height: 16px;
   margin-top: 3px;
 }
 
+/**
+ * Tool card content container.
+ * Grid with gap for label and description separation.
+ */
 .trip-tool-card span {
   display: grid;
   gap: 4px;
 }
 
+/**
+ * Tool card heading with icon support.
+ * Inline-flex for icon alignment with text.
+ */
 .trip-tool-card strong {
   display: inline-flex;
   align-items: center;
@@ -377,6 +631,10 @@
   font-size: 14px;
 }
 
+/**
+ * Muted text for descriptions and metadata.
+ * Small size with normal font style.
+ */
 .trip-tool-card small,
 .trip-card-meta,
 .trip-card-footer em,
@@ -386,6 +644,14 @@
   font-style: normal;
 }
 
+/* ============================================================
+   BUDGET AND WEATHER PREVIEWS
+   ============================================================ */
+
+/**
+ * Budget summary and weather preview containers.
+ * Flex layout with warning colors for emphasis.
+ */
 .trip-budget-summary,
 .trip-weather-preview {
   display: flex;
@@ -400,32 +666,60 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/**
+ * Status message spacing.
+ * Removes default margin for consistent positioning.
+ */
 .trips-status {
   margin: 0;
 }
 
+/* ============================================================
+   PREVIEW PANEL
+   ============================================================ */
+
+/**
+ * Sticky preview panel that follows scrolling.
+ * Positioned below the header with overflow hidden.
+ */
 .trip-preview-panel {
   position: sticky;
   top: 86px;
   overflow: hidden;
 }
 
+/**
+ * Preview content container.
+ * Grid with consistent spacing between elements.
+ */
 .trip-preview-content {
   display: grid;
   gap: 16px;
   padding: 16px;
 }
 
+/**
+ * Preview heading with flex alignment.
+ * Aligns items to the start for proper layout.
+ */
 .trip-preview-heading {
   align-items: flex-start;
   display: grid;
 }
 
+/**
+ * Route preview container.
+ * Grid with gaps for route items.
+ */
 .trip-preview-route {
   display: grid;
   gap: 10px;
 }
 
+/**
+ * Individual route item with pin and text.
+ * Grid with fixed pin column and flexible text column.
+ */
 .trip-preview-route div {
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr);
@@ -433,6 +727,10 @@
   align-items: start;
 }
 
+/**
+ * Route number badge.
+ * Centered content with primary colors.
+ */
 .trip-preview-route strong {
   display: grid;
   width: 28px;
@@ -444,12 +742,20 @@
   font-size: 12px;
 }
 
+/**
+ * Route text container.
+ * Grid with minimal gap for label and location.
+ */
 .trip-preview-route span {
   display: grid;
   gap: 2px;
   min-width: 0;
 }
 
+/**
+ * Route location name with truncation.
+ * Single line with ellipsis for overflow.
+ */
 .trip-preview-route b {
   overflow: hidden;
   color: var(--color-heading);
@@ -458,11 +764,19 @@
   white-space: nowrap;
 }
 
+/**
+ * Weather preview with grid layout.
+ * Stretches to fill available space.
+ */
 .trip-weather-preview {
   display: grid;
   align-items: stretch;
 }
 
+/**
+ * Weather preview inner elements.
+ * Flex layout with gap for icon and text alignment.
+ */
 .trip-weather-preview div,
 .trip-weather-preview p {
   display: flex;
@@ -471,10 +785,22 @@
   margin: 0;
 }
 
+/**
+ * Details link button.
+ * Fits content width for proper button sizing.
+ */
 .trip-details-link {
   width: fit-content;
 }
 
+/* ============================================================
+   SEARCH FIELD
+   ============================================================ */
+
+/**
+ * Search field container with icon and input.
+ * Grid with icon column and input column.
+ */
 .trip-search-field {
   display: grid;
   grid-template-columns: 18px minmax(0, 1fr);
@@ -485,17 +811,33 @@
   padding: 0 10px;
 }
 
+/**
+ * Search input without border or padding.
+ * Inherits from parent container for consistent appearance.
+ */
 .trip-search-field input {
   border: 0;
   padding: 0;
 }
 
+/* ============================================================
+   TRIP CARDS GRID
+   ============================================================ */
+
+/**
+ * Responsive grid for trip cards.
+ * Auto-fits cards with minimum width for consistent layout.
+ */
 .trip-card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   gap: 12px;
 }
 
+/**
+ * Individual trip list card.
+ * Grid with gap and border for visual separation.
+ */
 .trip-list-card {
   display: grid;
   gap: 8px;
@@ -507,18 +849,30 @@
   text-align: left;
 }
 
+/**
+ * Card link container.
+ * Grid with gap for consistent child spacing.
+ */
 .trip-list-card > a {
   display: grid;
   gap: 8px;
   min-width: 0;
 }
 
+/**
+ * Hover and active states for cards.
+ * Border color change with soft background highlight.
+ */
 .trip-list-card:hover,
 .trip-list-card.active {
   border-color: rgba(15, 118, 110, 0.34);
   background: var(--color-primary-soft);
 }
 
+/**
+ * Card title with truncation.
+ * Single line overflow with ellipsis.
+ */
 .trip-card-title {
   overflow: hidden;
   color: var(--color-heading);
@@ -528,6 +882,10 @@
   white-space: nowrap;
 }
 
+/**
+ * Card metadata and footer.
+ * Flex layout with gap for metadata items.
+ */
 .trip-card-meta,
 .trip-card-footer {
   display: flex;
@@ -535,12 +893,24 @@
   gap: 7px;
 }
 
+/* ============================================================
+   VISIT SUMMARY
+   ============================================================ */
+
+/**
+ * Visit summary container with wrapping.
+ * Flex wrap for responsive badge display.
+ */
 .trip-visit-summary {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
+/**
+ * Individual visit badge.
+ * Rounded pill with background and padding.
+ */
 .trip-visit-summary span {
   display: inline-flex;
   align-items: center;
@@ -554,16 +924,28 @@
   line-height: 1;
 }
 
+/**
+ * First badge with special styling.
+ * Green background for primary destination.
+ */
 .trip-visit-summary span:first-child {
   background: #ecfdf5;
   color: #047857;
 }
 
+/**
+ * Card footer with space between items.
+ * Margin top for separation from content.
+ */
 .trip-card-footer {
   justify-content: space-between;
   margin-top: 4px;
 }
 
+/**
+ * Status badge in card footer.
+ * Rounded pill with blue colors.
+ */
 .trip-card-footer strong {
   border-radius: 999px;
   background: #e0f2fe;
@@ -572,6 +954,14 @@
   font-size: 11px;
 }
 
+/* ============================================================
+   EMPTY STATE
+   ============================================================ */
+
+/**
+ * Empty state container for no trips.
+ * Centered content with dashed border.
+ */
 .trip-empty-state {
   display: grid;
   justify-items: center;
@@ -583,21 +973,45 @@
   text-align: center;
 }
 
+/**
+ * Empty state text spacing.
+ * Removes margin for consistent alignment.
+ */
 .trip-empty-state h3,
 .trip-empty-state p {
   margin: 0;
 }
 
+/* ============================================================
+   SPIN ANIMATION
+   ============================================================ */
+
+/**
+ * Spinner animation for loading states.
+ * Infinite rotation with consistent speed.
+ */
 .trip-spin {
   animation: trip-spin 0.8s linear infinite;
 }
 
+/**
+ * Keyframes for spin animation.
+ * Full rotation from 0 to 360 degrees.
+ */
 @keyframes trip-spin {
   to {
     transform: rotate(360deg);
   }
 }
 
+/* ============================================================
+   RESPONSIVE BREAKPOINTS
+   ============================================================ */
+
+/**
+ * Medium screens - stack columns.
+ * Converts multi-column layouts to single column.
+ */
 @media (max-width: 1120px) {
   .trips-workspace {
     grid-template-columns: 1fr;
@@ -616,6 +1030,10 @@
   }
 }
 
+/**
+ * Small screens - stack and adjust spacing.
+ * Converts flex layouts to column, full-width buttons.
+ */
 @media (max-width: 760px) {
   .trips-header,
   .trip-create-toolbar,
@@ -657,27 +1075,50 @@
   }
 }
 
-/* Refined trip creation workspace */
+/* ============================================================
+   REFINED TRIP CREATION WORKSPACE
+   ============================================================ */
+
+/**
+ * Enhanced version of trips page with refined spacing.
+ * Uses relative positioning for layout context.
+ */
 .trips-page-comfort {
   gap: 20px;
   position: relative;
 }
 
+/**
+ * Removes pseudo-element content.
+ * Prevents unwanted decorative elements.
+ */
 .trips-page-comfort::before {
   content: none;
 }
 
+/**
+ * Header with bottom border for separation.
+ * Padding to create visual hierarchy.
+ */
 .trips-page-comfort .trips-header {
   border-bottom: 1px solid #e6edf5;
   padding: 4px 0 18px;
 }
 
+/**
+ * Larger heading with custom weight.
+ * Increased size for better visual impact.
+ */
 .trips-page-comfort .trips-header h2 {
   font-size: 30px;
   font-weight: 650;
   letter-spacing: 0;
 }
 
+/**
+ * Muted text with specific color and size.
+ * Improved readability for secondary text.
+ */
 .trips-page-comfort .trips-header p,
 .trips-page-comfort .trip-preview-heading p {
   color: #64748b;
@@ -685,6 +1126,10 @@
   line-height: 1.55;
 }
 
+/**
+ * Eyebrow text with customized styling.
+ * Specific color and weight for consistency.
+ */
 .trips-page-comfort .eyebrow,
 .trips-page-comfort .trip-section-heading span,
 .trips-page-comfort .trip-list-header span,
@@ -696,6 +1141,10 @@
   text-transform: none;
 }
 
+/**
+ * Button groups with refined styling.
+ * Subtle shadow and border for depth.
+ */
 .trips-page-comfort .trips-header-actions,
 .trips-page-comfort .trip-mode-toggle {
   gap: 4px;
@@ -705,10 +1154,18 @@
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.62);
 }
 
+/**
+ * Specific background override for header actions.
+ * Consistent with other button groups.
+ */
 .trips-page-comfort .trips-header-actions {
   background: #f8fafc;
 }
 
+/**
+ * Button styling with consistent border radius.
+ * Bold font weight for better readability.
+ */
 .trips-page-comfort .trips-header-actions button,
 .trips-page-comfort .trip-mode-toggle button,
 .trips-page-comfort .trip-choice-grid button,
@@ -718,6 +1175,10 @@
   font-weight: 600;
 }
 
+/**
+ * Active button state with white background.
+ * Shadow for depth and primary color for emphasis.
+ */
 .trips-page-comfort .trips-header-actions button.active,
 .trips-page-comfort .trip-mode-toggle button.active,
 .trips-page-comfort .trip-choice-grid button.active {
@@ -726,6 +1187,10 @@
   box-shadow: 0 1px 4px rgba(16, 42, 67, 0.08);
 }
 
+/**
+ * Trip count badge for My Trips button.
+ * Rounded pill with count and subtle styling.
+ */
 .trip-count-badge {
   display: inline-grid;
   min-width: 20px;
@@ -739,11 +1204,19 @@
   font-weight: 600;
 }
 
+/**
+ * Comfort layout with specific column widths.
+ * Form takes remaining space, preview has fixed minimum.
+ */
 .trips-page-comfort .trip-comfort-layout {
   grid-template-columns: minmax(0, 1fr) minmax(340px, 410px);
   gap: 22px;
 }
 
+/**
+ * Panel borders with consistent color.
+ * No shadow for cleaner appearance.
+ */
 .trips-page-comfort .trip-create-form-comfort,
 .trips-page-comfort .trip-preview-panel,
 .trips-page-comfort .trip-list-workspace,
@@ -752,12 +1225,24 @@
   box-shadow: none;
 }
 
+/**
+ * Form comfort with relative positioning.
+ * White background for clean appearance.
+ */
 .trips-page-comfort .trip-create-form-comfort {
   position: relative;
   overflow: hidden;
   background: #ffffff;
 }
 
+/* ============================================================
+   TRIP CREATE HERO SECTION
+   ============================================================ */
+
+/**
+ * Hero section at top of create form.
+ * Grid with auto columns for flexible layout.
+ */
 .trip-create-hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -769,6 +1254,10 @@
   padding: 22px 24px 20px;
 }
 
+/**
+ * Hero labels with teal color.
+ * Uppercase for visual hierarchy.
+ */
 .trip-create-hero span,
 .trip-preview-card-header span {
   color: var(--teal);
@@ -777,12 +1266,20 @@
   text-transform: uppercase;
 }
 
+/**
+ * Removes margin from hero headings and paragraphs.
+ * Ensures consistent spacing control.
+ */
 .trip-create-hero h3,
 .trip-create-hero p,
 .trip-preview-card-header h3 {
   margin: 0;
 }
 
+/**
+ * Hero heading with custom size and weight.
+ * Dark color for high contrast.
+ */
 .trip-create-hero h3 {
   margin-top: 4px;
   color: #0f172a;
@@ -791,6 +1288,10 @@
   line-height: 1.2;
 }
 
+/**
+ * Hero paragraph with max width.
+ * Muted color for secondary information.
+ */
 .trip-create-hero p {
   max-width: 620px;
   margin-top: 8px;
@@ -799,12 +1300,24 @@
   line-height: 1.55;
 }
 
+/**
+ * Create actions container.
+ * Grid with items aligned to end.
+ */
 .trip-create-actions {
   display: grid;
   justify-items: end;
   gap: 10px;
 }
 
+/* ============================================================
+   FORM SUMMARY
+   ============================================================ */
+
+/**
+ * Summary grid for trip metrics.
+ * Three equal columns with gaps.
+ */
 .trip-form-summary {
   margin-top: 2px;
   display: grid;
@@ -812,6 +1325,10 @@
   gap: 14px;
 }
 
+/**
+ * Individual summary item.
+ * Grid with icon and text columns.
+ */
 .trip-form-summary span {
   position: relative;
   display: grid;
@@ -828,14 +1345,26 @@
   box-shadow: none;
 }
 
+/**
+ * Consistent background for summary items.
+ * Maintains visual uniformity.
+ */
 .trip-form-summary span:nth-child(2) {
   background: #f8fafc;
 }
 
+/**
+ * Consistent background for summary items.
+ * Maintains visual uniformity.
+ */
 .trip-form-summary span:nth-child(3) {
   background: #f8fafc;
 }
 
+/**
+ * Icon container within summary.
+ * Grid spanning two rows with fixed dimensions.
+ */
 .trip-form-summary i {
   display: grid;
   grid-row: span 2;
@@ -848,18 +1377,30 @@
   box-shadow: none;
 }
 
+/**
+ * Consistent icon styling across summary items.
+ * White background with muted color.
+ */
 .trip-form-summary span:nth-child(2) i {
   background: #ffffff;
   color: #64748b;
   box-shadow: none;
 }
 
+/**
+ * Consistent icon styling across summary items.
+ * White background with muted color.
+ */
 .trip-form-summary span:nth-child(3) i {
   background: #ffffff;
   color: #64748b;
   box-shadow: none;
 }
 
+/**
+ * Small label text in summary.
+ * Uppercase with subtle color.
+ */
 .trip-form-summary small {
   display: block;
   color: #64748b;
@@ -869,6 +1410,10 @@
   text-transform: uppercase;
 }
 
+/**
+ * Strong value text in summary.
+ * Dark color with larger size.
+ */
 .trip-form-summary strong {
   color: #0f172a;
   font-size: 17px;
@@ -876,6 +1421,14 @@
   line-height: 1.25;
 }
 
+/* ============================================================
+   STEP NAVIGATION
+   ============================================================ */
+
+/**
+ * Sticky step navigation bar.
+ * Grid with equal columns and top positioning.
+ */
 .trip-step-nav {
   position: sticky;
   top: 0;
@@ -890,6 +1443,10 @@
   box-shadow: none;
 }
 
+/**
+ * Step navigation links.
+ * Flex with centered content and text styling.
+ */
 .trip-step-nav a {
   position: relative;
   display: flex;
@@ -909,6 +1466,10 @@
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
 }
 
+/**
+ * Connector line between steps.
+ * Positioned absolutely between adjacent links.
+ */
 .trip-step-nav a:not(:last-child)::before {
   content: "";
   position: absolute;
@@ -919,6 +1480,10 @@
   background: #dbe3ed;
 }
 
+/**
+ * Hover and focus states for step links.
+ * Teal color with outline removal.
+ */
 .trip-step-nav a:hover,
 .trip-step-nav a:focus-visible {
   color: var(--teal);
@@ -926,6 +1491,10 @@
   outline: none;
 }
 
+/**
+ * Bottom indicator for active step.
+ * Centered line with transition.
+ */
 .trip-step-nav a::after {
   content: "";
   position: absolute;
@@ -940,11 +1509,19 @@
   transition: background 0.15s ease;
 }
 
+/**
+ * Active indicator on hover.
+ * Teal color for visual feedback.
+ */
 .trip-step-nav a:hover::after,
 .trip-step-nav a:focus-visible::after {
   background: var(--teal);
 }
 
+/**
+ * Step number badge.
+ * Rounded with border and centered text.
+ */
 .trip-step-nav span {
   display: inline-grid;
   width: 24px;
@@ -960,12 +1537,20 @@
   z-index: 1;
 }
 
+/**
+ * First step badge with teal background.
+ * White text for contrast.
+ */
 .trip-step-nav a:first-child span {
   background: var(--teal);
   border-color: var(--teal);
   color: #ffffff;
 }
 
+/**
+ * Hover state for step badges.
+ * Teal background with white text.
+ */
 .trip-step-nav a:hover span,
 .trip-step-nav a:focus-visible span {
   background: var(--teal);
@@ -973,12 +1558,24 @@
   color: #ffffff;
 }
 
+/**
+ * Step text with truncation.
+ * Single line with ellipsis for overflow.
+ */
 .trip-step-nav strong {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+/* ============================================================
+   DATE BOX AND SECTION STYLING
+   ============================================================ */
+
+/**
+ * Date box with refined border and background.
+ * No shadow for cleaner appearance.
+ */
 .trips-page-comfort .trip-date-box {
   border-color: #e2e8f0;
   border-radius: 6px;
@@ -986,6 +1583,10 @@
   box-shadow: none;
 }
 
+/**
+ * Section with scroll margin for anchor navigation.
+ * White background with no shadow.
+ */
 .trips-page-comfort .trip-create-section {
   position: relative;
   overflow: hidden;
@@ -996,22 +1597,42 @@
   box-shadow: none;
 }
 
+/* ============================================================
+   FLEXIBLE DATE PICKER
+   ============================================================ */
+
+/**
+ * Container for flexible date options.
+ * Grid with consistent gap between elements.
+ */
 .trip-flexible-picker {
   display: grid;
   gap: 16px;
 }
 
+/**
+ * Inner container for flexible options.
+ * Grid with gap for spacing.
+ */
 .trip-flexible-picker > div {
   display: grid;
   gap: 9px;
 }
 
+/**
+ * Grid of flexible date options.
+ * Auto-fit with minimum width for buttons.
+ */
 .trip-flexible-options {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
   gap: 8px;
 }
 
+/**
+ * Individual flexible option button.
+ * Border with rounded corners and bold text.
+ */
 .trip-flexible-options button {
   min-height: 42px;
   border: 1px solid #cbd5e1;
@@ -1023,6 +1644,10 @@
   font-weight: 650;
 }
 
+/**
+ * Active state for flexible option.
+ * Teal border with soft background and glow.
+ */
 .trip-flexible-options button.active {
   border-color: var(--teal);
   background: #f0fdfa;
@@ -1030,6 +1655,10 @@
   box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.12);
 }
 
+/**
+ * Summary of flexible date selection.
+ * Orange border with warm background.
+ */
 .trip-flexible-summary {
   margin: 0;
   border: 1px solid #fed7aa;
@@ -1041,6 +1670,10 @@
   font-weight: 600;
 }
 
+/**
+ * Section heading with consistent styling.
+ * Dark color with bold weight.
+ */
 .trips-page-comfort .trip-section-heading h3,
 .trips-page-comfort .trip-list-header h3,
 .trips-page-comfort .trip-preview-heading h3 {
@@ -1049,6 +1682,10 @@
   font-weight: 650;
 }
 
+/**
+ * Section heading with bottom border.
+ * Flex layout with content aligned to start.
+ */
 .trips-page-comfort .trip-section-heading {
   align-items: center;
   justify-content: flex-start;
@@ -1056,6 +1693,14 @@
   padding-bottom: 14px;
 }
 
+/* ============================================================
+   SECTION ICONS
+   ============================================================ */
+
+/**
+ * Icon container for section headers.
+ * Fixed size with border and background.
+ */
 .trip-section-icon {
   display: inline-flex;
   flex: 0 0 auto;
@@ -1069,18 +1714,30 @@
   box-shadow: inset 0 0 0 1px #dbe3ed;
 }
 
+/**
+ * Destination section icon variant.
+ * Consistent with other section icons.
+ */
 .trip-section-icon-destination {
   background: #ffffff;
   color: var(--teal);
   box-shadow: inset 0 0 0 1px #dbe3ed;
 }
 
+/**
+ * Preferences section icon variant.
+ * Uses sun color for differentiation.
+ */
 .trip-section-icon-preferences {
   background: #ffffff;
   color: var(--sun);
   box-shadow: inset 0 0 0 1px #dbe3ed;
 }
 
+/**
+ * Step label in section heading.
+ * Teal color with uppercase text.
+ */
 .trip-section-step-label {
   width: fit-content;
   border: 0;
@@ -1095,6 +1752,10 @@
   box-shadow: none;
 }
 
+/**
+ * Paragraph text in section heading.
+ * Muted color with readable size.
+ */
 .trips-page-comfort .trip-section-heading p {
   margin: 5px 0 0;
   color: #64748b;
@@ -1102,21 +1763,41 @@
   line-height: 1.45;
 }
 
+/**
+ * Form grid with increased gap.
+ * Better spacing between fields.
+ */
 .trips-page-comfort .trip-form-grid {
   gap: 14px;
 }
 
+/**
+ * Date toggle with border and background.
+ * Consistent with other toggle components.
+ */
 .trips-page-comfort .trip-date-toggle {
   border: 1px solid #dbe3ed;
   border-radius: 6px;
   background: #ffffff;
 }
 
+/**
+ * Date toggle button with rounded corners.
+ * Bold font for better readability.
+ */
 .trips-page-comfort .trip-date-toggle button {
   border-radius: 4px;
   font-weight: 600;
 }
 
+/* ============================================================
+   FORM FIELD STYLING
+   ============================================================ */
+
+/**
+ * Consistent font weight for form labels.
+ * Bold for better readability.
+ */
 .trips-page-comfort .trip-form-grid span,
 .trips-page-comfort .trip-segment-fields span,
 .trips-page-comfort .trip-ai-prompt span,
@@ -1126,6 +1807,10 @@
   font-weight: 600;
 }
 
+/**
+ * Select input styling.
+ * Full width with consistent height and border.
+ */
 .trips-page-comfort .trip-form-grid select,
 .trips-page-comfort .trip-segment-fields select {
   width: 100%;
@@ -1139,6 +1824,10 @@
   font-size: 14px;
 }
 
+/**
+ * Input and select focus state.
+ * Border color change with glow effect.
+ */
 .trips-page-comfort .trip-form-grid input,
 .trips-page-comfort .trip-form-grid select,
 .trips-page-comfort .trip-segment-fields input,
@@ -1148,12 +1837,20 @@
   transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 
+/**
+ * Placeholder text styling.
+ * Muted color for placeholder content.
+ */
 .trips-page-comfort .trip-form-grid input::placeholder,
 .trips-page-comfort .trip-segment-fields input::placeholder,
 .trips-page-comfort .trip-ai-prompt textarea::placeholder {
   color: #94a3b8;
 }
 
+/**
+ * Focus state for form inputs.
+ * Teal border with glow effect.
+ */
 .trips-page-comfort .trip-form-grid input:focus,
 .trips-page-comfort .trip-form-grid select:focus,
 .trips-page-comfort .trip-segment-fields input:focus,
@@ -1163,6 +1860,14 @@
   outline: 3px solid rgba(15, 118, 110, 0.12);
 }
 
+/* ============================================================
+   SECTION HELPER TEXT
+   ============================================================ */
+
+/**
+ * Helper text below section headings.
+ * Muted color with readable size.
+ */
 .trip-section-helper {
   max-width: 760px;
   margin: -4px 0 2px;
@@ -1171,6 +1876,10 @@
   line-height: 1.55;
 }
 
+/**
+ * Segment card with refined styling.
+ * Grid with specific column proportions.
+ */
 .trips-page-comfort .trip-segment-card {
   grid-template-columns: 28px minmax(0, 1fr) auto;
   border-color: #e2e8f0;
@@ -1179,6 +1888,10 @@
   box-shadow: none;
 }
 
+/**
+ * Segment number with teal background.
+ * Fixed size with centered content.
+ */
 .trips-page-comfort .trip-segment-number {
   width: 26px;
   height: 26px;
@@ -1186,6 +1899,14 @@
   font-size: 12px;
 }
 
+/* ============================================================
+   SECONDARY LINKS AND BUTTONS
+   ============================================================ */
+
+/**
+ * Secondary link styling.
+ * Primary color with soft background.
+ */
 .trip-secondary-link,
 .trip-directory-header button {
   display: inline-flex;
@@ -1202,10 +1923,18 @@
   font-weight: 600;
 }
 
+/**
+ * Secondary link alignment.
+ * Justifies to the start of container.
+ */
 .trip-secondary-link {
   justify-self: start;
 }
 
+/**
+ * Budget summary with refined styling.
+ * White background with border.
+ */
 .trips-page-comfort .trip-budget-summary {
   border-color: #dbe3ed;
   border-radius: 6px;
@@ -1213,6 +1942,14 @@
   color: #334155;
 }
 
+/* ============================================================
+   OPTIONAL DETAILS ACCORDION REFINED
+   ============================================================ */
+
+/**
+ * Optional details with scroll margin.
+ * White background with border.
+ */
 .trips-page-comfort .trip-optional-details {
   scroll-margin-top: 74px;
   border-color: #e2e8f0;
@@ -1220,6 +1957,10 @@
   box-shadow: none;
 }
 
+/**
+ * Summary element with custom list style.
+ * Removes default marker for custom styling.
+ */
 .trips-page-comfort .trip-optional-details summary {
   position: relative;
   display: block;
@@ -1231,10 +1972,18 @@
   list-style: none;
 }
 
+/**
+ * Hides default details marker.
+ * Uses custom pseudo-element instead.
+ */
 .trips-page-comfort .trip-optional-details summary::-webkit-details-marker {
   display: none;
 }
 
+/**
+ * Custom expand/collapse indicator.
+ * Chevron arrow that rotates on open state.
+ */
 .trips-page-comfort .trip-optional-details summary::before {
   content: "";
   position: absolute;
@@ -1248,10 +1997,18 @@
   transition: transform 0.16s ease;
 }
 
+/**
+ * Rotates chevron when details are open.
+ * Visual feedback for expanded state.
+ */
 .trips-page-comfort .trip-optional-details[open] summary::before {
   transform: rotate(45deg);
 }
 
+/**
+ * Summary content with left margin for icon.
+ * Block display for proper stacking.
+ */
 .trips-page-comfort .trip-optional-details summary strong,
 .trips-page-comfort .trip-optional-details summary small {
   display: block;
@@ -1259,10 +2016,18 @@
   margin-left: 56px;
 }
 
+/**
+ * Step label with left margin for alignment.
+ * Matches other summary content indentation.
+ */
 .trips-page-comfort .trip-optional-details summary .trip-section-step-label {
   margin: 0 0 6px 56px;
 }
 
+/**
+ * Icon positioning within summary.
+ * Absolute positioned with consistent left/top.
+ */
 .trips-page-comfort .trip-optional-details summary .trip-section-icon {
   position: absolute;
   left: 16px;
@@ -1270,26 +2035,50 @@
   margin-left: 0;
 }
 
+/**
+ * Strong text within summary.
+ * Dark color with readable size.
+ */
 .trips-page-comfort .trip-optional-details summary strong {
   color: #0f172a;
   font-size: 14px;
   font-weight: 500;
 }
 
+/**
+ * Small text within summary.
+ * Muted color with lighter weight.
+ */
 .trips-page-comfort .trip-optional-details summary small {
   color: #64748b;
   font-size: 12px;
   font-weight: 500;
 }
 
+/**
+ * Inner section background.
+ * White for clean appearance.
+ */
 .trips-page-comfort .trip-optional-details .trip-create-section {
   background: #ffffff;
 }
 
+/* ============================================================
+   MAP AND PREVIEW COMPONENTS
+   ============================================================ */
+
+/**
+ * Shared map container with minimum height.
+ * Consistent sizing across components.
+ */
 .trips-page-comfort .shared-trip-map {
   min-height: 250px;
 }
 
+/**
+ * Preview card header with flex layout.
+ * Border bottom for separation.
+ */
 .trip-preview-card-header {
   display: flex;
   align-items: start;
@@ -1300,6 +2089,10 @@
   padding: 15px 16px;
 }
 
+/**
+ * Preview card heading with truncation.
+ * Single line with ellipsis for overflow.
+ */
 .trip-preview-card-header h3 {
   overflow: hidden;
   max-width: 260px;
@@ -1310,6 +2103,10 @@
   white-space: nowrap;
 }
 
+/**
+ * Small badge in preview header.
+ * Rounded with subtle background.
+ */
 .trip-preview-card-header small {
   flex: 0 0 auto;
   border-radius: 999px;
@@ -1320,17 +2117,33 @@
   font-weight: 650;
 }
 
+/**
+ * Preview content with top border.
+ * White background for content area.
+ */
 .trips-page-comfort .trip-preview-content {
   border-top: 1px solid #e6edf5;
   background: #ffffff;
 }
 
+/* ============================================================
+   PREVIEW METRICS
+   ============================================================ */
+
+/**
+ * Metrics container with flex wrap.
+ * Responsive display for metric badges.
+ */
 .trip-preview-metrics {
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
 }
 
+/**
+ * Individual metric badge.
+ * Border with subtle background and padding.
+ */
 .trip-preview-metrics span {
   border: 1px solid #e2e8f0;
   border-radius: 999px;
@@ -1341,16 +2154,32 @@
   font-weight: 650;
 }
 
+/* ============================================================
+   RECENT LIST AND CARDS
+   ============================================================ */
+
+/**
+ * Recent list with scrollable overflow.
+ * Height constrained for scrolling.
+ */
 .trips-page-comfort .trip-recent-list {
   max-height: none;
   min-height: 0;
   overflow-y: auto;
 }
 
+/**
+ * Compact card grid with reduced gap.
+ * Tighter spacing for dense layout.
+ */
 .trips-page-comfort .trip-card-grid-compact {
   gap: 10px;
 }
 
+/**
+ * List card with hover effects.
+ * Border and shadow transition on hover.
+ */
 .trips-page-comfort .trip-list-card {
   border-color: #e2e8f0;
   border-radius: 7px;
@@ -1358,12 +2187,24 @@
   transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 
+/**
+ * Hover state with lift effect.
+ * Subtle shadow and vertical translation.
+ */
 .trips-page-comfort .trip-list-card:hover {
   border-color: rgba(15, 118, 110, 0.32);
   box-shadow: 0 10px 22px rgba(16, 42, 67, 0.07);
   transform: translateY(-1px);
 }
 
+/* ============================================================
+   TRIP DIRECTORY
+   ============================================================ */
+
+/**
+ * Directory container with grid layout.
+ * Padding and border for visual separation.
+ */
 .trip-directory {
   display: grid;
   gap: 18px;
@@ -1373,6 +2214,10 @@
   padding: 20px;
 }
 
+/**
+ * Directory hero section with flex layout.
+ * Border bottom for visual separation.
+ */
 .trip-directory-hero {
   display: flex;
   align-items: flex-start;
@@ -1384,6 +2229,10 @@
   padding: 22px 24px;
 }
 
+/**
+ * Directory hero labels.
+ * Muted color with uppercase text.
+ */
 .trip-directory-hero span,
 .trip-directory-header span {
   color: #64748b;
@@ -1392,12 +2241,20 @@
   text-transform: uppercase;
 }
 
+/**
+ * Removes margin from hero headings.
+ * Consistent spacing control.
+ */
 .trip-directory-hero h3,
 .trip-directory-hero p,
 .trip-directory-header h4 {
   margin: 0;
 }
 
+/**
+ * Hero heading with large size.
+ * Dark color with bold weight.
+ */
 .trip-directory-hero h3 {
   margin-top: 4px;
   color: #0f172a;
@@ -1405,6 +2262,10 @@
   font-weight: 600;
 }
 
+/**
+ * Hero paragraph with max width.
+ * Muted color with readable size.
+ */
 .trip-directory-hero p {
   max-width: 620px;
   margin-top: 7px;
@@ -1413,6 +2274,10 @@
   line-height: 1.5;
 }
 
+/**
+ * Hero action button.
+ * Border with white background and shadow.
+ */
 .trip-directory-hero button {
   display: inline-flex;
   align-items: center;
@@ -1426,6 +2291,10 @@
   box-shadow: 0 8px 18px rgba(16, 42, 67, 0.06);
 }
 
+/**
+ * Hero card with backdrop blur.
+ * Grid with centered content and glass effect.
+ */
 .trip-directory-hero-card {
   display: grid;
   justify-items: center;
@@ -1440,6 +2309,10 @@
   box-shadow: none;
 }
 
+/**
+ * Hero card main value.
+ * Large text with bold weight.
+ */
 .trip-directory-hero-card span {
   color: #0f172a;
   font-size: 24px;
@@ -1447,33 +2320,61 @@
   text-transform: none;
 }
 
+/**
+ * Hero card label.
+ * Muted color with smaller size.
+ */
 .trip-directory-hero-card small {
   color: #64748b;
   font-size: 12px;
   font-weight: 500;
 }
 
+/**
+ * Hero button with padding and font weight.
+ * Consistent with other action buttons.
+ */
 .trip-directory-hero button {
   padding: 0 13px;
   font-size: 13px;
   font-weight: 700;
 }
 
+/**
+ * Specific override for hero action button.
+ * Dark text color for contrast.
+ */
 .trip-directory-hero > button {
   color: #0f172a;
 }
 
+/**
+ * Consistent muted color for labels.
+ * Applied across multiple components.
+ */
 .trip-preview-card-header span,
 .trip-directory-header span {
   color: #64748b;
 }
 
+/* ============================================================
+   DIRECTORY STATISTICS
+   ============================================================ */
+
+/**
+ * Stats grid with three columns.
+ * Consistent gap between stat items.
+ */
 .trip-directory-stats {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
 }
 
+/**
+ * Individual stat item.
+ * Grid with icon and text columns.
+ */
 .trip-directory-stats span {
   position: relative;
   display: grid;
@@ -1489,6 +2390,10 @@
   box-shadow: none;
 }
 
+/**
+ * Icon container within stats.
+ * Fixed size with rounded background.
+ */
 .trip-directory-stats i {
   display: grid;
   grid-row: span 2;
@@ -1500,6 +2405,10 @@
   color: #64748b;
 }
 
+/**
+ * Label text in stats.
+ * Uppercase with muted color.
+ */
 .trip-directory-stats small {
   display: block;
   color: #64748b;
@@ -1509,6 +2418,10 @@
   text-transform: uppercase;
 }
 
+/**
+ * Value text in stats.
+ * Dark color with larger size.
+ */
 .trip-directory-stats strong {
   color: #0f172a;
   font-size: 17px;
@@ -1516,6 +2429,14 @@
   line-height: 1.25;
 }
 
+/* ============================================================
+   DIRECTORY HEADER AND SEARCH
+   ============================================================ */
+
+/**
+ * Header with flex layout.
+ * Aligns items with space between.
+ */
 .trip-directory-header {
   display: flex;
   align-items: center;
@@ -1523,12 +2444,20 @@
   gap: 14px;
 }
 
+/**
+ * Header heading with custom size.
+ * Bold weight for emphasis.
+ */
 .trip-directory-header h3 {
   margin: 2px 0 0;
   font-size: 22px;
   font-weight: 600;
 }
 
+/**
+ * Subheading with custom styling.
+ * Dark color with bold weight.
+ */
 .trip-directory-header h4 {
   margin-top: 2px;
   color: #0f172a;
@@ -1536,16 +2465,32 @@
   font-weight: 700;
 }
 
+/**
+ * Large search field variant.
+ * Maximum width for spacious layout.
+ */
 .trip-search-field-large {
   max-width: 520px;
 }
 
+/* ============================================================
+   DIRECTORY CARDS
+   ============================================================ */
+
+/**
+ * Directory card grid with auto-fill.
+ * Responsive cards with minimum width.
+ */
 .trip-directory-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
   gap: 14px;
 }
 
+/**
+ * Individual directory card with relative positioning.
+ * Border and padding for content separation.
+ */
 .trip-directory-card {
   position: relative;
   display: grid;
@@ -1558,6 +2503,10 @@
   transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
 
+/**
+ * Decorative top border gradient.
+ * Positioned at the top of the card.
+ */
 .trip-directory-card::before {
   content: "";
   position: absolute;
@@ -1567,6 +2516,10 @@
   background: linear-gradient(90deg, var(--teal), var(--sun));
 }
 
+/**
+ * Card art icon container.
+ * Rounded background with icon color.
+ */
 .trip-directory-card-art {
   display: grid;
   width: 46px;
@@ -1578,12 +2531,20 @@
   box-shadow: inset 0 0 0 1px rgba(15, 118, 110, 0.14);
 }
 
+/**
+ * Hover state with lift and shadow.
+ * Subtle visual feedback for interactivity.
+ */
 .trip-directory-card:hover {
   border-color: rgba(15, 118, 110, 0.32);
   box-shadow: 0 6px 14px rgba(16, 42, 67, 0.06);
   transform: translateY(-1px);
 }
 
+/**
+ * Card top and footer sections.
+ * Flex layout with space between.
+ */
 .trip-directory-card-top,
 .trip-directory-card-footer {
   display: flex;
@@ -1593,6 +2554,10 @@
   min-width: 0;
 }
 
+/**
+ * Card badge styling.
+ * Rounded with subtle background.
+ */
 .trip-directory-card-top > span,
 .trip-directory-card-footer > span {
   width: fit-content;
@@ -1604,6 +2569,10 @@
   font-weight: 600;
 }
 
+/**
+ * Emphasized text in card top.
+ * Teal color with bold weight.
+ */
 .trip-directory-card-top em {
   color: var(--teal);
   font-size: 12px;
@@ -1611,6 +2580,10 @@
   font-weight: 700;
 }
 
+/**
+ * Card title with truncation.
+ * Single line with ellipsis for overflow.
+ */
 .trip-directory-card strong {
   overflow: hidden;
   color: var(--color-heading);
@@ -1620,6 +2593,10 @@
   white-space: nowrap;
 }
 
+/**
+ * Card metadata text.
+ * Flex layout with gap for icon alignment.
+ */
 .trip-directory-card small,
 .trip-directory-card em,
 .trip-directory-card-footer a {
@@ -1632,16 +2609,32 @@
   font-style: normal;
 }
 
+/**
+ * Metadata container with grid layout.
+ * Consistent gap between metadata items.
+ */
 .trip-directory-card-meta {
   display: grid;
   gap: 7px;
 }
 
+/**
+ * Footer link styling.
+ * Primary color with bold weight.
+ */
 .trip-directory-card-footer a {
   color: var(--color-primary);
   font-weight: 600;
 }
 
+/* ============================================================
+   DASHBOARD HEADER
+   ============================================================ */
+
+/**
+ * Dashboard header with flex layout.
+ * Space between for action placement.
+ */
 .trips-dashboard-header {
   display: flex;
   align-items: flex-start;
@@ -1649,11 +2642,19 @@
   gap: 18px;
 }
 
+/**
+ * Removes margin from header text.
+ * Consistent spacing control.
+ */
 .trips-dashboard-header h2,
 .trips-dashboard-header p {
   margin: 0;
 }
 
+/**
+ * Dashboard heading with custom styling.
+ * Dark color with large size and bold weight.
+ */
 .trips-dashboard-header h2 {
   color: #07142f;
   font-size: 30px;
@@ -1661,6 +2662,10 @@
   line-height: 1.1;
 }
 
+/**
+ * Dashboard paragraph with margin.
+ * Muted color with readable size.
+ */
 .trips-dashboard-header p {
   margin-top: 10px;
   color: #365174;
@@ -1668,12 +2673,20 @@
   font-weight: 500;
 }
 
+/**
+ * Dashboard action buttons container.
+ * Inline-flex with gap for button spacing.
+ */
 .trips-dashboard-actions {
   display: inline-flex;
   gap: 12px;
   align-items: center;
 }
 
+/**
+ * Dashboard action buttons.
+ * Border with white background and bold text.
+ */
 .trips-dashboard-actions button {
   display: inline-flex;
   align-items: center;
@@ -1689,12 +2702,24 @@
   font-weight: 720;
 }
 
+/**
+ * Active state for dashboard actions.
+ * Teal border with soft background.
+ */
 .trips-dashboard-actions button.active {
   border-color: #bee8df;
   background: #eefcf8;
   color: #00866c;
 }
 
+/* ============================================================
+   DASHBOARD PANEL
+   ============================================================ */
+
+/**
+ * Dashboard panel with grid layout.
+ * Border, background, and padding for content.
+ */
 .trip-dashboard-panel {
   display: grid;
   gap: 22px;
@@ -1705,6 +2730,10 @@
   box-shadow: 0 16px 36px rgba(15, 23, 42, 0.04);
 }
 
+/**
+ * Toolbar and heading with flex layout.
+ * Space between for action placement.
+ */
 .trip-dashboard-toolbar,
 .trip-dashboard-heading {
   display: flex;
@@ -1713,12 +2742,20 @@
   gap: 16px;
 }
 
+/**
+ * Filter buttons container with flex wrap.
+ * Responsive wrapping for filter options.
+ */
 .trip-dashboard-filters {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
 }
 
+/**
+ * Filter and sort buttons.
+ * Border with rounded pills and bold text.
+ */
 .trip-dashboard-filters button,
 .trip-dashboard-sort {
   min-height: 38px;
@@ -1731,12 +2768,20 @@
   font-weight: 720;
 }
 
+/**
+ * Active filter button.
+ * Teal border with soft background.
+ */
 .trip-dashboard-filters button.active {
   border-color: #91ddcd;
   background: #f1fffb;
   color: #00866c;
 }
 
+/**
+ * Sort dropdown container.
+ * Grid with custom arrow positioning.
+ */
 .trip-dashboard-sort {
   position: relative;
   display: inline-grid;
@@ -1746,6 +2791,10 @@
   padding: 0 12px;
 }
 
+/**
+ * Sort select input.
+ * Custom appearance removed with min-width.
+ */
 .trip-dashboard-sort select {
   min-width: 138px;
   border: 0;
@@ -1755,17 +2804,33 @@
   font: inherit;
 }
 
+/**
+ * Sort arrow icon.
+ * Muted color with pointer-events disabled.
+ */
 .trip-dashboard-sort svg {
   color: #64748b;
   pointer-events: none;
 }
 
+/* ============================================================
+   DASHBOARD STATISTICS
+   ============================================================ */
+
+/**
+ * Stats grid with five columns.
+ * Consistent gap between stat items.
+ */
 .trip-dashboard-stats {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 14px;
 }
 
+/**
+ * Individual stat item with grid layout.
+ * Icon with multiple text rows.
+ */
 .trip-dashboard-stats > span {
   display: grid;
   grid-template-columns: 48px minmax(0, 1fr);
@@ -1779,6 +2844,10 @@
   box-shadow: 0 10px 26px rgba(15, 23, 42, 0.045);
 }
 
+/**
+ * Stat icon container.
+ * Grid spanning multiple rows with fixed size.
+ */
 .trip-dashboard-stats i {
   display: grid;
   grid-row: span 3;
@@ -1790,16 +2859,28 @@
   color: #00866c;
 }
 
+/**
+ * Specific icon styling for different stat types.
+ * Different background colors for visual variety.
+ */
 .trip-dashboard-stats > span:nth-child(3) i {
   background: #e8f7ff;
   color: #0284c7;
 }
 
+/**
+ * Specific icon styling for different stat types.
+ * Different background colors for visual variety.
+ */
 .trip-dashboard-stats > span:nth-child(5) i {
   background: #fff0f7;
   color: #db2777;
 }
 
+/**
+ * Stat label and helper text.
+ * Muted color with smaller size.
+ */
 .trip-dashboard-stats small,
 .trip-dashboard-stats em {
   overflow: hidden;
@@ -1811,6 +2892,10 @@
   white-space: nowrap;
 }
 
+/**
+ * Stat value.
+ * Dark color with large size.
+ */
 .trip-dashboard-stats strong {
   color: #07142f;
   font-size: 24px;
@@ -1818,6 +2903,10 @@
   line-height: 1.1;
 }
 
+/**
+ * Dashboard heading with custom styling.
+ * Dark color with bold weight.
+ */
 .trip-dashboard-heading h3 {
   margin: 0;
   color: #07142f;
@@ -1825,12 +2914,24 @@
   font-weight: 760;
 }
 
+/* ============================================================
+   DASHBOARD CARDS
+   ============================================================ */
+
+/**
+ * Dashboard card grid with three columns.
+ * Responsive cards with minimum width.
+ */
 .trip-dashboard-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(260px, 1fr));
   gap: 20px;
 }
 
+/**
+ * Individual dashboard card.
+ * Relative positioning with border and shadow.
+ */
 .trip-dashboard-card {
   position: relative;
   overflow: visible;
@@ -1840,6 +2941,10 @@
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
 }
 
+/**
+ * Card image container.
+ * Background image with gradient overlay.
+ */
 .trip-dashboard-card-image {
   position: relative;
   display: block;
@@ -1850,42 +2955,78 @@
   border-radius: 8px 8px 0 0;
 }
 
+/**
+ * Image link overlay.
+ * Covers the entire image area.
+ */
 .trip-dashboard-card-image-link {
   position: absolute;
   inset: 0;
   z-index: 1;
 }
 
+/* ============================================================
+   CARD PHOTO VARIANTS
+   ============================================================ */
+
+/**
+ * Photo variant 0 - Teal and green tones.
+ * Multiple gradient layers for visual interest.
+ */
 .trip-photo-0 {
   background-image:
     linear-gradient(180deg, rgba(15, 23, 42, 0.02), rgba(15, 23, 42, 0.16)),
     linear-gradient(135deg, #123c46 0 24%, #bfd9df 24% 33%, #f7efe3 33% 46%, #9fcfbe 46% 62%, #6a9f80 62% 100%);
 }
 
+/**
+ * Photo variant 1 - Blue and earth tones.
+ * Multiple gradient layers for visual interest.
+ */
 .trip-photo-1 {
   background-image:
     linear-gradient(180deg, rgba(15, 23, 42, 0.02), rgba(15, 23, 42, 0.14)),
     linear-gradient(135deg, #8dc7f0 0 34%, #f3f5f0 34% 42%, #8a6b3f 42% 52%, #4b8b65 52% 72%, #c7a15a 72% 100%);
 }
 
+/**
+ * Photo variant 2 - Blue and white tones.
+ * Multiple gradient layers for visual interest.
+ */
 .trip-photo-2 {
   background-image:
     linear-gradient(180deg, rgba(15, 23, 42, 0.02), rgba(15, 23, 42, 0.14)),
     linear-gradient(135deg, #b8dcf4 0 38%, #ffffff 38% 48%, #547ca0 48% 62%, #244763 62% 78%, #b7d7e6 78% 100%);
 }
 
+/**
+ * Photo variant 3 - Dark blue tones.
+ * Multiple gradient layers for visual interest.
+ */
 .trip-photo-3 {
   background-image:
     linear-gradient(180deg, rgba(15, 23, 42, 0.05), rgba(15, 23, 42, 0.22)),
     linear-gradient(135deg, #2c4363 0 28%, #738aa5 28% 42%, #23314d 42% 55%, #7e97b8 55% 68%, #d1d8e4 68% 100%);
 }
 
+/**
+ * Photo variant 4 - Cyan and green tones.
+ * Multiple gradient layers for visual interest.
+ */
 .trip-photo-4 {
   background-image:
     linear-gradient(180deg, rgba(15, 23, 42, 0.02), rgba(15, 23, 42, 0.12)),
     linear-gradient(135deg, #77d9eb 0 38%, #ecfbff 38% 46%, #3ca982 46% 62%, #a7d383 62% 76%, #f6f1de 76% 100%);
 }
 
+/* ============================================================
+   STATUS PILLS AND FAVORITES
+   ============================================================ */
+
+/**
+ * Status pill positioned on card.
+ * Absolute positioned with z-index for overlay.
+ */
 .trip-status-pill {
   position: absolute;
   z-index: 2;
@@ -1900,6 +3041,10 @@
   box-shadow: 0 6px 16px rgba(15, 23, 42, 0.12);
 }
 
+/**
+ * Status indicator dot.
+ * Inline circle with current color.
+ */
 .trip-status-pill::before {
   content: "";
   display: inline-block;
@@ -1911,22 +3056,42 @@
   vertical-align: 1px;
 }
 
+/**
+ * Active status color.
+ * Green for currently in-progress trips.
+ */
 .trip-status-pill.is-active {
   color: #00866c;
 }
 
+/**
+ * Upcoming status color.
+ * Blue for future trips.
+ */
 .trip-status-pill.is-upcoming {
   color: #2563eb;
 }
 
+/**
+ * Past status color.
+ * Gray for completed trips.
+ */
 .trip-status-pill.is-past {
   color: #64748b;
 }
 
+/**
+ * Draft status color.
+ * Amber for incomplete trips.
+ */
 .trip-status-pill.is-draft {
   color: #f59e0b;
 }
 
+/**
+ * Favorite button positioned on card.
+ * Absolute positioned with z-index for overlay.
+ */
 .trip-dashboard-favorite {
   position: absolute;
   z-index: 3;
@@ -1943,23 +3108,43 @@
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.14);
 }
 
+/**
+ * Favorite button hover and active states.
+ * Red color for favorite indication.
+ */
 .trip-dashboard-favorite:hover,
 .trip-dashboard-favorite.active {
   border-color: rgba(220, 38, 38, 0.24);
   color: #dc2626;
 }
 
+/**
+ * Disabled favorite button.
+ * Reduced opacity with wait cursor.
+ */
 .trip-dashboard-favorite:disabled {
   cursor: wait;
   opacity: 0.76;
 }
 
+/* ============================================================
+   CARD BODY AND CONTENT
+   ============================================================ */
+
+/**
+ * Card body with grid layout.
+ * Consistent spacing between content sections.
+ */
 .trip-dashboard-card-body {
   display: grid;
   gap: 12px;
   padding: 14px;
 }
 
+/**
+ * Card title with flex layout.
+ * Space between title and menu button.
+ */
 .trip-dashboard-card-title {
   display: flex;
   align-items: center;
@@ -1967,6 +3152,10 @@
   gap: 12px;
 }
 
+/**
+ * Card title link with truncation.
+ * Single line with ellipsis for overflow.
+ */
 .trip-dashboard-card-title a {
   overflow: hidden;
   color: #07142f;
@@ -1976,6 +3165,10 @@
   white-space: nowrap;
 }
 
+/**
+ * Card menu button.
+ * Fixed size with centered content.
+ */
 .trip-dashboard-card-title button {
   display: grid;
   width: 28px;
@@ -1988,11 +3181,19 @@
   color: #0b1734;
 }
 
+/**
+ * Card menu container with relative positioning.
+ * Used for dropdown positioning.
+ */
 .trip-dashboard-card-menu {
   position: relative;
   flex: 0 0 auto;
 }
 
+/**
+ * Dropdown menu positioned absolutely.
+ * Appears below the menu button with shadow.
+ */
 .trip-dashboard-card-menu > div {
   position: absolute;
   z-index: 20;
@@ -2008,6 +3209,10 @@
   box-shadow: 0 14px 32px rgba(15, 23, 42, 0.16);
 }
 
+/**
+ * Menu items with full width.
+ * Flex layout for icon and text alignment.
+ */
 .trip-dashboard-card-menu > div a,
 .trip-dashboard-card-menu > div button {
   display: flex;
@@ -2026,15 +3231,31 @@
   white-space: nowrap;
 }
 
+/**
+ * Menu item hover state.
+ * Subtle background for interactivity.
+ */
 .trip-dashboard-card-menu > div a:hover,
 .trip-dashboard-card-menu > div button:hover {
   background: #f4f8fb;
 }
 
+/**
+ * Danger menu item.
+ * Red color for destructive actions.
+ */
 .trip-dashboard-card-menu > div button.danger {
   color: #c62828;
 }
 
+/* ============================================================
+   DELETE CONFIRMATION DIALOG
+   ============================================================ */
+
+/**
+ * Dialog backdrop overlay.
+ * Fixed position with semi-transparent background.
+ */
 .trip-delete-dialog-backdrop {
   position: fixed;
   z-index: 1200;
@@ -2045,6 +3266,10 @@
   padding: 18px;
 }
 
+/**
+ * Dialog container with grid layout.
+ * Width constrained with padding and shadow.
+ */
 .trip-delete-dialog {
   position: relative;
   display: grid;
@@ -2058,6 +3283,10 @@
   box-shadow: 0 24px 60px rgba(16, 42, 67, 0.22);
 }
 
+/**
+ * Close button positioned absolutely.
+ * Top-right with rounded background.
+ */
 .trip-delete-dialog-close {
   position: absolute;
   top: 12px;
@@ -2072,6 +3301,10 @@
   color: #64748b;
 }
 
+/**
+ * Dialog icon container.
+ * Rounded with danger color.
+ */
 .trip-delete-dialog-icon {
   display: grid;
   width: 44px;
@@ -2082,6 +3315,10 @@
   color: #dc2626;
 }
 
+/**
+ * Dialog label text.
+ * Danger color with uppercase styling.
+ */
 .trip-delete-dialog span {
   color: #c62828;
   font-size: 11px;
@@ -2089,11 +3326,19 @@
   text-transform: uppercase;
 }
 
+/**
+ * Dialog heading with right margin.
+ * Dark color for contrast.
+ */
 .trip-delete-dialog h3 {
   margin: 5px 32px 0 0;
   color: #07142f;
 }
 
+/**
+ * Dialog description text.
+ * Muted color with readable size.
+ */
 .trip-delete-dialog p {
   margin: 7px 0 0;
   color: #64748b;
@@ -2101,6 +3346,10 @@
   line-height: 1.5;
 }
 
+/**
+ * Dialog action buttons container.
+ * Full width with flex end alignment.
+ */
 .trip-delete-dialog-actions {
   grid-column: 1 / -1;
   display: flex;
@@ -2110,6 +3359,10 @@
   padding-top: 16px;
 }
 
+/**
+ * Action button styling.
+ * Border with white background and bold text.
+ */
 .trip-delete-dialog-actions button {
   display: inline-flex;
   align-items: center;
@@ -2124,23 +3377,43 @@
   font-weight: 700;
 }
 
+/**
+ * Danger action button.
+ * Red background with white text.
+ */
 .trip-delete-dialog-actions button.danger {
   border-color: #dc2626;
   background: #dc2626;
   color: #ffffff;
 }
 
+/**
+ * Disabled button state.
+ * Reduced opacity with not-allowed cursor.
+ */
 .trip-delete-dialog button:disabled {
   cursor: not-allowed;
   opacity: 0.65;
 }
 
+/* ============================================================
+   CARD METADATA
+   ============================================================ */
+
+/**
+ * Card metadata grid with two columns.
+ * Consistent gap between metadata items.
+ */
 .trip-dashboard-card-meta {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px 14px;
 }
 
+/**
+ * Metadata item with flex layout.
+ * Icon and text with truncation.
+ */
 .trip-dashboard-card-meta span {
   display: inline-flex;
   align-items: center;
@@ -2154,11 +3427,23 @@
   white-space: nowrap;
 }
 
+/**
+ * Metadata icon color.
+ * Consistent with text color.
+ */
 .trip-dashboard-card-meta svg {
   flex: 0 0 auto;
   color: #253854;
 }
 
+/* ============================================================
+   PROGRESS INDICATOR
+   ============================================================ */
+
+/**
+ * Progress container with grid layout.
+ * Bar and label side by side.
+ */
 .trip-dashboard-progress {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -2166,6 +3451,10 @@
   align-items: center;
 }
 
+/**
+ * Progress track background.
+ * Rounded with light background.
+ */
 .trip-dashboard-progress > span {
   display: block;
   height: 5px;
@@ -2174,6 +3463,10 @@
   background: #e6edf5;
 }
 
+/**
+ * Progress fill.
+ * Teal color with rounded edges.
+ */
 .trip-dashboard-progress em {
   display: block;
   height: 100%;
@@ -2181,17 +3474,33 @@
   background: #008f72;
 }
 
+/**
+ * Progress label.
+ * Muted color with bold weight.
+ */
 .trip-dashboard-progress small {
   color: #50627d;
   font-size: 12px;
   font-weight: 720;
 }
 
+/* ============================================================
+   TRIP REFERENCE HEADER
+   ============================================================ */
+
+/**
+ * Reference header container.
+ * Grid with consistent gap.
+ */
 .trip-reference-header {
   display: grid;
   gap: 18px;
 }
 
+/**
+ * Navigation breadcrumb.
+ * Inline-flex with gap and text styling.
+ */
 .trip-reference-header nav {
   display: inline-flex;
   align-items: center;
@@ -2201,6 +3510,10 @@
   font-weight: 650;
 }
 
+/**
+ * Navigation button.
+ * Transparent with inherited text color.
+ */
 .trip-reference-header nav button {
   border: 0;
   background: transparent;
@@ -2209,10 +3522,18 @@
   font: inherit;
 }
 
+/**
+ * Navigation current item.
+ * Dark color for emphasis.
+ */
 .trip-reference-header nav span {
   color: #0f172a;
 }
 
+/**
+ * Reference title with icon.
+ * Grid with icon and text columns.
+ */
 .trip-reference-title {
   display: grid;
   grid-template-columns: 58px minmax(0, 1fr);
@@ -2220,6 +3541,10 @@
   align-items: center;
 }
 
+/**
+ * Reference icon container.
+ * Fixed size with rounded background.
+ */
 .trip-reference-icon {
   display: grid;
   width: 58px;
@@ -2230,11 +3555,19 @@
   color: #008f72;
 }
 
+/**
+ * Removes margin from title text.
+ * Consistent spacing control.
+ */
 .trip-reference-title h2,
 .trip-reference-title p {
   margin: 0;
 }
 
+/**
+ * Reference title heading.
+ * Dark color with large size.
+ */
 .trip-reference-title h2 {
   color: #07142f;
   font-size: 30px;
@@ -2242,6 +3575,10 @@
   line-height: 1.15;
 }
 
+/**
+ * Reference title paragraph.
+ * Muted color with margin top.
+ */
 .trip-reference-title p {
   margin-top: 6px;
   color: #365174;
@@ -2249,6 +3586,14 @@
   font-weight: 500;
 }
 
+/* ============================================================
+   REFERENCE LAYOUT
+   ============================================================ */
+
+/**
+ * Reference layout with two columns.
+ * Form takes more space, side takes less.
+ */
 .trip-reference-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(320px, 390px);
@@ -2256,6 +3601,10 @@
   align-items: start;
 }
 
+/**
+ * Reference form, preview, and benefits.
+ * Consistent border, background, and shadow.
+ */
 .trip-reference-form,
 .trip-reference-preview,
 .trip-reference-benefits {
@@ -2265,12 +3614,20 @@
   box-shadow: 0 14px 34px rgba(15, 23, 42, 0.045);
 }
 
+/**
+ * Reference form with grid layout.
+ * Consistent gap and padding.
+ */
 .trip-reference-form {
   display: grid;
   gap: 24px;
   padding: 28px;
 }
 
+/**
+ * Form heading with bottom border.
+ * Grid with gap for title and description.
+ */
 .trip-reference-form-heading {
   display: grid;
   gap: 6px;
@@ -2278,17 +3635,29 @@
   padding-bottom: 18px;
 }
 
+/**
+ * Removes margin from heading text.
+ * Consistent spacing control.
+ */
 .trip-reference-form-heading span,
 .trip-reference-form-heading p {
   margin: 0;
 }
 
+/**
+ * Form heading title.
+ * Dark color with large size.
+ */
 .trip-reference-form-heading span {
   color: #07142f;
   font-size: 22px;
   font-weight: 760;
 }
 
+/**
+ * Form heading description.
+ * Muted color with readable size.
+ */
 .trip-reference-form-heading p {
   max-width: 620px;
   color: #50627d;
@@ -2296,28 +3665,52 @@
   line-height: 1.5;
 }
 
+/* ============================================================
+   REFERENCE FORM FIELDS
+   ============================================================ */
+
+/**
+ * Form field container with grid.
+ * Gap for label and input separation.
+ */
 .trip-reference-field {
   display: grid;
   gap: 8px;
   min-width: 0;
 }
 
+/**
+ * Full width field variant.
+ * Spans the entire grid width.
+ */
 .trip-reference-field-full {
   grid-column: 1 / -1;
 }
 
+/**
+ * Field label styling.
+ * Dark color with bold weight.
+ */
 .trip-reference-field > span {
   color: #0b1734;
   font-size: 14px;
   font-weight: 750;
 }
 
+/**
+ * Field helper text.
+ * Muted color with normal weight.
+ */
 .trip-reference-field > small {
   color: #365174;
   font-size: 13px;
   font-weight: 500;
 }
 
+/**
+ * Input container with grid layout.
+ * Icon, input, and counter columns.
+ */
 .trip-reference-input,
 .trip-budget-input-row {
   display: grid;
@@ -2328,16 +3721,28 @@
   background: #ffffff;
 }
 
+/**
+ * Reference input with specific columns.
+ * Icon, input, and character counter.
+ */
 .trip-reference-input {
   grid-template-columns: 46px minmax(0, 1fr) auto;
   align-items: center;
 }
 
+/**
+ * Input icon centering.
+ * Teal color for visual interest.
+ */
 .trip-reference-input svg {
   justify-self: center;
   color: #008f72;
 }
 
+/**
+ * Input fields with full width.
+ * No border with consistent height.
+ */
 .trip-reference-input input,
 .trip-budget-input-row input,
 .trip-budget-input-row select {
@@ -2353,6 +3758,10 @@
   font-weight: 600;
 }
 
+/**
+ * Character counter styling.
+ * Muted color with padding.
+ */
 .trip-reference-input em {
   padding: 0 12px;
   color: #405674;
@@ -2361,6 +3770,14 @@
   font-weight: 650;
 }
 
+/* ============================================================
+   DATE ROW AND ARROWS
+   ============================================================ */
+
+/**
+ * Date row with three columns.
+ * Two date fields with arrow in between.
+ */
 .trip-reference-date-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 32px minmax(0, 1fr);
@@ -2368,6 +3785,10 @@
   align-items: end;
 }
 
+/**
+ * Date arrow between fields.
+ * Centered with bottom margin for alignment.
+ */
 .trip-reference-date-arrow {
   align-self: end;
   justify-self: center;
@@ -2375,6 +3796,10 @@
   color: #0b1734;
 }
 
+/**
+ * Duration and info banners.
+ * Flex layout with icon and text.
+ */
 .trip-duration-banner,
 .trip-reference-info,
 .trip-reference-next {
@@ -2390,21 +3815,37 @@
   padding: 0 14px;
 }
 
+/**
+ * Duration banner strong text.
+ * Bold with readable size.
+ */
 .trip-duration-banner strong,
 .trip-reference-next strong {
   font-size: 14px;
   font-weight: 750;
 }
 
+/**
+ * Budget input row with specific columns.
+ * Currency selector and amount input.
+ */
 .trip-budget-input-row {
   grid-template-columns: 126px minmax(0, 1fr);
 }
 
+/**
+ * Currency selector with right border.
+ * Separates currency from amount.
+ */
 .trip-budget-input-row select {
   border-right: 1px solid #dfe7f0;
   color: #0b1734;
 }
 
+/**
+ * Info banner variant.
+ * Blue colors for informational messages.
+ */
 .trip-reference-info {
   border-color: #bfdefa;
   background: #f0f8ff;
@@ -2413,6 +3854,14 @@
   font-weight: 650;
 }
 
+/* ============================================================
+   SUBMIT BUTTON AND FOOTER
+   ============================================================ */
+
+/**
+ * Submit button with custom styling.
+ * Teal background with white text.
+ */
 .trip-reference-submit {
   display: inline-flex;
   align-items: center;
@@ -2428,11 +3877,19 @@
   font-weight: 760;
 }
 
+/**
+ * Disabled submit button.
+ * Reduced opacity with not-allowed cursor.
+ */
 .trip-reference-submit:disabled {
   cursor: not-allowed;
   opacity: 0.72;
 }
 
+/**
+ * After-submit note with lock icon.
+ * Centered with muted color.
+ */
 .trip-reference-after {
   display: inline-flex;
   align-items: center;
@@ -2444,17 +3901,33 @@
   font-weight: 600;
 }
 
+/* ============================================================
+   SIDE PANEL COMPONENTS
+   ============================================================ */
+
+/**
+ * Side panel with grid layout.
+ * Gap between preview and benefits.
+ */
 .trip-reference-side {
   display: grid;
   gap: 10px;
 }
 
+/**
+ * Preview panel with padding.
+ * Grid for content organization.
+ */
 .trip-reference-preview {
   display: grid;
   gap: 14px;
   padding: 16px;
 }
 
+/**
+ * Preview header with flex layout.
+ * Title and action button side by side.
+ */
 .trip-reference-preview header {
   display: flex;
   align-items: center;
@@ -2462,6 +3935,10 @@
   gap: 12px;
 }
 
+/**
+ * Preview and benefits headings.
+ * Dark color with bold weight.
+ */
 .trip-reference-preview h3,
 .trip-reference-benefits h3 {
   margin: 0;
@@ -2470,6 +3947,10 @@
   font-weight: 760;
 }
 
+/**
+ * Preview action button.
+ * Border with white background.
+ */
 .trip-reference-preview header button {
   display: inline-flex;
   align-items: center;
@@ -2484,18 +3965,30 @@
   font-weight: 700;
 }
 
+/**
+ * Map container within preview.
+ * Min-height with overflow hidden.
+ */
 .trip-reference-preview .shared-trip-map {
   min-height: 220px;
   overflow: hidden;
   border-radius: 5px;
 }
 
+/**
+ * Preview metadata container.
+ * Grid with gap for metadata items.
+ */
 .trip-reference-preview-meta {
   display: grid;
   gap: 13px;
   padding: 2px 4px 0;
 }
 
+/**
+ * Metadata item with icon and text.
+ * Flex layout with gap for spacing.
+ */
 .trip-reference-preview-meta span {
   display: inline-flex;
   align-items: center;
@@ -2505,15 +3998,27 @@
   font-weight: 600;
 }
 
+/**
+ * Metadata icon color.
+ * Muted for subtle appearance.
+ */
 .trip-reference-preview-meta svg {
   color: #365174;
 }
 
+/**
+ * Metadata strong text.
+ * Dark color with extra bold weight.
+ */
 .trip-reference-preview-meta strong {
   color: #0b1734;
   font-weight: 800;
 }
 
+/**
+ * Next step banner.
+ * Flex with text and icon alignment.
+ */
 .trip-reference-next {
   align-items: flex-start;
   min-height: 0;
@@ -2522,12 +4027,24 @@
   line-height: 1.45;
 }
 
+/* ============================================================
+   BENEFITS SECTION
+   ============================================================ */
+
+/**
+ * Benefits container with grid.
+ * Gap for consistent spacing.
+ */
 .trip-reference-benefits {
   display: grid;
   gap: 17px;
   padding: 18px;
 }
 
+/**
+ * Individual benefit item.
+ * Grid with icon and text columns.
+ */
 .trip-reference-benefits div {
   display: grid;
   grid-template-columns: 40px minmax(0, 1fr);
@@ -2535,6 +4052,10 @@
   align-items: center;
 }
 
+/**
+ * Benefit icon container.
+ * Fixed size with rounded background.
+ */
 .trip-reference-benefits div > span {
   display: grid;
   width: 38px;
@@ -2545,6 +4066,10 @@
   color: #008f72;
 }
 
+/**
+ * Benefit text container.
+ * Grid with gap for title and description.
+ */
 .trip-reference-benefits p {
   display: grid;
   gap: 4px;
@@ -2554,11 +4079,23 @@
   line-height: 1.35;
 }
 
+/**
+ * Benefit title.
+ * Dark color with readable size.
+ */
 .trip-reference-benefits strong {
   color: #0b1734;
   font-size: 13px;
 }
 
+/* ============================================================
+   RESPONSIVE BREAKPOINTS
+   ============================================================ */
+
+/**
+ * Small screens - stack layout.
+ * Converts flex to column and grid to single column.
+ */
 @media (max-width: 760px) {
   .trip-directory-header {
     align-items: stretch;
@@ -2566,6 +4103,10 @@
   }
 }
 
+/**
+ * Medium screens - two-column stats and cards.
+ * Reduces columns for better readability.
+ */
 @media (max-width: 980px) {
   .trip-dashboard-stats,
   .trip-dashboard-grid {
@@ -2577,6 +4118,10 @@
   }
 }
 
+/**
+ * Small screens - full stacking.
+ * All grids become single column with full width.
+ */
 @media (max-width: 760px) {
   .trips-dashboard-header,
   .trip-dashboard-toolbar,

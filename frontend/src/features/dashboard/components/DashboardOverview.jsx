@@ -17,6 +17,7 @@ import {
   getTripDestinationPlaces,
 } from '../dashboard.utils';
 
+// Mapping of activity types to their corresponding icon components
 const activityIcons = {
   trip: CalendarDays,
   visited: CheckCircle2,
@@ -40,17 +41,21 @@ function DashboardOverview({
 }) {
   return (
     <section className="dashboard-overview-grid">
+      {/* Upcoming Trip Card - Displays next scheduled trips */}
       <article className="dashboard-card dashboard-upcoming-card">
         <div className="dashboard-card-heading">
           <div>
             <h3><CalendarDays size={18} aria-hidden="true" />Upcoming Trip</h3>
             <small>Showing up to 3 upcoming trips.</small>
           </div>
+          {/* Conditional link to view all trips when trips exist */}
           {upcomingTrips.length ? <Link to="/trips">View All</Link> : null}
         </div>
+        {/* Loading state for trip data */}
         {tripStatus === 'loading' ? (
           <p className="dashboard-muted"><LoaderCircle className="dashboard-spin" size={16} aria-hidden="true" />Loading trips...</p>
         ) : upcomingTrips.length ? (
+          // Render list of upcoming trips with navigation links
           <div className="upcoming-trip-list">
             {upcomingTrips.map((trip, index) => (
               <Link to={`/trips/${trip._id}`} key={trip._id}>
@@ -60,23 +65,28 @@ function DashboardOverview({
                   <small><CalendarDays size={13} aria-hidden="true" />{formatDateRange(trip.startDate, trip.endDate)}</small>
                   <small><MapPin size={13} aria-hidden="true" />{[trip.destination, trip.country].filter(Boolean).join(', ')}</small>
                 </span>
+                {/* Display count of places associated with the trip */}
                 <span className="upcoming-trip-count">{getTripDestinationPlaces(trip).length} place{getTripDestinationPlaces(trip).length === 1 ? '' : 's'}</span>
               </Link>
             ))}
           </div>
         ) : (
+          // Empty state when no upcoming trips exist
           <p className="dashboard-muted">No upcoming trips yet.</p>
         )}
       </article>
 
+      {/* Recent Activity Card - Shows latest user actions */}
       <article className="dashboard-card dashboard-activity-card">
         <div className="dashboard-card-heading">
           <h3>Recent Activity</h3>
           <Link to="/trips">View All</Link>
         </div>
         {recentActivity.length ? (
+          // Render list of recent activities with icons
           <div className="recent-activity-list">
             {recentActivity.slice(0, 4).map((activity) => {
+              // Select appropriate icon based on activity type
               const ActivityIcon = activityIcons[activity.type] || CalendarDays;
               return (
                 <div key={activity.id}>
@@ -90,12 +100,15 @@ function DashboardOverview({
             })}
           </div>
         ) : (
+          // Empty state when no recent activity exists
           <p className="dashboard-muted">New trip and visit activity will appear here.</p>
         )}
       </article>
 
+      {/* Calendar Card - Interactive date picker with trip/visit indicators */}
       <article className="dashboard-card dashboard-calendar-card">
         <div className="calendar-heading">
+          {/* Month navigation controls */}
           <button type="button" onClick={() => moveMonth(-1)} aria-label="Previous month">
             <ArrowLeft size={16} aria-hidden="true" />
           </button>
@@ -107,15 +120,20 @@ function DashboardOverview({
             </button>
           </div>
         </div>
+        {/* Loading state for calendar data */}
         {status === 'loading' ? (
           <p className="dashboard-muted"><LoaderCircle className="dashboard-spin" size={16} aria-hidden="true" />Loading calendar...</p>
         ) : error ? (
+          // Error state for calendar data fetching
           <p className="form-error">{error}</p>
         ) : (
+          // Calendar grid rendering
           <div className="dashboard-calendar-grid" aria-label={`Travel calendar for ${monthLabel}`}>
+            {/* Weekday headers */}
             {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((dayName) => (
               <span className="calendar-weekday" key={dayName}>{dayName}</span>
             ))}
+            {/* Calendar cells with trip/visit indicators */}
             {calendarCells.map((cell) => {
               const hasTrip = Boolean(cell.destinations?.length);
               const hasVisited = Boolean(cell.places?.length);
@@ -139,6 +157,7 @@ function DashboardOverview({
             })}
           </div>
         )}
+        {/* Legend explaining calendar color indicators */}
         <div className="calendar-legend">
           <span><em className="trip" />Trip</span>
           <span><em className="visited" />Visited</span>
@@ -146,16 +165,19 @@ function DashboardOverview({
           <span><em className="saved" />Saved</span>
           <small>Click a date to see details</small>
         </div>
+        {/* Details panel for selected date */}
         <div className="selected-date-panel">
           <strong>{formatLongDate(selectedDateKey)}</strong>
           {selectedDestinations.length || selectedVisits.length ? (
             <>
+              {/* Display destinations for selected date */}
               {selectedDestinations.map((destination) => (
                 <p key={`${destination.tripId}-${destination.title}`}>
                   <MapPin size={14} aria-hidden="true" />
                   {destination.title} <span>{destination.tripTitle}</span>
                 </p>
               ))}
+              {/* Display visited places for selected date */}
               {selectedVisits.map((place) => (
                 <p key={place.id || `${selectedDateKey}-${place.title}`}>
                   <CheckCircle2 size={14} aria-hidden="true" />
@@ -164,6 +186,7 @@ function DashboardOverview({
               ))}
             </>
           ) : (
+            // Empty state when no data exists for selected date
             <small>No destination or visited places for this date.</small>
           )}
         </div>

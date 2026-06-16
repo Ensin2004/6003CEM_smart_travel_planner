@@ -1,6 +1,10 @@
 /**
  * Trips module.
  * Page state, event handlers, and render sections define the screen experience.
+ * 
+ * This component manages the complete trip details interface including itinerary
+ * display, day management, place search, AI assistance, budget tracking,
+ * weather integration, and map visualization.
  */
 import { useContext, useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
@@ -76,6 +80,10 @@ import { buildVisitedLookup, getVisitedPlacePayload } from '../../components/vis
 import CurrencyContext from '../../context/currencyContext';
 import './TripDetailsPage.css';
 
+/**
+ * Idea categories configuration with icons and display labels
+ * Defines the available place types for search and filtering
+ */
 const ideaCategories = [
   { id: 'attractions', label: 'Attractions', icon: Landmark },
   { id: 'food', label: 'Food', icon: Utensils },
@@ -83,11 +91,21 @@ const ideaCategories = [
   { id: 'train', label: 'Transport', icon: TrainFront },
   { id: 'shopping', label: 'Shopping', icon: Lightbulb },
 ];
+
+/**
+ * Route modes for transportation options between places
+ * Each mode includes an icon and display label
+ */
 const routeModes = [
   { id: 'car', label: 'Car', icon: Car },
   { id: 'walking', label: 'Walk', icon: Footprints },
   { id: 'bike', label: 'Bike', icon: Bike },
 ];
+
+/**
+ * Formats route duration from seconds to human-readable string
+ * Handles minutes and hours with proper pluralization
+ */
 const formatRouteDuration = (seconds) => {
   if (!Number.isFinite(Number(seconds))) return '--';
   const minutes = Math.max(1, Math.round(Number(seconds) / 60));
@@ -96,12 +114,22 @@ const formatRouteDuration = (seconds) => {
   const remainingMinutes = minutes % 60;
   return `${hours} hr${hours === 1 ? '' : 's'}${remainingMinutes ? ` ${remainingMinutes} min` : ''}`;
 };
+
+/**
+ * Formats route distance from meters to human-readable string
+ * Converts to kilometers for distances over 1000 meters
+ */
 const formatRouteDistance = (meters) => {
   if (!Number.isFinite(Number(meters))) return '--';
   return Number(meters) < 1000
     ? `${Math.round(Number(meters))} m`
     : `${(Number(meters) / 1000).toFixed(1)} km`;
 };
+
+/**
+ * Maps weather guidance modes to corresponding icon components
+ * Provides visual representation for different weather conditions
+ */
 const weatherModeIcons = {
   rainy: Umbrella,
   sunny: Sun,
@@ -109,6 +137,11 @@ const weatherModeIcons = {
   comfortable: CloudSun,
   default: CloudSun,
 };
+
+/**
+ * Set of empty location label variants for detection
+ * Used to identify when a day location has not been properly set
+ */
 const emptyLocationLabels = new Set([
   'not added yet',
   'set a day location',
@@ -116,24 +149,48 @@ const emptyLocationLabels = new Set([
   'day location',
   'current location',
 ]);
+
+/**
+ * Extracts editable location name from a location object
+ * Returns empty string for placeholder values that should not be displayed
+ */
 const getEditableLocationName = (value) => {
   const locationName = String(value || '').trim();
   return emptyLocationLabels.has(locationName.toLowerCase()) ? '' : locationName;
 };
 
+/**
+ * Itinerary groups configuration defining the four main categories
+ * Each group includes title, description, add label, category ID, types, and icon
+ */
 const itineraryGroups = [
   { id: 'food', title: 'Food & dining', description: 'Restaurants, cafes, and local food', addLabel: 'Food', categoryId: 'food', types: ['restaurant'], icon: Utensils },
   { id: 'see', title: 'Attractions & activities', description: 'Places to visit and things to do', addLabel: 'Attractions', categoryId: 'attractions', types: ['attraction', 'custom'], icon: Landmark },
   { id: 'stay', title: 'Accommodation', description: 'Hotels and places to stay', addLabel: 'Stay', categoryId: 'hotels', types: ['hotel'], icon: BedDouble },
   { id: 'move', title: 'Transportation', description: 'Stations, airports, and travel connections', addLabel: 'Transportation', categoryId: 'train', types: ['transport', 'flight'], icon: TrainFront },
 ];
+
+/**
+ * Search terms mapping for each category
+ * Used when searching for places via text-based queries
+ */
 const categoryTextSearchTerms = {
   food: ['restaurants', 'cafes', 'food courts'],
   attractions: ['attractions', 'things to do', 'museums', 'landmarks', 'parks'],
   hotels: ['hotels', 'places to stay', 'resorts', 'hostels', 'guest houses'],
   train: ['train stations', 'railway stations', 'bus stations', 'transport hubs', 'airports'],
 };
+
+/**
+ * Extracts address from a place object with fallback
+ * Returns a user-friendly address string
+ */
 const getPlaceAddress = (place) => place.address || place.displayName || 'Location details unavailable';
+
+/**
+ * Deduplicates places by ID or name-address combination
+ * Returns an array of unique places
+ */
 const getUniquePlaces = (places = []) => {
   const uniquePlaces = new Map();
 
@@ -144,7 +201,11 @@ const getUniquePlaces = (places = []) => {
 
   return [...uniquePlaces.values()];
 };
-// Format Idea Place converts raw values into readable display text.
+
+/**
+ * Format Idea Place converts raw values into readable display text.
+ * Normalizes place data structure for consistent rendering across the application
+ */
 const formatIdeaPlace = (place, categoryId) => ({
   ...place,
   lat: Number(place.lat ?? place.coordinates?.latitude),
@@ -161,22 +222,50 @@ const formatIdeaPlace = (place, categoryId) => ({
   summary: place.summary || place.category || 'Place result from map data.',
   type: 'idea',
 });
-// Format Date converts raw values into readable display text.
+
+/**
+ * Format Date converts raw values into readable display text.
+ * Formats dates as localized date strings
+ */
 const formatDate = (date) => (date ? new Date(date).toLocaleDateString() : 'No date');
-// Format Input Date converts raw values into readable display text.
+
+/**
+ * Format Input Date converts raw values into readable display text.
+ * Formats dates as ISO date strings for input fields
+ */
 const formatInputDate = (date) => (date ? new Date(date).toISOString().slice(0, 10) : '');
+
+/**
+ * Filters itinerary items that belong to a specific day
+ * Matches by comparing scheduled dates
+ */
 const getItemsForDay = (items, day) =>
   items.filter((item) => formatInputDate(item.scheduledDate) === formatInputDate(day.date));
+
+/**
+ * Maps category to item type for itinerary
+ * Returns the appropriate type string based on category
+ */
 const getIdeaItemType = (category) => {
   if (category === 'food') return 'restaurant';
   if (category === 'hotels') return 'hotel';
   return 'attraction';
 };
+
+/**
+ * Parses time string (HH:MM) to minutes since midnight
+ * Returns null for invalid formats
+ */
 const parseTimeToMinutes = (time) => {
   const match = String(time || '').match(/^(\d{1,2}):(\d{2})$/);
   if (!match) return null;
   return Number(match[1]) * 60 + Number(match[2]);
 };
+
+/**
+ * Parses hour text with AM/PM to minutes since midnight
+ * Handles various time format inputs
+ */
 const parseHourTextToMinutes = (value) => {
   const match = String(value || '').match(/(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?/i);
   if (!match) return null;
@@ -190,6 +279,11 @@ const parseHourTextToMinutes = (value) => {
 
   return hour * 60 + minute;
 };
+
+/**
+ * Extracts opening and closing times from hours text
+ * Returns object with open and close minutes or null
+ */
 const getOpeningWindow = (hoursText) => {
   const text = String(hoursText || '');
   const rangeMatch = text.match(/(\d{1,2}(?::\d{2})?\s*(?:AM|PM)?)\s*[-–]\s*(\d{1,2}(?::\d{2})?\s*(?:AM|PM)?)/i);
@@ -211,6 +305,11 @@ const getOpeningWindow = (hoursText) => {
 
   return null;
 };
+
+/**
+ * Generates opening hours warning message for a place
+ * Checks if selected time falls within opening hours
+ */
 const getOpeningWarning = ({ hoursText, startTime, endTime }) => {
   const start = parseTimeToMinutes(startTime);
   const end = parseTimeToMinutes(endTime);
@@ -230,6 +329,11 @@ const getOpeningWarning = ({ hoursText, startTime, endTime }) => {
 
   return '';
 };
+
+/**
+ * Generates OpenStreetMap tile URL for a given latitude and longitude
+ * Used for map thumbnail previews
+ */
 const getOpenStreetMapTileUrl = (lat, lng, zoom = 15) => {
   const latitude = Number(lat);
   const longitude = Number(lng);
@@ -244,10 +348,20 @@ const getOpenStreetMapTileUrl = (lat, lng, zoom = 15) => {
 
   return `https://tile.openstreetmap.org/${zoom}/${x}/${y}.png`;
 };
+
+/**
+ * Extracts point coordinates from an itinerary item
+ * Returns object with lat and lng properties
+ */
 const getItemPoint = (item) => ({
   lat: item.location?.coordinates?.coordinates?.[1],
   lng: item.location?.coordinates?.coordinates?.[0],
 });
+
+/**
+ * Builds recommendation location string from trip and day data
+ * Returns a formatted location query string
+ */
 const getRecommendationLocation = (trip, day) => {
   const dayLocationName = getEditableLocationName(day?.location?.name);
   if (dayLocationName) {
@@ -260,6 +374,11 @@ const getRecommendationLocation = (trip, day) => {
     primaryDestination?.country || trip?.country,
   ].filter(Boolean).join(', ');
 };
+
+/**
+ * Builds location query string for day-based searches
+ * Handles country detection and fallback to trip destination
+ */
 const getDayLocationQuery = (day, trip) => {
   const locationName = getEditableLocationName(day?.location?.name);
   const isCountryName = Country.getAllCountries().some((country) => country.name.toLowerCase() === locationName.toLowerCase());
@@ -270,11 +389,21 @@ const getDayLocationQuery = (day, trip) => {
 
   return getRecommendationLocation(trip, day);
 };
+
+/**
+ * Extracts center coordinates from a day location
+ * Returns [latitude, longitude] array or null
+ */
 const getDayLocationCenter = (day) => {
   const latitude = Number(day?.location?.coordinates?.latitude);
   const longitude = Number(day?.location?.coordinates?.longitude);
   return Number.isFinite(latitude) && Number.isFinite(longitude) ? [latitude, longitude] : null;
 };
+
+/**
+ * Gets browser's current location using Geolocation API
+ * Returns Promise with [latitude, longitude] or null
+ */
 const getBrowserCurrentLocationCenter = () => new Promise((resolve) => {
   if (typeof navigator === 'undefined' || !navigator.geolocation) {
     resolve(null);
@@ -287,6 +416,11 @@ const getBrowserCurrentLocationCenter = () => new Promise((resolve) => {
     { enableHighAccuracy: false, maximumAge: 300000, timeout: 6500 }
   );
 });
+
+/**
+ * Searches category places by text using OpenStreetMap
+ * Executes multiple queries and deduplicates results
+ */
 const searchCategoryPlacesByText = async (category, locationQuery, options = {}) => {
   const searchTerms = categoryTextSearchTerms[category] || [category];
   const trimmedLocation = String(locationQuery || '').trim();
@@ -314,12 +448,22 @@ const searchCategoryPlacesByText = async (category, locationQuery, options = {})
 
   return getUniquePlaces(results).slice(0, options.limit || 12);
 };
+
+/**
+ * Maps item type to map search category
+ * Returns the appropriate category ID for map searches
+ */
 const getMapCategoryForItemType = (type) => {
   if (type === 'restaurant') return 'food';
   if (type === 'hotel') return 'hotels';
   if (type === 'transport' || type === 'flight') return 'train';
   return 'attractions';
 };
+
+/**
+ * Searches category places using provider APIs with center coordinates
+ * Returns formatted place results from map services
+ */
 const searchProviderCategoryPlaces = async (category, center, locationQuery, options = {}) => {
   if (!center) return [];
 
@@ -331,6 +475,11 @@ const searchProviderCategoryPlaces = async (category, center, locationQuery, opt
 
   return result.items || [];
 };
+
+/**
+ * Searches category places using external explore APIs
+ * Handles attractions, food, and hotels categories
+ */
 const searchExploreCategoryPlaces = async (category, locationQuery, options = {}) => {
   const destination = String(locationQuery || '').trim();
 
@@ -365,10 +514,20 @@ const searchExploreCategoryPlaces = async (category, locationQuery, options = {}
 
   return [];
 };
+
+/**
+ * Calculates checklist progress from items array
+ * Returns completed count and total count
+ */
 const getChecklistProgress = (items = [], isDone) => {
   const completed = items.filter(isDone).length;
   return { completed, total: items.length };
 };
+
+/**
+ * Summarizes route stops from days array
+ * Groups consecutive days with same location name
+ */
 const getRouteSummary = (days = []) => {
   const summary = [];
 
@@ -392,21 +551,34 @@ const getRouteSummary = (days = []) => {
 
   return summary;
 };
-// TripDetailsPage renders the main screen and handles nearby interactions.
+
+/**
+ * TripDetailsPage renders the main screen and handles nearby interactions.
+ * This component orchestrates all trip management functionality including itinerary,
+ * place discovery, budget tracking, weather, AI assistance, and route optimization.
+ */
 function TripDetailsPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const currency = useContext(CurrencyContext);
+  
+  // UI state for tabs, active day, and panel visibility
   const [activeTab, setActiveTab] = useState('itinerary');
   const [activeDayNumber, setActiveDayNumber] = useState('summary');
+  
+  // Core trip data state
   const [trip, setTrip] = useState(null);
   const [days, setDays] = useState([]);
   const [items, setItems] = useState([]);
   const [visitedPlaces, setVisitedPlaces] = useState([]);
+  
+  // Weather state management
   const [weather, setWeather] = useState(null);
   const [weatherGuidance, setWeatherGuidance] = useState(null);
   const [weatherStatus, setWeatherStatus] = useState('idle');
   const [showWeatherHelp, setShowWeatherHelp] = useState(true);
+  
+  // Place discovery and ideas state
   const [ideas, setIdeas] = useState([]);
   const [tripRoutePlan, setTripRoutePlan] = useState({
     dayNumber: null,
@@ -418,6 +590,8 @@ function TripDetailsPage() {
     message: '',
   });
   const [ideaCategory, setIdeaCategory] = useState('attractions');
+  
+  // Loading and status states
   const [status, setStatus] = useState('loading');
   const [ideaStatus, setIdeaStatus] = useState('idle');
   const [ideaDetailStatus, setIdeaDetailStatus] = useState('idle');
@@ -427,9 +601,13 @@ function TripDetailsPage() {
   const [addMode, setAddMode] = useState(null);
   const [ideaAddMode, setIdeaAddMode] = useState(null);
   const [message, setMessage] = useState('');
+  
+  // Panel and UI configuration
   const [panelWidth, setPanelWidth] = useState(460);
   const [isAddingIdea, setIsAddingIdea] = useState(false);
   const [selectedIdeaSchedule, setSelectedIdeaSchedule] = useState({ startTime: '09:00', endTime: '10:00' });
+  
+  // Settings modal state
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [tripSettingsForm, setTripSettingsForm] = useState({
     title: '',
@@ -438,29 +616,47 @@ function TripDetailsPage() {
   });
   const [tripSettingsStatus, setTripSettingsStatus] = useState('idle');
   const [tripSettingsError, setTripSettingsError] = useState('');
+  
+  // Travel tools state
   const [packingList, setPackingList] = useState(null);
   const [travelDocument, setTravelDocument] = useState(null);
   const [toolsStatus, setToolsStatus] = useState('idle');
   const [toolsMessage, setToolsMessage] = useState('');
+  
+  // Location editing state
   const [locationStatus, setLocationStatus] = useState('idle');
   const [isEditingDayLocation, setIsEditingDayLocation] = useState(false);
   const [isDayMenuOpen, setIsDayMenuOpen] = useState(false);
   const [locationSearchText, setLocationSearchText] = useState('');
   const [locationSearchSuggestions, setLocationSearchSuggestions] = useState([]);
   const [editedLocationMapCenter, setEditedLocationMapCenter] = useState(null);
+  
+  // Day group idea previews state
   const [dayGroupIdeaPreviews, setDayGroupIdeaPreviews] = useState({});
   const [dayGroupIdeaStatus, setDayGroupIdeaStatus] = useState('idle');
   const [dayGroupIdeaSource, setDayGroupIdeaSource] = useState('');
+  
+  // AI assistant state
   const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
   const [aiInput, setAiInput] = useState('');
   const [aiMessages, setAiMessages] = useState([]);
   const [aiStatus, setAiStatus] = useState('idle');
   const [aiError, setAiError] = useState('');
+
+  /**
+   * Updates a single day in the local state without making an API call
+   * Immutable update pattern for day data
+   */
   const updateDayLocal = (dayNumber, patch) => {
     setDays((currentDays) =>
       currentDays.map((day) => (day.dayNumber === dayNumber ? { ...day, ...patch } : day))
     );
   };
+
+  /**
+   * Effect hook that loads trip itinerary and summary data on component mount
+   * Fetches trip details, days, items, and weather information
+   */
   useEffect(() => {
     let isMounted = true;
 
@@ -486,6 +682,11 @@ function TripDetailsPage() {
       isMounted = false;
     };
   }, [id]);
+
+  /**
+   * Effect hook that loads visited places data
+   * Fetches user's visited place history for the trip
+   */
   useEffect(() => {
     let isMounted = true;
 
@@ -502,6 +703,11 @@ function TripDetailsPage() {
       isMounted = false;
     };
   }, []);
+
+  /**
+   * Effect hook that loads packing lists and travel documents
+   * Fetches checklist data for the current trip
+   */
   useEffect(() => {
     let isMounted = true;
 
@@ -525,10 +731,20 @@ function TripDetailsPage() {
       isMounted = false;
     };
   }, [id]);
+
+  /**
+   * Memoized active day computation
+   * Returns the currently selected day or the first day if none selected
+   */
   const activeDay = useMemo(
     () => days.find((day) => day.dayNumber === activeDayNumber) || days[0],
     [activeDayNumber, days]
   );
+
+  /**
+   * Effect hook that loads weather data for the active day
+   * Handles geocoding and browser location as fallback
+   */
   useEffect(() => {
     if (!activeDay || !trip) return undefined;
 
@@ -601,6 +817,11 @@ function TripDetailsPage() {
       isMounted = false;
     };
   }, [activeDay, trip]);
+
+  /**
+   * Effect hook that handles location search autocomplete
+   * Geocodes search text and updates suggestions
+   */
   useEffect(() => {
     if (!isEditingDayLocation || locationSearchText.trim().length < 2) {
       return undefined;
@@ -631,14 +852,18 @@ function TripDetailsPage() {
       controller.abort();
     };
   }, [activeDay, isEditingDayLocation, locationSearchText]);
+
+  // Computed values for location display and suggestions
   const activeDayLocationLabel = [
     getEditableLocationName(activeDay?.location?.name),
     activeDay?.location?.country,
   ].filter(Boolean).join(', ') || 'Set a day location';
+  
   const tripCountry = useMemo(() => {
     const countryName = activeDay?.location?.country || trip?.country || trip?.destinationSegments?.[0]?.country || '';
     return Country.getAllCountries().find((countryItem) => countryItem.name.toLowerCase() === countryName.toLowerCase());
   }, [activeDay?.location?.country, trip?.country, trip?.destinationSegments]);
+  
   const stateLocationSuggestions = tripCountry
     ? State.getStatesOfCountry(tripCountry.isoCode).map((stateItem) => stateItem.name)
     : [];
@@ -659,6 +884,11 @@ function TripDetailsPage() {
   const visibleLocationSuggestions = locationSuggestions
     .filter((locationName) => !locationSearchText || locationName.toLowerCase().includes(locationSearchText.toLowerCase()))
     .slice(0, 8);
+
+  /**
+   * Memoized visible day tabs computation
+   * Shows limited number of days with overflow handling
+   */
   const visibleDayTabs = useMemo(() => {
     const visibleLimit = days.length > 3 ? 2 : 3;
     const firstDays = days.slice(0, visibleLimit);
@@ -672,12 +902,15 @@ function TripDetailsPage() {
   }, [activeDayNumber, days]);
   const hasOverflowDayTabs = days.length > visibleDayTabs.length;
 
+  // Computed values for active day items and groupings
   const activeDayItems = useMemo(() => getItemsForDay(items, activeDay || {}), [activeDay, items]);
   const visitedLookup = useMemo(() => buildVisitedLookup(visitedPlaces), [visitedPlaces]);
   const groupedDayItems = useMemo(() => itineraryGroups.map((group) => ({
     ...group,
     items: activeDayItems.filter((item) => group.types.includes(item.type)),
   })), [activeDayItems]);
+
+  // Budget computation values
   const plannedBudget = days.reduce((total, day) => total + Number(day.budget?.amount || 0), 0);
   const tripCurrency = trip?.budget?.currency || currency?.selectedCurrency || 'MYR';
   const activeDayBudget = Number(activeDay?.budget?.amount || 0);
@@ -701,6 +934,8 @@ function TripDetailsPage() {
   const remainingBudget = Math.max(0, totalBudget - plannedBudget);
   const plannedBudgetPercent = totalBudget ? Math.min(100, Math.round((plannedBudget / totalBudget) * 100)) : 0;
   const activeDaySpendPercent = activeDayBudget ? Math.min(100, Math.round((activeDaySpend / activeDayBudget) * 100)) : 0;
+
+  // Computed values for UI display
   const AddModeIcon = addMode?.icon || Plus;
   const recommendationLocation = getRecommendationLocation(trip, activeDay);
   const selectedIdeaHours = selectedIdea?.openState || selectedIdea?.hours || '';
@@ -708,6 +943,8 @@ function TripDetailsPage() {
     ? getOpeningWarning({ hoursText: selectedIdeaHours, ...selectedIdeaSchedule })
     : '';
   const hasInvalidSelectedIdeaTime = selectedIdeaWarning.startsWith('End time');
+  
+  // Weather display values
   const weatherTemperature = weather?.temperature?.max || weather?.temperature?.mean
     ? `${Math.round(weather.temperature.max || weather.temperature.mean)}${weather.temperature.unit || 'C'}`
     : '';
@@ -720,11 +957,14 @@ function TripDetailsPage() {
     ? `${Number(weather.windSpeed.max).toFixed(1)} ${weather.windSpeed.unit || 'km/h'} wind`
     : 'Wind unavailable';
   const WeatherModeIcon = weatherModeIcons[weatherGuidance?.mode] || CloudSun;
+
+  // Map and route computed values
   const activeDayMapCenter = activeDayNumber !== 'summary'
     ? editedLocationMapCenter?.dayNumber === activeDay?.dayNumber
       ? editedLocationMapCenter.center
       : getDayLocationCenter(activeDay)
     : null;
+  
   const mapPlaces = items
     .map((item) => {
       const itemDay = days.find((day) => formatInputDate(day.date) === formatInputDate(item.scheduledDate));
@@ -748,6 +988,7 @@ function TripDetailsPage() {
       };
     })
     .filter((place) => Number.isFinite(Number(place.lat)) && Number.isFinite(Number(place.lng)));
+  
   const aiMapPlaces = isAiAssistantOpen && selectedIdea
     && Number.isFinite(Number(selectedIdea.lat)) && Number.isFinite(Number(selectedIdea.lng))
     ? [
@@ -760,6 +1001,8 @@ function TripDetailsPage() {
       },
     ]
     : mapPlaces;
+
+  // Route planning computed values
   const activeTripRouteResult = tripRoutePlan.results[tripRoutePlan.selectedMode];
   const selectedTripRouteOption = activeTripRouteResult?.alternatives?.find(
     (routeOption) => routeOption.id === tripRoutePlan.selectedRouteId
@@ -775,6 +1018,8 @@ function TripDetailsPage() {
   const tripRouteMapPlaces = selectedTripRoute?.optimizedPoints || tripRoutePlan.points;
   const isDayRouteOpen = Boolean(tripRoutePlan.dayNumber);
   const routeSummary = useMemo(() => getRouteSummary(days), [days]);
+
+  // Checklist progress calculations
   const packingProgress = getChecklistProgress(packingList?.items || [], (item) => item.isPacked);
   const documentProgress = getChecklistProgress(travelDocument?.items || [], (item) => item.files?.length);
   const packingProgressPercent = packingProgress.total
@@ -783,6 +1028,8 @@ function TripDetailsPage() {
   const documentProgressPercent = documentProgress.total
     ? Math.round((documentProgress.completed / documentProgress.total) * 100)
     : 0;
+  
+  // Summary statistics
   const summaryTripDuration = days.length || trip?.durationDays || 0;
   const summaryLocationsSet = new Set(
     days
@@ -790,6 +1037,11 @@ function TripDetailsPage() {
       .filter(Boolean)
   );
   const summaryPlannedItems = items.length;
+
+  /**
+   * Effect hook that loads day group idea previews
+   * Fetches nearby place suggestions for each itinerary group
+   */
   useEffect(() => {
     if (!trip || activeDayNumber === 'summary' || activeTab !== 'itinerary' || !activeDay) {
       return undefined;
@@ -890,6 +1142,11 @@ function TripDetailsPage() {
       controller.abort();
     };
   }, [activeDay, activeDayNumber, activeTab, recommendationLocation, trip]);
+
+  /**
+   * Handles visited place changes by updating the visited places list
+   * Adds new record or removes existing one based on payload
+   */
   const handleVisitedChange = (visitedPlace) => {
     if (!visitedPlace?.placeKey) return;
     setVisitedPlaces((currentPlaces) => {
@@ -897,6 +1154,11 @@ function TripDetailsPage() {
       return [visitedPlace, ...withoutCurrent];
     });
   };
+
+  /**
+   * Creates visited place payload for an idea
+   * Formats idea data for visited place tracking
+   */
   const getIdeaVisitedPayload = (idea) => getVisitedPlacePayload({
     item: idea,
     type: getIdeaItemType(idea?.categoryId || ideaCategory),
@@ -904,6 +1166,11 @@ function TripDetailsPage() {
     defaultDate: activeDay?.date || trip?.startDate,
     tripId: trip?._id,
   });
+
+  /**
+   * Creates visited place payload for an itinerary item
+   * Formats item data for visited place tracking
+   */
   const getItemVisitedPayload = (item) => getVisitedPlacePayload({
     item,
     type: item?.type || 'location',
@@ -913,6 +1180,10 @@ function TripDetailsPage() {
     itineraryItemId: item?._id,
   });
 
+  /**
+   * Saves a day's data to the server
+   * Updates title, date, location, notes, and budget
+   */
   const saveDay = async (day) => {
     const response = await updateItineraryDay(id, day.dayNumber, {
       date: day.date,
@@ -925,6 +1196,10 @@ function TripDetailsPage() {
     if (savedDay) updateDayLocal(savedDay.dayNumber, savedDay);
   };
 
+  /**
+   * Resolves a day location by geocoding the location query
+   * Updates the day with resolved coordinates
+   */
   const resolveDayLocation = async (day) => {
     const query = getDayLocationQuery(day, trip);
     if (!query) return day?.location || {};
@@ -968,6 +1243,10 @@ function TripDetailsPage() {
     }
   };
 
+  /**
+   * Commits a day location change by geocoding the provided name
+   * Updates the day with the resolved location data
+   */
   const commitDayLocation = async (day, locationName) => {
     const typedName = String(locationName || '').trim();
     if (!day?.dayNumber || typedName.length < 2) return;
@@ -1009,6 +1288,10 @@ function TripDetailsPage() {
     }
   };
 
+  /**
+   * Updates the trip budget total amount
+   * Saves changes to the server
+   */
   const updateTripBudget = async (amount) => {
     const response = await updateTrip(id, {
       budget: {
@@ -1021,12 +1304,21 @@ function TripDetailsPage() {
     if (savedTrip) setTrip(savedTrip);
   };
 
+  /**
+   * Opens travel tool page with trip context
+   * Navigates to packing list or document checklist with query parameters
+   */
   const openTravelTool = (path, recordId) => {
     const params = new URLSearchParams({ tripId: id });
     if (recordId) params.set('recordId', recordId);
     setSettingsOpen(false);
     navigate(`${path}?${params.toString()}`);
   };
+
+  /**
+   * Opens the trip settings modal with current trip data
+   * Populates form fields with existing trip details
+   */
   const openTripSettings = () => {
     setTripSettingsForm({
       title: trip.title || trip.destination || '',
@@ -1037,6 +1329,11 @@ function TripDetailsPage() {
     setTripSettingsStatus('idle');
     setSettingsOpen(true);
   };
+
+  /**
+   * Saves trip settings including title, start date, and end date
+   * Validates inputs and handles date range changes
+   */
   const saveTripSettings = async () => {
     const title = tripSettingsForm.title.trim();
     if (!title) {
@@ -1089,6 +1386,10 @@ function TripDetailsPage() {
     }
   };
 
+  /**
+   * Updates item price locally without saving to server
+   * Immutable update pattern for price estimation
+   */
   const updateItemPriceLocal = (item, amount) => {
     setItems((currentItems) =>
       currentItems.map((currentItem) =>
@@ -1099,6 +1400,10 @@ function TripDetailsPage() {
     );
   };
 
+  /**
+   * Saves item price to the server
+   * Updates the price estimate for a specific itinerary item
+   */
   const saveItemPrice = async (itemId) => {
     const item = items.find((currentItem) => currentItem._id === itemId);
     await updateItineraryItem(itemId, {
@@ -1109,12 +1414,20 @@ function TripDetailsPage() {
     });
   };
 
+  /**
+   * Updates item time locally without saving to server
+   * Sets start time or end time for an itinerary item
+   */
   const updateItemTimeLocal = (item, field, value) => {
     setItems((currentItems) =>
       currentItems.map((currentItem) => (currentItem._id === item._id ? { ...currentItem, [field]: value } : currentItem))
     );
   };
 
+  /**
+   * Saves item time to the server
+   * Updates start time and end time for an itinerary item
+   */
   const saveItemTime = async (itemId) => {
     const item = items.find((currentItem) => currentItem._id === itemId);
     await updateItineraryItem(itemId, {
@@ -1123,11 +1436,19 @@ function TripDetailsPage() {
     });
   };
 
+  /**
+   * Removes an item from the itinerary
+   * Deletes from server and updates local state
+   */
   const removeItem = async (itemId) => {
     await deleteItineraryItem(itemId);
     setItems((currentItems) => currentItems.filter((item) => item._id !== itemId));
   };
 
+  /**
+   * Loads place ideas based on category and search term
+   * Queries multiple APIs and deduplicates results
+   */
   const loadIdeas = async (category = ideaCategory, searchTerm = ideaSearch) => {
     if (!trip) return;
     setIdeaStatus('loading');
@@ -1184,6 +1505,10 @@ function TripDetailsPage() {
     }
   };
 
+  /**
+   * Opens the add search panel for a specific itinerary group
+   * Switches to ideas tab and loads category results
+   */
   const openAddSearch = (group) => {
     setActiveTab('ideas');
     setIdeaAddMode(group);
@@ -1193,6 +1518,10 @@ function TripDetailsPage() {
     loadIdeas(group.categoryId, '');
   };
 
+  /**
+   * Optimizes route for a specific day
+   * Fetches route between all places on that day
+   */
   const optimizeDayRoute = async (day) => {
     const dayPoints = mapPlaces.filter((place) => place.dayNumber === day.dayNumber);
     setActiveTab('itinerary');
@@ -1257,6 +1586,10 @@ function TripDetailsPage() {
     }
   };
 
+  /**
+   * Selects a different travel mode for the route
+   * Updates the displayed route information
+   */
   const selectDayRouteMode = (modeId) => {
     const modeRoute = tripRoutePlan.results[modeId];
     setTripRoutePlan((current) => ({
@@ -1267,6 +1600,10 @@ function TripDetailsPage() {
     }));
   };
 
+  /**
+   * Closes the day route panel
+   * Resets route plan state
+   */
   const closeDayRoute = () => {
     setTripRoutePlan((current) => ({
       ...current,
@@ -1279,22 +1616,38 @@ function TripDetailsPage() {
     }));
   };
 
+  /**
+   * Closes the add search panel
+   * Resets selection state
+   */
   const closeAddSearch = () => {
     setAddMode(null);
     setSelectedIdea(null);
   };
 
+  /**
+   * Handles idea search form submission
+   * Triggers new search with current query
+   */
   const handleIdeaSearch = (event) => {
     event.preventDefault();
     loadIdeas(addMode?.categoryId || ideaCategory, ideaSearch);
   };
 
+  /**
+   * Selects an idea for detailed view
+   * Sets selected idea and source
+   */
   const selectIdea = async (idea) => {
     setSelectedIdea(idea);
     setSelectedPlaceSource('idea');
     setIdeaDetailStatus('success');
   };
 
+  /**
+   * Selects a trip place from itinerary or map
+   * Enriches with additional details if available
+   */
   const selectTripPlace = async (place) => {
     if (!place) return;
 
@@ -1326,6 +1679,10 @@ function TripDetailsPage() {
     }
   };
 
+  /**
+   * Sends a prompt to the AI assistant
+   * Handles conversation history and place recommendations
+   */
   const askTripAiAssistant = async () => {
     const prompt = aiInput.trim();
     if (!prompt || !trip || aiStatus === 'loading') return;
@@ -1388,12 +1745,20 @@ function TripDetailsPage() {
     }
   };
 
+  /**
+   * Selects a place from AI assistant recommendations
+   * Sets up the place for viewing or addition
+   */
   const selectAiPlace = (place) => {
     setSelectedIdea(place);
     setSelectedPlaceSource('idea');
     setIdeaDetailStatus('success');
   };
 
+  /**
+   * Adds an idea place to the current day's itinerary
+   * Creates a new itinerary item with the place data
+   */
   const addIdeaToDay = async (idea, modeOverride = ideaAddMode || addMode) => {
     if (!idea || isAddingIdea) return;
 
@@ -1439,6 +1804,10 @@ function TripDetailsPage() {
     }
   };
 
+  /**
+   * Starts panel resize interaction
+   * Sets up pointer event listeners for drag-to-resize
+   */
   const startPanelResize = (event) => {
     event.preventDefault();
     const startX = event.clientX;
@@ -1458,16 +1827,29 @@ function TripDetailsPage() {
     window.addEventListener('pointerup', handlePointerUp);
   };
 
+  /**
+   * Loading state render
+   * Displays spinner while trip data is being fetched
+   */
   if (status === 'loading') {
     return <p className="settings-empty"><LoaderCircle className="trip-details-spin" size={16} aria-hidden="true" /> Loading trip details...</p>;
   }
 
+  /**
+   * Error state render
+   * Displays error message when trip data loading fails
+   */
   if (status === 'error') {
     return <p className="form-error" role="alert">{message}</p>;
   }
 
+  /**
+   * Main render function
+   * Returns the complete trip details page structure
+   */
   return (
     <section className="trip-details-page" aria-labelledby="trip-details-title">
+      {/* Top navigation bar with back link, title, and actions */}
       <header className="trip-details-topbar">
         <div className="trip-details-title-row">
           <Link to="/trips" className="trip-back-link">
@@ -1493,6 +1875,8 @@ function TripDetailsPage() {
           </div>
         </div>
       </header>
+
+      {/* Settings modal overlay */}
       {settingsOpen ? (
         <div className="trip-settings-overlay" role="presentation" onClick={() => setSettingsOpen(false)}>
           <aside className="trip-settings-drawer" aria-label="Trip settings" onClick={(event) => event.stopPropagation()}>
@@ -1506,6 +1890,7 @@ function TripDetailsPage() {
               </button>
             </header>
 
+            {/* Trip details section */}
             <section className="trip-settings-section">
               <h4>Trip Details</h4>
               <label className="trip-settings-field">
@@ -1565,6 +1950,7 @@ function TripDetailsPage() {
               ) : null}
             </section>
 
+            {/* Packing list section */}
             <section className="trip-settings-section trip-settings-row">
               <div>
                 <h4>Packing List</h4>
@@ -1582,6 +1968,7 @@ function TripDetailsPage() {
               </button>
             </section>
 
+            {/* Document checklist section */}
             <section className="trip-settings-section trip-settings-row">
               <div>
                 <h4>Document Checklist</h4>
@@ -1599,6 +1986,7 @@ function TripDetailsPage() {
               </button>
             </section>
 
+            {/* Budget section */}
             <section className="trip-settings-section">
               <h4>Trip Budget</h4>
               <label className="trip-settings-budget-input">
@@ -1623,10 +2011,12 @@ function TripDetailsPage() {
         </div>
       ) : null}
 
+      {/* Main content shell with AI assistant, left panel, resizer, and map */}
       <div
         className={`trip-details-shell ${isAiAssistantOpen ? 'has-ai-assistant' : ''}`}
         style={{ '--trip-left-panel-width': `${panelWidth}px` }}
       >
+        {/* AI Assistant Panel */}
         {isAiAssistantOpen ? (
           <TripAiAssistantPanel
             error={aiError}
@@ -1643,8 +2033,11 @@ function TripDetailsPage() {
             setInput={setAiInput}
           />
         ) : null}
+
+        {/* Left panel with itinerary or ideas */}
         <aside className="trip-details-panel">
           {addMode ? (
+            // Add search panel
             <div className="trip-add-search-panel">
               <header className="trip-add-search-header">
                 <button type="button" onClick={closeAddSearch} aria-label="Back to itinerary">
@@ -1656,6 +2049,7 @@ function TripDetailsPage() {
                 </div>
               </header>
 
+              {/* Search form */}
               <form className="trip-idea-search" onSubmit={handleIdeaSearch}>
                 <input
                   value={ideaSearch}
@@ -1667,6 +2061,7 @@ function TripDetailsPage() {
                 </button>
               </form>
 
+              {/* Weather help section */}
               {showWeatherHelp && (weatherGuidance || weather) ? (
                 <section className={weather?.available ? 'trip-weather-helper' : 'trip-weather-helper is-compact'} aria-label="Weather planning help">
                   <div className="trip-weather-helper-heading">
@@ -1691,6 +2086,7 @@ function TripDetailsPage() {
                 </section>
               ) : null}
 
+              {/* Ideas list */}
               {ideaStatus === 'loading' ? (
                 <p className="settings-empty"><LoaderCircle className="trip-details-spin" size={16} aria-hidden="true" /> Loading places...</p>
               ) : ideas.length === 0 ? (
@@ -1738,6 +2134,7 @@ function TripDetailsPage() {
             </div>
           ) : (
             <>
+              {/* Tab navigation */}
               <nav className="trip-details-tabs" aria-label="Trip details tabs">
                 <button className={activeTab === 'itinerary' ? 'active' : ''} type="button" onClick={() => setActiveTab('itinerary')}>
                   Itinerary
@@ -1752,9 +2149,11 @@ function TripDetailsPage() {
                 </button>
               </nav>
 
+              {/* Itinerary tab content */}
               {activeTab === 'itinerary' ? <div className="trip-day-tabs" aria-label="Itinerary days">
                 <div className="trip-day-selector">
                   <div className="trip-day-quick-list">
+                    {/* Summary tab */}
                     <button
                       className={activeDayNumber === 'summary' ? 'trip-day-tab-button active' : 'trip-day-tab-button'}
                       type="button"
@@ -1768,6 +2167,7 @@ function TripDetailsPage() {
                       <span>Summary</span>
                       <small>{routeSummary.length} stop{routeSummary.length === 1 ? '' : 's'}</small>
                     </button>
+                    {/* Visible day tabs */}
                     {visibleDayTabs.map((day) => (
                       <div className="trip-day-tab-group" key={day.dayNumber}>
                         <button
@@ -1793,6 +2193,7 @@ function TripDetailsPage() {
                         </button>
                       </div>
                     ))}
+                    {/* More button for overflow days */}
                     {hasOverflowDayTabs ? (
                       <button
                         type="button"
@@ -1805,6 +2206,7 @@ function TripDetailsPage() {
                       </button>
                     ) : null}
                   </div>
+                  {/* Day dropdown menu */}
                   {hasOverflowDayTabs && isDayMenuOpen ? (
                     <div className="trip-day-menu" role="menu">
                       <button
@@ -1852,9 +2254,11 @@ function TripDetailsPage() {
                 </div>
               </div> : null}
 
+              {/* Main content area */}
               {activeTab === 'itinerary' ? (
               <div className="trip-itinerary-workspace">
               {activeDayNumber === 'summary' ? (
+                // Summary view
                 <div className="trip-summary-tab">
                   <section className="trip-summary-hero" aria-label="Trip overview">
                     <div>
@@ -1950,7 +2354,9 @@ function TripDetailsPage() {
                   </section>
                 </div>
               ) : (
+              // Day detail view
               <>
+              {/* Day header */}
               {activeDay && (
                 <section className="trip-day-detail-header">
                   <div>
@@ -1968,6 +2374,7 @@ function TripDetailsPage() {
                 </section>
               )}
 
+              {/* Day location row */}
               {activeDay && (
                 <section className="trip-day-location-row">
                   <div>
@@ -1998,6 +2405,7 @@ function TripDetailsPage() {
                 </section>
               )}
 
+              {/* Day location edit form */}
               {activeDay && isEditingDayLocation ? (
                 <section className="trip-day-location-edit">
                   <span>Day location</span>
@@ -2052,6 +2460,7 @@ function TripDetailsPage() {
                 </section>
               ) : null}
 
+              {/* Weather toggle */}
               <label className="trip-weather-toggle">
                 <input
                   type="checkbox"
@@ -2061,7 +2470,10 @@ function TripDetailsPage() {
                 <span>Show weather-based advice and place ideas</span>
                 <Info size={15} aria-hidden="true" />
               </label>
+
+              {/* Budget overview section */}
               <section className="trip-budget-overview" aria-label="Budget overview">
+                {/* Day budget card */}
                 <div className={`trip-statistic-card trip-budget-card is-${activeDayBudgetStatus.tone}`}>
                   <div className="trip-statistic-card-header">
                     <span className="trip-statistic-card-icon"><WalletCards size={16} aria-hidden="true" /></span>
@@ -2097,6 +2509,8 @@ function TripDetailsPage() {
                   </div>
                   <span className="trip-budget-bar is-day"><em style={{ width: `${activeDaySpendPercent}%` }} /></span>
                 </div>
+
+                {/* Trip allocation card */}
                 <div className="trip-statistic-card trip-allocation-card">
                   <div className="trip-statistic-card-header">
                     <span className="trip-statistic-card-icon"><DollarSign size={16} aria-hidden="true" /></span>
@@ -2118,6 +2532,8 @@ function TripDetailsPage() {
                   </div>
                   <span className="trip-budget-bar"><em style={{ width: `${plannedBudgetPercent}%` }} /></span>
                 </div>
+
+                {/* Weather card */}
                 <div className="trip-statistic-card trip-weather-budget-card">
                   <div className="trip-statistic-card-header">
                     <span className="trip-statistic-card-icon"><WeatherModeIcon size={17} aria-hidden="true" /></span>
@@ -2154,6 +2570,7 @@ function TripDetailsPage() {
                 </div>
               </section>
 
+              {/* Day notes section */}
               {activeDay && (
                 <section className="trip-day-notes-panel">
                   <label className="trip-day-note">
@@ -2168,6 +2585,7 @@ function TripDetailsPage() {
                 </section>
               )}
 
+              {/* Itinerary groups */}
               <div className="trip-itinerary-groups">
                 {groupedDayItems.map((group) => {
                   const GroupIcon = group.icon;
@@ -2205,6 +2623,7 @@ function TripDetailsPage() {
                         </div>
                       ) : null}
 
+                      {/* Nearby suggestions */}
                       <div className="trip-group-ideas">
                         <div className="trip-group-ideas-heading">
                           <span><Sparkles size={14} aria-hidden="true" /> Nearby suggestions</span>
@@ -2242,6 +2661,7 @@ function TripDetailsPage() {
                         )}
                       </div>
 
+                      {/* Group items */}
                       {group.items.map((item) => {
                         const itemPoint = getItemPoint(item);
                         const itemPreviewUrl = getOpenStreetMapTileUrl(itemPoint.lat, itemPoint.lng, 15);
@@ -2364,6 +2784,7 @@ function TripDetailsPage() {
               )}
             </div>
               ) : (
+            // Ideas tab content
             <div className={ideaAddMode ? 'trip-ideas-workspace has-add-context' : 'trip-ideas-workspace'}>
               {ideaAddMode ? (
                 <div className="trip-ideas-add-context">
@@ -2459,6 +2880,7 @@ function TripDetailsPage() {
             </div>
               )}
 
+              {/* AI assistant bar */}
               <div className="trip-panel-footer">
                 <button className="trip-assistant-bar" type="button" onClick={() => setIsAiAssistantOpen(true)}>
                   <Sparkles size={16} aria-hidden="true" />
@@ -2468,6 +2890,8 @@ function TripDetailsPage() {
             </>
           )}
         </aside>
+
+        {/* Panel resizer */}
         <div
           className="trip-panel-resizer"
           role="separator"
@@ -2477,7 +2901,9 @@ function TripDetailsPage() {
           onPointerDown={startPanelResize}
         />
 
+        {/* Map area */}
         <main className="trip-details-map-area">
+          {/* Map toolbar */}
           {!isDayRouteOpen ? <div className="trip-details-map-toolbar">
             {ideaCategories.map((category) => {
               const CategoryIcon = category.icon;
@@ -2500,6 +2926,8 @@ function TripDetailsPage() {
               <span><Navigation size={15} aria-hidden="true" /> Day {tripRoutePlan.dayNumber} optimized route</span>
             </div>
           )}
+
+          {/* Route mode selector */}
           {isDayRouteOpen ? (
             <div className="trip-day-route-modes" aria-label="Travel mode times">
               {routeModes.map((mode) => {
@@ -2522,6 +2950,8 @@ function TripDetailsPage() {
               })}
             </div>
           ) : null}
+
+          {/* Map component */}
           <TripMapPreview
             center={selectedIdea ? [selectedIdea.lat, selectedIdea.lng] : activeDayMapCenter || undefined}
             className="trip-details-map"
@@ -2535,6 +2965,8 @@ function TripDetailsPage() {
             showZoomControl
             zoom={isAiAssistantOpen && selectedIdea ? 17 : activeDayNumber !== 'summary' ? 10 : undefined}
           />
+
+          {/* Place detail panel */}
           {selectedIdea ? (
             <aside className="trip-place-detail-panel" aria-label={`${selectedIdea.name} details`}>
               {visitedLookup[getIdeaVisitedPayload(selectedIdea).placeKey] ? <span className="visited-place-watermark">Visited</span> : null}
@@ -2613,6 +3045,8 @@ function TripDetailsPage() {
               </div>
             </aside>
           ) : null}
+
+          {/* Day route panel */}
           {isDayRouteOpen ? (
             <aside className="trip-day-route-panel" aria-label={`Day ${tripRoutePlan.dayNumber} route order`}>
               <header>

@@ -2,6 +2,8 @@
  * Place Card styles.
  * Shared Explore and Travel Guide cards use a simple visual hierarchy for quick comparison.
  */
+
+/* Main card container with hover effects and transitions */
 .explore-attraction {
   position: relative;
   overflow: visible;
@@ -16,20 +18,24 @@
     transform 0.18s ease;
 }
 
+/* Elevates z-index when card receives focus */
 .explore-attraction:focus-within {
   z-index: 20;
 }
 
+/* Hover state with teal border, enhanced shadow, and slight lift */
 .explore-attraction:hover {
   border-color: rgba(15, 118, 110, 0.28);
   box-shadow: 0 18px 38px rgba(16, 42, 67, 0.12);
   transform: translateY(-2px);
 }
 
+/* Clickable cursor for cards that support detail navigation */
 .explore-attraction.is-clickable {
   cursor: pointer;
 }
 
+/* Media container with rounded corners and overlay gradient */
 .explore-attraction-media {
   position: relative;
   overflow: hidden;
@@ -38,6 +44,7 @@
   background: #eef4f8;
 }
 
+/* Image styling with fixed aspect ratio */
 .explore-card-image,
 .explore-attraction-image {
   display: block;
@@ -46,6 +53,7 @@
   object-fit: cover;
 }
 
+/* Gradient overlay for better text contrast on images */
 .explore-attraction-media::after {
   position: absolute;
   inset: 0;
@@ -54,6 +62,7 @@
   pointer-events: none;
 }
 
+/* Gallery navigation controls at bottom-right of image */
 .explore-card-gallery-controls {
   position: absolute;
   z-index: 3;
@@ -70,6 +79,7 @@
   backdrop-filter: blur(10px);
 }
 
+/* Gallery control buttons with hover effect */
 .explore-card-gallery-controls button {
   display: inline-grid;
   width: 30px;
@@ -85,6 +95,7 @@
   background: rgba(255, 255, 255, 0.12);
 }
 
+/* Gallery page indicator text */
 .explore-card-gallery-controls span {
   min-width: 48px;
   text-align: center;
@@ -92,6 +103,7 @@
   font-weight: 700;
 }
 
+/* Photo indicator dots at bottom-center of image */
 .explore-card-photo-dots {
   position: absolute;
   z-index: 3;
@@ -104,6 +116,7 @@
   transform: translateX(-50%);
 }
 
+/* Individual dot button with transition animations */
 .explore-card-photo-dots button {
   width: 7px;
   height: 7px;
@@ -115,12 +128,14 @@
   transition: background 0.18s ease, transform 0.18s ease, width 0.18s ease;
 }
 
+/* Active dot indicator with extended width */
 .explore-card-photo-dots button.active {
   width: 18px;
   background: #ffffff;
   transform: translateY(-1px);
 }
 
+/* Additional photo count badge when more than 8 images */
 .explore-card-photo-dots span {
   border-radius: 999px;
   background: rgba(15, 23, 42, 0.72);
@@ -130,6 +145,7 @@
   font-weight: 800;
 }
 
+/* Fallback image placeholder with gradient background */
 .explore-attraction-image {
   display: grid;
   place-items: center;
@@ -137,6 +153,7 @@
   background: linear-gradient(135deg, #ecfeff, #f8fafc);
 }
 
+/* Rank badge at top-left of card */
 .explore-card-rank {
   position: absolute;
   z-index: 2;
@@ -151,6 +168,7 @@
   line-height: 1;
 }
 
+/* Action buttons container at top-right of media */
 .explore-media-actions {
   position: absolute;
   z-index: 3;
@@ -161,6 +179,7 @@
   align-items: center;
 }
 
+/* Name row layout with space-between alignment */
 .explore-card-name-row {
   display: flex;
   gap: 12px;
@@ -169,6 +188,7 @@
   min-width: 0;
 }
 
+/* Actions container for favorite and other controls */
 .explore-card-actions {
   display: flex;
   flex: 0 0 auto;
@@ -176,6 +196,8 @@
   justify-content: flex-end;
   gap: 6px;
 }
+
+/* Visited checkmark badge */
 .explore-visited-check {
   display: inline-grid;
   width: 40px;
@@ -188,6 +210,7 @@
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.14);
 }
 
+/* Favorite button with heart icon and red hover */
 .explore-favorite-button {
   display: inline-grid;
   width: 32px;
@@ -207,6 +230,7 @@
   color: #dc2626;
 }
 
+/* Card title styling */
 .explore-attraction h3 {
   min-width: 0;
   margin: 0;
@@ -216,24 +240,29 @@
   line-height: 1.35;
   letter-spacing: 0;
 }
+
+/* Visited check with green color */
 .explore-visited-check {
   color: #16a34a;
   font-size: 20px;
   font-weight: 850;
 }
 
+/* Card body with grid layout and padding */
 .explore-attraction-body {
   display: grid;
   gap: 14px;
   padding: 16px;
 }
 
+/* Title section with gap between category and name */
 .explore-attraction-title {
   display: grid;
   gap: 10px;
   min-width: 0;
 }
 
+/* Category row with flex alignment */
 .explore-card-category-row {
   display: flex;
   align-items: center;
@@ -242,6 +271,7 @@
   min-width: 0;
 }
 
+/* Category badge with icon and text */
 .explore-category {
   display: inline-flex;
   gap: 7px;
@@ -262,6 +292,7 @@
   color: #6366f1;
 }
 
+/* Card title text */
 .explore-attraction h3 {
   margin: 0;
   color: #0f172a;
@@ -271,6 +302,7 @@
   letter-spacing: 0;
 }
 
+/* Rating section with flex wrap */
 .explore-card-rating {
   display: flex;
   flex-wrap: wrap;
@@ -286,12 +318,14 @@
   font-weight: 650;
 }
 
+/* Star rating component with inline flex */
 .explore-star-rating {
   display: inline-flex;
   gap: 1px;
   align-items: center;
 }
 
+/* Individual star with positioned fill overlay */
 .explore-star {
   position: relative;
   display: inline-flex;
@@ -309,11 +343,13 @@
   display: block;
 }
 
+/* Facts section with grid layout */
 .explore-card-facts {
   display: grid;
   gap: 12px;
 }
 
+/* Status row with open badge and hours */
 .explore-card-status-row {
   display: flex;
   flex-wrap: wrap;
@@ -325,6 +361,7 @@
   line-height: 1.4;
 }
 
+/* Open status badge with colored indicator dot */
 .explore-open-badge {
   display: inline-flex;
   gap: 7px;
@@ -343,6 +380,7 @@
   content: '';
 }
 
+/* Open state with green */
 .explore-open-badge.is-open {
   color: #16a34a;
 }
@@ -351,6 +389,7 @@
   background: #16a34a;
 }
 
+/* Closed state with red */
 .explore-open-badge.is-closed {
   color: #ef4444;
 }
@@ -359,6 +398,7 @@
   background: #ef4444;
 }
 
+/* Unknown state with gray */
 .explore-open-badge.is-unknown {
   color: #64748b;
 }
@@ -367,6 +407,7 @@
   background: #94a3b8;
 }
 
+/* Status row items with inline flex */
 .explore-card-status-row div,
 .explore-card-contact {
   display: inline-flex;
@@ -375,12 +416,14 @@
   min-width: 0;
 }
 
+/* Status icons with muted color */
 .explore-card-status-row svg,
 .explore-card-contact svg {
   flex: 0 0 auto;
   color: #94a3b8;
 }
 
+/* Status text with ellipsis overflow */
 .explore-card-status-row span:not(.explore-open-badge),
 .explore-card-contact a {
   overflow: hidden;
@@ -389,6 +432,7 @@
   white-space: nowrap;
 }
 
+/* Contact link styling */
 .explore-card-contact a {
   text-decoration: none;
 }
@@ -397,6 +441,7 @@
   color: #0f172a;
 }
 
+/* Price row with two-column grid and borders */
 .explore-card-price-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -406,6 +451,7 @@
   background: #ffffff;
 }
 
+/* Price column with grid layout */
 .explore-card-price-row > div {
   display: grid;
   gap: 5px;
@@ -413,10 +459,12 @@
   padding: 12px;
 }
 
+/* Divider between price columns */
 .explore-card-price-row > div + div {
   border-left: 1px solid #e2e8f0;
 }
 
+/* Price amount with multi-line support */
 .explore-card-price-row strong {
   display: -webkit-box;
   overflow: hidden;
@@ -429,6 +477,7 @@
   -webkit-line-clamp: 2;
 }
 
+/* Price label with uppercase styling */
 .explore-card-price-row span {
   color: var(--teal);
   font-size: 11px;
@@ -437,6 +486,7 @@
   text-transform: uppercase;
 }
 
+/* Address line with icon and text */
 .explore-address {
   display: flex;
   gap: 8px;
@@ -454,17 +504,20 @@
   color: #64748b;
 }
 
+/* Footer actions with two-column grid */
 .explore-card-footer-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
+/* Full width for visited and compare controls */
 .explore-card-footer-actions .visited-place-control,
 .explore-card-footer-actions .compare-button {
   width: 100%;
 }
 
+/* Ordering for footer actions */
 .explore-card-footer-actions .visited-place-control {
   order: 1;
 }
@@ -473,6 +526,7 @@
   order: 2;
 }
 
+/* Button styling for visited and compare */
 .explore-card-footer-actions .visited-place-button,
 .explore-card-compare-button {
   width: 100%;
@@ -483,20 +537,24 @@
   font-size: 13px;
 }
 
+/* Visited button state */
 .explore-card-footer-actions .visited-place-button.is-visited {
   border-color: #dcfce7;
   background: #ecfdf5;
 }
 
+/* Responsive adjustments for mobile screens */
 @media (max-width: 560px) {
   .explore-attraction h3 {
     font-size: 18px;
   }
 
+  /* Stack price columns vertically on mobile */
   .explore-card-price-row {
     grid-template-columns: 1fr;
   }
 
+  /* Divider changes from border-left to border-top */
   .explore-card-price-row > div + div {
     border-top: 1px solid #e2e8f0;
     border-left: 0;

@@ -16,7 +16,6 @@ export function CurrencyProvider({ children }) {
   const [rates, setRates] = useState({ USD: { rate: 1, date: null, cached: true } });
   const [errorMessage, setErrorMessage] = useState('');
   useEffect(() => {
-    setIsCurrencyListLoading(true);
     getCurrencies()
       .then((response) => {
         const nextCurrencies = response.data?.data?.currencies;

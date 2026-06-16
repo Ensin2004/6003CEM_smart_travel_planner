@@ -25,11 +25,20 @@ import {
   sections,
 } from './settings.constants';
 import './SettingsWorkspace.css';
-// SettingsWorkspace renders the main screen and handles nearby interactions.
+
+// ===== MAIN SETTINGS COMPONENT =====
+// Renders the settings workspace and manages all settings-related state and interactions
 function SettingsWorkspace({ role }) {
+  // ===== CONTEXT AND HOOKS =====
+  // Authentication context for user data and update functions
   const { setUser } = useContext(AuthContext);
+  // Custom hook for real-time subscriptions to feedback and content updates
   const { subscribeToFeedback, subscribeToSettingsContent } = useNotifications();
+  // React Router hook to access URL parameters for section navigation
   const location = useLocation();
+
+  // ===== PROFILE STATE =====
+  // Manages all user profile data including name, email, avatar, and preferences
   const [profile, setProfile] = useState({
     name: '',
     email: '',
@@ -39,20 +48,32 @@ function SettingsWorkspace({ role }) {
     ageGroup: '',
     notificationPreferences: {},
   });
+
+  // ===== PASSWORD STATE =====
+  // Manages password change form fields
   const [passwordData, setPasswordData] = useState({
     currentPassword: '',
     password: '',
     confirmPassword: '',
   });
+
+  // ===== CONTENT STATE =====
+  // Manages dynamic content like privacy policy, terms, and FAQs (admin-only)
   const [content, setContent] = useState({
     privacyPolicy: '',
     termsAndConditions: '',
     faqs: [],
   });
+
+  // ===== FEEDBACK STATE =====
+  // Manages feedback entries and form data for the feedback section
   const [feedbackEntries, setFeedbackEntries] = useState([]);
   const [sortFilter, setSortFilter] = useState('all');
   const [ratingFilter, setRatingFilter] = useState('all');
   const [feedbackForm, setFeedbackForm] = useState({ rating: 0, feedback: '' });
+
+  // ===== UI STATE =====
+  // Manages various UI interactions including FAQs, status messages, and visibility toggles
   const [openFaq, setOpenFaq] = useState('');
   const [status, setStatus] = useState({ target: '', type: '', text: '' });
   const [visiblePasswords, setVisiblePasswords] = useState({});
@@ -68,7 +89,11 @@ function SettingsWorkspace({ role }) {
     faqs: false,
   });
 
+  // ===== ROLE-BASED CONFIGURATION =====
+  // Determines if current user has admin privileges
   const isAdmin = role === 'admin';
+  
+  // Generates visible sections with admin-specific labels when applicable
   const visibleSections = useMemo(
     () =>
       sections.map((section) => ({
@@ -77,10 +102,15 @@ function SettingsWorkspace({ role }) {
       })),
     [isAdmin]
   );
+  
+  // Creates a Set of visible section IDs for efficient lookups
   const visibleSectionIds = useMemo(
     () => new Set(visibleSections.map((section) => section.id)),
     [visibleSections]
   );
+  
+  // ===== ACTIVE SECTION DETERMINATION =====
+  // Determines which settings section should be active based on URL params or hash
   const activeSection = useMemo(() => {
     const sectionParam = new URLSearchParams(location.search).get('section');
 
@@ -94,6 +124,9 @@ function SettingsWorkspace({ role }) {
 
     return 'profile';
   }, [location.hash, location.search, visibleSectionIds]);
+
+  // ===== FILTERED FEEDBACK ENTRIES =====
+  // Applies rating and sorting filters to feedback entries
   const filteredFeedbackEntries = useMemo(() => {
     const entries =
       ratingFilter === 'all'
@@ -106,15 +139,26 @@ function SettingsWorkspace({ role }) {
 
     return entries.sort((first, second) => new Date(second.createdAt) - new Date(first.createdAt));
   }, [feedbackEntries, ratingFilter, sortFilter]);
+
+  // ===== PASSWORD VALIDATION =====
+  // Computes password requirements that are not yet met
   const unmetPasswordRequirements = useMemo(
     () => passwordRequirements.filter((requirement) => !requirement.test(passwordData.password)),
     [passwordData.password]
   );
+  
+  // Checks if password and confirmation password match
   const doPasswordsMatch = passwordData.password === passwordData.confirmPassword;
+
+  // ===== SELECTED OPTION HELPERS =====
+  // Finds the selected country, gender, and age group objects from their respective options
   const selectedCountryCode =
     countries.find(({ country }) => country === profile.country)?.countryCode || 'MY';
   const selectedGender = genderOptions.find(({ value }) => value === profile.gender);
   const selectedAgeGroup = ageGroupOptions.find(({ value }) => value === profile.ageGroup);
+
+  // ===== INITIAL DATA LOADING =====
+  // Loads all settings data when the component mounts
   useEffect(() => {
     const loadSettings = async () => {
       try {
@@ -151,11 +195,17 @@ function SettingsWorkspace({ role }) {
 
     loadSettings();
   }, [isAdmin]);
+
+  // ===== REAL-TIME CONTENT SUBSCRIPTION =====
+  // Subscribes to settings content updates via WebSocket or polling
   useEffect(() => {
     return subscribeToSettingsContent((nextContent) => {
       setContent(nextContent);
     });
   }, [subscribeToSettingsContent]);
+
+  // ===== REAL-TIME FEEDBACK SUBSCRIPTION =====
+  // Subscribes to new feedback entries (admin only)
   useEffect(() => {
     if (!isAdmin) return undefined;
 
@@ -166,13 +216,20 @@ function SettingsWorkspace({ role }) {
       ]);
     });
   }, [isAdmin, subscribeToFeedback]);
+
+  // ===== PROFILE HANDLERS =====
+  // Handles text input changes in profile form
   const handleProfileChange = (event) => {
     const { name, value } = event.target;
     setProfile((current) => ({ ...current, [name]: value }));
   };
+  
+  // Handles select input changes in profile form
   const handleProfileSelect = (name, value) => {
     setProfile((current) => ({ ...current, [name]: value }));
   };
+  
+  // Toggles individual notification preferences
   const handleNotificationToggle = (key) => {
     setProfile((current) => ({
       ...current,
@@ -183,6 +240,8 @@ function SettingsWorkspace({ role }) {
       },
     }));
   };
+  
+  // Toggles all notifications on/off
   const handleAllNotificationsOff = () => {
     setProfile((current) => {
       const notificationsOn = Boolean(current.notificationPreferences?.notificationsOff);
@@ -196,6 +255,9 @@ function SettingsWorkspace({ role }) {
       };
     });
   };
+
+  // ===== AVATAR HANDLERS =====
+  // Handles avatar image file selection and validation
   const handleAvatarChange = (event) => {
     const file = event.target.files?.[0];
     if (!file) return;
@@ -223,10 +285,15 @@ function SettingsWorkspace({ role }) {
     };
     reader.readAsDataURL(file);
   };
+  
+  // Removes the current avatar
   const handleAvatarRemove = () => {
     setProfile((current) => ({ ...current, avatarUrl: '' }));
     setStatus({ target: 'profile', type: 'success', text: 'Avatar removed. Save profile to keep this change.' });
   };
+
+  // ===== PROFILE SUBMISSION =====
+  // Validates and submits profile updates to the server
   const handleProfileSubmit = async (event) => {
     event?.preventDefault();
     setStatus({ target: '', type: '', text: '' });
@@ -251,6 +318,9 @@ function SettingsWorkspace({ role }) {
       });
     }
   };
+
+  // ===== PASSWORD SUBMISSION =====
+  // Validates and submits password change request
   const handlePasswordSubmit = async (event) => {
     event.preventDefault();
     setStatus({ target: '', type: '', text: '' });
@@ -287,10 +357,14 @@ function SettingsWorkspace({ role }) {
       });
     }
   };
+
+  // ===== CONTENT HANDLERS =====
+  // Updates content state when admin edits text fields
   const handleContentChange = (field, value) => {
     setContent((current) => ({ ...current, [field]: value }));
   };
 
+  // Saves edited content to the server
   const handleContentSave = async (target = 'content') => {
     setStatus({ target: '', type: '', text: '' });
 
@@ -307,6 +381,8 @@ function SettingsWorkspace({ role }) {
     }
   };
 
+  // ===== FEEDBACK HANDLERS =====
+  // Submits user feedback to the server
   const handleFeedbackSubmit = async (event) => {
     event.preventDefault();
     setStatus({ target: '', type: '', text: '' });
@@ -329,11 +405,14 @@ function SettingsWorkspace({ role }) {
     }
   };
 
+  // ===== RENDER HELPERS =====
+  // Renders status messages for specific targets
   const renderStatus = (target) =>
     status.target === target && status.text ? (
       <p className={status.type === 'success' ? 'form-success' : 'form-error'}>{status.text}</p>
     ) : null;
 
+  // Renders a pane header with optional edit button for admin
   const renderPaneHeader = (title, editKey) => (
     <div className="settings-pane-header">
       <h3>{title}</h3>
@@ -350,6 +429,8 @@ function SettingsWorkspace({ role }) {
     </div>
   );
 
+  // ===== COMPONENT RENDER =====
+  // Renders the active settings section based on URL or navigation state
   return (
     <section className="settings-workspace">
       <div className="settings-content">

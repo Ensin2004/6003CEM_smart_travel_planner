@@ -10,8 +10,18 @@ import { getPlaceImageSrc } from '../../../utils/placeImageProxy';
 import { getErrorMessage } from '../explore.helpers';
 import './SharedDetailPage.css';
 
+// Set of values that indicate missing or unavailable price information
 const missingPriceValues = new Set(['', '-', 'price unavailable', 'unavailable', 'not provided']);
+
+/**
+ * Checks if a price text value contains meaningful price information.
+ * 
+ * @param {string} value - The price text to check
+ * @returns {boolean} True if the price text is meaningful and not missing
+ */
 const hasPriceText = (value = '') => !missingPriceValues.has(String(value).trim().toLowerCase());
+
+// Approximate currency conversion rates relative to USD for estimation purposes
 const approximateUsdRates = {
   USD: 1,
   MYR: 4.7,
@@ -23,12 +33,27 @@ const approximateUsdRates = {
   IDR: 16200,
   VND: 25400,
 };
+
+/**
+ * Formats a monetary amount using the specified currency code.
+ * 
+ * @param {number} amount - The amount to format
+ * @param {string} currencyCode - The currency code for formatting
+ * @returns {string} Formatted currency string
+ */
 const formatEstimatedMoney = (amount, currencyCode) =>
   new Intl.NumberFormat(undefined, {
     style: 'currency',
     currency: currencyCode,
     maximumFractionDigits: amount >= 1000 ? 0 : 2,
   }).format(amount);
+
+/**
+ * Generates a deduplication key for an image URL by removing query parameters.
+ * 
+ * @param {string} imageUrl - The image URL to process
+ * @returns {string} A normalized key for deduplication
+ */
 const getImageDedupeKey = (imageUrl = '') => {
   try {
     const parsedUrl = new URL(imageUrl);
@@ -37,6 +62,13 @@ const getImageDedupeKey = (imageUrl = '') => {
     return imageUrl.split('?')[0].replace(/=[^/]+$/i, '');
   }
 };
+
+/**
+ * Filters out duplicate images from an array of image URLs.
+ * 
+ * @param {Array} images - Array of image URLs
+ * @returns {Array} Array of unique image URLs
+ */
 const getUniqueImages = (images = []) => {
   const seenImageKeys = new Set();
   const hasGoogleImage = images.some((imageUrl) => {
@@ -62,10 +94,28 @@ const getUniqueImages = (images = []) => {
     return true;
   });
 };
+
+/**
+ * Retrieves the primary image URL from a place object.
+ * 
+ * @param {Object} place - The place object
+ * @returns {string} The primary image URL
+ */
 const getPrimaryImage = (place = {}) => place.imageUrl || place.imageUrls?.[0] || '';
+
+/**
+ * Retrieves all gallery images from a place object with deduplication.
+ * 
+ * @param {Object} place - The place object
+ * @returns {Array} Array of unique gallery image URLs
+ */
 const getGalleryImages = (place = {}) =>
   getUniqueImages([place.imageUrl, ...(place.imageUrls || [])]);
+
+// Number of reviews to display per page
 const reviewPageSize = 30;
+
+// Color mapping for rating stars
 const ratingChartColors = {
   5: '#14b8a6',
   4: '#22c55e',
@@ -73,14 +123,39 @@ const ratingChartColors = {
   2: '#fb923c',
   1: '#ef4444',
 };
+
+/**
+ * Determines the appropriate currency for a place.
+ * 
+ * @param {Object} params - Parameters object
+ * @param {Object} params.place - The place object
+ * @param {string} params.fallbackCurrency - Fallback currency if place has none
+ * @returns {string} The currency code
+ */
 const getCurrencyForPlace = ({ place = {}, fallbackCurrency = 'USD' }) => {
   if (place.priceDetail?.currency) return place.priceDetail.currency;
   return fallbackCurrency || 'USD';
 };
+
+/**
+ * Generates a unique key for favorite identification.
+ * 
+ * @param {Object} place - The place object
+ * @returns {string} A unique key string
+ */
 const getFavoriteKey = (place = {}) =>
   String(place.dataId || place.placeId || place.id || place.name || '')
     .trim()
     .toLowerCase();
+
+/**
+ * Formats coordinates into a readable string.
+ * 
+ * @param {Object} coordinates - The coordinates object
+ * @param {number} coordinates.latitude - The latitude value
+ * @param {number} coordinates.longitude - The longitude value
+ * @returns {string} Formatted coordinate string or empty string if invalid
+ */
 const getCoordinateText = (coordinates = {}) => {
   const latitude = Number(coordinates.latitude);
   const longitude = Number(coordinates.longitude);
@@ -91,6 +166,14 @@ const getCoordinateText = (coordinates = {}) => {
 
   return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
 };
+
+/**
+ * Creates a search result description object from place data.
+ * 
+ * @param {Object} place - The place object
+ * @param {string} singularLower - Lowercase singular label
+ * @returns {Object} Description object with title, extract, and source information
+ */
 const getSearchResultDescription = (place = {}, singularLower = 'place') => {
   const ratingText = place.rating
     ? `${Number(place.rating).toFixed(1)} stars${place.reviewCount ? ` from ${Number(place.reviewCount).toLocaleString()} Google reviews` : ''}`
@@ -111,6 +194,15 @@ const getSearchResultDescription = (place = {}, singularLower = 'place') => {
     source: 'search-result',
   };
 };
+
+/**
+ * Generates highlight items from place data for display.
+ * 
+ * @param {Object} params - Parameters object
+ * @param {Object} params.place - The place object
+ * @param {string} params.originalPriceText - Original price text
+ * @returns {Array} Array of highlight strings
+ */
 const getHighlightItems = ({ place = {}, originalPriceText = '' }) =>
   [
     place.rating ? `Rated ${Number(place.rating).toFixed(1)} stars by Google users` : '',
@@ -120,6 +212,13 @@ const getHighlightItems = ({ place = {}, originalPriceText = '' }) =>
     place.address ? 'Address is available for trip planning' : '',
     place.category ? `${place.category} category` : '',
   ].filter(Boolean).slice(0, 5);
+
+/**
+ * Determines visit timing information based on opening hours.
+ * 
+ * @param {Object} place - The place object
+ * @returns {Object} Timing information with title, detail, and note
+ */
 const getVisitTimingText = (place = {}) => {
   const hoursText = (place.openState || place.hoursSummary || '').trim();
 
@@ -145,15 +244,16 @@ const getVisitTimingText = (place = {}) => {
     note: 'Use the Google listing for current hours.',
   };
 };
-const getReviewIdentifiers = (place = {}) => {
-  const fallbackId = String(place.id || '');
-  const idLooksLikeGoogleReference = fallbackId.startsWith('ChIJ') || fallbackId.startsWith('0x');
 
-  return {
-    dataId: place.dataId || (fallbackId.startsWith('0x') ? fallbackId : ''),
-    placeId: place.placeId || (idLooksLikeGoogleReference && fallbackId.startsWith('ChIJ') ? fallbackId : ''),
-  };
-};
+/**
+ * Estimates price range based on place category and currency.
+ * 
+ * @param {Object} params - Parameters object
+ * @param {Object} params.config - Configuration object
+ * @param {Object} params.place - The place object
+ * @param {string} params.currencyCode - Currency code for formatting
+ * @returns {string} Formatted price range or empty string
+ */
 const getEstimatedPriceText = ({ config, place = {}, currencyCode = 'USD' }) => {
   const category = String(place.category || place.type || '').toLowerCase();
   let usdRange = [];
@@ -176,6 +276,14 @@ const getEstimatedPriceText = ({ config, place = {}, currencyCode = 'USD' }) => 
   const [minimum, maximum] = usdRange.map((amount) => amount * rate);
   return `${formatEstimatedMoney(minimum, currencyCode)} - ${formatEstimatedMoney(maximum, currencyCode)}`;
 };
+
+/**
+ * Generates CSS background for rating pie chart based on rating distribution.
+ * 
+ * @param {Object} distribution - Rating distribution counts
+ * @param {number} totalReviews - Total number of reviews
+ * @returns {string} CSS background value for conic gradient
+ */
 const getRatingPieBackground = (distribution = {}, totalReviews = 0) => {
   if (!totalReviews) return '#e2e8f0';
 
@@ -189,6 +297,14 @@ const getRatingPieBackground = (distribution = {}, totalReviews = 0) => {
 
   return `conic-gradient(${segments.join(', ')})`;
 };
+
+/**
+ * ReviewAvatar component for displaying user avatars with fallback.
+ * 
+ * @param {Object} props - Component props
+ * @param {Object} props.review - Review object containing author and avatar information
+ * @returns {JSX.Element} Rendered avatar
+ */
 function ReviewAvatar({ review }) {
   const [hasImageError, setHasImageError] = useState(false);
   const initial = String(review.author || 'G').slice(0, 1).toUpperCase();
@@ -200,13 +316,26 @@ function ReviewAvatar({ review }) {
   return <span>{initial}</span>;
 }
 
+/**
+ * SharedDestinationDetailPage component.
+ * Renders detailed view for attractions, hotels, or restaurants.
+ * 
+ * @param {Object} props - Component props
+ * @param {Object} props.config - Configuration object for the specific detail type
+ * @returns {JSX.Element} The rendered detail page
+ */
 function SharedDestinationDetailPage({
   config,
 }) {
+  // Navigation and location hooks
   const navigate = useNavigate();
   const location = useLocation();
+  
+  // Extract state from location or initialize as null
   const statePlace = location.state?.[config.stateKey] || null;
   const initialFavoriteKey = getFavoriteKey(statePlace);
+  
+  // State declarations for place data and UI state
   const [place, setPlace] = useState(statePlace);
   const [description, setDescription] = useState(null);
   const [reviews, setReviews] = useState([]);
@@ -217,11 +346,14 @@ function SharedDestinationDetailPage({
   const [isFavorite, setIsFavorite] = useState(
     Boolean(initialFavoriteKey && location.state?.returnState?.[config.favoriteKeysState]?.includes(initialFavoriteKey))
   );
+  
+  // Filter and pagination state for reviews
   const [reviewSearch, setReviewSearch] = useState('');
   const [minRating, setMinRating] = useState('all');
   const [visibleReviewCount, setVisibleReviewCount] = useState(reviewPageSize);
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [selectedImageSelection, setSelectedImageSelection] = useState({ placeKey: '', index: 0 });
 
+  // Load place details on component mount or when dependencies change
   useEffect(() => {
     let isActive = true;
     const loadPlace = async () => {
@@ -263,6 +395,7 @@ function SharedDestinationDetailPage({
     };
   }, [config, location.search, statePlace]);
 
+  // Filter reviews based on search query and minimum rating
   const filteredReviews = useMemo(() => {
     const query = reviewSearch.trim().toLowerCase();
     const selectedRating = minRating === 'all' ? 0 : Number(minRating);
@@ -277,6 +410,8 @@ function SharedDestinationDetailPage({
       return matchesRating && matchesText;
     });
   }, [minRating, reviewSearch, reviews]);
+  
+  // Calculate rating distribution from reviews
   const ratingDistribution = useMemo(() => {
     const counts = { 5: 0, 4: 0, 3: 0, 2: 0, 1: 0 };
 
@@ -288,6 +423,9 @@ function SharedDestinationDetailPage({
     return counts;
   }, [reviews]);
 
+  /**
+   * Handles adding the place to favorites
+   */
   const handleFavorite = async () => {
     if (!place || isFavorite) return;
     try {
@@ -309,11 +447,12 @@ function SharedDestinationDetailPage({
       setError(getErrorMessage(requestError));
     }
   };
-  useEffect(() => {
-    setSelectedImageIndex(0);
-  }, [place?.id, place?.dataId, place?.placeId]);
-
+  
+  // Process gallery images and determine current selection
   const galleryImages = getGalleryImages(place);
+  const selectedImagePlaceKey = String(place?.id || place?.dataId || place?.placeId || place?.name || '');
+  const selectedImageIndex =
+    selectedImageSelection.placeKey === selectedImagePlaceKey ? selectedImageSelection.index : 0;
   const primaryImage = galleryImages[selectedImageIndex] || getPrimaryImage(place);
   const primaryImageSrc = getPlaceImageSrc(primaryImage);
   const openedFromSearchResult = description?.source === 'search-result';
@@ -322,6 +461,8 @@ function SharedDestinationDetailPage({
     originalPriceText: location.state?.originalPriceText,
   });
   const visitTiming = getVisitTimingText(place);
+  
+  // Price handling and display logic
   const providerOriginalPrice = location.state?.originalPriceText || place?.priceDetail?.display || place?.price || '';
   const selectedCurrency = location.state?.selectedCurrency || 'USD';
   const estimateCurrency = getCurrencyForPlace({ place, fallbackCurrency: selectedCurrency });
@@ -331,6 +472,8 @@ function SharedDestinationDetailPage({
   const convertedPriceValue = hasPriceText(location.state?.convertedPriceText) ? location.state.convertedPriceText : estimatedConvertedPrice || '-';
   const originalPriceLabel = estimatedPrice ? 'AI price estimate' : 'Original price';
   const convertedPriceLabel = estimatedConvertedPrice && !hasPriceText(location.state?.convertedPriceText) ? 'AI converted estimate' : 'Converted price';
+  
+  // Information cards configuration
   const infoCards = [
     {
       label: originalPriceLabel,
@@ -375,6 +518,8 @@ function SharedDestinationDetailPage({
       icon: MapPin,
     },
   ];
+  
+  // Photo and review display data
   const photoHighlights = galleryImages.length ? galleryImages : primaryImage ? [primaryImage] : [];
   const displayedReviews = filteredReviews.slice(0, visibleReviewCount);
   const hiddenReviewCount = Math.max(filteredReviews.length - displayedReviews.length, 0);
@@ -382,12 +527,16 @@ function SharedDestinationDetailPage({
     ? reviews.reduce((total, review) => total + Number(review.rating || 0), 0) / reviews.length
     : Number(place?.rating || 0);
   const ratingPieBackground = getRatingPieBackground(ratingDistribution, reviews.length);
+  
+  // Empty state messages
   const reviewEmptyTitle = openedFromSearchResult ? 'Review snippets unavailable' : 'No review snippets loaded';
   const reviewEmptyText = status || (
     openedFromSearchResult
       ? 'The detail response did not include review snippets. Open the Google listing to read reviews for this place.'
       : 'Google review snippets need a Google place identifier. Use the Google listing link when review text is needed.'
   );
+  
+  // Navigation return state preparation
   const returnSearch = location.state?.returnState?.returnSearch || config.returnSearch;
   const returnPath = `/explore?${returnSearch || config.returnSearch}`;
   const returnState = location.state?.returnState
@@ -400,11 +549,13 @@ function SharedDestinationDetailPage({
 
   return (
     <section className="shared-detail-page">
+      {/* Back navigation button */}
       <button className="shared-detail-back" type="button" onClick={() => navigate(returnPath, { state: returnState })}>
         <ArrowLeft size={17} />
         Back to {config.backLabel}
       </button>
 
+      {/* Loading state */}
       {isLoading && (
         <div className="explore-empty shared-detail-loading">
           <LoaderCircle className="explore-spin" size={34} aria-hidden="true" />
@@ -412,10 +563,13 @@ function SharedDestinationDetailPage({
         </div>
       )}
 
+      {/* Error display */}
       {error && <p className="form-error explore-status">{error}</p>}
 
+      {/* Main content when place data is available */}
       {place && !isLoading && (
         <>
+          {/* Hero section with image and key information */}
           <section className="shared-detail-hero">
             <div className="shared-detail-media">
               <div className="shared-detail-main-image">
@@ -428,6 +582,7 @@ function SharedDestinationDetailPage({
                 )}
                 {photoHighlights.length > 1 && <span className="shared-detail-photo-count">{selectedImageIndex + 1} / {photoHighlights.length}</span>}
               </div>
+              {/* Thumbnail row for image gallery navigation */}
               {photoHighlights.length > 1 && (
                 <div className="shared-detail-thumb-row" aria-label={`${place.name} photo thumbnails`}>
                   {photoHighlights.map((imageUrl, index) => (
@@ -435,7 +590,7 @@ function SharedDestinationDetailPage({
                       className={`shared-detail-thumb ${selectedImageIndex === index ? 'active' : ''}`}
                       key={`${imageUrl}-${index}`}
                       type="button"
-                      onClick={() => setSelectedImageIndex(index)}
+                      onClick={() => setSelectedImageSelection({ placeKey: selectedImagePlaceKey, index })}
                     >
                       <img src={getPlaceImageSrc(imageUrl)} alt="" loading="lazy" />
                     </button>
@@ -443,6 +598,7 @@ function SharedDestinationDetailPage({
                 </div>
               )}
             </div>
+            
             <div className="shared-detail-hero-copy">
               <div className="shared-detail-title-block">
                 <span className="explore-category">{config.singularLabel}</span>
@@ -455,6 +611,8 @@ function SharedDestinationDetailPage({
                   <span>{place.reviewCount ? `${Number(place.reviewCount).toLocaleString()} Google reviews` : 'No review count'}</span>
                 </div>
               </div>
+              
+              {/* Information grid displaying all detail cards */}
               <div className="shared-detail-info-grid">
                 {infoCards.map((card) => {
                   const CardIcon = card.icon;
@@ -471,6 +629,8 @@ function SharedDestinationDetailPage({
                   );
                 })}
               </div>
+              
+              {/* Action buttons for favorite and external link */}
               <div className="shared-detail-actions">
                 <button type="button" onClick={handleFavorite} className={isFavorite ? 'active' : ''}>
                   <Heart size={17} fill={isFavorite ? 'currentColor' : 'none'} />
@@ -486,6 +646,7 @@ function SharedDestinationDetailPage({
             </div>
           </section>
 
+          {/* Feature grid with description, highlights, and visit timing */}
           <section className="shared-detail-feature-grid">
             <article className="shared-detail-panel">
               <h3>About this place</h3>
@@ -516,12 +677,14 @@ function SharedDestinationDetailPage({
             </article>
           </section>
 
+          {/* Reviews section with filtering and rating summary */}
           <section className="shared-detail-reviews">
             <div className="shared-detail-reviews-heading">
               <div>
                 <span className="explore-category">Google reviews</span>
                 <h3>{reviews.length ? `${filteredReviews.length} filtered review${filteredReviews.length === 1 ? '' : 's'}` : `${place.reviewCount ? Number(place.reviewCount).toLocaleString() : '0'} Google review${Number(place.reviewCount || 0) === 1 ? '' : 's'}`}</h3>
               </div>
+              {/* Review filter controls */}
               {reviews.length > 0 && (
                 <div className="shared-detail-review-filters">
                   <label>
@@ -554,6 +717,7 @@ function SharedDestinationDetailPage({
               )}
             </div>
 
+            {/* Rating summary with pie chart and bar chart */}
             {reviews.length > 0 && (
               <div className="shared-detail-rating-summary" aria-label="Google review rating distribution">
                 <div className="shared-detail-rating-score">
@@ -625,6 +789,7 @@ function SharedDestinationDetailPage({
               </div>
             )}
 
+            {/* Review list display */}
             <div className="shared-detail-review-list">
               {displayedReviews.map((review) => (
                 <article className="shared-detail-review" key={review.id}>
@@ -645,6 +810,7 @@ function SharedDestinationDetailPage({
                   </div>
                   {review.date && <small className="shared-detail-review-date">{review.date}</small>}
                   <p>{review.text || 'No written review provided.'}</p>
+                  {/* Owner reply section if available */}
                   {review.ownerReply?.text && (
                     <div className="shared-detail-owner-reply">
                       <strong>{review.ownerReply.author || 'Owner response'}</strong>
@@ -654,6 +820,7 @@ function SharedDestinationDetailPage({
                   )}
                 </article>
               ))}
+              {/* Empty state when no reviews match filters */}
               {!filteredReviews.length && (
                 <article className="shared-detail-review-empty">
                   <Info size={22} aria-hidden="true" />
@@ -664,6 +831,8 @@ function SharedDestinationDetailPage({
                 </article>
               )}
             </div>
+            
+            {/* Load more button for paginated reviews */}
             {hiddenReviewCount > 0 && (
               <button
                 className="shared-detail-load-more"

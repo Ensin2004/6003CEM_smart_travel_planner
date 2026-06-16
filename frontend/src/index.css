@@ -2,6 +2,8 @@
  * Index styles.
  * Layout, spacing, and interaction rules support the matching React view.
  */
+
+/* Root variables defining the light theme color scheme and typography */
 :root {
   --text: #6b6375;
   --text-h: #08060d;
@@ -19,6 +21,7 @@
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
 
+  /* Base font and rendering settings applied to the entire document */
   font: 18px/145% var(--sans);
   letter-spacing: 0.18px;
   color-scheme: light dark;
@@ -34,6 +37,7 @@
   }
 }
 
+/* Dark theme overrides applied when system prefers dark color scheme */
 @media (prefers-color-scheme: dark) {
   :root {
     --text: #9ca3af;
@@ -48,13 +52,18 @@
     --shadow:
       rgba(0, 0, 0, 0.4) 0 10px 15px -3px, rgba(0, 0, 0, 0.25) 0 4px 6px -2px;
   }
+  /* Inverts social icons for better visibility in dark mode */
   #social .button-icon {
     filter: invert(1) brightness(2);
   }
 }
+
+/* Removes default body margin for full-width layout control */
 body {
   margin: 0;
 }
+
+/* Root container with centered layout and border styling */
 #root {
   width: 1126px;
   max-width: 100%;
@@ -67,12 +76,15 @@ body {
   box-sizing: border-box;
 }
 
+/* Heading styles with custom fonts and colors */
 h1,
 h2 {
   font-family: var(--heading);
   font-weight: 500;
   color: var(--text-h);
 }
+
+/* Primary heading with large size and tight letter spacing */
 h1 {
   font-size: 56px;
   letter-spacing: -1.68px;
@@ -82,6 +94,8 @@ h1 {
     margin: 20px 0;
   }
 }
+
+/* Secondary heading with smaller size and minimal letter spacing */
 h2 {
   font-size: 24px;
   line-height: 118%;
@@ -91,10 +105,13 @@ h2 {
     font-size: 20px;
   }
 }
+
+/* Paragraph margin reset for consistent spacing */
 p {
   margin: 0;
 }
 
+/* Code and counter elements using monospace font with inline flex layout */
 code,
 .counter {
   font-family: var(--mono);
@@ -102,6 +119,8 @@ code,
   border-radius: 4px;
   color: var(--text-h);
 }
+
+/* Inline code styling with background and padding */
 code {
   font-size: 15px;
   line-height: 135%;

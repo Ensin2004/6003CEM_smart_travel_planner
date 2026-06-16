@@ -4,12 +4,14 @@
  */
 import axiosClient from './axiosClient';
 
+// Sends a chat prompt to the AI assistant along with the current page context
 export const sendAiChatPrompt = ({ prompt, page }) =>
   axiosClient.post('/ai/chat', {
     prompt,
     page,
   });
 
+// Requests AI-powered trip recommendations based on trip details, planned places, and user history
 export const getTripAiRecommendations = ({ prompt, trip, plannedPlaces, history }) =>
   axiosClient.post('/ai/trip-recommendations', {
     prompt,
@@ -17,3 +19,4 @@ export const getTripAiRecommendations = ({ prompt, trip, plannedPlaces, history 
     plannedPlaces,
     history,
   });
+  

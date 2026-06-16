@@ -2,6 +2,10 @@
  * Explore AI panel styles.
  * The same right rail supports attractions, restaurants, hotels, and transportation.
  */
+
+/* ============================================
+   AI Panel Container - Sticky right rail
+   ============================================ */
 .explore-ai-panel {
   position: sticky;
   top: 18px;
@@ -16,6 +20,9 @@
   box-shadow: 0 12px 28px rgba(16, 42, 67, 0.06);
 }
 
+/* ============================================
+   Panel Heading
+   ============================================ */
 .explore-ai-panel-heading {
   display: flex;
   gap: 12px;
@@ -60,6 +67,7 @@
   line-height: 1.65;
 }
 
+/* Heading action buttons */
 .explore-ai-heading-actions {
   display: flex;
   flex-wrap: wrap;
@@ -83,6 +91,7 @@
   cursor: pointer;
 }
 
+/* Disabled state for buttons */
 .explore-ai-panel-heading button:disabled,
 .explore-ai-heading-actions button:disabled,
 .explore-ai-full-button:disabled {
@@ -90,6 +99,9 @@
   opacity: 0.55;
 }
 
+/* ============================================
+   Summary and Recommendation Cards
+   ============================================ */
 .explore-ai-summary-card,
 .explore-ai-recommendations,
 .explore-ai-answer-card {
@@ -102,6 +114,7 @@
   padding: 14px;
 }
 
+/* Summary card with highlight styling */
 .explore-ai-summary-card {
   border-color: rgba(245, 158, 11, 0.24);
   background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(255, 255, 255, 0.96));
@@ -120,6 +133,9 @@
   line-height: 1.4;
 }
 
+/* ============================================
+   Recommendation List
+   ============================================ */
 .explore-ai-recommendation-list {
   display: grid;
   gap: 0;
@@ -144,6 +160,7 @@
   padding-bottom: 0;
 }
 
+/* Rank number badge */
 .explore-ai-rank {
   display: inline-grid;
   width: 24px;
@@ -180,6 +197,7 @@
   line-height: 1.35;
 }
 
+/* Recommendation thumbnail image */
 .explore-ai-recommendation img {
   width: 62px;
   aspect-ratio: 1;
@@ -187,6 +205,9 @@
   object-fit: cover;
 }
 
+/* ============================================
+   Action Buttons
+   ============================================ */
 .explore-ai-full-button,
 .explore-ai-question-form button,
 .explore-ai-chat-preview button {
@@ -208,6 +229,9 @@
   padding: 0 14px;
 }
 
+/* ============================================
+   Ready State / Empty State Card
+   ============================================ */
 .explore-ai-ready-card {
   display: grid;
   justify-items: center;
@@ -249,6 +273,9 @@
   line-height: 1.4;
 }
 
+/* ============================================
+   Suggested Questions List
+   ============================================ */
 .explore-ai-question-list {
   display: grid;
   gap: 8px;
@@ -287,6 +314,9 @@
   color: var(--teal);
 }
 
+/* ============================================
+   Question Form
+   ============================================ */
 .explore-ai-question-form {
   display: grid;
   gap: 10px;
@@ -326,6 +356,9 @@
   padding: 0 12px;
 }
 
+/* ============================================
+   Error State
+   ============================================ */
 .explore-ai-error {
   border: 1px solid rgba(220, 38, 38, 0.2);
   border-radius: 8px;
@@ -334,15 +367,24 @@
   padding: 10px 12px;
 }
 
+/* ============================================
+   Answer Card
+   ============================================ */
 .explore-ai-answer-card {
   background: linear-gradient(180deg, #ffffff, #f8fbfc);
 }
 
+/* ============================================
+   Full Recommendations (Scrollable)
+   ============================================ */
 .explore-ai-recommendations-full {
   max-height: 620px;
   overflow-y: auto;
 }
 
+/* ============================================
+   Chat Preview Section
+   ============================================ */
 .explore-ai-chat-preview {
   display: grid;
   gap: 10px;
@@ -397,6 +439,9 @@
   color: var(--teal);
 }
 
+/* ============================================
+   Chat Thread
+   ============================================ */
 .explore-ai-chat-thread {
   display: grid;
   gap: 10px;
@@ -409,6 +454,7 @@
   padding: 12px;
 }
 
+/* Individual chat messages */
 .explore-ai-chat-message {
   display: grid;
   gap: 6px;
@@ -420,12 +466,14 @@
   padding: 10px 12px;
 }
 
+/* User messages - aligned right with different styling */
 .explore-ai-chat-message-user {
   justify-self: end;
   border-color: rgba(15, 118, 110, 0.18);
   background: rgba(240, 253, 250, 0.92);
 }
 
+/* Assistant messages - aligned left */
 .explore-ai-chat-message-assistant {
   justify-self: start;
 }
@@ -444,6 +492,9 @@
   overflow-wrap: anywhere;
 }
 
+/* ============================================
+   Empty Chat State
+   ============================================ */
 .explore-ai-chat-empty {
   display: grid;
   justify-items: center;
@@ -469,6 +520,11 @@
   line-height: 1.4;
 }
 
+/* ============================================
+  Responsive Breakpoints
+  ============================================ */
+
+/* Tablets and smaller laptops - remove sticky positioning */
 @media (max-width: 1180px) {
   .explore-ai-panel {
     position: static;

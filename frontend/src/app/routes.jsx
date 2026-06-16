@@ -33,16 +33,19 @@ import AdminSettingsPage from '../features/settings/admin/AdminSettingsPage';
 import UserLayout from '../layouts/UserLayout';
 import AdminLayout from '../layouts/AdminLayout';
 import ProtectedRoute from '../components/ProtectedRoute';
+
 // AppRoutes renders the main screen and handles nearby interactions.
 function AppRoutes() {
   return (
     <Routes>
+      {/* Public routes accessible without authentication */}
       <Route path="/" element={<LandingPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/verify-email" element={<VerifyEmailPage />} />
 
+      {/* Protected user routes requiring user role authentication */}
       <Route element={<ProtectedRoute allowedRoles={['user']} />}>
         <Route element={<UserLayout />}>
           <Route path="/dashboard" element={<UserDashboard />} />
@@ -65,6 +68,7 @@ function AppRoutes() {
         </Route>
       </Route>
 
+      {/* Protected admin routes requiring admin role authentication */}
       <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
         <Route path="/admin" element={<AdminLayout />}>
           <Route index element={<AdminDashboard />} />
@@ -78,9 +82,11 @@ function AppRoutes() {
         </Route>
       </Route>
 
+      {/* Catch-all route redirects to landing page for unmatched paths */}
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );
 }
-// Default export registers the primary  value.
+
+// Default export registers the primary value.
 export default AppRoutes;
