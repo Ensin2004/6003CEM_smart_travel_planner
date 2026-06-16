@@ -141,7 +141,7 @@ const getTripDestinationLabel = (trip, itineraryDays = []) => {
 const getTripCompareItem = (trip, itineraryDays = []) => ({
   id: trip._id,
   name: trip.title || trip.destination,
-  category: trip.planningMode === 'ai' ? 'AI assisted trip' : 'Manual trip',
+  category: 'Trip',
   source: 'trips',
   price: trip.budget?.totalAmount
     ? `${trip.budget.currency || 'MYR'} ${Number(trip.budget.totalAmount).toLocaleString()}`
@@ -407,10 +407,8 @@ function TripsPage() {
       country: '',
       startDate: submitDates.startDate,
       endDate: submitDates.endDate,
-      planningMode: 'self',
       budget: {
         totalAmount: Number(form.budgetAmount || 0),
-        dailyLimit: 0,
         currency: activeCurrencyCode,
       },
       destinationSegments: [],

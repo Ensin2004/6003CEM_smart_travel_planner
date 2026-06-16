@@ -52,6 +52,8 @@ describe('Trip CRUD service', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     // Configure notification mock to resolve successfully by default
+    notificationService.cancelPackingListRemindersForTrip.mockResolvedValue(undefined);
+    notificationService.reschedulePackingListRemindersForTrip.mockResolvedValue(undefined);
     notificationService.scheduleTripReminder.mockResolvedValue(undefined);
     notificationService.reschedulePackingListRemindersForTrip.mockResolvedValue([]);
     notificationService.cancelPackingListRemindersForTrip.mockResolvedValue([]);
@@ -158,6 +160,7 @@ describe('Trip CRUD service', () => {
     );
     // Verify notification is rescheduled with updated trip data
     expect(notificationService.scheduleTripReminder).toHaveBeenCalledWith(updatedTrip);
+    expect(notificationService.reschedulePackingListRemindersForTrip).toHaveBeenCalledWith(updatedTrip);
     // Verify service returns the updated trip object
     expect(result).toBe(updatedTrip);
   });
@@ -193,12 +196,14 @@ describe('Trip CRUD service', () => {
   // Verify that deletion only affects trips owned by the authenticated user
   test('deletes only the authenticated user trip', async () => {
     // Mock repository to return deleted trip object on successful deletion
-    tripRepository.deleteByIdAndUserId.mockResolvedValue({ id: 'trip-1' });
+    const deletedTrip = { id: 'trip-1' };
+    tripRepository.deleteByIdAndUserId.mockResolvedValue(deletedTrip);
 
     // Verify service resolves successfully (returns undefined)
     await expect(tripService.deleteTrip('trip-1', 'user-1')).resolves.toBeUndefined();
     // Verify repository was called with correct IDs for ownership validation
     expect(tripRepository.deleteByIdAndUserId).toHaveBeenCalledWith('trip-1', 'user-1');
+    expect(notificationService.cancelPackingListRemindersForTrip).toHaveBeenCalledWith(deletedTrip);
   });
 
   // Verify validation rule preventing trips with end date before start date

@@ -14,8 +14,7 @@ const optionalBudgetRule = () =>
       }
 
       if (budget && typeof budget === 'object') {
-        const amounts = [budget.totalAmount, budget.dailyLimit].filter((value) => value !== undefined);
-        return amounts.every((value) => Number(value) >= 0);
+        return budget.totalAmount === undefined || Number(budget.totalAmount) >= 0;
       }
 
       return false;
@@ -29,9 +28,7 @@ const tripBodyRules = [
   body('endDate').isISO8601().withMessage('End date must be a valid date'),
   optionalBudgetRule(),
   body('budget.totalAmount').optional().isFloat({ min: 0 }).withMessage('Budget amount must be zero or more'),
-  body('budget.dailyLimit').optional().isFloat({ min: 0 }).withMessage('Daily budget must be zero or more'),
   body('budget.currency').optional().trim().isLength({ min: 3, max: 3 }).withMessage('Currency must be a valid 3-letter code'),
-  body('planningMode').optional().isIn(['self', 'ai']),
   body('destinationSegments').optional().isArray(),
   body('destinationSegments.*.city').optional().trim().isLength({ min: 2, max: 120 }),
   body('destinationSegments.*.country').optional().trim().isLength({ max: 80 }),
@@ -64,9 +61,7 @@ const updateTripRules = [
   body('endDate').optional().isISO8601(),
   optionalBudgetRule(),
   body('budget.totalAmount').optional().isFloat({ min: 0 }),
-  body('budget.dailyLimit').optional().isFloat({ min: 0 }),
   body('budget.currency').optional().trim().isLength({ min: 3, max: 3 }),
-  body('planningMode').optional().isIn(['self', 'ai']),
   body('destinationSegments').optional().isArray(),
   body('destinationSegments.*.city').optional().trim().isLength({ min: 2, max: 120 }),
   body('destinationSegments.*.country').optional().trim().isLength({ max: 80 }),
