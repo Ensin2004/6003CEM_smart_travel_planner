@@ -2,15 +2,20 @@
  * Admin styles.
  * Layout, spacing, and interaction rules support the matching React view.
  */
+
+/* Main container for the admin dashboard page */
 .admin-home-page {
   display: grid;
   gap: 18px;
   width: 100%;
 }
+
+/* Status message container */
 .admin-home-status {
   margin: 0;
 }
 
+/* Shared styling for hero section, panels, and metric cards */
 .admin-home-hero,
 .admin-home-panel,
 .admin-home-metrics article {
@@ -19,6 +24,8 @@
   background: #ffffff;
   box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08);
 }
+
+/* Hero section styling with gradient background and grid pattern overlay */
 .admin-home-hero {
   position: relative;
   display: flex;
@@ -32,6 +39,8 @@
     #0f172a;
   color: #dbeafe;
 }
+
+/* Decorative grid pattern overlay on hero section */
 .admin-home-hero::before {
   content: "";
   position: absolute;
@@ -43,25 +52,35 @@
   mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.7), transparent 76%);
   pointer-events: none;
 }
+
+/* Ensures hero content appears above the background overlay */
 .admin-home-hero > * {
   position: relative;
   z-index: 1;
 }
+
+/* Eyebrow text styling in hero section */
 .admin-home-hero .eyebrow {
   color: #7dd3fc;
 }
+
+/* Main heading in hero section */
 .admin-home-hero h2 {
   margin: 0 0 10px;
   color: #ffffff;
   font-size: var(--font-size-3xl);
   letter-spacing: 0;
 }
+
+/* Description paragraph in hero section */
 .admin-home-hero p:not(.eyebrow) {
   max-width: 760px;
   margin-bottom: 0;
   color: rgba(226, 232, 240, 0.86);
   line-height: 1.65;
 }
+
+/* Container for health status badges and metadata */
 .admin-home-hero-meta {
   display: flex;
   align-items: center;
@@ -70,6 +89,7 @@
   margin-top: 18px;
 }
 
+/* Shared styling for status badges and health indicators */
 .admin-home-hero-meta span,
 .admin-home-health {
   display: inline-flex;
@@ -85,18 +105,22 @@
   font-weight: var(--font-weight-semibold);
   backdrop-filter: blur(12px);
 }
+
+/* Healthy status color scheme */
 .admin-home-health-healthy {
   border-color: rgba(52, 211, 153, 0.36);
   background: rgba(6, 78, 59, 0.42);
   color: #bbf7d0;
 }
 
+/* Warning status color scheme */
 .admin-home-health-warning {
   border-color: rgba(248, 113, 113, 0.38);
   background: rgba(127, 29, 29, 0.4);
   color: #fecaca;
 }
 
+/* Actions container in hero section */
 .admin-home-hero-actions {
   display: grid;
   align-content: space-between;
@@ -105,6 +129,7 @@
   min-width: 250px;
 }
 
+/* Live stats card displaying current traveller count */
 .admin-home-live-card {
   display: grid;
   gap: 6px;
@@ -117,6 +142,7 @@
   backdrop-filter: blur(16px);
 }
 
+/* Label styling for live card */
 .admin-home-live-card span {
   color: #93c5fd;
   font-size: 12px;
@@ -124,12 +150,14 @@
   text-transform: uppercase;
 }
 
+/* Value display for live card */
 .admin-home-live-card strong {
   color: #ffffff;
   font-size: 34px;
   line-height: 1;
 }
 
+/* Refresh button styling */
 .admin-home-action {
   display: inline-flex;
   align-items: center;
@@ -146,22 +174,26 @@
   box-shadow: 0 14px 28px rgba(15, 23, 42, 0.2);
 }
 
+/* Hover state for refresh button */
 .admin-home-action:hover {
   background: #ccfbf1;
   color: #115e59;
 }
 
+/* Disabled state for refresh button */
 .admin-home-action:disabled {
   cursor: not-allowed;
   opacity: 0.65;
 }
 
+/* Metrics grid container */
 .admin-home-metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
 }
 
+/* Individual metric card styling */
 .admin-home-metrics article {
   --metric-accent: #0f766e;
   --metric-bg: #ccfbf1;
@@ -175,6 +207,7 @@
   padding: 18px;
 }
 
+/* Left accent bar for metric cards */
 .admin-home-metrics article::before {
   content: "";
   position: absolute;
@@ -183,30 +216,35 @@
   background: var(--metric-accent);
 }
 
+/* Blue theme variant for metric cards */
 .admin-home-metric-blue {
   --metric-accent: #2563eb;
   --metric-bg: #dbeafe;
   --metric-fg: #1d4ed8;
 }
 
+/* Warning theme variant for metric cards */
 .admin-home-metric-warning {
   --metric-accent: #f59e0b;
   --metric-bg: #fef3c7;
   --metric-fg: #b45309;
 }
 
+/* Danger theme variant for metric cards */
 .admin-home-metric-danger {
   --metric-accent: #dc2626;
   --metric-bg: #fee2e2;
   --metric-fg: #b42318;
 }
 
+/* Success theme variant for metric cards */
 .admin-home-metric-success {
   --metric-accent: #0f766e;
   --metric-bg: #ccfbf1;
   --metric-fg: #0f766e;
 }
 
+/* Icon container within metric cards */
 .admin-home-metric-icon {
   display: grid;
   flex: 0 0 auto;
@@ -218,46 +256,54 @@
   color: var(--metric-fg);
 }
 
+/* Content wrapper for metric card text */
 .admin-home-metrics article > div {
   display: grid;
   gap: 5px;
   min-width: 0;
 }
 
+/* Metric label styling */
 .admin-home-metrics article > div span {
   color: var(--muted);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
 }
 
+/* Metric value styling */
 .admin-home-metrics strong {
   color: #0f172a;
   font-size: var(--font-size-2xl);
   line-height: 1;
 }
 
+/* Metric detail text styling */
 .admin-home-metrics small {
   color: #64748b;
   font-size: 12px;
   font-weight: var(--font-weight-medium);
 }
 
+/* Main grid container for dashboard panels */
 .admin-home-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
 }
 
+/* Individual panel styling */
 .admin-home-panel {
   display: grid;
   gap: 16px;
   padding: 18px;
 }
 
+/* Full-width panel spanning both columns */
 .admin-home-panel-wide {
   grid-column: 1 / -1;
 }
 
+/* Panel header container */
 .admin-home-panel-heading {
   display: flex;
   align-items: center;
@@ -265,6 +311,7 @@
   gap: 14px;
 }
 
+/* Category label in panel header */
 .admin-home-panel-heading span {
   display: block;
   margin-bottom: 4px;
@@ -274,12 +321,14 @@
   text-transform: uppercase;
 }
 
+/* Panel title styling */
 .admin-home-panel-heading h3 {
   margin: 0;
   color: #0f172a;
   font-size: var(--font-size-lg);
 }
 
+/* Secondary text in panel header */
 .admin-home-panel-heading small,
 .admin-home-panel-heading > strong {
   color: var(--muted);
@@ -287,11 +336,13 @@
   font-weight: var(--font-weight-bold);
 }
 
+/* Container for bar charts */
 .admin-home-bar-chart {
   display: grid;
   gap: 12px;
 }
 
+/* Individual bar chart row */
 .admin-home-bar {
   display: grid;
   grid-template-columns: 90px minmax(0, 1fr) 42px;
@@ -302,6 +353,7 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/* Bar track styling */
 .admin-home-bar i {
   display: block;
   height: 12px;
@@ -310,6 +362,7 @@
   background: #e2e8f0;
 }
 
+/* Bar fill using CSS custom property for width */
 .admin-home-bar i::before {
   content: "";
   display: block;
@@ -319,11 +372,13 @@
   background: var(--bar-color, #0f766e);
 }
 
+/* Bar value display */
 .admin-home-bar strong {
   color: #0f172a;
   text-align: right;
 }
 
+/* Color theme variants for different bar types */
 .admin-home-bar-primary,
 .admin-home-bar-info,
 .admin-home-bar-active {
@@ -345,6 +400,7 @@
   --bar-color: #dc2626;
 }
 
+/* Container for 7-day trend chart */
 .admin-home-trend-chart {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
@@ -354,6 +410,7 @@
   padding-top: 10px;
 }
 
+/* Individual day column in trend chart */
 .admin-home-trend-day {
   display: grid;
   grid-template-rows: auto 1fr auto;
@@ -365,6 +422,7 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/* Bar container for each trend day */
 .admin-home-trend-day > i {
   display: flex;
   width: 100%;
@@ -378,11 +436,13 @@
   background: #e2e8f0;
 }
 
+/* Segment within trend bars */
 .admin-home-trend-day b {
   display: block;
   height: var(--segment-size);
 }
 
+/* Color coding for trend segments */
 .admin-home-trend-success {
   background: #0f766e;
 }
@@ -395,20 +455,24 @@
   background: #dc2626;
 }
 
+/* Day label and count in trend chart */
 .admin-home-trend-day strong {
   color: #0f172a;
 }
 
+/* Muted text for empty states */
 .admin-home-muted {
   margin: 0;
   color: var(--muted);
 }
 
+/* Quick shortcuts container */
 .admin-home-shortcuts {
   display: grid;
   gap: 10px;
 }
 
+/* Individual shortcut link styling */
 .admin-home-shortcuts a {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -422,47 +486,57 @@
   font-weight: var(--font-weight-bold);
 }
 
+/* Hover state for shortcut links */
 .admin-home-shortcuts a:hover {
   border-color: rgba(15, 118, 110, 0.25);
   background: #f0fdfa;
   color: #0f766e;
 }
 
+/* Icon positioning in shortcuts */
 .admin-home-shortcuts svg {
   grid-row: span 2;
 }
 
+/* Description text in shortcuts */
 .admin-home-shortcuts small {
   color: #64748b;
   font-size: 12px;
   font-weight: var(--font-weight-medium);
 }
 
+/* Mobile responsive styles for screens up to 760px */
 @media (max-width: 760px) {
+  /* Stack hero content vertically on mobile */
   .admin-home-hero {
     flex-direction: column;
     padding: 22px;
   }
 
+  /* Full-width actions on mobile */
   .admin-home-hero-actions {
     width: 100%;
     min-width: 0;
     justify-items: stretch;
   }
 
+  /* Full-width refresh button on mobile */
   .admin-home-action {
     width: 100%;
   }
 
+  /* Single column layout for metrics and grid on mobile */
   .admin-home-metrics,
   .admin-home-grid {
     grid-template-columns: 1fr;
   }
 
+  /* Reset full-width panels on mobile */
   .admin-home-panel-wide {
     grid-column: auto;
   }
 
+  /* Reduced padding for metric cards on mobile */
   .admin-home-metrics article {
     padding: 16px;
   }

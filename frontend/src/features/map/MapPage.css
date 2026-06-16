@@ -2,6 +2,8 @@
  * Map styles.
  * Layout, spacing, and interaction rules support the matching React view.
  */
+
+/* Main container for the map discovery page - full viewport with overflow hidden */
 .map-discovery-page {
   position: relative;
   min-height: calc(100vh - 66px);
@@ -10,6 +12,8 @@
   background: #b7d9f4;
   text-align: left;
 }
+
+/* Utility class for visually hiding elements while keeping them accessible to screen readers */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -18,6 +22,8 @@
   clip: rect(0, 0, 0, 0);
   white-space: nowrap;
 }
+
+/* Top overlay container positioning search bar and filters above the map */
 .map-overlay-top {
   position: absolute;
   z-index: 650;
@@ -29,6 +35,8 @@
   gap: 12px;
   pointer-events: none;
 }
+
+/* Search card styling with grid layout and shadow effect */
 .map-search-card {
   position: relative;
   display: grid;
@@ -44,9 +52,13 @@
   box-shadow: 0 6px 18px rgba(16, 42, 67, 0.14);
   pointer-events: auto;
 }
+
+/* Icons within the search card use muted gray colors */
 .map-search-card svg {
   color: #6b7280;
 }
+
+/* Search input field with transparent background and custom font styling */
 .map-search-card input {
   min-width: 0;
   border: 0;
@@ -56,9 +68,13 @@
   font-size: 13px;
   font-weight: var(--font-weight-semibold);
 }
+
+/* Placeholder text styling for the search input */
 .map-search-card input::placeholder {
   color: #6b7280;
 }
+
+/* Clear button for the search input - circular with hover effect */
 .map-search-clear {
   display: grid;
   width: 24px;
@@ -69,11 +85,13 @@
   background: transparent;
   color: #6b7280;
 }
+
 .map-search-clear:hover {
   background: #f3f4f6;
   color: #111827;
 }
 
+/* Shared reset styles for buttons in filter strip, tool stack, and panel header */
 .map-filter-strip button,
 .map-tool-stack button,
 .map-panel-header button {
@@ -83,6 +101,8 @@
   background: transparent;
   color: inherit;
 }
+
+/* Horizontal filter strip with wrapped flex layout */
 .map-filter-strip {
   display: flex;
   flex-wrap: wrap;
@@ -90,6 +110,8 @@
   min-width: 0;
   pointer-events: auto;
 }
+
+/* Search suggestions dropdown positioned below the search input */
 .map-search-suggestions {
   position: absolute;
   top: calc(100% + 8px);
@@ -103,6 +125,7 @@
   box-shadow: 0 16px 34px rgba(16, 42, 67, 0.18);
 }
 
+/* Individual suggestion items with grid layout and hover states */
 .map-search-suggestions button {
   display: grid;
   grid-template-columns: 24px minmax(0, 1fr);
@@ -117,6 +140,7 @@
   text-align: left;
 }
 
+/* Remove border from the last suggestion item */
 .map-search-suggestions button:last-child {
   border-bottom: 0;
 }
@@ -125,10 +149,12 @@
   background: #f8fafc;
 }
 
+/* Suggestion icon color */
 .map-search-suggestions svg {
   color: #0f766e;
 }
 
+/* Suggestion text with ellipsis overflow handling */
 .map-search-suggestions strong,
 .map-search-suggestions small {
   display: block;
@@ -149,6 +175,7 @@
   line-height: 1.3;
 }
 
+/* Category filter buttons with horizontal layout and shadow */
 .map-filter-strip button {
   grid-auto-flow: column;
   gap: 6px;
@@ -165,15 +192,18 @@
   white-space: nowrap;
 }
 
+/* Muted icon color within filter buttons */
 .map-filter-strip button svg {
   color: #6b7280;
 }
 
+/* Hover and active states use the category-specific color */
 .map-filter-strip button:hover,
 .map-filter-strip button.is-active {
   color: var(--category-color);
 }
 
+/* Active state with a corner accent using CSS gradient */
 .map-filter-strip button.is-active {
   position: relative;
 }
@@ -193,6 +223,7 @@
   color: var(--category-color);
 }
 
+/* Floating status messages with color-coded backgrounds based on status type */
 .map-floating-status {
   position: absolute;
   z-index: 660;
@@ -205,6 +236,7 @@
   font-size: 13px;
 }
 
+/* Hint displayed when adding a custom marker to the map */
 .map-add-marker-hint {
   position: absolute;
   z-index: 660;
@@ -220,34 +252,40 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/* Success status - green background */
 .map-status-success {
   background: #ecfdf5;
   color: #047857;
 }
 
+/* Empty and loading states - blue background */
 .map-status-empty,
 .map-status-loading {
   background: #eff6ff;
   color: #1d4ed8;
 }
 
+/* Error status - red background */
 .map-status-error {
   background: #fef2f2;
   color: #b42318;
 }
 
+/* Canvas container that fills the entire map area */
 .map-canvas {
   position: absolute;
   inset: 0;
   background: #b7d9f4;
 }
 
+/* Leaflet map container with full dimensions and inherited font */
 .leaflet-map {
   width: 100%;
   height: 100%;
   font: inherit;
 }
 
+/* Side panel for displaying search results or place details */
 .map-destination-panel {
   position: absolute;
   z-index: 650;
@@ -263,6 +301,7 @@
   box-shadow: 0 12px 32px rgba(16, 42, 67, 0.2);
 }
 
+/* Button to reopen the panel when closed */
 .map-panel-open-button {
   position: absolute;
   right: 18px;
@@ -284,6 +323,7 @@
   color: #0f766e;
 }
 
+/* Panel header with padding and close button */
 .map-panel-header {
   position: relative;
   padding: 34px 16px 26px;
@@ -304,6 +344,7 @@
   background: #f3f4f6;
 }
 
+/* Title with icon and spacing */
 .map-panel-header h2 {
   display: flex;
   align-items: center;
@@ -320,6 +361,7 @@
   color: #9ca3af;
 }
 
+/* Subtitle text with muted colors */
 .map-panel-header p,
 .map-panel-section p {
   color: #4b5563;
@@ -332,6 +374,7 @@
   padding: 0 7px;
 }
 
+/* Section within the panel with spacing */
 .map-panel-section {
   padding: 10px 16px 12px;
 }
@@ -344,6 +387,7 @@
   line-height: 1.25;
 }
 
+/* List of city/place results with scrollable container */
 .map-city-list {
   display: grid;
   gap: 10px;
@@ -353,6 +397,7 @@
   scrollbar-width: thin;
 }
 
+/* Individual result card with grid layout and hover states */
 .map-city-list button {
   display: grid;
   grid-template-columns: 108px minmax(0, 1fr);
@@ -373,6 +418,7 @@
   background: #f8fafc;
 }
 
+/* Empty selection state with dashed border */
 .map-empty-selection {
   border: 1px dashed #cbd5e1;
   border-radius: 6px;
@@ -383,6 +429,7 @@
   line-height: 1.45;
 }
 
+/* Category group within the results list */
 .map-category-result-group {
   display: grid;
   gap: 9px;
@@ -399,6 +446,7 @@
   line-height: 1.25;
 }
 
+/* Image wrapper with fixed dimensions and overflow handling */
 .map-city-image-wrap {
   position: relative;
   display: block;
@@ -409,6 +457,7 @@
   background: #dbeafe;
 }
 
+/* Placeholder rank icon with radial gradient background */
 .map-place-rank {
   display: grid;
   width: 108px;
@@ -435,6 +484,7 @@
   filter: drop-shadow(0 1px 2px rgba(16, 42, 67, 0.24));
 }
 
+/* Image within the wrapper with cover object-fit */
 .map-city-image-wrap img {
   width: 100%;
   height: 100%;
@@ -442,6 +492,7 @@
   object-fit: cover;
 }
 
+/* Badge overlay on images */
 .map-city-image-wrap strong {
   position: absolute;
   top: 0;
@@ -455,6 +506,7 @@
   line-height: 1.2;
 }
 
+/* Content section of result cards with grid layout */
 .map-city-content {
   display: grid;
   align-content: center;
@@ -463,6 +515,7 @@
   padding: 4px 0;
 }
 
+/* Text truncation utilities for overflow handling */
 .map-city-title,
 .map-city-tag,
 .map-city-meta small {
@@ -479,6 +532,7 @@
   line-height: 1.2;
 }
 
+/* Rating display with flex alignment */
 .map-city-rating {
   display: flex;
   align-items: center;
@@ -486,6 +540,7 @@
   min-width: 0;
 }
 
+/* Star rating container with inline flex */
 .map-star-rating {
   display: inline-flex;
   align-items: center;
@@ -493,6 +548,7 @@
   color: rgba(203, 213, 225, 0.95);
 }
 
+/* Individual star with positioning for partial fill */
 .map-star {
   position: relative;
   display: inline-flex;
@@ -509,6 +565,7 @@
   display: block;
 }
 
+/* Meta information rows for hours and price */
 .map-city-meta {
   display: flex;
   align-items: center;
@@ -532,6 +589,7 @@
   font-style: normal;
 }
 
+/* Price meta with ellipsis overflow */
 .map-city-price em {
   overflow: hidden;
   color: #475569;
@@ -541,6 +599,7 @@
   white-space: nowrap;
 }
 
+/* Tag/badge for address or category */
 .map-city-tag {
   width: fit-content;
   max-width: 100%;
@@ -552,6 +611,7 @@
   line-height: 1.2;
 }
 
+/* Map tool stack positioned on the map with transitions */
 .map-tool-stack {
   position: absolute;
   z-index: 650;
@@ -572,6 +632,7 @@
   bottom: 72px;
 }
 
+/* Individual tool buttons with shadow and tooltips */
 .map-tool-stack button {
   position: relative;
   width: 41px;
@@ -583,6 +644,7 @@
   box-shadow: 0 6px 18px rgba(16, 42, 67, 0.13);
 }
 
+/* Tooltip styling using data-tooltip attribute */
 .map-tool-stack button::after {
   content: attr(data-tooltip);
   position: absolute;
@@ -622,6 +684,7 @@
   color: #ef4444;
 }
 
+/* Layer menu popup with grid layout */
 .map-layer-menu {
   position: absolute;
   right: calc(100% + 10px);
@@ -659,6 +722,7 @@
   color: #0f766e;
 }
 
+/* Custom map pin with rotation and gradient background */
 .travel-map-pin {
   position: relative;
   display: grid;
@@ -677,6 +741,7 @@
   transform: rotate(-45deg);
 }
 
+/* Inner glow effect on the pin */
 .travel-map-pin::after {
   content: "";
   position: absolute;
@@ -685,6 +750,7 @@
   background: rgba(255, 255, 255, 0.18);
 }
 
+/* Icon container rotates back to correct orientation */
 .travel-map-pin-icon {
   position: relative;
   z-index: 1;
@@ -698,6 +764,7 @@
   filter: drop-shadow(0 1px 1px rgba(16, 42, 67, 0.16));
 }
 
+/* Favorite origin pin with pulse animation and larger size */
 .travel-map-pin-favorite-origin {
   width: 52px;
   height: 52px;
@@ -708,6 +775,7 @@
   animation: map-favorite-origin-pulse 1.8s ease-in-out infinite;
 }
 
+/* Tooltip label for favorite origin markers */
 .map-favorite-origin-label.leaflet-tooltip {
   position: relative;
   display: block;
@@ -751,6 +819,7 @@
   white-space: normal;
 }
 
+/* User location pin with pulsing outer ring effect */
 .travel-user-location-pin {
   display: block;
   width: 22px;
@@ -763,6 +832,7 @@
     0 8px 18px rgba(16, 42, 67, 0.28);
 }
 
+/* Pulse animation for favorite origin pin */
 @keyframes map-favorite-origin-pulse {
   0%,
   100% {
@@ -778,6 +848,7 @@
   }
 }
 
+/* Place details container with scrollable content */
 .map-place-details {
   display: grid;
   gap: 16px;
@@ -785,6 +856,7 @@
   padding: 18px 16px 20px;
 }
 
+/* Detail image with fixed height and cover object-fit */
 .map-detail-image {
   width: 100%;
   height: 180px;
@@ -794,10 +866,12 @@
   object-fit: cover;
 }
 
+/* Image wrapper for positioning favorite button overlay */
 .map-detail-image-wrap {
   position: relative;
 }
 
+/* Favorite toggle button overlaid on images */
 .map-detail-favorite-button {
   position: absolute;
   top: 10px;
@@ -824,12 +898,14 @@
   opacity: 0.75;
 }
 
+/* Empty image placeholder with centered icon */
 .map-detail-image-empty {
   display: grid;
   place-items: center;
   color: #0f766e;
 }
 
+/* Loading indicator with spinning icon */
 .map-detail-loading {
   display: inline-flex;
   align-items: center;
@@ -844,6 +920,7 @@
   animation: map-spin 0.8s linear infinite;
 }
 
+/* Category badge with color-mix for background and border */
 .map-detail-category {
   display: inline-flex;
   align-items: center;
@@ -858,6 +935,7 @@
   font-weight: 650;
 }
 
+/* Rating display with flex wrap */
 .map-detail-rating {
   display: flex;
   flex-wrap: wrap;
@@ -865,11 +943,13 @@
   gap: 8px 10px;
 }
 
+/* Review list container with gap spacing */
 .map-review-list {
   display: grid;
   gap: 10px;
 }
 
+/* Provider warning message with orange theme */
 .map-detail-provider-warning {
   margin: 0;
   padding: 9px 10px;
@@ -886,6 +966,7 @@
   font-size: 14px;
 }
 
+/* Individual review card */
 .map-review-list article {
   display: grid;
   gap: 5px;
@@ -919,6 +1000,7 @@
   line-height: 1.25;
 }
 
+/* Review count badge with orange theme */
 .map-detail-review-count {
   display: inline-flex;
   align-items: center;
@@ -931,6 +1013,7 @@
   font-weight: 600;
 }
 
+/* Facts section with grid layout */
 .map-detail-facts {
   display: grid;
   gap: 8px;
@@ -984,6 +1067,7 @@
   text-overflow: ellipsis;
 }
 
+/* Open status badge with color-coded themes */
 .map-open-badge {
   flex: 0 0 auto;
   border: 0;
@@ -1009,6 +1093,7 @@
   color: #475569;
 }
 
+/* Weather card with gradient background */
 .map-weather-card {
   display: grid;
   gap: 10px;
@@ -1057,6 +1142,7 @@
   line-height: 1.45;
 }
 
+/* Custom marker name editor with input field */
 .map-custom-marker-name {
   display: grid;
   gap: 7px;
@@ -1088,6 +1174,7 @@
   outline: 2px solid rgba(15, 118, 110, 0.14);
 }
 
+/* Route planner section with nested grid layouts */
 .map-route-planner {
   display: grid;
   gap: 10px;
@@ -1135,6 +1222,7 @@
   font-weight: 650;
 }
 
+/* Route actions grid with two columns */
 .map-route-actions {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1172,6 +1260,7 @@
   opacity: 0.62;
 }
 
+/* Route point list with numbered stops */
 .map-route-point-list {
   display: grid;
   gap: 6px;
@@ -1236,6 +1325,7 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/* Route mode grid with two columns */
 .map-route-mode-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1290,6 +1380,7 @@
   white-space: nowrap;
 }
 
+/* Route alternatives section with list of options */
 .map-route-alternatives {
   display: grid;
   gap: 7px;
@@ -1344,6 +1435,7 @@
   line-height: 1.4;
 }
 
+/* Review list with article cards */
 .map-review-list {
   display: grid;
   gap: 9px;
@@ -1379,12 +1471,14 @@
   line-height: 1.45;
 }
 
+/* Paragraph text in place details */
 .map-place-details p {
   color: #4b5563;
   font-size: 14px;
   line-height: 1.55;
 }
 
+/* Definition list for place attributes */
 .map-place-details dl {
   display: grid;
   gap: 12px;
@@ -1414,6 +1508,7 @@
   line-height: 1.45;
 }
 
+/* Remove marker button with red theme */
 .map-remove-marker-button {
   display: inline-flex;
   align-items: center;
@@ -1432,6 +1527,7 @@
   background: #fee2e2;
 }
 
+/* Leaflet popup content customization */
 .leaflet-popup-content {
   display: grid;
   gap: 4px;
@@ -1449,6 +1545,7 @@
   line-height: 1.35;
 }
 
+/* Remove button inside popup */
 .map-popup-remove {
   width: 100%;
   min-height: 32px;
@@ -1464,16 +1561,19 @@
   background: #fee2e2;
 }
 
+/* Leaflet attribution with small font */
 .leaflet-control-attribution {
   font-size: 10px;
 }
 
+/* Spin animation for loading icons */
 @keyframes map-spin {
   to {
     transform: rotate(360deg);
   }
 }
 
+/* Responsive styles for medium screens (1180px and below) */
 @media (max-width: 1180px) {
   .map-overlay-top {
     right: 24px;
@@ -1490,6 +1590,7 @@
   }
 }
 
+/* Responsive styles for tablet screens (920px and below) */
 @media (max-width: 920px) {
   .map-discovery-page {
     min-height: calc(100vh - 66px);
@@ -1511,6 +1612,7 @@
     padding-bottom: 3px;
   }
 
+  /* Panel moves to bottom with max height */
   .map-destination-panel {
     left: 14px;
     right: 14px;
@@ -1532,6 +1634,7 @@
     display: none;
   }
 
+  /* Horizontal scrolling for result cards */
   .map-city-list {
     display: flex;
     overflow-x: auto;
@@ -1560,6 +1663,7 @@
   }
 }
 
+/* Responsive styles for mobile screens (560px and below) */
 @media (max-width: 560px) {
   .map-discovery-page {
     min-height: calc(100vh - 66px);
@@ -1616,6 +1720,7 @@
     bottom: 68px;
   }
 
+  /* Stack grids vertically on small screens */
   .map-route-actions,
   .map-route-mode-grid {
     grid-template-columns: 1fr;

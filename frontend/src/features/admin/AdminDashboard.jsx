@@ -18,21 +18,29 @@ import { Link } from 'react-router-dom';
 import { getAdminDashboard } from '../../api/adminDashboardApi';
 import { getApiErrorMessage } from '../../utils/apiError';
 import './AdminDashboard.css';
+
+// Retrieves a user-friendly error message from API error responses
 const getErrorMessage = (error) =>
   getApiErrorMessage(error, 'Unable to load admin dashboard.');
+
 // Format Chart Label converts raw values into readable display text.
+// Transforms hyphen-separated values into capitalized display text
 const formatChartLabel = (value = '') =>
   value
     .split('-')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
+
 // AdminDashboard renders the main screen and handles nearby interactions.
+// Main component that orchestrates the admin dashboard display and data fetching
 function AdminDashboard() {
+  // State management for dashboard data, loading status, and user feedback
   const [dashboard, setDashboard] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
+  // Fetches dashboard data from the API and updates component state
   const fetchDashboard = useCallback(async ({ showSuccess = false } = {}) => {
     setIsLoading(true);
     setError('');
@@ -50,6 +58,8 @@ function AdminDashboard() {
       setIsLoading(false);
     }
   }, []);
+
+  // Triggers initial data fetch when the component mounts
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       fetchDashboard();
@@ -58,6 +68,7 @@ function AdminDashboard() {
     return () => window.clearTimeout(timeoutId);
   }, [fetchDashboard]);
 
+  // Extracts summary data from the dashboard response with safe defaults
   const userSummary = dashboard?.userSummary || {};
   const issueSummary = dashboard?.issueSummary || {};
   const tripStatusCounts = dashboard?.tripStatusCounts || [];
@@ -66,17 +77,23 @@ function AdminDashboard() {
   const dailyLogCounts = dashboard?.dailyLogCounts || [];
   const health = dashboard?.apiStatus || 'healthy';
   const issueRisk = issueSummary.totalIssues > 0 ? 'Needs review' : 'Clear';
+
+  // Prepares chart data for the moderation issues section
   const chartItems = [
     { label: 'Login', value: issueSummary.loginIssues || 0, className: 'warning' },
     { label: 'API', value: issueSummary.apiIssues || 0, className: 'primary' },
     { label: 'System', value: issueSummary.systemIssues || 0, className: 'danger' },
     { label: 'Rate limit', value: issueSummary.rateLimitIssues || 0, className: 'blue' },
   ];
+
+  // Calculates maximum values for proper bar chart scaling across all chart types
   const issueMax = Math.max(...chartItems.map((item) => item.value), 1);
   const tripMax = Math.max(...tripStatusCounts.map((item) => item.count), 1);
   const statusMax = Math.max(...logStatusCounts.map((item) => item.count), 1);
   const severityMax = Math.max(...logSeverityCounts.map((item) => item.count), 1);
   const dailyMax = Math.max(...dailyLogCounts.map((item) => item.success + item.fail + item.error), 1);
+
+  // Defines the four primary metric cards displayed at the top of the dashboard
   const primaryCards = useMemo(
     () => [
       {
@@ -110,8 +127,11 @@ function AdminDashboard() {
     ],
     [dashboard, health, issueRisk, userSummary.active, userSummary.disabled]
   );
+
+  // Renders the complete dashboard UI with all sections and charts
   return (
     <section className="admin-home-page" aria-labelledby="admin-home-title">
+      {/* Hero section displaying dashboard title, health status, and quick actions */}
       <div className="admin-home-hero">
         <div>
           <p className="eyebrow">Admin command center</p>
@@ -145,9 +165,11 @@ function AdminDashboard() {
         </div>
       </div>
 
+      {/* Status message display area for success and error notifications */}
       {error && <p className="form-error admin-home-status">{error}</p>}
       {successMessage && <p className="form-success admin-home-status">{successMessage}</p>}
 
+      {/* Primary metrics cards section showing key performance indicators */}
       <div className="admin-home-metrics" aria-label="Admin overview metrics">
         {primaryCards.map((card) => {
           const Icon = card.icon;
@@ -164,7 +186,9 @@ function AdminDashboard() {
         })}
       </div>
 
+      {/* Grid layout containing all chart panels and administrative actions */}
       <div className="admin-home-grid">
+        {/* Operations trend chart showing daily success/fail/error patterns */}
         <section className="admin-home-panel admin-home-panel-wide" aria-labelledby="operations-chart-title">
           <div className="admin-home-panel-heading">
             <div>
@@ -191,6 +215,7 @@ function AdminDashboard() {
           </div>
         </section>
 
+        {/* Moderation chart displaying user-linked issues by category */}
         <section className="admin-home-panel" aria-labelledby="moderation-chart-title">
           <div className="admin-home-panel-heading">
             <div>
@@ -210,6 +235,7 @@ function AdminDashboard() {
           </div>
         </section>
 
+        {/* Trip status chart showing distribution of trip states */}
         <section className="admin-home-panel" aria-labelledby="trips-chart-title">
           <div className="admin-home-panel-heading">
             <div>
@@ -232,6 +258,7 @@ function AdminDashboard() {
           </div>
         </section>
 
+        {/* Log severity chart showing distribution of log levels */}
         <section className="admin-home-panel" aria-labelledby="severity-chart-title">
           <div className="admin-home-panel-heading">
             <div>
@@ -254,6 +281,7 @@ function AdminDashboard() {
           </div>
         </section>
 
+        {/* Event status chart showing distribution of event outcomes */}
         <section className="admin-home-panel" aria-labelledby="status-chart-title">
           <div className="admin-home-panel-heading">
             <div>
@@ -276,6 +304,7 @@ function AdminDashboard() {
           </div>
         </section>
 
+        {/* Quick actions panel providing navigation to administrative tools */}
         <section className="admin-home-panel" aria-labelledby="quick-actions-title">
           <div className="admin-home-panel-heading">
             <div>
@@ -298,9 +327,11 @@ function AdminDashboard() {
         </section>
       </div>
 
+      {/* Loading indicator displayed during data fetch operations */}
       {isLoading && <p className="settings-empty">Loading admin dashboard...</p>}
     </section>
   );
 }
-// Default export registers the primary  value.
+
+// Default export registers the primary value.
 export default AdminDashboard;

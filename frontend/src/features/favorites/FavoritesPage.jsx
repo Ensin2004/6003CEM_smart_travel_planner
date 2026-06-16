@@ -20,26 +20,64 @@ import FavoriteCard from './components/FavoriteCard';
 import FavoriteDeleteDialog from './components/FavoriteDeleteDialog';
 import './FavoritesPage.css';
 
+/**
+ * Valid place types for individual saved locations
+ */
 const placeTypes = ['attraction', 'hotel', 'restaurant', 'location'];
 
+/**
+ * Checks if a favorite item is a trip-type favorite.
+ * Trip favorites have type 'location' and source 'trips' with externalId starting with 'trip-'.
+ * 
+ * @param {Object} favorite - The favorite item to check
+ * @returns {boolean} True if the favorite is a trip favorite
+ */
 const isTripFavorite = (favorite) => (
   favorite.type === 'location'
   && favorite.source === 'trips'
   && String(favorite.externalId || '').startsWith('trip-')
 );
 
+/**
+ * Extracts the trip ID from a trip favorite's externalId.
+ * Removes the 'trip-' prefix to get the actual trip identifier.
+ * 
+ * @param {Object} favorite - The trip favorite item
+ * @returns {string} The extracted trip ID
+ */
 const getTripIdFromFavorite = (favorite) => String(favorite.externalId || '').replace(/^trip-/, '');
 
+/**
+ * Formats a date range into a human-readable string.
+ * 
+ * @param {string} startDate - The start date
+ * @param {string} endDate - The end date
+ * @returns {string} Formatted date range or fallback text
+ */
 const formatDateRange = (startDate, endDate) => {
   if (!startDate || !endDate) return 'Dates not set';
   return `${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()}`;
 };
 
+/**
+ * Extracts a numeric price value from a price level string.
+ * Handles currency symbols and commas in the price string.
+ * 
+ * @param {string} value - The price level string
+ * @returns {number} The extracted numeric price or Infinity if not found
+ */
 const getNumericPrice = (value) => {
   const match = String(value || '').replace(/,/g, '').match(/\d+(\.\d+)?/);
   return match ? Number(match[0]) : Number.POSITIVE_INFINITY;
 };
 
+/**
+ * Converts an itinerary item to a favorite-compatible format.
+ * Maps properties to match the FavoriteCard component expectations.
+ * 
+ * @param {Object} item - The itinerary item
+ * @returns {Object} The converted favorite-like object
+ */
 const itineraryItemToFavorite = (item) => ({
   _id: item._id,
   type: item.type === 'custom' ? 'location' : item.type,
@@ -54,21 +92,40 @@ const itineraryItemToFavorite = (item) => ({
   source: item.source,
 });
 
+/**
+ * FavoritesPage component displays saved places and trips.
+ * Allows filtering, sorting, searching, and removing favorites.
+ * 
+ * @returns {JSX.Element} The rendered favorites page
+ */
 function FavoritesPage() {
+  // Navigation hook for map navigation
   const navigate = useNavigate();
+  
+  // State for favorites data
   const [favorites, setFavorites] = useState([]);
   const [trips, setTrips] = useState([]);
   const [tripItineraries, setTripItineraries] = useState({});
+  
+  // UI state for views, filters, and sorting
   const [activeView, setActiveView] = useState('places');
   const [selectedTripId, setSelectedTripId] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [sortBy, setSortBy] = useState('rating');
+  
+  // Delete dialog state
   const [pendingDelete, setPendingDelete] = useState(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  
+  // Loading and error state
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
 
+  /**
+   * Effect hook that loads favorites and trips on component mount.
+   * Uses Promise.all to fetch both data sources in parallel.
+   */
   useEffect(() => {
     let isActive = true;
 
@@ -90,22 +147,40 @@ function FavoritesPage() {
     };
   }, []);
 
+  /**
+   * Memoized filtered favorites for trip type
+   */
   const tripFavorites = useMemo(() => favorites.filter(isTripFavorite), [favorites]);
+  
+  /**
+   * Memoized filtered favorites for place types (excluding trip favorites)
+   */
   const placeFavorites = useMemo(
     () => favorites.filter((favorite) => placeTypes.includes(favorite.type) && !isTripFavorite(favorite)),
     [favorites]
   );
 
+  /**
+   * Memoized mapping of saved trips with their favorite records
+   */
   const savedTrips = useMemo(() => tripFavorites.map((favorite) => {
     const tripId = getTripIdFromFavorite(favorite);
     const trip = trips.find((currentTrip) => String(currentTrip._id) === tripId);
     return trip ? { favorite, trip, tripId } : null;
   }).filter(Boolean), [tripFavorites, trips]);
 
+  /**
+   * Determines the active trip ID for display
+   * Uses the selected ID if valid, otherwise falls back to the first saved trip
+   */
   const activeTripId = savedTrips.some(({ tripId }) => tripId === selectedTripId)
     ? selectedTripId
     : savedTrips[0]?.tripId || '';
 
+  /**
+   * Effect hook that loads trip itineraries for saved trips
+   * Only loads itineraries that haven't been loaded yet
+   */
   useEffect(() => {
     let isActive = true;
     const unloadedTrips = savedTrips.filter(({ tripId }) => !tripItineraries[tripId]);
@@ -131,6 +206,10 @@ function FavoritesPage() {
     };
   }, [savedTrips, tripItineraries]);
 
+  /**
+   * Memoized filtered and sorted places for display
+   * Applies search query, type filter, and sort order
+   */
   const visiblePlaces = useMemo(() => {
     const normalizedSearch = searchQuery.trim().toLowerCase();
     const filtered = placeFavorites.filter((favorite) => {
@@ -151,13 +230,26 @@ function FavoritesPage() {
     });
   }, [placeFavorites, searchQuery, sortBy, typeFilter]);
 
+  /**
+   * Selected trip data and its places
+   */
   const selectedSavedTrip = savedTrips.find(({ tripId }) => tripId === activeTripId);
   const selectedTripPlaces = (tripItineraries[activeTripId]?.items || []).map(itineraryItemToFavorite);
 
+  /**
+   * Handles opening a favorite on the map.
+   * Navigates to the map page with the selected favorite in state.
+   * 
+   * @param {Object} favorite - The favorite item to open on map
+   */
   const handleOpenOnMap = (favorite) => {
     navigate('/map', { state: { selectedFavorite: favorite } });
   };
 
+  /**
+   * Handles confirming the removal of a favorite.
+   * Calls the API to remove the favorite and updates local state.
+   */
   const handleConfirmRemove = async () => {
     if (!pendingDelete?._id || isDeleting) return;
     setIsDeleting(true);
@@ -175,6 +267,7 @@ function FavoritesPage() {
 
   return (
     <section className="favorites-page" aria-labelledby="favorites-title">
+      {/* Page header with title and view toggle */}
       <header className="favorites-header">
         <div>
           <h2 id="favorites-title">My Favourites</h2>
@@ -194,15 +287,19 @@ function FavoritesPage() {
         </div>
       </header>
 
+      {/* Error message display */}
       {error ? <p className="form-error favorites-status">{error}</p> : null}
 
+      {/* Loading state */}
       {isLoading ? (
         <div className="favorites-empty">
           <LoaderCircle className="explore-spin" size={32} aria-hidden="true" />
           <p>Loading favourites...</p>
         </div>
       ) : activeView === 'places' ? (
+        /* Places view - displays individual saved locations */
         <section className="favorites-panel" aria-label="Saved places">
+          {/* Toolbar with search, filter, and sort controls */}
           <div className="favorites-toolbar">
             <label className="favorites-search">
               <Search size={16} aria-hidden="true" />
@@ -232,6 +329,7 @@ function FavoritesPage() {
             </label>
           </div>
 
+          {/* Grid of visible places or empty state */}
           {visiblePlaces.length ? (
             <div className="favorites-grid">
               {visiblePlaces.map((favorite) => (
@@ -253,7 +351,9 @@ function FavoritesPage() {
           )}
         </section>
       ) : savedTrips.length ? (
+        /* Trips view - displays saved trips with their itineraries */
         <section className="favorite-trips-layout" aria-label="Saved trips">
+          {/* Sidebar with list of saved trips */}
           <aside className="favorite-trip-list">
             <div className="favorite-trip-list-heading">
               <span>Saved trips</span>
@@ -275,6 +375,7 @@ function FavoritesPage() {
             ))}
           </aside>
 
+          {/* Detail view for selected trip */}
           <div className="favorite-trip-detail">
             <div className="favorite-trip-detail-heading">
               <div>
@@ -287,6 +388,7 @@ function FavoritesPage() {
               </button>
             </div>
 
+            {/* Grid of trip places or empty state */}
             {selectedTripPlaces.length ? (
               <div className="favorites-grid">
                 {selectedTripPlaces.map((favorite) => (
@@ -307,6 +409,7 @@ function FavoritesPage() {
           </div>
         </section>
       ) : (
+        /* Empty state when no saved trips exist */
         <div className="favorites-empty">
           <Heart size={34} aria-hidden="true" />
           <h3>No saved trips yet</h3>
@@ -315,6 +418,7 @@ function FavoritesPage() {
         </div>
       )}
 
+      {/* Delete confirmation dialog */}
       <FavoriteDeleteDialog
         favorite={pendingDelete}
         isDeleting={isDeleting}

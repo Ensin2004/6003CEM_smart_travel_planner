@@ -31,10 +31,15 @@ import { getApiErrorMessage } from '../../utils/apiError';
 import { getPlaceImageSrc } from '../../utils/placeImageProxy';
 import { formatMoney, getPriceConversionKey } from '../explore/explore.helpers';
 import './TravelGuidePage.css';
+
+// Helper function to get today's date in YYYY-MM-DD format for the date input default
 const getDateKey = () => new Date().toISOString().slice(0, 10);
+
+// Helper function to extract a user-friendly error message from API errors
 const getErrorMessage = (error) =>
   getApiErrorMessage(error, 'Unable to load this guide right now.');
 
+// Category configuration for filtering places by type
 const categoryOptions = [
   { id: 'all', label: 'All', icon: Sparkles },
   { id: 'attractions', label: 'Attractions', icon: Compass },
@@ -42,6 +47,7 @@ const categoryOptions = [
   { id: 'hotels', label: 'Hotels', icon: BedDouble },
 ];
 
+// Weather scenario configurations for re-ranking recommendations
 const weatherOptions = [
   { id: 'overall', label: 'Overall', icon: CloudSun, tip: 'Balanced choices using the live guide results.' },
   { id: 'rainy', label: 'Rainy', icon: CloudRain, tip: 'Prioritizes indoor attractions, food stops, and easy hotel backups.' },
@@ -49,9 +55,13 @@ const weatherOptions = [
   { id: 'cloudy', label: 'Cloudy', icon: CloudSun, tip: 'Keeps outdoor plans open while favoring places with easier backup options.' },
   { id: 'hot', label: 'Hot', icon: Flame, tip: 'Prioritizes shaded, air-conditioned, and lower-transfer plans.' },
 ];
+
+// Calculates a weather-adaptive score for a place based on the selected scenario
 const getWeatherScore = (place, scenario, category) => {
+  // Baseline score uses the place rating
   if (scenario === 'overall') return Number(place.rating || 0);
 
+  // Analyze place metadata for indoor/outdoor indicators
   const text = [place.name, place.category, place.address].join(' ').toLowerCase();
   const rating = Number(place.rating || 0);
   const indoorBoost = /(museum|mall|gallery|restaurant|hotel|cafe|indoor|shopping)/.test(text) ? 2 : 0;
@@ -59,14 +69,19 @@ const getWeatherScore = (place, scenario, category) => {
   const foodBoost = category === 'restaurants' ? 1.5 : 0;
   const hotelBoost = category === 'hotels' ? 1.5 : 0;
 
+  // Apply scenario-specific scoring logic
   if (scenario === 'rainy') return rating + indoorBoost + foodBoost + hotelBoost;
   if (scenario === 'sunny') return rating + outdoorBoost;
   if (scenario === 'cloudy') return rating + outdoorBoost * 0.7 + indoorBoost * 0.5;
   if (scenario === 'hot') return rating + indoorBoost + foodBoost + hotelBoost;
   return rating;
 };
+
+// Sorts items by their weather-adaptive score in descending order
 const sortForWeather = (items, scenario, category) =>
   [...items].sort((first, second) => getWeatherScore(second, scenario, category) - getWeatherScore(first, scenario, category));
+
+// Formats a date string into a readable localized format
 const formatTravelDate = (date) => {
   if (!date) return '';
   return new Intl.DateTimeFormat(undefined, {
@@ -75,19 +90,26 @@ const formatTravelDate = (date) => {
     year: 'numeric',
   }).format(new Date(`${date}T00:00:00`));
 };
+
+// Determines the number of images available for a place carousel
 const getCarouselImageCount = (item) => item.imageUrls?.length || (item.imageUrl ? 1 : 0);
+
+// Fallback travel images when no place images are available
 const fallbackTravelImages = [
   'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=1200&q=80',
   'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=1200&q=80',
   'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=1200&q=80',
   'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=1200&q=80',
 ];
+
+// Selects a deterministic fallback image based on a label string hash
 const getFallbackTravelImage = (label = '') => {
   const imageIndex = [...label].reduce((total, character) => total + character.charCodeAt(0), 0)
     % fallbackTravelImages.length;
-
   return fallbackTravelImages[imageIndex];
 };
+
+// Resilient image component that falls back through multiple candidate URLs
 function ResilientTravelImage({ candidates = [], label = '' }) {
   const candidateKey = candidates.filter(Boolean).join('|');
   const imageCandidates = useMemo(
@@ -105,6 +127,7 @@ function ResilientTravelImage({ candidates = [], label = '' }) {
     />
   ) : null;
 }
+
 // GuideCarousel renders destination guide rows with the intro panel and shared Explore place cards.
 function GuideCarousel({
   id,
@@ -129,12 +152,16 @@ function GuideCarousel({
 
   return (
     <section className="travel-guide-carousel-row">
+      {/* Intro panel with section title, description, and view more button */}
       <article className="travel-guide-row-intro">
         <h3>{introTitle}</h3>
         <p>{introText}</p>
         <button type="button" onClick={onMore}>View more</button>
       </article>
+      
+      {/* Carousel container with navigation arrows */}
       <div className="travel-guide-row-carousel">
+        {/* Previous arrow button */}
         <button
           className="travel-guide-row-arrow"
           type="button"
@@ -144,6 +171,8 @@ function GuideCarousel({
         >
           <ChevronLeft size={18} aria-hidden="true" />
         </button>
+        
+        {/* Carousel window displaying visible items */}
         <div className="travel-guide-row-window">
           {visibleItems.length ? visibleItems.map((place, index) => (
             <PlaceCard
@@ -165,6 +194,8 @@ function GuideCarousel({
             </div>
           )}
         </div>
+        
+        {/* Next arrow button */}
         <button
           className="travel-guide-row-arrow"
           type="button"
@@ -178,14 +209,18 @@ function GuideCarousel({
     </section>
   );
 }
+
 // TravelGuideDestinationPage renders the main screen and handles nearby interactions.
 function TravelGuideDestinationPage() {
+  // Context and URL parameter extraction
   const currency = useContext(CurrencyContext);
   const [searchParams] = useSearchParams();
   const destination = searchParams.get('destination') || '';
   const country = searchParams.get('country') || '';
   const latitude = searchParams.get('latitude') || '';
   const longitude = searchParams.get('longitude') || '';
+  
+  // State management for user controls and UI state
   const [travelDate, setTravelDate] = useState(getDateKey());
   const [activeCategory, setActiveCategory] = useState('all');
   const [weatherScenario, setWeatherScenario] = useState('overall');
@@ -199,13 +234,19 @@ function TravelGuideDestinationPage() {
   const [cardCarouselIndexes, setCardCarouselIndexes] = useState({});
   const [priceConversions, setPriceConversions] = useState({});
   const [visitedPlaces, setVisitedPlaces] = useState([]);
+  
+  // Currency-related derived values
   const selectedCurrency = currency?.selectedCurrency || 'USD';
   const supportedCurrencyCodes = useMemo(() => currency?.currencies?.map((option) => option.code) || [], [currency?.currencies]);
   const destinationLabel = useMemo(() => [destination, country].filter(Boolean).join(', '), [country, destination]);
+  
+  // Gallery and map configuration
   const gallery = guide?.gallery?.length ? guide.gallery : guide?.heroImageUrl ? [guide.heroImageUrl] : [];
   const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destinationLabel || destination)}`;
   const weatherTip = weatherOptions.find((option) => option.id === weatherScenario)?.tip;
   const isRefreshingGuide = isLoading && Boolean(guide);
+  
+  // Categorized and sorted place lists based on weather scenario
   const categories = useMemo(
     () => ({
       attractions: sortForWeather(guide?.attractions?.items || [], weatherScenario, 'attractions'),
@@ -214,6 +255,8 @@ function TravelGuideDestinationPage() {
     }),
     [guide, weatherScenario]
   );
+  
+  // Lookup for visited places to track user interactions
   const visitedLookup = useMemo(() => buildVisitedLookup(visitedPlaces), [visitedPlaces]);
   const guideItems = useMemo(
     () => [
@@ -223,8 +266,11 @@ function TravelGuideDestinationPage() {
     ],
     [guide]
   );
+  
+  // Helper to generate section titles
   const getTopTitle = (items, action) => `Top ${Math.min(items.length || 8, 8)} ${action}`;
 
+  // Effect hook for currency conversion of place prices
   useEffect(() => {
     const convertibleItems = guideItems.filter((item) => {
       const detail = item.priceDetail;
@@ -249,6 +295,7 @@ function TravelGuideDestinationPage() {
       return;
     }
 
+    // Batch convert currency for all missing items
     Promise.all(
       missingItems.map(async (item) => {
         const detail = item.priceDetail;
@@ -294,22 +341,20 @@ function TravelGuideDestinationPage() {
     };
   }, [guideItems, priceConversions, selectedCurrency, supportedCurrencyCodes]);
 
+  // Helper functions for price display
   const getOriginalPriceText = (item) => item.priceDetail?.display || item.price || 'Price unavailable';
-
   const getConvertedPriceText = (item) => {
     const conversion = priceConversions[getPriceConversionKey(item, selectedCurrency)];
-
     if (!conversion) {
       return '';
     }
-
     const convertedAmount = formatMoney(conversion.amount, conversion.currency);
     const convertedMaxAmount =
       conversion.maxAmount !== null ? ` - ${formatMoney(conversion.maxAmount, conversion.currency)}` : '';
-
     return `Approx. ${convertedAmount}${convertedMaxAmount}`;
   };
 
+  // Get visited record for a specific place
   const getVisitedRecord = (place, type) => {
     const payload = getVisitedPlacePayload({
       item: place,
@@ -319,15 +364,18 @@ function TravelGuideDestinationPage() {
     });
     return visitedLookup[payload.placeKey];
   };
+  
+  // Extract weather pick names for recommendation display
   const weatherPickNames = useMemo(() => {
     const picks = [
       ...categories.attractions.slice(0, 2),
       ...categories.restaurants.slice(0, 1),
       ...categories.hotels.slice(0, 1),
     ];
-
     return picks.map((place) => place.name).filter(Boolean);
   }, [categories]);
+
+  // Primary effect hook for loading guide data
   useEffect(() => {
     let isActive = true;
     const loadGuide = async () => {
@@ -375,6 +423,7 @@ function TravelGuideDestinationPage() {
     };
   }, [country, destination, latitude, longitude, starts, travelDate]);
 
+  // Effect hook for loading visited places data
   useEffect(() => {
     let isActive = true;
 
@@ -392,6 +441,7 @@ function TravelGuideDestinationPage() {
     };
   }, []);
 
+  // Event handler for visited place changes
   const handleVisitedChange = (visitedPlace) => {
     if (!visitedPlace?.placeKey) return;
     setVisitedPlaces((currentPlaces) => {
@@ -399,10 +449,14 @@ function TravelGuideDestinationPage() {
       return [visitedPlace, ...withoutCurrent];
     });
   };
+  
+  // Handler for changing weather scenario
   const handleWeatherScenarioChange = (scenario) => {
     setWeatherScenario(scenario);
     setRowIndexes({ things: 0, stays: 0, food: 0 });
   };
+  
+  // Handler for loading more items in a category
   const handleViewMore = (category = activeCategory) => {
     const targetCategory = category === 'all' ? 'attractions' : category;
     const itemCount = guide?.[targetCategory]?.items?.length || 8;
@@ -413,16 +467,18 @@ function TravelGuideDestinationPage() {
       [targetCategory]: current[targetCategory] + itemCount,
     }));
   };
+  
+  // Gallery navigation handlers
   const moveGallery = (direction) => {
     if (!gallery.length) return;
     setGalleryIndex((current) => (current + direction + gallery.length) % gallery.length);
   };
 
+  // Row carousel navigation handler
   const moveRow = (rowId, items, direction) => {
     setRowIndexes((current) => {
       const maxIndex = Math.max(items.length - 4, 0);
       const nextIndex = Math.max(0, Math.min((current[rowId] || 0) + direction, maxIndex));
-
       return {
         ...current,
         [rowId]: nextIndex,
@@ -430,6 +486,7 @@ function TravelGuideDestinationPage() {
     });
   };
 
+  // Card carousel index getter and handler
   const getCardCarouselIndex = (itemId, imageCount) =>
     Math.min(cardCarouselIndexes[itemId] || 0, Math.max(imageCount - 1, 0));
 
@@ -437,7 +494,6 @@ function TravelGuideDestinationPage() {
     setCardCarouselIndexes((currentIndexes) => {
       const currentIndex = currentIndexes[itemId] || 0;
       const nextIndex = (currentIndex + direction + imageCount) % imageCount;
-
       return {
         ...currentIndexes,
         [itemId]: nextIndex,
@@ -445,6 +501,7 @@ function TravelGuideDestinationPage() {
     });
   };
 
+  // Renders a single category view with grid layout
   const renderSingleCategory = (category) => {
     const option = categoryOptions.find((item) => item.id === category);
     const items = categories[category] || [];
@@ -474,18 +531,21 @@ function TravelGuideDestinationPage() {
         </div>
         <button className="travel-guide-view-more" type="button" onClick={() => handleViewMore(category)} disabled={isLoadingMore || isLoading}>
           {isLoadingMore ? <LoaderCircle className="travel-guide-spin" size={16} aria-hidden="true" /> : <Sparkles size={16} aria-hidden="true" />}
-          {isLoadingMore ? 'Loading...' : `View more ${option?.label}`}
+          {isLoadingMore ? 'Loading...' : `View more ${option?.Label}`}
         </button>
       </section>
     );
   };
+
   return (
     <section className="travel-guide-page travel-guide-detail-page">
+      {/* Back navigation link */}
       <Link className="travel-guide-back-link" to="/travel-guide">
         <ArrowLeft size={16} aria-hidden="true" />
         Back to Travel Guide
       </Link>
 
+      {/* Loading state - initial load */}
       {isLoading && !guide ? (
         <div className="travel-guide-empty travel-guide-full-empty">
           <LoaderCircle className="travel-guide-spin" size={32} aria-hidden="true" />
@@ -493,13 +553,16 @@ function TravelGuideDestinationPage() {
           <p>Fetching attractions, restaurants, hotels, weather, and photos.</p>
         </div>
       ) : error ? (
+        // Error state display
         <div className="travel-guide-empty travel-guide-full-empty">
           <Compass size={32} aria-hidden="true" />
           <h3>Guide unavailable</h3>
           <p>{error}</p>
         </div>
       ) : guide ? (
+        // Main content - guide data successfully loaded
         <>
+          {/* Destination header */}
           <header className="travel-guide-destination-title">
             <span className="travel-guide-location">
               <MapPin size={15} aria-hidden="true" />
@@ -509,6 +572,7 @@ function TravelGuideDestinationPage() {
             <p>{guide.summary?.extract || 'Explore popular places, food spots, hotels, and weather-aware recommendations for this destination.'}</p>
           </header>
 
+          {/* Media row - gallery and map panel */}
           <section className="travel-guide-media-row">
             <div className="travel-guide-gallery">
               <ResilientTravelImage
@@ -544,6 +608,7 @@ function TravelGuideDestinationPage() {
             </div>
           </section>
 
+          {/* Weather planner card */}
           <section className="travel-guide-weather-card travel-guide-weather-wide">
             <div className="travel-guide-detail-title">
               <CloudSun size={18} aria-hidden="true" />
@@ -597,6 +662,7 @@ function TravelGuideDestinationPage() {
             </div>
           </section>
 
+          {/* AI recommendations card */}
           <section className="travel-guide-ai-card travel-guide-ai-wide">
             <div className="travel-guide-detail-title">
               <Sparkles size={18} aria-hidden="true" />
@@ -621,6 +687,7 @@ function TravelGuideDestinationPage() {
             </div>
           </section>
 
+          {/* Smart list cards for quick category navigation */}
           <section className="travel-guide-smart-lists">
             {[
               { label: `Premium stay shortlist in ${guide.destination}`, image: categories.hotels[0]?.imageUrl || guide.heroImageUrl, category: 'hotels' },
@@ -636,6 +703,7 @@ function TravelGuideDestinationPage() {
             ))}
           </section>
 
+          {/* Category filter panel */}
           <section className="travel-guide-place-section">
             <div className="travel-guide-category-panel">
               {categoryOptions.map((option) => {
@@ -655,8 +723,10 @@ function TravelGuideDestinationPage() {
             </div>
           </section>
 
+          {/* Conditional rendering: all categories or single category view */}
           {activeCategory === 'all' ? (
             <>
+              {/* Attractions carousel */}
               <GuideCarousel
                 id="things"
                 title="things"
@@ -673,6 +743,7 @@ function TravelGuideDestinationPage() {
                 onMore={() => handleViewMore('attractions')}
                 onVisitedChange={handleVisitedChange}
               />
+              {/* Hotels carousel */}
               <GuideCarousel
                 id="stays"
                 title="stays"
@@ -689,6 +760,7 @@ function TravelGuideDestinationPage() {
                 onMore={() => handleViewMore('hotels')}
                 onVisitedChange={handleVisitedChange}
               />
+              {/* Restaurants carousel */}
               <GuideCarousel
                 id="food"
                 title="food"
@@ -707,6 +779,7 @@ function TravelGuideDestinationPage() {
               />
             </>
           ) : (
+            // Single category view
             renderSingleCategory(activeCategory)
           )}
         </>

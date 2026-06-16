@@ -7,6 +7,10 @@ import { useMemo, useState } from 'react';
 import { sendAiChatPrompt } from '../../../api/aiAssistantApi';
 import './ExploreAiPanel.css';
 
+/**
+ * Get formatted rating text from an item object
+ * Returns star rating with review count or fallback message
+ */
 const getRatingText = (item = {}) => {
   const rating = Number(item.rating || 0);
   const reviewCount = Number(item.reviewCount || item.reviews || 0);
@@ -18,6 +22,10 @@ const getRatingText = (item = {}) => {
   return `${rating.toFixed(1)} stars${reviewCount ? ` (${reviewCount.toLocaleString()} reviews)` : ''}`;
 };
 
+/**
+ * Get recommendation description from item data
+ * Falls through multiple possible fields to find a description
+ */
 const getRecommendationDescription = (item = {}, viewLabel = 'Explore') =>
   item.reason ||
   item.bestFor ||
@@ -39,11 +47,16 @@ function ExploreAiPanel({
   resultCount = 0,
   summary,
 }) {
+  // Panel mode state: 'main', 'question', or 'full'
   const [panelMode, setPanelMode] = useState('main');
+  
+  // Question and chat states
   const [questionDraft, setQuestionDraft] = useState('');
   const [chatMessages, setChatMessages] = useState([]);
   const [questionError, setQuestionError] = useState('');
   const [isQuestionLoading, setIsQuestionLoading] = useState(false);
+  
+  // Derive panel summary from props or active AI data
   const panelSummary =
     summary ||
     activeAi?.summary ||
@@ -51,6 +64,8 @@ function ExploreAiPanel({
     (resultCount
       ? `${activeOption.label} has ${resultCount} result${resultCount === 1 ? '' : 's'} ready for ${destinationLabel}.`
       : `Search results will unlock AI insights for ${activeOption.label.toLowerCase()}.`);
+  
+  // Generate AI picks from active AI data or fallback to first 3 items
   const aiPicks = activeAi?.picks?.length
     ? activeAi.picks.map((pick) => ({
         id: pick.itemName,
@@ -65,9 +80,12 @@ function ExploreAiPanel({
         description: getRecommendationDescription(item, activeOption.label),
         imageUrl: item.imageUrl || item.imageUrls?.[0] || item.thumbnail || '',
       }));
+  
   const hasResults = resultCount > 0;
   const locationLabel = currentLocationName || 'your area';
   const visiblePicks = aiPicks.slice(0, 3);
+  
+  // Full recommendation list for expanded view
   const fullRecommendationItems = (aiPicks.length ? aiPicks : items.map((item, index) => ({
     id: item.id || item.name || `${activeOption.id}-full-${index}`,
     name: item.name || item.airline?.name || item.operatorName || item.destinationName || `Recommendation ${index + 1}`,
@@ -75,12 +93,16 @@ function ExploreAiPanel({
     description: getRecommendationDescription(item, activeOption.label),
     imageUrl: item.imageUrl || item.imageUrls?.[0] || item.thumbnail || '',
   }))).slice(0, 10);
+  
+  // Suggested questions for the user
   const suggestedQuestions = [
     `What is ${locationLabel} known for?`,
     `Best places near ${locationLabel}`,
     'Budget-friendly travel ideas',
     'Places open now',
   ];
+  
+  // Build context for AI question answering
   const questionContext = useMemo(() => {
     const itemLines = items.slice(0, 5).map((item, index) => {
       const name = item.name || item.airline?.name || item.operatorName || item.destinationName || `Option ${index + 1}`;
@@ -101,12 +123,19 @@ function ExploreAiPanel({
       .join('\n');
   }, [activeAi, activeOption.label, destinationLabel, items, locationLabel, resultCount]);
 
+  /**
+   * Open the question mode with optional pre-filled question
+   */
   const openQuestionMode = (question = '') => {
     setPanelMode('question');
     setQuestionDraft(question);
     setQuestionError('');
   };
 
+  /**
+   * Handle AI question submission
+   * Sends the question with context to the AI assistant API
+   */
   const handleQuestionSubmit = async (event) => {
     event.preventDefault();
     const trimmedQuestion = questionDraft.trim();
@@ -117,18 +146,25 @@ function ExploreAiPanel({
 
     setQuestionError('');
     setIsQuestionLoading(true);
+    
+    // Create user message and add to chat history
     const userMessage = {
       id: `user-${Date.now()}`,
       role: 'user',
       text: trimmedQuestion,
     };
+    
+    // Build conversation history context
     const recentHistory = [...chatMessages, userMessage]
       .slice(-8)
       .map((message) => `${message.role === 'user' ? 'Traveler' : 'AI'}: ${message.text}`)
       .join('\n');
+    
     setChatMessages((currentMessages) => [...currentMessages, userMessage]);
     setQuestionDraft('');
+    
     try {
+      // Build the full prompt with context and recent conversation
       const prompt = [
         trimmedQuestion,
         '',
@@ -141,11 +177,15 @@ function ExploreAiPanel({
         .filter(Boolean)
         .join('\n')
         .slice(0, 2000);
+      
       const response = await sendAiChatPrompt({
         prompt,
         page: `Explore ${activeOption.label}`.slice(0, 160),
       });
+      
       const reply = response.data.data.reply;
+      
+      // Add AI response to chat messages
       setChatMessages((currentMessages) => [
         ...currentMessages,
         {
@@ -162,6 +202,7 @@ function ExploreAiPanel({
     }
   };
 
+  // Question panel mode - full chat interface
   if (panelMode === 'question') {
     return (
       <aside className="explore-ai-panel" aria-label={`${activeOption.label} AI question`}>
@@ -179,6 +220,7 @@ function ExploreAiPanel({
           </button>
         </div>
 
+        {/* Chat thread displaying message history */}
         <div className="explore-ai-chat-thread" aria-live="polite">
           {chatMessages.length ? (
             chatMessages.map((message) => (
@@ -191,12 +233,14 @@ function ExploreAiPanel({
               </article>
             ))
           ) : (
+            // Empty chat state
             <section className="explore-ai-chat-empty">
               <Bot size={28} aria-hidden="true" />
               <strong>Ask anything about this search</strong>
               <p>Questions stay in this panel so follow-ups can use the recent chat context.</p>
             </section>
           )}
+          {/* Loading indicator for AI response */}
           {isQuestionLoading && (
             <article className="explore-ai-chat-message explore-ai-chat-message-assistant">
               <span>
@@ -208,6 +252,7 @@ function ExploreAiPanel({
           )}
         </div>
 
+        {/* Question input form */}
         <form className="explore-ai-question-form" onSubmit={handleQuestionSubmit}>
           <label>
             <span className="sr-only">AI question</span>
@@ -224,11 +269,13 @@ function ExploreAiPanel({
           </button>
         </form>
 
+        {/* Error display */}
         {questionError && <p className="explore-ai-error">{questionError}</p>}
       </aside>
     );
   }
 
+  // Full recommendations panel mode
   if (panelMode === 'full') {
     return (
       <aside className="explore-ai-panel" aria-label={`${activeOption.label} full AI recommendations`}>
@@ -246,6 +293,7 @@ function ExploreAiPanel({
           </button>
         </div>
 
+        {/* Full recommendations list */}
         <section className="explore-ai-recommendations explore-ai-recommendations-full">
           <div className="explore-ai-recommendation-list">
             {fullRecommendationItems.length ? (
@@ -269,6 +317,7 @@ function ExploreAiPanel({
           </div>
         </section>
 
+        {/* Quick chat entry from full view */}
         <section className="explore-ai-chat-preview">
           <strong>Need a different angle?</strong>
           <p>Ask AI to compare, filter by budget, or suggest the best timing.</p>
@@ -281,6 +330,7 @@ function ExploreAiPanel({
     );
   }
 
+  // Main panel mode - default view
   return (
     <aside className="explore-ai-panel" aria-label={`${activeOption.label} AI insights`}>
       <div className="explore-ai-panel-heading">
@@ -305,6 +355,7 @@ function ExploreAiPanel({
 
       {hasResults ? (
         <>
+          {/* AI summary card */}
           <section className="explore-ai-summary-card">
             <strong>
               <Sparkles size={15} aria-hidden="true" />
@@ -313,6 +364,7 @@ function ExploreAiPanel({
             <p>{panelSummary}</p>
           </section>
 
+          {/* Top recommendations */}
           <section className="explore-ai-recommendations">
             <h3>Top recommendations</h3>
             <div className="explore-ai-recommendation-list">
@@ -335,6 +387,7 @@ function ExploreAiPanel({
                 <p className="explore-ai-empty">Recommendations appear after a search has results.</p>
               )}
             </div>
+            {/* Button to expand to full recommendations */}
             <button className="explore-ai-full-button" type="button" disabled={!fullRecommendationItems.length} onClick={() => setPanelMode('full')}>
               View full recommendations
               <ExternalLink size={14} aria-hidden="true" />
@@ -342,6 +395,7 @@ function ExploreAiPanel({
           </section>
         </>
       ) : (
+        // Empty state - no results yet
         <section className="explore-ai-ready-card">
           <div className="explore-ai-ready-icon">
             <MessageSquare size={34} aria-hidden="true" />
@@ -361,6 +415,7 @@ function ExploreAiPanel({
         </section>
       )}
 
+      {/* Chat preview / quick entry */}
       <section className="explore-ai-chat-preview" aria-label="Ask AI chat entry">
         <strong>
           <MessageSquare size={15} aria-hidden="true" />

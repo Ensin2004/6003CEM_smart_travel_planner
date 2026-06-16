@@ -8,20 +8,54 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { searchTrainServiceTimetable } from '../../../api/exploreApi';
 import { getErrorMessage } from '../explore.helpers';
 import './Transportation.css';
-// Format Time converts raw values into readable display text.
+
+/**
+ * Format Time converts raw values into readable display text.
+ * 
+ * @param {string} value - The raw time value
+ * @returns {string} Formatted time string or placeholder
+ */
 const formatTime = (value) => value || '--:--';
-// Format Date converts raw values into readable display text.
+
+/**
+ * Format Date converts raw values into readable display text.
+ * 
+ * @param {string} value - The raw date value
+ * @returns {string} Formatted date string or placeholder
+ */
 const formatDate = (value) => value || 'Date unavailable';
+
+/**
+ * Generates a unique key for a train stop.
+ * 
+ * @param {Object} stop - The stop object
+ * @param {string} stop.stationCode - The station code
+ * @param {string} stop.stationName - The station name
+ * @returns {string} A lowercase key for lookups
+ */
 const getStopKey = (stop = {}) => [stop.stationCode, stop.stationName].filter(Boolean).join(':').toLowerCase();
-// TrainServiceTimetablePage renders the main screen and handles nearby interactions.
+
+/**
+ * TrainServiceTimetablePage renders the main screen and handles nearby interactions.
+ * Displays detailed timetable information for a specific train service.
+ * 
+ * @returns {JSX.Element} The rendered train service timetable page
+ */
 function TrainServiceTimetablePage() {
+  // Navigation and location hooks for routing and state management
   const location = useLocation();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  
+  // State for timetable data, error messages, and loading status
   const [timetable, setTimetable] = useState(null);
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
 
+  /**
+   * Memoized request object containing all service identification parameters
+   * Extracted from URL search parameters
+   */
   const request = useMemo(
     () => ({
       serviceIdentifier: searchParams.get('serviceIdentifier') || '',
@@ -32,6 +66,10 @@ function TrainServiceTimetablePage() {
     [searchParams]
   );
 
+  /**
+   * Context object containing display information for the service
+   * Extracted from URL search parameters for fallback display
+   */
   const context = {
     destinationName: searchParams.get('destinationName') || '',
     originName: searchParams.get('originName') || '',
@@ -40,10 +78,15 @@ function TrainServiceTimetablePage() {
     stationCode: searchParams.get('stationCode') || '',
   };
 
+  /**
+   * Effect hook that loads the train service timetable when component mounts
+   * or when request parameters change
+   */
   useEffect(() => {
     let isActive = true;
 
     const loadTimetable = async () => {
+      // Validate required parameters before making API call
       if (!request.serviceDate || (!request.serviceIdentifier && !request.trainUid)) {
         setError('Service details are missing. Return to the station timetable and choose a train again.');
         setIsLoading(false);
@@ -69,31 +112,59 @@ function TrainServiceTimetablePage() {
     };
 
     loadTimetable();
+    
     // Cleanup prevents state updates after component unmount.
     return () => {
       isActive = false;
     };
   }, [request]);
 
+  /**
+   * Memoized map of performance stops keyed by stop key for fast lookup
+   */
   const performanceStopsByKey = useMemo(() => {
     const stops = timetable?.performance?.stops || [];
     return new Map(stops.map((stop) => [getStopKey(stop), stop]));
   }, [timetable]);
 
+  // Determine which stops to display - prefer performance stops if available
   const displayStops = timetable?.performance?.stops?.length ? timetable.performance.stops : timetable?.stops || [];
+  
+  // Extract display values with fallbacks to context data
   const headerTitle = timetable?.destinationName || context.destinationName || 'Service timetable';
   const railOperatorTitle = timetable?.operatorName || timetable?.performance?.operatorName || context.operatorName || 'Train service';
   const trainUidLabel = request.trainUid || timetable?.trainUid || 'Train UID unavailable';
   const railRouteTitle = [timetable?.originName || timetable?.performance?.originName || context.originName, headerTitle]
     .filter(Boolean)
     .join(' -> ');
+  
+  // Extract cancellation and delay information
   const cancellationCode = timetable?.cancellationCode || timetable?.performance?.cancellationCode;
   const cancellationReason = timetable?.cancellationReason || timetable?.performance?.cancellationReason;
   const runningLateReason = timetable?.runningLateReason || timetable?.performance?.runningLateReason;
   const runningLateCode = timetable?.runningLateCode || timetable?.performance?.runningLateCode;
+  
+  /**
+   * Helper function to get segment distance display label
+   * 
+   * @param {Object} stop - The stop object
+   * @param {number} index - The index of the stop in the list
+   * @returns {string} Display label for distance
+   */
   const getSegmentDistanceLabel = (stop = {}, index) => (index === 0 ? 'Start' : stop.segmentEstimate?.display || 'Estimate unavailable');
+  
+  /**
+   * Helper function to get segment price display label
+   * 
+   * @param {Object} stop - The stop object
+   * @param {number} index - The index of the stop in the list
+   * @returns {string} Display label for price
+   */
   const getSegmentPriceLabel = (stop = {}, index) => (index === 0 ? 'Start' : stop.segmentEstimate?.priceEstimate?.display || 'Estimate unavailable');
 
+  /**
+   * Navigation handler that returns to the transport search view
+   */
   const handleBackToSearch = () => {
     navigate('/explore?view=transport', {
       state: location.state || null,
@@ -102,6 +173,7 @@ function TrainServiceTimetablePage() {
 
   return (
     <section className="explore-page">
+      {/* Hero section with service summary */}
       <div className="explore-hero">
         <div>
           <span className="explore-eyebrow">
@@ -124,6 +196,7 @@ function TrainServiceTimetablePage() {
       </div>
 
       <div className="explore-workspace">
+        {/* Loading state display */}
         {isLoading ? (
           <section className="explore-results-shell">
             <div className="explore-empty explore-placeholder">
@@ -133,8 +206,10 @@ function TrainServiceTimetablePage() {
             </div>
           </section>
         ) : error ? (
+          /* Error display */
           <p className="form-error explore-status">{error}</p>
         ) : timetable?.available ? (
+          /* Main timetable display when data is available */
           <section className="explore-train-service-layout">
             <section className="explore-results-board">
               <div className="explore-results-board-title">
@@ -149,9 +224,14 @@ function TrainServiceTimetablePage() {
                 </div>
                 <strong>{displayStops.length} stop{displayStops.length === 1 ? '' : 's'}</strong>
               </div>
+              
+              {/* List of train stops with detailed information */}
               <div className="explore-train-stop-list">
                 {displayStops.map((stop, index) => {
+                  // Look up performance data for this stop
                   const performanceStop = performanceStopsByKey.get(getStopKey(stop)) || {};
+                  
+                  // Determine cancellation and status information
                   const stopCancelled = stop.cancelled || performanceStop.cancelled || timetable.cancelled || timetable.performance?.cancelled;
                   const statusCode =
                     stop.cancellationCode ||
@@ -167,30 +247,41 @@ function TrainServiceTimetablePage() {
 
                   return (
                     <article className="explore-train-stop explore-train-stop-detail" key={`${stop.id}-${index}`}>
+                      {/* Station name and platform */}
                       <div>
                         <strong>{stationLabel}</strong>
                         <span>{stop.platform ? `Platform ${stop.platform}` : 'Platform not provided'}</span>
                       </div>
+                      
+                      {/* Estimated arrival time */}
                       <div>
                         <small>Estimated arrival</small>
                         <strong>{formatTime(stop.expectedArrivalTime || stop.aimedArrivalTime || stop.actualArrivalTime || performanceStop.expectedArrivalTime)}</strong>
                         <span>{formatDate(stop.expectedArrivalDate || stop.arrivalDate || stop.actualArrivalDate || performanceStop.arrivalDate)}</span>
                       </div>
+                      
+                      {/* Estimated departure time */}
                       <div>
                         <small>Estimated depart</small>
                         <strong>{formatTime(stop.expectedDepartureTime || stop.aimedDepartureTime || stop.actualDepartureTime || performanceStop.expectedDepartureTime)}</strong>
                         <span>{formatDate(stop.expectedDepartureDate || stop.departureDate || stop.actualDepartureDate || performanceStop.departureDate)}</span>
                       </div>
+                      
+                      {/* Status information (cancelled, late, on time) */}
                       <div>
                         <small>{stopCancelled ? 'Cancelled' : statusReason ? 'Late' : 'Status'}</small>
                         <strong className={statusClassName}>{statusLabel}</strong>
                         <span>{[statusCode, statusReason].filter(Boolean).join(' - ')}</span>
                       </div>
+                      
+                      {/* Segment distance information */}
                       <div>
                         <small>Estimated distance</small>
                         <strong>{getSegmentDistanceLabel(stop, index)}</strong>
                         <span>{index === 0 ? 'Journey origin' : 'From previous stop'}</span>
                       </div>
+                      
+                      {/* Segment price information */}
                       <div>
                         <small>Estimated price</small>
                         <strong>{getSegmentPriceLabel(stop, index)}</strong>
@@ -203,6 +294,7 @@ function TrainServiceTimetablePage() {
             </section>
           </section>
         ) : (
+          /* Empty state when no timetable is available */
           <section className="explore-results-shell">
             <div className="explore-empty explore-placeholder">
               <TrainFront size={34} aria-hidden="true" />
@@ -216,5 +308,5 @@ function TrainServiceTimetablePage() {
   );
 }
 
-// Default export registers the primary  value.
+// Default export registers the primary value.
 export default TrainServiceTimetablePage;

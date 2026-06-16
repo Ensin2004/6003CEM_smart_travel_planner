@@ -2,6 +2,8 @@
  * Explore detail styles.
  * Shared layout supports attraction, restaurant, and hotel profile screens.
  */
+
+/* Main container for the detail page */
 .shared-detail-page {
   display: grid;
   gap: 22px;
@@ -13,6 +15,7 @@
   padding: 0;
 }
 
+/* Back navigation button styling */
 .shared-detail-back {
   display: inline-flex;
   gap: 8px;
@@ -32,10 +35,12 @@
   color: var(--teal);
 }
 
+/* Loading state container */
 .shared-detail-loading {
   min-height: 260px;
 }
 
+/* Hero section - main image and information area */
 .shared-detail-hero {
   display: grid;
   grid-template-columns: minmax(340px, 0.9fr) minmax(420px, 1.1fr);
@@ -43,12 +48,14 @@
   align-items: start;
 }
 
+/* Media container for images */
 .shared-detail-media {
   display: grid;
   gap: 14px;
   min-width: 0;
 }
 
+/* Main image display area */
 .shared-detail-main-image {
   position: relative;
   overflow: hidden;
@@ -57,6 +64,7 @@
   box-shadow: 0 18px 38px rgba(16, 42, 67, 0.12);
 }
 
+/* Gradient overlay on main image */
 .shared-detail-main-image::after {
   position: absolute;
   inset: auto 0 0;
@@ -66,6 +74,7 @@
   pointer-events: none;
 }
 
+/* Image and placeholder styling */
 .shared-detail-main-image img,
 .shared-detail-image-placeholder {
   width: 100%;
@@ -74,6 +83,7 @@
   object-fit: cover;
 }
 
+/* Placeholder when no image is available */
 .shared-detail-image-placeholder {
   display: grid;
   place-items: center;
@@ -82,6 +92,7 @@
   background: var(--gradient-bright-surface-soft);
 }
 
+/* Photo count indicator on main image */
 .shared-detail-photo-count {
   position: absolute;
   left: 14px;
@@ -95,6 +106,7 @@
   z-index: 1;
 }
 
+/* Thumbnail row for image gallery navigation */
 .shared-detail-thumb-row {
   display: flex;
   gap: 10px;
@@ -103,6 +115,7 @@
   scrollbar-color: rgba(15, 118, 110, 0.34) transparent;
 }
 
+/* Custom scrollbar styling for thumbnails */
 .shared-detail-thumb-row::-webkit-scrollbar {
   height: 8px;
 }
@@ -112,6 +125,7 @@
   background: rgba(15, 118, 110, 0.34);
 }
 
+/* Individual thumbnail button */
 .shared-detail-thumb {
   position: relative;
   flex: 0 0 92px;
@@ -138,6 +152,7 @@
   object-fit: cover;
 }
 
+/* Additional thumbnail content overlay */
 .shared-detail-thumb span {
   position: absolute;
   inset: 0;
@@ -148,6 +163,7 @@
   font-weight: 700;
 }
 
+/* Hero copy section - text and information */
 .shared-detail-hero-copy {
   display: grid;
   gap: 20px;
@@ -155,11 +171,13 @@
   padding-top: 4px;
 }
 
+/* Title block with category and name */
 .shared-detail-title-block {
   display: grid;
   gap: 10px;
 }
 
+/* Category badge styling */
 .shared-detail-title-block .explore-category {
   justify-self: start;
   border: 0;
@@ -169,6 +187,7 @@
   font-weight: 700;
 }
 
+/* Place name heading */
 .shared-detail-hero-copy h2 {
   margin: 0;
   color: #0f2744;
@@ -177,6 +196,7 @@
   letter-spacing: 0;
 }
 
+/* Rating display row */
 .shared-detail-rating-row {
   display: flex;
   flex-wrap: wrap;
@@ -201,12 +221,14 @@
   color: #0f2744;
 }
 
+/* Information grid for detail cards */
 .shared-detail-info-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
 }
 
+/* Individual information card */
 .shared-detail-info-grid article {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -219,6 +241,7 @@
   box-shadow: 0 8px 22px rgba(16, 42, 67, 0.04);
 }
 
+/* Icon styling for info cards */
 .shared-detail-info-grid svg {
   width: 38px;
   height: 38px;
@@ -228,6 +251,7 @@
   padding: 10px;
 }
 
+/* Special styling for price and category cards */
 .shared-detail-info-grid article:nth-child(1) svg {
   background: rgba(245, 158, 11, 0.12);
   color: #d97706;
@@ -238,12 +262,14 @@
   color: #2563eb;
 }
 
+/* Info card content wrapper */
 .shared-detail-info-grid div {
   display: grid;
   gap: 4px;
   min-width: 0;
 }
 
+/* Info card labels */
 .shared-detail-info-grid span {
   color: var(--color-text-muted);
   font-size: 11px;
@@ -252,6 +278,7 @@
   text-transform: uppercase;
 }
 
+/* Info card values */
 .shared-detail-info-grid strong {
   overflow: hidden;
   color: #0f2744;
@@ -262,6 +289,7 @@
   white-space: nowrap;
 }
 
+/* Info card helper text */
 .shared-detail-info-grid small {
   overflow: hidden;
   color: var(--color-text-muted);
@@ -271,6 +299,7 @@
   white-space: nowrap;
 }
 
+/* Action buttons container */
 .shared-detail-actions {
   display: flex;
   flex-wrap: wrap;
@@ -278,6 +307,7 @@
   align-items: center;
 }
 
+/* Action button and link styling */
 .shared-detail-actions button,
 .shared-detail-actions a {
   display: inline-flex;
@@ -297,29 +327,34 @@
   transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
 }
 
+/* Primary action button (favorite) */
 .shared-detail-actions button:first-child {
   border: 0;
   background: var(--teal);
   color: #ffffff;
 }
 
+/* Hover states for action buttons */
 .shared-detail-actions button:hover,
 .shared-detail-actions a:hover {
   box-shadow: 0 10px 20px rgba(16, 42, 67, 0.1);
   transform: translateY(-1px);
 }
 
+/* Active/favorited state */
 .shared-detail-actions button.active {
   background: #fff5f5;
   color: #dc2626;
 }
 
+/* Feature grid - description, highlights, and visit timing */
 .shared-detail-feature-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(280px, 0.92fr) minmax(260px, 0.78fr);
   gap: 18px;
 }
 
+/* Shared panel styling for content sections */
 .shared-detail-panel,
 .shared-detail-reviews {
   min-width: 0;
@@ -330,6 +365,7 @@
   box-shadow: 0 10px 24px rgba(16, 42, 67, 0.045);
 }
 
+/* Panel heading styles */
 .shared-detail-panel h3,
 .shared-detail-reviews h3 {
   margin: 0 0 14px;
@@ -339,6 +375,7 @@
   line-height: 1.25;
 }
 
+/* Panel paragraph text */
 .shared-detail-panel p {
   margin: 0;
   color: var(--color-text-muted);
@@ -346,6 +383,7 @@
   line-height: 1.7;
 }
 
+/* Panel link styling */
 .shared-detail-panel a {
   display: inline-flex;
   margin-top: 12px;
@@ -353,6 +391,7 @@
   font-weight: 700;
 }
 
+/* Highlight list for key features */
 .shared-detail-highlight-list {
   display: grid;
   gap: 11px;
@@ -369,6 +408,7 @@
   padding-left: 24px;
 }
 
+/* Checkmark icon for highlight items */
 .shared-detail-highlight-list li::before {
   position: absolute;
   left: 0;
@@ -378,6 +418,7 @@
   font-weight: 800;
 }
 
+/* Visit timing card specific styling */
 .shared-detail-visit-card {
   align-content: start;
 }
@@ -393,11 +434,13 @@
   line-height: 1.45;
 }
 
+/* Reviews section container */
 .shared-detail-reviews {
   display: grid;
   gap: 16px;
 }
 
+/* Reviews heading with filters */
 .shared-detail-reviews-heading {
   display: flex;
   flex-wrap: wrap;
@@ -413,6 +456,7 @@
   padding: 0;
 }
 
+/* Review filter controls */
 .shared-detail-review-filters {
   display: flex;
   flex-wrap: wrap;
@@ -446,6 +490,7 @@
   padding: 0 12px;
 }
 
+/* Rating summary container */
 .shared-detail-rating-summary {
   display: grid;
   grid-template-columns: minmax(180px, 0.65fr) minmax(240px, 0.85fr) minmax(260px, 1fr);
@@ -459,6 +504,7 @@
   padding: 18px;
 }
 
+/* Average rating score display */
 .shared-detail-rating-score {
   display: grid;
   gap: 7px;
@@ -487,6 +533,7 @@
   color: #f59e0b;
 }
 
+/* Rating pie chart container */
 .shared-detail-rating-pie-wrap {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -494,6 +541,7 @@
   align-items: center;
 }
 
+/* Rating pie chart */
 .shared-detail-rating-pie {
   position: relative;
   display: grid;
@@ -504,6 +552,7 @@
   box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.08), 0 14px 26px rgba(16, 42, 67, 0.1);
 }
 
+/* Inner circle overlay for pie chart */
 .shared-detail-rating-pie::after {
   position: absolute;
   width: 72px;
@@ -514,6 +563,7 @@
   box-shadow: inset 0 0 0 1px rgba(226, 232, 240, 0.9);
 }
 
+/* Total review count in pie center */
 .shared-detail-rating-pie span {
   position: relative;
   z-index: 1;
@@ -522,6 +572,7 @@
   font-weight: 800;
 }
 
+/* Rating legend buttons */
 .shared-detail-rating-legend {
   display: grid;
   gap: 7px;
@@ -549,6 +600,7 @@
   color: var(--teal-dark);
 }
 
+/* Color indicator dots for legend */
 .shared-detail-rating-legend i {
   width: 10px;
   height: 10px;
@@ -561,6 +613,7 @@
   font-weight: 700;
 }
 
+/* Bar chart for rating distribution */
 .shared-detail-rating-chart {
   display: grid;
   gap: 9px;
@@ -591,6 +644,7 @@
   font-weight: 700;
 }
 
+/* Bar background container */
 .shared-detail-rating-chart div {
   overflow: hidden;
   height: 10px;
@@ -598,6 +652,7 @@
   background: #e2e8f0;
 }
 
+/* Bar fill */
 .shared-detail-rating-chart i {
   display: block;
   height: 100%;
@@ -611,6 +666,7 @@
   text-align: right;
 }
 
+/* Load more reviews button */
 .shared-detail-load-more {
   justify-self: center;
   display: inline-flex;
@@ -641,12 +697,14 @@
   font-weight: 700;
 }
 
+/* Review list container */
 .shared-detail-review-list {
   display: grid;
   grid-template-columns: 1fr;
   gap: 16px;
 }
 
+/* Individual review card */
 .shared-detail-review {
   display: grid;
   gap: 12px;
@@ -658,6 +716,7 @@
   box-shadow: 0 10px 22px rgba(16, 42, 67, 0.045);
 }
 
+/* Review author section */
 .shared-detail-review-author {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -665,6 +724,7 @@
   align-items: center;
 }
 
+/* Avatar image or fallback */
 .shared-detail-review-author > img,
 .shared-detail-review-author > span {
   display: grid;
@@ -678,6 +738,7 @@
   object-fit: cover;
 }
 
+/* Author name and details */
 .shared-detail-review-author > div {
   display: grid;
   gap: 3px;
@@ -705,6 +766,7 @@
   font-size: 12px;
 }
 
+/* Rating badge in review */
 .shared-detail-review-author em {
   display: inline-flex;
   gap: 5px;
@@ -722,12 +784,14 @@
   color: #f59e0b;
 }
 
+/* Review text content */
 .shared-detail-review p {
   margin: 0;
   color: var(--color-text-muted);
   line-height: 1.6;
 }
 
+/* Owner reply section */
 .shared-detail-owner-reply {
   display: grid;
   gap: 6px;
@@ -753,6 +817,7 @@
   font-size: 13px;
 }
 
+/* Empty state for reviews */
 .shared-detail-review-empty {
   display: flex;
   grid-column: 1 / -1;
@@ -780,6 +845,7 @@
   line-height: 1.55;
 }
 
+/* Responsive design - tablet and smaller screens */
 @media (max-width: 1180px) {
   .shared-detail-hero,
   .shared-detail-feature-grid {
@@ -804,6 +870,7 @@
   }
 }
 
+/* Responsive design - mobile screens */
 @media (max-width: 720px) {
   .shared-detail-page {
     padding: 0;

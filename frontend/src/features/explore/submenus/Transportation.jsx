@@ -19,12 +19,44 @@ import { useEffect, useMemo, useState } from 'react';
 import { getDateKey } from '../explore.helpers';
 import './Transportation.css';
 
+/**
+ * Configuration for transportation tabs
+ * Each tab defines an ID, display label, and associated icon
+ */
 const transportationTabs = [
   { id: 'flights', label: 'Flights', icon: Plane },
   { id: 'trains', label: 'Trains', icon: TrainFront },
 ];
 
-// TransportationSubmenu renders the main screen and handles nearby interactions.
+/**
+ * TransportationSubmenu renders the main screen and handles nearby interactions.
+ * Provides search and display functionality for flights and train services.
+ * 
+ * @param {Object} props - Component properties
+ * @param {string} props.activeTransportTab - Currently active tab ID ('flights' or 'trains')
+ * @param {Function} props.clearFlightSearchField - Handler to clear a specific flight search field
+ * @param {Function} props.clearTrainSearchField - Handler to clear a specific train search field
+ * @param {Array} props.countryOptions - Available country options for flight search
+ * @param {string} props.error - Error message to display
+ * @param {Object} props.flightResults - Flight search results data
+ * @param {Object} props.flightSearch - Current flight search parameters
+ * @param {Function} props.formatFlightDuration - Formatter for flight duration
+ * @param {Function} props.formatFlightTime - Formatter for flight time
+ * @param {Function} props.getAirportLocationLabel - Gets airport location label
+ * @param {Function} props.getFlightCodeLabel - Gets flight code label
+ * @param {Function} props.getFlightSearchTitle - Gets the flight search title
+ * @param {Function} props.handleFlightCountryChange - Handler for flight country filter changes
+ * @param {Function} props.handleFlightSearch - Handler for flight search submission
+ * @param {Function} props.handleFlightSearchChange - Handler for flight search field changes
+ * @param {Function} props.handleTrainSearchChange - Handler for train search field changes
+ * @param {Function} props.handleTrainSelect - Handler for selecting a train
+ * @param {Function} props.handleTrainStationSearch - Handler for train station search submission
+ * @param {boolean} props.isSearching - Whether a search is in progress
+ * @param {Function} props.setActiveTransportTab - Handler for changing active transport tab
+ * @param {string} props.status - Status message to display
+ * @param {Object} props.trainResults - Train search results data
+ * @param {Object} props.trainSearch - Current train search parameters
+ */
 function TransportationSubmenu({
   activeTransportTab,
   clearFlightSearchField,
@@ -50,10 +82,24 @@ function TransportationSubmenu({
   trainResults,
   trainSearch,
 }) {
+  // State for flight sorting and selected flight detail view
   const [flightSort, setFlightSort] = useState('departure');
   const [selectedFlight, setSelectedFlight] = useState(null);
-  // Format Train Date converts raw values into readable display text.
+  
+  /**
+   * Format Train Date converts raw values into readable display text.
+   * 
+   * @param {string} value - Raw date value
+   * @returns {string} Formatted date string or placeholder
+   */
   const formatTrainDate = (value) => value || 'Date unavailable';
+  
+  /**
+   * Gets the distance label for a train service.
+   * 
+   * @param {Object} train - Train service object
+   * @returns {string} Formatted distance label
+   */
   const getTrainDistanceLabel = (train = {}) => {
     const kilometers = Number(train.distanceEstimate?.kilometers);
 
@@ -67,19 +113,69 @@ function TransportationSubmenu({
 
     return train.distanceEstimate?.display || 'AI estimate unavailable';
   };
+  
+  /**
+   * Gets the price label for a train service.
+   * 
+   * @param {Object} train - Train service object
+   * @returns {string} Formatted price label
+   */
   const getTrainPriceLabel = (train = {}) =>
     train.priceEstimate?.available && train.priceEstimate?.display
       ? train.priceEstimate.display
       : train.priceEstimate?.display || 'AI estimate unavailable';
+  
+  /**
+   * Gets the run label for a train service.
+   * 
+   * @param {Object} train - Train service object
+   * @returns {string} Train run identifier
+   */
   const getTrainRunLabel = (train = {}) => train.trainUid || train.service || trainResults?.stationCode || 'Train service';
+  
+  /**
+   * Gets the platform label for a train service.
+   * 
+   * @param {Object} train - Train service object
+   * @returns {string} Platform label or placeholder
+   */
   const getTrainPlatformLabel = (train = {}) => (train.platform ? `Platform ${train.platform}` : 'Platform not provided');
+  
+  /**
+   * Gets the departure time for a train service.
+   * 
+   * @param {Object} train - Train service object
+   * @returns {string} Departure time string
+   */
   const getTrainDepartureTime = (train = {}) =>
     train.expectedDepartureTime || train.actualDepartureTime || train.aimedDepartureTime || '--:--';
+  
+  /**
+   * Gets the arrival time for a train service.
+   * 
+   * @param {Object} train - Train service object
+   * @returns {string} Arrival time string
+   */
   const getTrainArrivalTime = (train = {}) => train.expectedArrivalTime || train.actualArrivalTime || train.aimedArrivalTime || '--:--';
+  
+  /**
+   * Gets the date label for a train service.
+   * 
+   * @param {Object} train - Train service object
+   * @param {string} kind - Type of date ('departure' or 'arrival')
+   * @returns {string} Formatted date string
+   */
   const getTrainDateLabel = (train = {}, kind = 'departure') =>
     kind === 'arrival'
       ? formatTrainDate(train.expectedArrivalDate || train.arrivalDate || train.serviceDate || trainResults?.date)
       : formatTrainDate(train.expectedDepartureDate || train.departureDate || train.serviceDate || trainResults?.date);
+  
+  /**
+   * Formats a transport date for display.
+   * 
+   * @param {string} value - Raw date value
+   * @returns {string} Formatted date string
+   */
   const formatTransportDate = (value) => {
     if (!value) return 'Date unavailable';
 
@@ -94,7 +190,21 @@ function TransportationSubmenu({
 
     return value;
   };
+  
+  /**
+   * Gets the airport code label.
+   * 
+   * @param {Object} airport - Airport object
+   * @returns {string} IATA or ICAO code
+   */
   const getAirportCodeLabel = (airport = {}) => airport.iata || airport.icao || '';
+  
+  /**
+   * Gets the full place label for an airport.
+   * 
+   * @param {Object} airport - Airport object
+   * @returns {string} Complete airport location label
+   */
   const getFlightPlaceLabel = (airport = {}) => {
     const airportCode = getAirportCodeLabel(airport);
     const airportName = airport.name && !airport.name.includes('unavailable') ? airport.name : '';
@@ -114,6 +224,13 @@ function TransportationSubmenu({
 
     return locationLabel;
   };
+  
+  /**
+   * Formats full date and time for transport displays.
+   * 
+   * @param {string} value - Raw date time value
+   * @returns {string} Formatted date time string
+   */
   const formatFullTransportDateTime = (value) => {
     if (!value) return 'Unavailable';
 
@@ -131,6 +248,13 @@ function TransportationSubmenu({
 
     return value;
   };
+  
+  /**
+   * Gets detail rows for an airport.
+   * 
+   * @param {Object} airport - Airport object
+   * @returns {Array} Array of [label, value] pairs for display
+   */
   const getAirportDetailRows = (airport = {}) =>
     [
       ['Airport', getFlightPlaceLabel(airport)],
@@ -140,10 +264,38 @@ function TransportationSubmenu({
       ['Country code', airport.countryCode],
       ['Timezone', airport.timezone],
     ].filter(([, value]) => value);
+  
+  /**
+   * Gets the flight status label.
+   * 
+   * @param {Object} flight - Flight object
+   * @returns {string} Status label
+   */
   const getFlightStatusLabel = (flight = {}) => flight.status || (flight.type === 'live' ? 'Live' : 'Scheduled');
+  
+  /**
+   * Gets the flight type label.
+   * 
+   * @param {Object} flight - Flight object
+   * @returns {string} Type label
+   */
   const getFlightTypeLabel = (flight = {}) => (flight.type === 'live' ? 'Live flight' : 'Scheduled flight');
+  
+  /**
+   * Gets the carrier badge label for a flight.
+   * 
+   * @param {Object} flight - Flight object
+   * @returns {string} Carrier code for badge display
+   */
   const getCarrierBadgeLabel = (flight = {}) =>
     flight.airline?.iata || flight.airline?.icao || getFlightCodeLabel(flight).slice(0, 2) || flight.airline?.name?.slice(0, 2) || 'FL';
+  
+  /**
+   * Gets the airline display name.
+   * 
+   * @param {Object} flight - Flight object
+   * @returns {string} Full airline name or placeholder
+   */
   const getAirlineDisplayName = (flight = {}) => {
     const airlineName = flight.airline?.name || '';
     const airlineCode = flight.airline?.iata || flight.airline?.icao || '';
@@ -158,6 +310,11 @@ function TransportationSubmenu({
 
     return airlineName;
   };
+  
+  /**
+   * Memoized sorted flight items based on selected sort criterion.
+   * Sorts by departure time, arrival time, or estimated price.
+   */
   const sortedFlightItems = useMemo(() => {
     const getTimeValue = (value) => {
       const parsedTime = new Date(value).getTime();
@@ -183,9 +340,15 @@ function TransportationSubmenu({
       );
     });
   }, [flightResults?.items, flightSort]);
+  
+  // Determine active items and result count based on current tab
   const activeItems = activeTransportTab === 'flights' ? sortedFlightItems : trainResults?.items || [];
   const activeResultCount = activeItems.length;
   const hasActiveTransportSearch = activeTransportTab === 'flights' ? Boolean(flightResults) : Boolean(trainResults);
+  
+  /**
+   * Effect hook that handles closing the flight detail dialog with Escape key
+   */
   useEffect(() => {
     const closeFlightDialog = (event) => {
       if (event.key === 'Escape') {
@@ -196,6 +359,16 @@ function TransportationSubmenu({
     document.addEventListener('keydown', closeFlightDialog);
     return () => document.removeEventListener('keydown', closeFlightDialog);
   }, []);
+  
+  /**
+   * Renders a country selection dropdown for flight search.
+   * 
+   * @param {Object} params - Parameters for the country select
+   * @param {string} params.fieldPrefix - Prefix for the field name
+   * @param {string} params.label - Display label for the field
+   * @param {string} params.value - Currently selected value
+   * @returns {JSX.Element} Country select component
+   */
   const renderCountrySelect = ({ fieldPrefix, label, value }) => (
     <label className="explore-transport-form-field">
       <span>{label}</span>
@@ -215,6 +388,10 @@ function TransportationSubmenu({
       </div>
     </label>
   );
+  
+  /**
+   * Quick tips for transport planning based on active tab
+   */
   const transportTips =
     activeTransportTab === 'flights'
       ? [
@@ -227,6 +404,10 @@ function TransportationSubmenu({
           'Use station, operator, and date filters to reduce noisy matches.',
           'Review estimated prices as guidance rather than confirmed fares.',
         ];
+  
+  /**
+   * Transport briefing component with results summary and quick tips
+   */
   const transportBriefing = (
     <section className="explore-briefing explore-transport-briefing" aria-label="Transportation travel briefing">
       {hasActiveTransportSearch && (
@@ -271,8 +452,10 @@ function TransportationSubmenu({
       </article>
     </section>
   );
+  
   return (
     <div className="explore-workspace">
+      {/* Transportation toolbar with tab switching and search forms */}
       <div className="explore-transport-toolbar">
         <div className="travel-guide-tabs explore-transport-tabs" role="tablist" aria-label="Transportation type">
           {transportationTabs.map((tab) => {
@@ -292,6 +475,8 @@ function TransportationSubmenu({
             );
           })}
         </div>
+        
+        {/* Flight search form */}
         {activeTransportTab === 'flights' && (
           <form className="explore-transport-search-panel explore-transport-search-panel--flight" onSubmit={handleFlightSearch}>
             <div className="explore-transport-form-heading">
@@ -365,6 +550,8 @@ function TransportationSubmenu({
             </div>
           </form>
         )}
+        
+        {/* Train search form */}
         {activeTransportTab === 'trains' && (
           <form className="explore-transport-search-panel explore-transport-search-panel--train" onSubmit={handleTrainStationSearch}>
             <div className="explore-transport-form-heading">
@@ -465,6 +652,7 @@ function TransportationSubmenu({
         )}
       </div>
 
+      {/* Flight results section */}
       {activeTransportTab === 'flights' ? (
         <>
           {error && <p className="form-error explore-status">{error}</p>}
@@ -548,6 +736,7 @@ function TransportationSubmenu({
           )}
         </>
       ) : (
+        /* Train results section */
         <>
           {error && <p className="form-error explore-status">{error}</p>}
           {status && !error && <p className="form-success explore-status">{status}</p>}
@@ -641,6 +830,8 @@ function TransportationSubmenu({
           )}
         </>
       )}
+      
+      {/* Flight detail dialog modal */}
       {selectedFlight && (
         <div className="explore-flight-dialog-backdrop" role="presentation" onMouseDown={() => setSelectedFlight(null)}>
           <section
@@ -771,6 +962,6 @@ function TransportationSubmenu({
     </div>
   );
 }
-// Default export registers the primary  value.
-export default TransportationSubmenu;
 
+// Default export registers the primary value.
+export default TransportationSubmenu;

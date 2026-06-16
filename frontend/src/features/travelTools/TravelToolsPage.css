@@ -2,6 +2,15 @@
  * Travel Tools styles.
  * Layout, spacing, and interaction rules support the matching React view.
  */
+
+/* ============================================================================
+   ROOT PAGE CONTAINER
+   ============================================================================ */
+
+/**
+ * Main container for the travel tools page.
+ * Uses grid layout with consistent spacing and bottom padding for scrolling.
+ */
 .travel-tools-page {
   position: relative;
   display: grid;
@@ -10,6 +19,14 @@
   padding-bottom: 82px;
 }
 
+/* ============================================================================
+   COMMON CARD STYLES
+   ============================================================================ */
+
+/**
+ * Shared card styling for hero, panels, and detail sections.
+ * Provides consistent border, background, and shadow treatment.
+ */
 .travel-tools-hero,
 .travel-tools-list-panel,
 .travel-tools-create-panel,
@@ -19,6 +36,16 @@
   background: #ffffff;
   box-shadow: 0 6px 16px rgba(16, 42, 67, 0.032);
 }
+
+/* ============================================================================
+   HERO SECTION
+   ============================================================================ */
+
+/**
+ * Hero banner at the top of the page.
+ * Features a dark gradient background with subtle grid pattern overlay.
+ * Uses flex layout for content alignment and decorative elements.
+ */
 .travel-tools-hero {
   position: relative;
   display: flex;
@@ -32,6 +59,12 @@
     #0f172a;
   color: #dbeafe;
 }
+
+/**
+ * Decorative grid pattern overlay on the hero.
+ * Creates a subtle technical/structured background effect.
+ * Uses a mask to fade out on the right side.
+ */
 .travel-tools-hero::before {
   content: "";
   position: absolute;
@@ -43,33 +76,60 @@
   mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.7), transparent 76%);
   pointer-events: none;
 }
+
+/**
+ * Ensures hero content sits above the decorative background.
+ */
 .travel-tools-hero > * {
   position: relative;
   z-index: 1;
 }
 
+/**
+ * Heading styles within the hero and detail headers.
+ * Uses navy color for readability against light backgrounds.
+ */
 .travel-tools-hero h2,
 .travel-tools-detail-header h3 {
   margin: 0 0 8px;
   color: var(--navy);
   font-size: var(--font-size-3xl);
 }
+
+/**
+ * Override hero heading color to white for dark background contrast.
+ */
 .travel-tools-hero h2 {
   color: #ffffff;
 }
 
+/**
+ * Muted text styles for secondary information.
+ */
 .travel-tools-hero p:not(.eyebrow),
 .travel-tools-detail-header p {
   color: var(--muted);
 }
+
+/**
+ * Eyebrow text in hero - small uppercase label above main heading.
+ */
 .travel-tools-hero .eyebrow {
   color: #7dd3fc;
 }
+
+/**
+ * Description text in hero with increased readability.
+ */
 .travel-tools-hero p:not(.eyebrow) {
   max-width: 760px;
   color: rgba(226, 232, 240, 0.86);
   line-height: 1.65;
 }
+
+/**
+ * Container for hero metadata badges and statistics.
+ */
 .travel-tools-hero-meta {
   display: flex;
   align-items: center;
@@ -77,6 +137,11 @@
   gap: 10px;
   margin-top: 18px;
 }
+
+/**
+ * Individual metadata badges with pill styling.
+ * Features semi-transparent backgrounds with blur effect.
+ */
 .travel-tools-hero-meta span {
   display: inline-flex;
   align-items: center;
@@ -92,18 +157,28 @@
   backdrop-filter: blur(12px);
 }
 
+/**
+ * Success/ready state badge styling.
+ */
 .travel-tools-hero-meta .travel-tools-hero-health-ready {
   border-color: rgba(52, 211, 153, 0.36);
   background: rgba(6, 78, 59, 0.42);
   color: #bbf7d0;
 }
 
+/**
+ * Warning state badge styling.
+ */
 .travel-tools-hero-meta .travel-tools-hero-health-warning {
   border-color: rgba(251, 191, 36, 0.38);
   background: rgba(120, 53, 15, 0.4);
   color: #fde68a;
 }
 
+/**
+ * Container for action buttons and live stats in the hero.
+ * Uses grid layout to stack content with spacing.
+ */
 .travel-tools-hero-actions {
   display: grid;
   align-content: space-between;
@@ -112,6 +187,10 @@
   min-width: 250px;
 }
 
+/**
+ * Live statistics card within the hero.
+ * Displays real-time counts with a glassmorphism effect.
+ */
 .travel-tools-live-card {
   display: grid;
   gap: 6px;
@@ -124,6 +203,9 @@
   backdrop-filter: blur(16px);
 }
 
+/**
+ * Label text within the live card.
+ */
 .travel-tools-live-card span {
   color: #93c5fd;
   font-size: 12px;
@@ -131,12 +213,19 @@
   text-transform: uppercase;
 }
 
+/**
+ * Primary statistic number in the live card.
+ */
 .travel-tools-live-card strong {
   color: #ffffff;
   font-size: 34px;
   line-height: 1;
 }
 
+/**
+ * Secondary description text in the live card.
+ * Truncates overflow with ellipsis.
+ */
 .travel-tools-live-card small {
   min-width: 0;
   overflow: hidden;
@@ -146,14 +235,32 @@
   white-space: nowrap;
 }
 
+/* ============================================================================
+   STATUS MESSAGES
+   ============================================================================ */
+
+/**
+ * Base status message container with no margin.
+ */
 .travel-tools-status {
   margin: 0;
 }
 
+/**
+ * Status messages within modals.
+ */
 .travel-tools-modal-status {
   margin: 0;
 }
 
+/* ============================================================================
+   BUTTONS AND ACTIONS
+   ============================================================================ */
+
+/**
+ * Common styling for action buttons throughout the travel tools.
+ * Uses primary color with border and rounded corners.
+ */
 .travel-tools-actions button,
 .travel-tools-item-list article > button,
 .travel-tools-templates button {
@@ -165,6 +272,10 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/**
+ * Disabled state for primary action buttons.
+ * Reduces opacity and prevents pointer interactions.
+ */
 .travel-tools-actions .primary-action:disabled,
 .travel-tools-modal-actions .primary-action:disabled,
 .travel-tools-add-row .primary-action:disabled {
@@ -172,6 +283,10 @@
   opacity: 0.78;
 }
 
+/**
+ * Disabled state with explicit muted styling.
+ * Overrides hover effects to maintain consistent appearance.
+ */
 .travel-tools-actions .primary-action:disabled,
 .travel-tools-actions .primary-action:disabled:hover,
 .travel-tools-modal-actions .primary-action:disabled,
@@ -185,6 +300,14 @@
   transform: none;
 }
 
+/* ============================================================================
+   LAYOUT STRUCTURE
+   ============================================================================ */
+
+/**
+ * Two-column layout for the main content area.
+ * Sidebar is fixed width, main content fills remaining space.
+ */
 .travel-tools-layout {
   display: grid;
   grid-template-columns: minmax(250px, 312px) minmax(0, 1fr);
@@ -192,18 +315,27 @@
   align-items: start;
 }
 
+/**
+ * Common padding for list panel, create panel, and detail sections.
+ */
 .travel-tools-list-panel,
 .travel-tools-create-panel,
 .travel-tools-detail {
   padding: 18px;
 }
 
+/**
+ * Create panel with subtle gradient background.
+ */
 .travel-tools-create-panel {
   display: grid;
   gap: 10px;
   background: linear-gradient(180deg, #ffffff, #fbfdff);
 }
 
+/**
+ * List panel with overflow handling for long content.
+ */
 .travel-tools-list-panel {
   display: grid;
   gap: 14px;
@@ -211,6 +343,14 @@
   overflow: hidden;
 }
 
+/* ============================================================================
+   PANEL HEADINGS
+   ============================================================================ */
+
+/**
+ * Container for panel title, description, and action badges.
+ * Uses flex layout for horizontal alignment.
+ */
 .travel-tools-panel-heading,
 .travel-tools-detail-header,
 .packing-reminder {
@@ -220,6 +360,9 @@
   gap: 14px;
 }
 
+/**
+ * Primary label text within panel heading.
+ */
 .travel-tools-panel-heading span {
   display: block;
   margin-bottom: 4px;
@@ -228,6 +371,9 @@
   font-weight: var(--font-weight-bold);
 }
 
+/**
+ * Secondary heading text with muted styling.
+ */
 .travel-tools-panel-heading h3 {
   margin: 0;
   color: var(--muted);
@@ -236,6 +382,10 @@
   line-height: 1.45;
 }
 
+/**
+ * Count badge in panel heading.
+ * Displays a number in a colored circle.
+ */
 .travel-tools-panel-heading > strong {
   display: grid;
   width: 38px;
@@ -246,12 +396,23 @@
   color: var(--color-primary);
 }
 
+/* ============================================================================
+   LIST STACK (Sidebar Lists)
+   ============================================================================ */
+
+/**
+ * Container for vertical list of cards.
+ */
 .travel-tools-list-stack {
   display: grid;
   gap: 10px;
   min-width: 0;
 }
 
+/**
+ * Individual list card with hover and active states.
+ * Represents a packing list or document in the sidebar.
+ */
 .travel-tools-list-card {
   display: grid;
   gap: 4px;
@@ -270,6 +431,10 @@
     transform 0.2s ease;
 }
 
+/**
+ * Hover and active states for list cards.
+ * Adds primary color accent and subtle lift effect.
+ */
 .travel-tools-list-card.active,
 .travel-tools-list-card:hover {
   border-color: rgba(15, 118, 110, 0.26);
@@ -279,6 +444,10 @@
   transform: translateY(-1px);
 }
 
+/**
+ * Title text in list card.
+ * Truncates long text with ellipsis.
+ */
 .travel-tools-list-card span {
   min-width: 0;
   overflow: hidden;
@@ -287,6 +456,9 @@
   white-space: nowrap;
 }
 
+/**
+ * Secondary text in list card with muted color.
+ */
 .travel-tools-list-card small {
   min-width: 0;
   overflow: hidden;
@@ -295,12 +467,27 @@
   white-space: nowrap;
 }
 
+/* ============================================================================
+   MAIN CONTENT AREA
+   ============================================================================ */
+
+/**
+ * Main content container that fills remaining space.
+ */
 .travel-tools-main {
   display: grid;
   gap: 18px;
   min-width: 0;
 }
 
+/* ============================================================================
+   FORMS AND INPUTS
+   ============================================================================ */
+
+/**
+ * Grid layout for form fields.
+ * Creates responsive multi-column form layouts.
+ */
 .travel-tools-form-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(160px, 1fr));
@@ -308,16 +495,27 @@
   margin-top: 16px;
 }
 
+/**
+ * Compact form grid with auto-fit columns.
+ * Adapts to available space for smaller forms.
+ */
 .travel-tools-form-grid-compact {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
 }
 
+/**
+ * Individual form field container.
+ */
 .travel-tools-create-field {
   display: grid;
   gap: 8px;
   align-content: start;
 }
 
+/**
+ * Label with inline help icon.
+ * Positions the help icon next to the label text.
+ */
 .travel-tools-field-label {
   display: inline-flex;
   align-items: center;
@@ -325,6 +523,14 @@
   width: fit-content;
 }
 
+/* ============================================================================
+   TOOLTIP COMPONENT
+   ============================================================================ */
+
+/**
+ * Container for the help icon and its tooltip.
+ * Uses relative positioning for tooltip placement.
+ */
 .travel-tools-tip-anchor {
   position: relative;
   display: inline-grid;
@@ -337,10 +543,18 @@
   outline: none;
 }
 
+/**
+ * Focus state for accessibility.
+ */
 .travel-tools-tip-anchor:focus-visible {
   box-shadow: 0 0 0 3px rgba(20, 184, 166, 0.18);
 }
 
+/**
+ * Tooltip popup that appears on hover or focus.
+ * Positioned above the help icon with a small arrow.
+ * Hidden by default, appears on interaction.
+ */
 .travel-tools-create-tip {
   position: absolute;
   bottom: calc(100% + 8px);
@@ -366,6 +580,10 @@
     transform 0.16s ease;
 }
 
+/**
+ * Arrow indicator below the tooltip.
+ * Creates a small triangle pointing to the anchor.
+ */
 .travel-tools-create-tip::after {
   content: "";
   position: absolute;
@@ -379,6 +597,10 @@
   transform: translate(-50%, -5px) rotate(45deg);
 }
 
+/**
+ * Tooltip visibility on hover, focus, and focus-within.
+ * Smoothly appears with opacity and transform animation.
+ */
 .travel-tools-tip-anchor:hover .travel-tools-create-tip,
 .travel-tools-tip-anchor:focus .travel-tools-create-tip,
 .travel-tools-tip-anchor:focus-within .travel-tools-create-tip {
@@ -386,6 +608,14 @@
   transform: translate(-50%, 0);
 }
 
+/* ============================================================================
+   CREATE MODE TOGGLE
+   ============================================================================ */
+
+/**
+ * Button group for switching between manual and template creation modes.
+ * Uses inline-grid for compact layout.
+ */
 .packing-create-mode {
   display: inline-grid;
   grid-template-columns: repeat(2, minmax(120px, 1fr));
@@ -398,6 +628,9 @@
   background: #f8fafc;
 }
 
+/**
+ * Mode toggle button with transparent background.
+ */
 .packing-create-mode button {
   min-height: 36px;
   border: 0;
@@ -408,12 +641,22 @@
   font-weight: var(--font-weight-bold);
 }
 
+/**
+ * Active mode button with white background and shadow.
+ */
 .packing-create-mode button.active {
   background: #ffffff;
   color: var(--color-primary);
   box-shadow: 0 5px 12px rgba(16, 42, 67, 0.045);
 }
 
+/* ============================================================================
+   FORM ELEMENTS
+   ============================================================================ */
+
+/**
+ * Styling for form labels in grids and modals.
+ */
 .travel-tools-form-grid label,
 .travel-tools-modal label {
   display: grid;
@@ -423,6 +666,10 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/**
+ * Styling for input, select, and textarea elements.
+ * Consistent height, border, padding, and focus states.
+ */
 .travel-tools-form-grid input,
 .travel-tools-form-grid select,
 .travel-tools-filters input,
@@ -440,6 +687,10 @@
   outline: none;
 }
 
+/**
+ * Custom select dropdown styling with arrow icon.
+ * Uses CSS background gradients for the arrow.
+ */
 .travel-tools-form-grid select,
 .travel-tools-filters select,
 .travel-tools-modal select {
@@ -457,6 +708,10 @@
   background-repeat: no-repeat;
 }
 
+/**
+ * Focus state for form inputs.
+ * Highlights with primary color border and glow.
+ */
 .travel-tools-form-grid input:focus,
 .travel-tools-form-grid select:focus,
 .travel-tools-filters input:focus,
@@ -467,12 +722,23 @@
   box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.16);
 }
 
+/* ============================================================================
+   TEMPLATE CAROUSEL
+   ============================================================================ */
+
+/**
+ * Container for the template carousel with relative positioning.
+ */
 .travel-tools-template-carousel {
   position: relative;
   min-width: 0;
   padding: 0 10px;
 }
 
+/**
+ * Grid layout for template cards.
+ * Shows 5 cards per row by default.
+ */
 .travel-tools-templates {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -480,6 +746,10 @@
   min-width: 0;
 }
 
+/**
+ * Navigation arrows for the carousel.
+ * Positioned absolutely on left and right sides.
+ */
 .travel-tools-template-arrow {
   position: absolute;
   top: 50%;
@@ -497,19 +767,32 @@
   transform: translateY(-50%);
 }
 
+/**
+ * Left arrow positioning.
+ */
 .travel-tools-template-arrow:first-child {
   left: -11px;
 }
 
+/**
+ * Right arrow positioning.
+ */
 .travel-tools-template-arrow:last-child {
   right: -11px;
 }
 
+/**
+ * Disabled arrow state.
+ */
 .travel-tools-template-arrow:disabled {
   cursor: not-allowed;
   opacity: 0.45;
 }
 
+/**
+ * Template card button styling.
+ * Uses grid layout with auto rows for consistent card heights.
+ */
 .travel-tools-templates button {
   display: grid;
   grid-template-rows: auto auto 1fr;
@@ -523,16 +806,25 @@
   text-align: left;
 }
 
+/**
+ * Hover and active states for template cards.
+ */
 .travel-tools-templates button:hover,
 .travel-tools-templates button.active {
   background: var(--color-primary-soft);
   color: var(--color-primary);
 }
 
+/**
+ * Icon color in template cards.
+ */
 .travel-tools-templates button svg {
   color: var(--color-primary);
 }
 
+/**
+ * Template title with ellipsis truncation.
+ */
 .travel-tools-templates span {
   min-width: 0;
   overflow: hidden;
@@ -541,6 +833,9 @@
   white-space: nowrap;
 }
 
+/**
+ * Template description with multi-line truncation.
+ */
 .travel-tools-templates small {
   display: -webkit-box;
   overflow: hidden;
@@ -551,6 +846,13 @@
   -webkit-line-clamp: 3;
 }
 
+/* ============================================================================
+   SIDE SECTION (Sidebar Sub-sections)
+   ============================================================================ */
+
+/**
+ * Container for sidebar sub-sections with top border.
+ */
 .travel-tools-side-section {
   display: grid;
   gap: 10px;
@@ -558,6 +860,9 @@
   border-top: 1px solid var(--line);
 }
 
+/**
+ * Header within side section with title and count badge.
+ */
 .travel-tools-side-heading {
   display: flex;
   align-items: center;
@@ -565,12 +870,18 @@
   gap: 12px;
 }
 
+/**
+ * Side section heading text.
+ */
 .travel-tools-side-heading h3 {
   margin: 0;
   color: var(--navy);
   font-size: var(--font-size-lg);
 }
 
+/**
+ * Count badge in side section header.
+ */
 .travel-tools-side-heading strong {
   display: grid;
   width: 34px;
@@ -582,30 +893,53 @@
   font-size: 13px;
 }
 
+/**
+ * Template card with light background.
+ */
 .travel-tools-template-card {
   background: #f8fbff;
 }
 
+/* ============================================================================
+   DETAIL VIEW
+   ============================================================================ */
+
+/**
+ * Detail panel for viewing and editing a selected item.
+ * Features a gradient background for depth.
+ */
 .travel-tools-detail {
   display: grid;
   gap: 16px;
   background: linear-gradient(180deg, #ffffff, #fbfdff);
 }
 
+/**
+ * Detail header with flex layout for title and actions.
+ */
 .travel-tools-detail-header {
   align-items: flex-start;
 }
 
+/**
+ * Title row with inline actions.
+ */
 .travel-tools-title-row {
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
+/**
+ * Title row heading with bottom margin.
+ */
 .travel-tools-title-row h3 {
   margin: 0 0 8px;
 }
 
+/**
+ * Workspace label - small uppercase label above the title.
+ */
 .travel-tools-workspace-label {
   display: block;
   margin-bottom: 4px;
@@ -614,6 +948,9 @@
   font-weight: var(--font-weight-bold);
 }
 
+/**
+ * Meta information container with badges.
+ */
 .travel-tools-workspace-meta {
   display: flex;
   flex-wrap: wrap;
@@ -621,6 +958,9 @@
   margin-top: 10px;
 }
 
+/**
+ * Individual meta badge with pill styling.
+ */
 .travel-tools-workspace-meta span {
   display: inline-flex;
   align-items: center;
@@ -634,6 +974,9 @@
   font-weight: var(--font-weight-bold);
 }
 
+/**
+ * Icon button in title row for edit actions.
+ */
 .travel-tools-title-row button {
   display: grid;
   width: 34px;
@@ -646,11 +989,21 @@
   color: var(--muted);
 }
 
+/**
+ * Hover state for title row buttons.
+ */
 .travel-tools-title-row button:hover {
   background: var(--color-primary-soft);
   color: var(--color-primary);
 }
 
+/* ============================================================================
+   TITLE EDIT MODE
+   ============================================================================ */
+
+/**
+ * Container for inline title editing.
+ */
 .travel-tools-title-edit {
   display: flex;
   align-items: center;
@@ -659,6 +1012,9 @@
   margin-bottom: 8px;
 }
 
+/**
+ * Input field for title editing.
+ */
 .travel-tools-title-edit input {
   min-height: 42px;
   min-width: min(320px, 100%);
@@ -672,11 +1028,17 @@
   outline: none;
 }
 
+/**
+ * Focus state for title edit input.
+ */
 .travel-tools-title-edit input:focus {
   border-color: var(--teal);
   box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.16);
 }
 
+/**
+ * Action buttons in title edit mode.
+ */
 .travel-tools-title-edit button {
   min-height: 38px;
   padding: 0 12px;
@@ -688,6 +1050,13 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/* ============================================================================
+   ACTIONS MENU (Dropdown)
+   ============================================================================ */
+
+/**
+ * Container for action buttons with flex layout.
+ */
 .travel-tools-actions {
   display: flex;
   flex-wrap: wrap;
@@ -695,6 +1064,9 @@
   justify-content: flex-end;
 }
 
+/**
+ * Action button styling.
+ */
 .travel-tools-actions button {
   display: inline-flex;
   align-items: center;
@@ -703,11 +1075,18 @@
   padding: 0 12px;
 }
 
+/**
+ * Dropdown menu container with relative positioning.
+ */
 .travel-tools-actions-menu {
   position: relative;
   justify-self: end;
 }
 
+/**
+ * Dropdown summary/trigger button.
+ * Removes default details marker for custom styling.
+ */
 .travel-tools-actions-menu summary {
   display: inline-flex;
   align-items: center;
@@ -723,15 +1102,25 @@
   list-style: none;
 }
 
+/**
+ * Hides the default details marker in WebKit browsers.
+ */
 .travel-tools-actions-menu summary::-webkit-details-marker {
   display: none;
 }
 
+/**
+ * Open and hover states for the dropdown trigger.
+ */
 .travel-tools-actions-menu[open] summary,
 .travel-tools-actions-menu summary:hover {
   background: var(--color-primary-soft);
 }
 
+/**
+ * Dropdown panel that appears when menu is open.
+ * Positioned absolutely below the trigger.
+ */
 .travel-tools-actions-menu > div {
   position: absolute;
   top: calc(100% + 8px);
@@ -747,6 +1136,9 @@
   box-shadow: 0 12px 28px rgba(16, 42, 67, 0.1);
 }
 
+/**
+ * Individual menu item buttons.
+ */
 .travel-tools-actions-menu button {
   display: inline-flex;
   align-items: center;
@@ -762,20 +1154,37 @@
   text-align: left;
 }
 
+/**
+ * Hover state for menu items.
+ */
 .travel-tools-actions-menu button:hover {
   background: #f8fafc;
   color: var(--color-primary);
 }
 
+/* ============================================================================
+   PACKING TEMPLATE EDITOR
+   ============================================================================ */
+
+/**
+ * Container for the template editor interface.
+ */
 .packing-template-editor {
   display: grid;
   gap: 16px;
 }
 
+/**
+ * Title input row with constrained width.
+ */
 .packing-template-title-row {
   width: min(520px, 100%);
 }
 
+/**
+ * Template title input with transparent background.
+ * Allows the title to blend with the editor surface.
+ */
 .packing-template-title-row input {
   min-width: 0;
   width: 100%;
@@ -788,15 +1197,24 @@
   outline: none;
 }
 
+/**
+ * Removes default focus box-shadow for the title input.
+ */
 .packing-template-title-row input:focus {
   box-shadow: none;
 }
 
+/**
+ * Description textarea focus state.
+ */
 .packing-template-description textarea:focus {
   border-color: var(--teal);
   box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.16);
 }
 
+/**
+ * Container for template description with grid layout.
+ */
 .packing-template-description {
   display: grid;
   grid-template-columns: 1fr;
@@ -804,22 +1222,34 @@
   gap: 12px;
 }
 
+/**
+ * Summary section within description.
+ */
 .packing-template-description-summary {
   display: grid;
   gap: 6px;
   min-width: 0;
 }
 
+/**
+ * Heading within description section.
+ */
 .packing-template-description-heading {
   color: var(--navy);
   font-size: 14px;
   font-weight: var(--font-weight-bold);
 }
 
+/**
+ * Box containing the description textarea.
+ */
 .packing-template-description-box {
   position: relative;
 }
 
+/**
+ * Action button positioned inside the description box.
+ */
 .packing-template-description-box button {
   position: absolute;
   top: 10px;
@@ -834,11 +1264,17 @@
   color: var(--muted);
 }
 
+/**
+ * Hover state for description action button.
+ */
 .packing-template-description-box button:hover {
   background: var(--color-primary-soft);
   color: var(--color-primary);
 }
 
+/**
+ * Description textarea with padding for the action button.
+ */
 .packing-template-description textarea {
   width: 100%;
   min-height: 108px;
@@ -854,10 +1290,16 @@
   outline: none;
 }
 
+/**
+ * Read-only textarea state.
+ */
 .packing-template-description textarea[readonly] {
   resize: none;
 }
 
+/**
+ * Action buttons container within description.
+ */
 .packing-template-description-actions {
   display: flex;
   justify-content: flex-end;
@@ -865,11 +1307,18 @@
   gap: 8px;
 }
 
+/**
+ * Container for template item edit rows.
+ */
 .packing-template-edit-items {
   display: grid;
   gap: 10px;
 }
 
+/**
+ * Individual item edit row with grid layout.
+ * Uses specific column widths for form fields.
+ */
 .packing-template-edit-row {
   display: grid;
   grid-template-columns: minmax(160px, 1.3fr) minmax(130px, 1fr) minmax(110px, 0.7fr) 82px auto;
@@ -881,6 +1330,9 @@
   background: #ffffff;
 }
 
+/**
+ * Inputs and selects within the edit row.
+ */
 .packing-template-edit-row input,
 .packing-template-edit-row select {
   width: 100%;
@@ -894,6 +1346,9 @@
   outline: none;
 }
 
+/**
+ * Select styling with custom arrow in edit row.
+ */
 .packing-template-edit-row select {
   appearance: none;
   padding-right: 36px;
@@ -909,6 +1364,9 @@
   background-repeat: no-repeat;
 }
 
+/**
+ * Delete button in edit row.
+ */
 .packing-template-edit-row button {
   display: grid;
   width: 38px;
@@ -920,10 +1378,16 @@
   color: var(--color-danger);
 }
 
+/**
+ * Template item card with specific grid columns.
+ */
 .packing-template-item-list article.packing-template-item-card {
   grid-template-columns: minmax(0, 1fr) auto auto;
 }
 
+/**
+ * Template controls filters grid.
+ */
 .packing-template-controls .travel-tools-template-filters {
   grid-template-columns: minmax(240px, 1fr) minmax(160px, 0.78fr) auto;
   padding: 0;
@@ -931,15 +1395,24 @@
   background: transparent;
 }
 
+/**
+ * Template item list within controls.
+ */
 .packing-template-controls .packing-template-item-list,
 .packing-template-controls .packing-template-empty {
   padding-top: 12px;
 }
 
+/**
+ * Empty state within template controls.
+ */
 .packing-template-controls .packing-template-empty {
   margin: 0;
 }
 
+/**
+ * Packed item styling with strikethrough and reduced opacity.
+ */
 .packing-template-item-card.packed {
   background: #f1f5f9;
   color: #94a3b8;
@@ -957,10 +1430,20 @@
   opacity: 0.58;
 }
 
+/**
+ * Category label with fit-content width.
+ */
 .packing-template-item-category {
   width: fit-content;
 }
 
+/* ============================================================================
+   PACKING REMINDER
+   ============================================================================ */
+
+/**
+ * Container for reminder settings with consistent styling.
+ */
 .packing-reminder {
   flex-wrap: wrap;
   justify-content: flex-start;
@@ -970,6 +1453,9 @@
   background: #f8fafc;
 }
 
+/**
+ * Reminder label with icon and text.
+ */
 .packing-reminder > span {
   display: inline-flex;
   align-items: center;
@@ -978,6 +1464,9 @@
   font-weight: var(--font-weight-bold);
 }
 
+/**
+ * Status badge for reminder (enabled/disabled).
+ */
 .packing-reminder strong {
   min-height: 28px;
   padding: 3px 10px;
@@ -985,16 +1474,25 @@
   font-size: 13px;
 }
 
+/**
+ * Enabled state badge.
+ */
 .packing-reminder strong.enabled {
   background: #ecfdf5;
   color: var(--color-success);
 }
 
+/**
+ * Disabled state badge.
+ */
 .packing-reminder strong.disabled {
   background: #fef2f2;
   color: var(--color-danger);
 }
 
+/**
+ * Reminder days input with inline label.
+ */
 .packing-reminder label {
   display: inline-flex;
   align-items: center;
@@ -1005,6 +1503,9 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/**
+ * Number input for days before trip.
+ */
 .packing-reminder input {
   width: 70px;
   min-height: 34px;
@@ -1016,12 +1517,22 @@
   outline: none;
 }
 
+/**
+ * Helper text for reminder.
+ */
 .packing-reminder small {
   flex-basis: 100%;
   color: #b45309;
   font-weight: var(--font-weight-semibold);
 }
 
+/* ============================================================================
+   TRIP LINK PANEL
+   ============================================================================ */
+
+/**
+ * Container for linking a packing list to a trip.
+ */
 .packing-trip-link-panel {
   display: grid;
   gap: 8px;
@@ -1031,6 +1542,9 @@
   background: #f8fafc;
 }
 
+/**
+ * Label within trip link panel.
+ */
 .packing-trip-link-panel label {
   display: grid;
   gap: 7px;
@@ -1039,6 +1553,9 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/**
+ * Select dropdown for trip selection.
+ */
 .packing-trip-link-panel select {
   width: 100%;
   min-height: 42px;
@@ -1055,16 +1572,29 @@
   outline: none;
 }
 
+/**
+ * Focus state for trip select.
+ */
 .packing-trip-link-panel select:focus {
   border-color: var(--teal);
   box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.16);
 }
 
+/**
+ * Helper text in trip link panel.
+ */
 .packing-trip-link-panel small {
   color: var(--muted);
   font-weight: var(--font-weight-semibold);
 }
 
+/* ============================================================================
+   FILTERS
+   ============================================================================ */
+
+/**
+ * Filter bar with grid layout for search and dropdowns.
+ */
 .travel-tools-filters {
   display: grid;
   grid-template-columns: minmax(180px, 1fr) repeat(2, minmax(130px, 0.5fr)) auto;
@@ -1073,38 +1603,66 @@
   min-width: 0;
 }
 
+/**
+ * Simplified filters for template views.
+ */
 .travel-tools-template-filters {
   grid-template-columns: 1fr;
 }
 
+/**
+ * Filters within detail view.
+ */
 .travel-tools-detail .travel-tools-template-filters {
   grid-template-columns: minmax(180px, 1fr) minmax(130px, 0.5fr);
 }
 
+/**
+ * Packing item specific filter grid.
+ */
 .packing-item-filters {
   grid-template-columns: minmax(240px, 1fr) minmax(160px, 0.78fr) minmax(130px, 0.38fr) auto;
 }
 
+/**
+ * Document item filter grid.
+ */
 .travel-document-item-filters {
   grid-template-columns: minmax(240px, 1fr) minmax(150px, 0.38fr) auto;
 }
 
+/**
+ * Template controls filter grid within detail view.
+ */
 .travel-tools-detail .packing-template-controls .travel-tools-template-filters {
   grid-template-columns: minmax(240px, 1fr) minmax(160px, 0.78fr) auto;
 }
 
+/**
+ * Filter action button with consistent sizing.
+ */
 .travel-tools-filter-action {
   min-height: 42px;
   gap: 8px;
   white-space: nowrap;
 }
 
+/* ============================================================================
+   SEARCH FIELD
+   ============================================================================ */
+
+/**
+ * Search field container with relative positioning for icon.
+ */
 .travel-tools-search-field {
   position: relative;
   display: block;
   min-width: 0;
 }
 
+/**
+ * Search icon positioned inside the input.
+ */
 .travel-tools-search-field svg {
   position: absolute;
   top: 50%;
@@ -1113,15 +1671,29 @@
   transform: translateY(-50%);
 }
 
+/**
+ * Search input with left padding for icon.
+ */
 .travel-tools-search-field input {
   padding-left: 38px;
 }
 
+/* ============================================================================
+   ITEM LIST
+   ============================================================================ */
+
+/**
+ * Container for list of items (packing items or document items).
+ */
 .travel-tools-item-list {
   display: grid;
   gap: 10px;
 }
 
+/**
+ * Individual item card with grid layout.
+ * Features a left accent bar and hover effects.
+ */
 .travel-tools-item-list article {
   position: relative;
   display: grid;
@@ -1140,6 +1712,10 @@
     transform 0.2s ease;
 }
 
+/**
+ * Left accent bar on each item card.
+ * Uses primary color for visual indicator.
+ */
 .travel-tools-item-list article::before {
   content: "";
   position: absolute;
@@ -1149,16 +1725,25 @@
   background: var(--color-primary);
 }
 
+/**
+ * Hover state for item cards.
+ */
 .travel-tools-item-list article:hover {
   border-color: rgba(15, 118, 110, 0.24);
   box-shadow: 0 8px 18px rgba(15, 23, 42, 0.045);
   transform: translateY(-1px);
 }
 
+/**
+ * Ensures the item actions menu appears above other content when open.
+ */
 .travel-tools-item-list article:has(.travel-tools-item-actions-menu[open]) {
   z-index: 25;
 }
 
+/**
+ * Packed item styling with muted colors.
+ */
 .travel-tools-item-list article.packed {
   background: #f1f5f9;
   color: #94a3b8;
@@ -1176,6 +1761,9 @@
   opacity: 0.58;
 }
 
+/**
+ * Checkbox container for packing items.
+ */
 .packing-check {
   display: grid;
   width: 22px;
@@ -1183,12 +1771,18 @@
   place-items: center;
 }
 
+/**
+ * Checkbox input with accent color.
+ */
 .packing-check input {
   width: 18px;
   height: 18px;
   accent-color: var(--color-primary);
 }
 
+/**
+ * Action button within item card.
+ */
 .travel-tools-item-list article > button {
   display: grid;
   width: 36px;
@@ -1197,15 +1791,28 @@
   padding: 0;
 }
 
+/* ============================================================================
+   ITEM ACTIONS MENU
+   ============================================================================ */
+
+/**
+ * Dropdown menu within item cards.
+ */
 .travel-tools-item-actions-menu {
   position: relative;
   justify-self: end;
 }
 
+/**
+ * Open state ensures the menu appears above other content.
+ */
 .travel-tools-item-actions-menu[open] {
   z-index: 26;
 }
 
+/**
+ * Menu trigger button.
+ */
 .travel-tools-item-actions-menu summary {
   display: grid;
   width: 36px;
@@ -1219,15 +1826,24 @@
   list-style: none;
 }
 
+/**
+ * Hides default details marker in WebKit.
+ */
 .travel-tools-item-actions-menu summary::-webkit-details-marker {
   display: none;
 }
 
+/**
+ * Hover and open states for menu trigger.
+ */
 .travel-tools-item-actions-menu[open] summary,
 .travel-tools-item-actions-menu summary:hover {
   background: var(--color-primary-soft);
 }
 
+/**
+ * Dropdown panel for item actions.
+ */
 .travel-tools-item-actions-menu > div {
   position: absolute;
   top: calc(100% + 8px);
@@ -1243,6 +1859,9 @@
   box-shadow: 0 12px 28px rgba(16, 42, 67, 0.12);
 }
 
+/**
+ * Menu items within the dropdown.
+ */
 .travel-tools-item-actions-menu button,
 .travel-tools-item-actions-menu label {
   display: inline-flex;
@@ -1259,17 +1878,30 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/**
+ * Hover state for menu items.
+ */
 .travel-tools-item-actions-menu button:hover,
 .travel-tools-item-actions-menu label:hover {
   background: #f8fafc;
   color: var(--color-primary);
 }
 
+/**
+ * Danger action (delete) with red hover state.
+ */
 .travel-tools-item-actions-menu button:last-child:hover {
   background: #fef2f2;
   color: var(--color-danger);
 }
 
+/* ============================================================================
+   DOCUMENT UPLOAD AREA
+   ============================================================================ */
+
+/**
+ * Drop zone for uploading files to a document.
+ */
 .travel-document-upload {
   display: grid;
   justify-items: center;
@@ -1281,21 +1913,33 @@
   text-align: center;
 }
 
+/**
+ * Upload icon with primary color.
+ */
 .travel-document-upload > svg {
   color: var(--color-primary);
 }
 
+/**
+ * Upload heading text.
+ */
 .travel-document-upload strong {
   color: var(--navy);
   font-size: var(--font-size-lg);
 }
 
+/**
+ * Upload description text.
+ */
 .travel-document-upload span {
   max-width: 560px;
   color: var(--muted);
   line-height: 1.5;
 }
 
+/**
+ * Primary action label that acts as the upload button.
+ */
 .travel-document-upload label.primary-action {
   display: inline-flex;
   align-items: center;
@@ -1303,6 +1947,9 @@
   cursor: pointer;
 }
 
+/**
+ * Hidden file input for upload.
+ */
 .travel-document-upload input {
   position: absolute;
   width: 1px;
@@ -1312,6 +1959,13 @@
   white-space: nowrap;
 }
 
+/* ============================================================================
+   BUSY OVERLAY
+   ============================================================================ */
+
+/**
+ * Full-screen overlay shown during loading/saving operations.
+ */
 .travel-tools-busy-overlay {
   position: fixed;
   inset: 0;
@@ -1327,6 +1981,9 @@
   pointer-events: all;
 }
 
+/**
+ * Status text within the overlay.
+ */
 .travel-tools-busy-overlay strong {
   margin: 0;
   padding: 7px 12px;
@@ -1335,6 +1992,9 @@
   line-height: 1.2;
 }
 
+/**
+ * Spinner animation for loading state.
+ */
 .travel-tools-spinner {
   width: 42px;
   height: 42px;
@@ -1344,12 +2004,22 @@
   animation: travel-tools-spin 0.8s linear infinite;
 }
 
+/**
+ * Spin keyframes for the spinner animation.
+ */
 @keyframes travel-tools-spin {
   to {
     transform: rotate(360deg);
   }
 }
 
+/* ============================================================================
+   DOCUMENT TEMPLATE PICKER
+   ============================================================================ */
+
+/**
+ * Grid of template cards for document templates.
+ */
 .document-template-picker {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1358,6 +2028,9 @@
   padding: 2px;
 }
 
+/**
+ * Individual template card with relative positioning.
+ */
 .document-template-card {
   position: relative;
   display: grid;
@@ -1372,6 +2045,9 @@
   text-align: left;
 }
 
+/**
+ * Template select button within card.
+ */
 .document-template-select {
   display: grid;
   gap: 8px;
@@ -1383,12 +2059,18 @@
   box-shadow: none;
 }
 
+/**
+ * Active and hover states for template cards.
+ */
 .document-template-card.active,
 .document-template-card:hover {
   border-color: rgba(15, 118, 110, 0.34);
   box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
 }
 
+/**
+ * Template type label (Standard or Custom).
+ */
 .document-template-card span {
   color: var(--color-primary);
   font-size: 12px;
@@ -1396,16 +2078,25 @@
   text-transform: uppercase;
 }
 
+/**
+ * Template name.
+ */
 .document-template-card strong {
   color: var(--navy);
   font-size: var(--font-size-md);
 }
 
+/**
+ * Template description.
+ */
 .document-template-card small {
   color: var(--muted);
   line-height: 1.45;
 }
 
+/**
+ * Container for template item tags.
+ */
 .document-template-select div {
   display: flex;
   flex-wrap: wrap;
@@ -1414,6 +2105,9 @@
   overflow: hidden;
 }
 
+/**
+ * Individual item tag with pill styling.
+ */
 .document-template-select em {
   padding: 3px 7px;
   border-radius: 999px;
@@ -1424,12 +2118,18 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/**
+ * Menu button on template card.
+ */
 .document-template-menu {
   position: absolute;
   top: 8px;
   right: 8px;
 }
 
+/**
+ * Menu trigger button.
+ */
 .document-template-menu > button {
   display: grid;
   width: 34px;
@@ -1443,11 +2143,17 @@
   box-shadow: 0 6px 14px rgba(15, 23, 42, 0.08);
 }
 
+/**
+ * Hover state for menu trigger.
+ */
 .document-template-menu > button:hover {
   border-color: rgba(15, 118, 110, 0.28);
   background: #f8fafc;
 }
 
+/**
+ * Dropdown panel for template menu.
+ */
 .document-template-menu-panel {
   position: absolute;
   top: 40px;
@@ -1463,6 +2169,9 @@
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.14);
 }
 
+/**
+ * Menu item buttons.
+ */
 .document-template-menu-panel button {
   display: inline-flex;
   align-items: center;
@@ -1478,16 +2187,29 @@
   box-shadow: none;
 }
 
+/**
+ * Hover state for menu items.
+ */
 .document-template-menu-panel button:hover {
   background: #f8fafc;
   color: var(--color-primary);
 }
 
+/**
+ * Danger menu item with red hover.
+ */
 .document-template-menu-panel button:last-child:hover {
   background: #fef2f2;
   color: var(--color-danger);
 }
 
+/* ============================================================================
+   DOCUMENT TEMPLATE EDITOR
+   ============================================================================ */
+
+/**
+ * Template editor form with grid layout.
+ */
 .travel-document-template-editor.travel-tools-form-grid {
   grid-template-columns: minmax(0, 0.5fr) minmax(0, 1fr);
   padding: 12px;
@@ -1496,12 +2218,18 @@
   background: #f8fafc;
 }
 
+/**
+ * Individual item edit row in template editor.
+ */
 .document-template-item-edit {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(130px, 0.35fr) minmax(0, 1fr);
   gap: 10px;
 }
 
+/**
+ * Inputs and selects in template item edit.
+ */
 .document-template-item-edit input,
 .document-template-item-edit select {
   width: 100%;
@@ -1515,6 +2243,9 @@
   outline: none;
 }
 
+/**
+ * Select with custom arrow in template item edit.
+ */
 .document-template-item-edit select {
   padding-right: 44px;
   appearance: none;
@@ -1524,12 +2255,22 @@
     #ffffff;
 }
 
+/**
+ * Focus state for template item inputs.
+ */
 .document-template-item-edit input:focus,
 .document-template-item-edit select:focus {
   border-color: var(--teal);
   box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.16);
 }
 
+/* ============================================================================
+   DOCUMENT ITEM FORM
+   ============================================================================ */
+
+/**
+ * Form for adding document items with grid layout.
+ */
 .travel-document-item-form.travel-tools-form-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(140px, 0.4fr) minmax(0, 1fr) auto;
@@ -1541,11 +2282,21 @@
   background: #f8fafc;
 }
 
+/**
+ * Submit button in document item form.
+ */
 .travel-document-item-form button {
   min-height: 44px;
   white-space: nowrap;
 }
 
+/* ============================================================================
+   STICKY STATUS
+   ============================================================================ */
+
+/**
+ * Sticky status message container.
+ */
 .travel-tools-sticky-status {
   position: sticky;
   top: 8px;
@@ -1554,10 +2305,20 @@
   gap: 6px;
 }
 
+/* ============================================================================
+   DOCUMENT LIST ITEM
+   ============================================================================ */
+
+/**
+ * Document list item with specific grid columns.
+ */
 .travel-document-list-item {
   grid-template-columns: minmax(0, 1fr) auto auto;
 }
 
+/**
+ * Upload button within document row.
+ */
 .travel-document-row-upload {
   position: relative;
   display: inline-flex;
@@ -1569,6 +2330,9 @@
   cursor: pointer;
 }
 
+/**
+ * Upload button within item list.
+ */
 .travel-tools-item-list article > .travel-document-row-upload {
   display: inline-flex;
   width: auto;
@@ -1576,6 +2340,9 @@
   min-width: 106px;
 }
 
+/**
+ * Hidden file input for upload.
+ */
 .travel-document-row-upload input {
   position: absolute;
   width: 1px;
@@ -1585,11 +2352,17 @@
   white-space: nowrap;
 }
 
+/**
+ * Upload option in menu.
+ */
 .travel-document-menu-upload {
   position: relative;
   cursor: pointer;
 }
 
+/**
+ * Hidden file input in menu upload.
+ */
 .travel-document-menu-upload input {
   position: absolute;
   width: 1px;
@@ -1599,6 +2372,13 @@
   white-space: nowrap;
 }
 
+/* ============================================================================
+   ATTACHED FILES
+   ============================================================================ */
+
+/**
+ * Container for attached files list.
+ */
 .travel-document-attached-files {
   display: flex;
   flex-wrap: wrap;
@@ -1606,6 +2386,9 @@
   margin-top: 8px;
 }
 
+/**
+ * Individual file tag with actions.
+ */
 .travel-document-attached-files span {
   display: inline-flex;
   align-items: center;
@@ -1616,6 +2399,9 @@
   background: #f1f5f9;
 }
 
+/**
+ * File action buttons (view, download, delete).
+ */
 .travel-document-attached-files button,
 .travel-document-attached-files a {
   min-height: 24px;
@@ -1625,10 +2411,20 @@
   box-shadow: none;
 }
 
+/* ============================================================================
+   DOCUMENT FILE LIST
+   ============================================================================ */
+
+/**
+ * Document file list item grid.
+ */
 .travel-tools-document-file-list article {
   grid-template-columns: minmax(0, 1fr) auto auto;
 }
 
+/**
+ * File icon container.
+ */
 .travel-document-file-icon {
   display: grid;
   width: 38px;
@@ -1639,6 +2435,9 @@
   color: var(--color-primary);
 }
 
+/**
+ * Preview thumbnail for files.
+ */
 .travel-document-preview-thumb {
   position: relative;
   display: grid !important;
@@ -1652,6 +2451,9 @@
   color: var(--color-primary) !important;
 }
 
+/**
+ * Image and object preview within thumbnail.
+ */
 .travel-document-preview-thumb img,
 .travel-document-preview-thumb object {
   width: 100%;
@@ -1660,6 +2462,9 @@
   object-fit: cover;
 }
 
+/**
+ * File type indicator overlay on thumbnail.
+ */
 .travel-document-preview-thumb > svg {
   position: absolute;
   right: 5px;
@@ -1670,6 +2475,9 @@
   color: #ffffff;
 }
 
+/**
+ * Download button for document files.
+ */
 .travel-document-download {
   display: grid;
   width: 36px;
@@ -1681,14 +2489,27 @@
   color: var(--color-primary);
 }
 
+/**
+ * Hover state for download button.
+ */
 .travel-document-download:hover {
   background: var(--color-primary-soft);
 }
 
+/* ============================================================================
+   FILE PREVIEW MODAL
+   ============================================================================ */
+
+/**
+ * Preview modal with constrained width.
+ */
 .travel-document-preview-modal {
   width: min(920px, 100%);
 }
 
+/**
+ * Container for the expanded file preview.
+ */
 .travel-document-expanded-preview {
   display: grid;
   min-height: min(620px, calc(100vh - 230px));
@@ -1698,6 +2519,9 @@
   background: #f8fafc;
 }
 
+/**
+ * Media elements within the preview.
+ */
 .travel-document-expanded-preview img,
 .travel-document-expanded-preview object,
 .travel-document-expanded-preview iframe {
@@ -1708,6 +2532,9 @@
   object-fit: contain;
 }
 
+/**
+ * Fallback display when preview is not available.
+ */
 .travel-document-preview-fallback {
   display: grid;
   place-items: center;
@@ -1718,10 +2545,16 @@
   text-align: center;
 }
 
+/**
+ * Strong text in fallback preview.
+ */
 .travel-document-preview-fallback strong {
   color: var(--navy);
 }
 
+/**
+ * Primary action link in modal actions.
+ */
 .travel-tools-modal-actions a.primary-action {
   display: inline-flex;
   align-items: center;
@@ -1730,22 +2563,38 @@
   text-decoration: none;
 }
 
+/* ============================================================================
+   ITEM METADATA
+   ============================================================================ */
+
+/**
+ * Title row and category container.
+ */
 .travel-tools-item-title-row,
 .travel-tools-item-category {
   display: flex;
 }
 
+/**
+ * Title row with alignment and wrapping.
+ */
 .travel-tools-item-title-row {
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
 }
 
+/**
+ * Title text with word wrapping.
+ */
 .travel-tools-item-title-row strong {
   min-width: 0;
   overflow-wrap: anywhere;
 }
 
+/**
+ * Category badge with icon and text.
+ */
 .travel-tools-item-category {
   display: inline-flex;
   align-items: center;
@@ -1757,10 +2606,16 @@
   text-transform: capitalize;
 }
 
+/**
+ * Category icon color.
+ */
 .travel-tools-item-category svg {
   color: var(--color-primary);
 }
 
+/**
+ * Meta information container.
+ */
 .travel-tools-item-meta {
   display: flex;
   align-items: center;
@@ -1770,6 +2625,9 @@
   min-width: 156px;
 }
 
+/**
+ * Individual meta badges.
+ */
 .travel-tools-item-meta span,
 .travel-tools-item-title-row span {
   display: inline-flex;
@@ -1781,11 +2639,17 @@
   font-weight: var(--font-weight-bold);
 }
 
+/**
+ * Quantity badge with indigo background.
+ */
 .travel-tools-quantity {
   background: #eef2ff;
   color: #3730a3;
 }
 
+/**
+ * Priority badges with different color schemes.
+ */
 .priority-high {
   background: #fef2f2;
   color: var(--color-danger);
@@ -1801,11 +2665,21 @@
   color: var(--color-success);
 }
 
+/* ============================================================================
+   ADD ROW
+   ============================================================================ */
+
+/**
+ * Container for add action button.
+ */
 .travel-tools-add-row {
   display: flex;
   justify-content: flex-end;
 }
 
+/**
+ * Action buttons with consistent padding.
+ */
 .travel-tools-add-row .primary-action,
 .travel-tools-modal-actions .primary-action,
 .travel-tools-modal-actions .secondary-action {
@@ -1813,25 +2687,48 @@
   padding-inline: 18px;
 }
 
+/* ============================================================================
+   EMPTY STATE
+   ============================================================================ */
+
+/**
+ * Empty detail state with centered content.
+ */
 .travel-tools-empty-detail {
   justify-items: center;
   padding: 44px 20px;
   text-align: center;
 }
 
+/**
+ * Icon color in empty state.
+ */
 .travel-tools-empty-detail svg {
   color: var(--color-primary);
 }
 
+/**
+ * Heading in empty state.
+ */
 .travel-tools-empty-detail h3 {
   margin: 0;
 }
 
+/**
+ * Description text in empty state.
+ */
 .travel-tools-empty-detail p {
   max-width: 520px;
   color: var(--muted);
 }
 
+/* ============================================================================
+   MODAL BACKDROP
+   ============================================================================ */
+
+/**
+ * Full-screen backdrop for modals with blur effect.
+ */
 .travel-tools-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -1842,6 +2739,9 @@
   background: rgba(16, 42, 67, 0.42);
 }
 
+/**
+ * Modal container with constrained width and scrolling.
+ */
 .travel-tools-modal {
   display: grid;
   gap: 14px;
@@ -1855,15 +2755,24 @@
   box-shadow: 0 12px 28px rgba(16, 42, 67, 0.1);
 }
 
+/**
+ * Confirmation modal with narrower width.
+ */
 .travel-tools-confirm {
   width: min(420px, 100%);
 }
 
+/**
+ * Description text in confirmation modal.
+ */
 .travel-tools-confirm p {
   color: var(--muted);
   line-height: 1.6;
 }
 
+/**
+ * Modal header and footer with flex layout.
+ */
 .travel-tools-modal-header,
 .travel-tools-modal-actions {
   display: flex;
@@ -1872,11 +2781,17 @@
   gap: 12px;
 }
 
+/**
+ * Modal heading text.
+ */
 .travel-tools-modal-header h3 {
   margin: 0;
   color: var(--navy);
 }
 
+/**
+ * Close button in modal header.
+ */
 .travel-tools-modal-header button {
   display: grid;
   width: 36px;
@@ -1888,11 +2803,21 @@
   color: var(--muted);
 }
 
+/**
+ * Modal footer actions with flex wrap.
+ */
 .travel-tools-modal-actions {
   justify-content: flex-end;
   flex-wrap: wrap;
 }
 
+/* ============================================================================
+   UTILITY CLASSES
+   ============================================================================ */
+
+/**
+ * Screen reader only - visually hidden but accessible.
+ */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -1904,12 +2829,22 @@
   border: 0;
 }
 
+/* ============================================================================
+   ENHANCED STYLES (Themed Variant)
+   ============================================================================ */
+
+/**
+ * Base font and color settings for enhanced theme.
+ */
 .travel-tools-enhanced-page {
   font-family: var(--font-sans);
   color: var(--ink);
   letter-spacing: 0;
 }
 
+/**
+ * Enhanced hero with gradient background.
+ */
 .travel-tools-enhanced-page .travel-tools-hero {
   border-color: rgba(15, 118, 110, 0.16);
   background: var(--gradient-bright-surface);
@@ -1917,6 +2852,9 @@
   box-shadow: 0 10px 24px rgba(16, 42, 67, 0.045);
 }
 
+/**
+ * Enhanced hero grid pattern.
+ */
 .travel-tools-enhanced-page .travel-tools-hero::before {
   display: block;
   background-image:
@@ -1926,6 +2864,9 @@
   mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.38), transparent 78%);
 }
 
+/**
+ * Enhanced heading styles.
+ */
 .travel-tools-enhanced-page .travel-tools-hero h2,
 .travel-tools-enhanced-page .travel-tools-detail-header h3 {
   color: var(--navy);
@@ -1934,10 +2875,16 @@
   letter-spacing: 0;
 }
 
+/**
+ * Enhanced hero heading color override.
+ */
 .travel-tools-enhanced-page .travel-tools-hero h2 {
   color: var(--navy);
 }
 
+/**
+ * Enhanced eyebrow and label styles.
+ */
 .travel-tools-enhanced-page .travel-tools-hero .eyebrow,
 .travel-tools-enhanced-page .travel-tools-panel-heading span,
 .travel-tools-enhanced-page .travel-tools-workspace-label {
@@ -1948,14 +2895,23 @@
   letter-spacing: 0;
 }
 
+/**
+ * Enhanced eyebrow color override.
+ */
 .travel-tools-enhanced-page .travel-tools-hero .eyebrow {
   color: var(--teal);
 }
 
+/**
+ * Enhanced hero description text.
+ */
 .travel-tools-enhanced-page .travel-tools-hero p:not(.eyebrow) {
   color: var(--muted);
 }
 
+/**
+ * Enhanced hero meta badges.
+ */
 .travel-tools-enhanced-page .travel-tools-hero-meta span {
   border-color: rgba(15, 118, 110, 0.14);
   background: rgba(255, 255, 255, 0.72);
@@ -1965,18 +2921,27 @@
   backdrop-filter: blur(10px);
 }
 
+/**
+ * Enhanced ready state badge.
+ */
 .travel-tools-enhanced-page .travel-tools-hero-meta .travel-tools-hero-health-ready {
   border-color: rgba(4, 120, 87, 0.22);
   background: #ecfdf5;
   color: var(--color-success);
 }
 
+/**
+ * Enhanced warning state badge.
+ */
 .travel-tools-enhanced-page .travel-tools-hero-meta .travel-tools-hero-health-warning {
   border-color: rgba(180, 83, 9, 0.24);
   background: #fffbeb;
   color: #b45309;
 }
 
+/**
+ * Enhanced live card with glassmorphism.
+ */
 .travel-tools-enhanced-page .travel-tools-live-card {
   border-color: rgba(15, 118, 110, 0.14);
   background:
@@ -1988,22 +2953,34 @@
   backdrop-filter: blur(14px);
 }
 
+/**
+ * Enhanced live card label.
+ */
 .travel-tools-enhanced-page .travel-tools-live-card span {
   color: var(--teal);
   font-weight: 650;
 }
 
+/**
+ * Enhanced live card statistic.
+ */
 .travel-tools-enhanced-page .travel-tools-live-card strong {
   color: var(--navy);
   font-size: 32px;
   font-weight: 600;
 }
 
+/**
+ * Enhanced live card secondary text.
+ */
 .travel-tools-enhanced-page .travel-tools-live-card small {
   color: var(--muted);
   font-weight: 500;
 }
 
+/**
+ * Enhanced panel shadows and borders.
+ */
 .travel-tools-enhanced-page .travel-tools-list-panel,
 .travel-tools-enhanced-page .travel-tools-create-panel,
 .travel-tools-enhanced-page .travel-tools-detail {
@@ -2011,6 +2988,9 @@
   box-shadow: 0 8px 20px rgba(16, 42, 67, 0.04);
 }
 
+/**
+ * Enhanced panel backgrounds.
+ */
 .travel-tools-enhanced-page .travel-tools-create-panel,
 .travel-tools-enhanced-page .travel-tools-detail {
   background:
@@ -2018,16 +2998,25 @@
     #ffffff;
 }
 
+/**
+ * Enhanced create panel styling.
+ */
 .travel-tools-enhanced-page .travel-tools-create-panel {
   border-color: rgba(15, 118, 110, 0.16);
   background: var(--gradient-bright-panel);
 }
 
+/**
+ * Enhanced list panel background.
+ */
 .travel-tools-enhanced-page .travel-tools-list-panel {
   background:
     linear-gradient(180deg, #ffffff, #f8fbff);
 }
 
+/**
+ * Enhanced text weights.
+ */
 .travel-tools-enhanced-page .travel-tools-panel-heading h3,
 .travel-tools-enhanced-page .travel-tools-form-grid label,
 .travel-tools-enhanced-page .travel-tools-modal label,
@@ -2040,22 +3029,34 @@
   font-weight: 500;
 }
 
+/**
+ * Enhanced muted text colors.
+ */
 .travel-tools-enhanced-page .travel-tools-templates small,
 .travel-tools-enhanced-page .settings-empty {
   color: #718096;
 }
 
+/**
+ * Enhanced panel count badge.
+ */
 .travel-tools-enhanced-page .travel-tools-panel-heading > strong {
   background: linear-gradient(135deg, #eff6ff, #ccfbf1);
   color: #0f766e;
   font-weight: 600;
 }
 
+/**
+ * Enhanced list card background.
+ */
 .travel-tools-enhanced-page .travel-tools-list-card {
   background: #ffffff;
   box-shadow: 0 5px 12px rgba(15, 23, 42, 0.03);
 }
 
+/**
+ * Enhanced hover states for interactive elements.
+ */
 .travel-tools-enhanced-page .travel-tools-list-card.active,
 .travel-tools-enhanced-page .travel-tools-list-card:hover,
 .travel-tools-enhanced-page .travel-tools-templates button:hover,
@@ -2071,6 +3072,9 @@
   box-shadow: 0 7px 16px rgba(15, 118, 110, 0.07);
 }
 
+/**
+ * Enhanced text weights for various elements.
+ */
 .travel-tools-enhanced-page .travel-tools-list-card span,
 .travel-tools-enhanced-page .travel-tools-templates span,
 .travel-tools-enhanced-page .packing-reminder > span,
@@ -2080,6 +3084,9 @@
   font-weight: 600;
 }
 
+/**
+ * Enhanced medium weight text.
+ */
 .travel-tools-enhanced-page .packing-create-mode button,
 .travel-tools-enhanced-page .travel-tools-workspace-meta span,
 .travel-tools-enhanced-page .travel-tools-item-meta span,
@@ -2088,11 +3095,17 @@
   font-weight: 500;
 }
 
+/**
+ * Enhanced active mode button.
+ */
 .travel-tools-enhanced-page .packing-create-mode button.active {
   color: var(--navy);
   box-shadow: 0 5px 12px rgba(15, 23, 42, 0.045);
 }
 
+/**
+ * Enhanced icon colors.
+ */
 .travel-tools-enhanced-page .travel-tools-workspace-meta span,
 .travel-tools-enhanced-page .travel-tools-item-category svg,
 .travel-tools-enhanced-page .travel-tools-templates button svg,
@@ -2100,11 +3113,17 @@
   color: #1d4ed8;
 }
 
+/**
+ * Enhanced meta badge styling.
+ */
 .travel-tools-enhanced-page .travel-tools-workspace-meta span {
   border-color: rgba(37, 99, 235, 0.16);
   background: linear-gradient(135deg, #eff6ff, #f0fdfa);
 }
 
+/**
+ * Enhanced carousel arrow styling.
+ */
 .travel-tools-enhanced-page .travel-tools-template-arrow {
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -2113,15 +3132,24 @@
   box-shadow: 0 5px 12px rgba(15, 23, 42, 0.045);
 }
 
+/**
+ * Enhanced item card accent bar.
+ */
 .travel-tools-enhanced-page .travel-tools-item-list article::before {
   background: linear-gradient(180deg, #2563eb, #0f766e);
 }
 
+/**
+ * Enhanced item card hover state.
+ */
 .travel-tools-enhanced-page .travel-tools-item-list article:hover {
   border-color: rgba(37, 99, 235, 0.22);
   box-shadow: 0 7px 16px rgba(15, 23, 42, 0.04);
 }
 
+/**
+ * Enhanced reminder and trip link panels.
+ */
 .travel-tools-enhanced-page .packing-reminder,
 .travel-tools-enhanced-page .packing-trip-link-panel {
   border-color: rgba(15, 118, 110, 0.14);
@@ -2130,6 +3158,9 @@
     #ffffff;
 }
 
+/**
+ * Enhanced filter bar styling.
+ */
 .travel-tools-enhanced-page .travel-tools-filters {
   padding: 10px;
   border: 1px solid rgba(217, 226, 236, 0.8);
@@ -2137,10 +3168,16 @@
   background: #f8fafc;
 }
 
+/**
+ * Enhanced item card borders.
+ */
 .travel-tools-enhanced-page .travel-tools-item-list article {
   border-color: rgba(217, 226, 236, 0.9);
 }
 
+/**
+ * Enhanced small text styles.
+ */
 .travel-tools-enhanced-page .travel-tools-panel-heading span,
 .travel-tools-enhanced-page .travel-tools-workspace-label,
 .travel-tools-enhanced-page .travel-tools-hero .eyebrow {
@@ -2149,6 +3186,9 @@
   letter-spacing: 0;
 }
 
+/**
+ * Enhanced heading sizes.
+ */
 .travel-tools-enhanced-page .travel-tools-panel-heading h3,
 .travel-tools-enhanced-page .travel-tools-side-heading h3 {
   color: var(--navy);
@@ -2156,6 +3196,9 @@
   font-weight: 500;
 }
 
+/**
+ * Enhanced text sizes.
+ */
 .travel-tools-enhanced-page .travel-tools-templates span,
 .travel-tools-enhanced-page .travel-tools-list-card span,
 .travel-tools-enhanced-page .travel-tools-item-title-row strong,
@@ -2165,6 +3208,9 @@
   line-height: 1.35;
 }
 
+/**
+ * Enhanced small text sizes.
+ */
 .travel-tools-enhanced-page .travel-tools-templates small,
 .travel-tools-enhanced-page .travel-tools-list-card small {
   color: #64748b;
@@ -2173,6 +3219,9 @@
   line-height: 1.45;
 }
 
+/**
+ * Enhanced empty state text.
+ */
 .travel-tools-enhanced-page p.settings-empty {
   color: #718096;
   font-size: 14px;
@@ -2180,6 +3229,13 @@
   line-height: 1.6;
 }
 
+/* ============================================================================
+   PACKING CREATE PANEL (Enhanced)
+   ============================================================================ */
+
+/**
+ * Enhanced create panel with refined styling.
+ */
 .travel-tools-enhanced-page .packing-create-panel {
   gap: 18px;
   padding: 22px;
@@ -2187,10 +3243,16 @@
   background: #ffffff;
 }
 
+/**
+ * Panel heading alignment in create panel.
+ */
 .packing-create-panel .travel-tools-panel-heading {
   align-items: flex-start;
 }
 
+/**
+ * Panel heading description text.
+ */
 .packing-create-panel .travel-tools-panel-heading h3 {
   margin-top: 6px;
   color: var(--muted);
@@ -2198,6 +3260,9 @@
   font-weight: 500;
 }
 
+/**
+ * Primary action button in create panel.
+ */
 .packing-create-panel .secondary-action {
   min-width: 134px;
   justify-content: center;
@@ -2206,6 +3271,13 @@
   color: #ffffff;
 }
 
+/* ============================================================================
+   CREATE CARD MODE
+   ============================================================================ */
+
+/**
+ * Grid layout for create mode option cards.
+ */
 .packing-create-card-mode {
   display: grid;
   grid-template-columns: repeat(2, minmax(190px, 1fr));
@@ -2216,6 +3288,9 @@
   background: transparent;
 }
 
+/**
+ * Individual mode option card.
+ */
 .packing-create-card-mode button {
   display: flex;
   align-items: center;
@@ -2230,28 +3305,43 @@
   text-align: left;
 }
 
+/**
+ * Active mode card state.
+ */
 .packing-create-card-mode button.active {
   border-color: rgba(15, 118, 110, 0.28);
   background: linear-gradient(180deg, #ffffff, #f0fdfa);
   box-shadow: 0 8px 18px rgba(15, 118, 110, 0.08);
 }
 
+/**
+ * Mode card text container.
+ */
 .packing-create-card-mode button > span:last-child {
   display: grid;
   gap: 4px;
 }
 
+/**
+ * Mode card title.
+ */
 .packing-create-card-mode strong {
   font-size: var(--font-size-sm);
   font-weight: 650;
 }
 
+/**
+ * Mode card description.
+ */
 .packing-create-card-mode small {
   color: var(--muted);
   font-size: 12px;
   font-weight: 500;
 }
 
+/**
+ * Icon container in mode card.
+ */
 .packing-create-option-icon {
   display: inline-grid;
   width: 40px;
@@ -2263,15 +3353,28 @@
   color: var(--teal);
 }
 
+/**
+ * Blue variant of the option icon.
+ */
 .packing-create-option-icon-blue {
   background: #e8f1ff;
   color: #2563eb;
 }
 
+/* ============================================================================
+   PACKING DASHBOARD LAYOUT
+   ============================================================================ */
+
+/**
+ * Dashboard layout with refined column widths.
+ */
 .packing-dashboard-layout {
   grid-template-columns: minmax(260px, 312px) minmax(0, 1fr);
 }
 
+/**
+ * Side panel with transparent background.
+ */
 .travel-tools-enhanced-page .packing-side-panel {
   gap: 20px;
   padding: 0;
@@ -2280,6 +3383,9 @@
   box-shadow: none;
 }
 
+/**
+ * Side panel sections with card styling.
+ */
 .packing-side-panel > .travel-tools-panel-heading,
 .packing-side-panel .travel-tools-side-section {
   padding: 18px;
@@ -2289,6 +3395,9 @@
   box-shadow: 0 8px 20px rgba(16, 42, 67, 0.04);
 }
 
+/**
+ * Panel heading with border radius adjustments.
+ */
 .packing-side-panel > .travel-tools-panel-heading {
   margin-bottom: -20px;
   border-bottom: 0;
@@ -2296,6 +3405,9 @@
   border-bottom-left-radius: 0;
 }
 
+/**
+ * Side panel content sections.
+ */
 .packing-side-panel > .packing-side-search,
 .packing-side-panel > .travel-tools-list-stack,
 .packing-side-panel > .settings-empty,
@@ -2308,6 +3420,9 @@
   box-shadow: 0 8px 20px rgba(16, 42, 67, 0.04);
 }
 
+/**
+ * Search section with no bottom border.
+ */
 .packing-side-panel > .packing-side-search {
   padding-bottom: 0;
   border-bottom: 0;
@@ -2315,32 +3430,50 @@
   box-shadow: none;
 }
 
+/**
+ * Search background override.
+ */
 .travel-tools-enhanced-page .packing-side-panel > .packing-side-search {
   background: #ffffff;
 }
 
+/**
+ * Content sections after search.
+ */
 .packing-side-panel > .packing-side-search + .travel-tools-list-stack,
 .packing-side-panel > .packing-side-search + .settings-empty,
 .packing-side-panel > .packing-side-search + .packing-side-empty {
   padding-top: 12px;
 }
 
+/**
+ * Side section with grid layout.
+ */
 .packing-side-panel .travel-tools-side-section {
   display: grid;
   gap: 14px;
 }
 
+/**
+ * Search within side section.
+ */
 .packing-side-panel .travel-tools-side-section .packing-side-search {
   padding: 0;
   border: 0;
   background: transparent;
 }
 
+/**
+ * Side panel heading text.
+ */
 .packing-side-panel .travel-tools-panel-heading h3 {
   margin: 0;
   font-size: var(--font-size-base);
 }
 
+/**
+ * Side panel count badge.
+ */
 .packing-side-panel .travel-tools-panel-heading strong {
   min-width: 30px;
   min-height: 30px;
@@ -2349,6 +3482,13 @@
   color: var(--teal);
 }
 
+/* ============================================================================
+   PACKING SIDE EMPTY STATE
+   ============================================================================ */
+
+/**
+ * Empty state container with decorative icon.
+ */
 .packing-side-empty {
   position: relative;
   min-height: 100px;
@@ -2356,6 +3496,9 @@
   color: var(--muted);
 }
 
+/**
+ * Empty state text with z-index.
+ */
 .packing-side-empty p,
 .packing-side-empty small {
   position: relative;
@@ -2363,11 +3506,17 @@
   margin: 0;
 }
 
+/**
+ * Primary empty state text.
+ */
 .packing-side-empty p {
   color: #334e68;
   font-size: var(--font-size-sm);
 }
 
+/**
+ * Secondary empty state text.
+ */
 .packing-side-empty small {
   display: block;
   max-width: 190px;
@@ -2375,6 +3524,9 @@
   line-height: 1.45;
 }
 
+/**
+ * Decorative icon in empty state.
+ */
 .packing-side-empty span {
   position: absolute;
   right: 16px;
@@ -2389,6 +3541,13 @@
   color: var(--teal);
 }
 
+/* ============================================================================
+   PACKING EMPTY DETAIL
+   ============================================================================ */
+
+/**
+ * Empty detail state with centered illustration.
+ */
 .travel-tools-enhanced-page .packing-empty-detail {
   min-height: 360px;
   align-content: center;
@@ -2396,6 +3555,9 @@
   background: #ffffff;
 }
 
+/**
+ * Illustration container with gradient background.
+ */
 .packing-empty-illustration {
   display: grid;
   width: 118px;
@@ -2408,16 +3570,29 @@
   color: var(--teal);
 }
 
+/**
+ * Icon color in illustration.
+ */
 .travel-tools-enhanced-page .packing-empty-detail .packing-empty-illustration svg {
   color: var(--teal);
 }
 
+/**
+ * Status message in empty detail.
+ */
 .packing-empty-detail .travel-tools-status {
   width: min(420px, 100%);
   justify-content: center;
   margin-top: 8px;
 }
 
+/* ============================================================================
+   PACKING WORKSPACE DETAIL
+   ============================================================================ */
+
+/**
+ * Workspace detail with refined styling.
+ */
 .travel-tools-enhanced-page .packing-workspace-detail {
   gap: 16px;
   padding: 18px;
@@ -2425,21 +3600,33 @@
   background: #ffffff;
 }
 
+/**
+ * Header with no bottom padding.
+ */
 .packing-workspace-detail .travel-tools-detail-header {
   padding-bottom: 0;
 }
 
+/**
+ * Workspace heading with increased font weight.
+ */
 .travel-tools-enhanced-page .packing-workspace-detail .travel-tools-detail-header h3 {
   margin-bottom: 4px;
   font-size: 22px;
   font-weight: 650;
 }
 
+/**
+ * Workspace description text.
+ */
 .packing-workspace-detail .travel-tools-detail-header p {
   margin: 0 0 8px;
   font-size: 12px;
 }
 
+/**
+ * Edit button in title row.
+ */
 .packing-workspace-detail .travel-tools-title-row button {
   width: 28px;
   height: 28px;
@@ -2448,6 +3635,9 @@
   color: #64748b;
 }
 
+/**
+ * Workspace meta badges.
+ */
 .travel-tools-enhanced-page .packing-workspace-detail .travel-tools-workspace-meta span {
   border: 0;
   border-radius: 999px;
@@ -2457,12 +3647,22 @@
   font-weight: 650;
 }
 
+/* ============================================================================
+   PACKING WORKSPACE FIELDS
+   ============================================================================ */
+
+/**
+ * Field container grid.
+ */
 .packing-workspace-fields {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 18px;
 }
 
+/**
+ * Individual field containers.
+ */
 .packing-title-field,
 .packing-workspace-fields .packing-trip-link-panel {
   display: grid;
@@ -2470,6 +3670,9 @@
   min-width: 0;
 }
 
+/**
+ * Field labels.
+ */
 .packing-title-field > span:first-child,
 .packing-workspace-fields .travel-tools-field-label {
   color: #334e68;
@@ -2477,6 +3680,9 @@
   font-weight: 600;
 }
 
+/**
+ * Title input container with flex layout.
+ */
 .packing-title-input {
   display: flex;
   align-items: center;
@@ -2486,6 +3692,9 @@
   background: #ffffff;
 }
 
+/**
+ * Title input with transparent background.
+ */
 .packing-title-input input {
   width: 100%;
   min-width: 0;
@@ -2497,6 +3706,9 @@
   outline: none;
 }
 
+/**
+ * Edit button in title input.
+ */
 .packing-title-input button {
   display: grid;
   width: 42px;
@@ -2508,17 +3720,30 @@
   color: #64748b;
 }
 
+/**
+ * Trip link panel within workspace fields.
+ */
 .packing-workspace-fields .packing-trip-link-panel {
   padding: 0;
   border: 0;
   background: transparent;
 }
 
+/**
+ * Override for enhanced theme.
+ */
 .travel-tools-enhanced-page .packing-workspace-fields .packing-trip-link-panel {
   border: 0;
   background: transparent;
 }
 
+/* ============================================================================
+   PACKING WORKSPACE CONTROLS
+   ============================================================================ */
+
+/**
+ * Controls container with border and background.
+ */
 .packing-workspace-controls {
   display: grid;
   gap: 12px;
@@ -2528,6 +3753,9 @@
   background: #ffffff;
 }
 
+/**
+ * Reminder within workspace controls.
+ */
 .packing-workspace-detail .packing-reminder {
   min-height: 54px;
   margin-bottom: 8px;
@@ -2538,56 +3766,93 @@
   background: transparent;
 }
 
+/**
+ * Reminder label text.
+ */
 .packing-workspace-detail .packing-reminder > span {
   color: var(--navy);
   font-size: 13px;
 }
 
+/**
+ * Reminder icon color.
+ */
 .packing-workspace-detail .packing-reminder > span svg {
   color: var(--teal);
 }
 
+/**
+ * Enabled reminder badge.
+ */
 .packing-workspace-detail .packing-reminder strong.enabled {
   background: #dff8ef;
   color: var(--teal);
 }
 
+/**
+ * Reminder label font size.
+ */
 .packing-workspace-detail .packing-reminder label {
   font-size: 12px;
 }
 
+/**
+ * Reminder input width.
+ */
 .packing-workspace-detail .packing-reminder input {
   width: 76px;
   min-height: 36px;
 }
 
+/**
+ * Filters within workspace controls.
+ */
 .travel-tools-enhanced-page .packing-workspace-detail .travel-tools-filters {
   padding: 0;
   border: 0;
   background: transparent;
 }
 
+/**
+ * Template controls filters.
+ */
 .travel-tools-enhanced-page .packing-template-controls .travel-tools-template-filters {
   padding: 0;
   border: 0;
   background: transparent;
 }
 
+/**
+ * Item list and empty state.
+ */
 .packing-workspace-item-list,
 .packing-workspace-controls .packing-items-empty {
   padding-top: 12px;
 }
 
+/**
+ * Item list cards.
+ */
 .packing-workspace-controls .travel-tools-item-list article {
   box-shadow: none;
 }
 
+/**
+ * Filter action button.
+ */
 .packing-workspace-detail .travel-tools-filter-action {
   min-height: 40px;
   border-color: rgba(15, 118, 110, 0.38);
   color: var(--teal);
 }
 
+/* ============================================================================
+   PACKING ITEMS EMPTY STATE
+   ============================================================================ */
+
+/**
+ * Empty state for items with flex layout.
+ */
 .packing-items-empty {
   display: flex;
   align-items: center;
@@ -2601,6 +3866,9 @@
   text-align: left;
 }
 
+/**
+ * Icon container in empty state.
+ */
 .packing-items-empty > span {
   display: grid;
   width: 56px;
@@ -2612,23 +3880,39 @@
   color: var(--teal);
 }
 
+/**
+ * Heading in empty state.
+ */
 .packing-items-empty strong {
   color: var(--navy);
   font-size: var(--font-size-sm);
   font-weight: 650;
 }
 
+/**
+ * Description in empty state.
+ */
 .packing-items-empty p {
   margin: 8px 0 0;
   color: var(--muted);
   font-size: 12px;
 }
 
+/**
+ * Template button with increased padding.
+ */
 .travel-tools-enhanced-page .travel-tools-templates button {
   gap: 7px;
   padding: 16px;
 }
 
+/* ============================================================================
+   RESPONSIVE BREAKPOINTS
+   ============================================================================ */
+
+/**
+ * Tablet breakpoint - stack layout and reduce columns.
+ */
 @media (max-width: 1180px) {
   .travel-tools-layout {
     grid-template-columns: 1fr;
@@ -2651,6 +3935,9 @@
   }
 }
 
+/**
+ * Mobile breakpoint - single column and reduced spacing.
+ */
 @media (max-width: 760px) {
   .travel-tools-hero,
   .travel-tools-detail-header {
@@ -2725,12 +4012,21 @@
 
 }
 
-/* Document workspace uses a dense file-management layout without changing shared packing-list behavior. */
+/* ============================================================================
+   DOCUMENT REDESIGN STYLES
+   ============================================================================ */
+
+/**
+ * Document workspace uses a dense file-management layout without changing shared packing-list behavior.
+ */
 .travel-documents-redesign {
   gap: 14px;
   color: #17212b;
 }
 
+/**
+ * Command header with two-column layout for document management.
+ */
 .travel-documents-redesign .document-command-header {
   display: grid;
   grid-template-columns: minmax(280px, 1fr) minmax(520px, 1.35fr);
@@ -2743,6 +4039,9 @@
   box-shadow: 0 10px 24px rgba(16, 42, 67, 0.045);
 }
 
+/**
+ * Document title container with flex layout.
+ */
 .travel-documents-redesign .document-command-title {
   display: flex;
   align-items: center;
@@ -2750,6 +4049,9 @@
   min-width: 0;
 }
 
+/**
+ * Icon container with primary color background.
+ */
 .travel-documents-redesign .document-command-icon {
   display: grid;
   width: 48px;
@@ -2762,6 +4064,9 @@
   color: #0f766e;
 }
 
+/**
+ * Document title text styles.
+ */
 .travel-documents-redesign .document-command-title p,
 .travel-documents-redesign .document-command-title span {
   margin: 0;
@@ -2770,6 +4075,9 @@
   line-height: 1.45;
 }
 
+/**
+ * Eyebrow text in document header.
+ */
 .travel-documents-redesign .document-command-title p {
   margin-bottom: 3px;
   color: #0f766e;
@@ -2777,6 +4085,9 @@
   text-transform: uppercase;
 }
 
+/**
+ * Main heading in document header.
+ */
 .travel-documents-redesign .document-command-title h2 {
   margin: 0 0 4px;
   color: var(--navy);
@@ -2785,6 +4096,9 @@
   line-height: 1.15;
 }
 
+/**
+ * View toggle buttons container.
+ */
 .travel-documents-redesign .document-view-actions {
   display: inline-flex;
   align-self: center;
@@ -2796,6 +4110,9 @@
   box-shadow: 0 5px 12px rgba(16, 42, 67, 0.045);
 }
 
+/**
+ * Individual view toggle button.
+ */
 .travel-documents-redesign .document-view-actions button {
   display: inline-flex;
   align-items: center;
@@ -2811,11 +4128,17 @@
   font-weight: 700;
 }
 
+/**
+ * Active view toggle button.
+ */
 .travel-documents-redesign .document-view-actions button.active {
   background: #0f766e;
   color: #ffffff;
 }
 
+/**
+ * Count badge on view toggle.
+ */
 .travel-documents-redesign .document-view-actions button span {
   display: grid;
   min-width: 20px;
@@ -2826,6 +4149,9 @@
   font-size: 11px;
 }
 
+/**
+ * Command summary section with grid layout.
+ */
 .travel-documents-redesign .document-command-summary {
   display: grid;
   grid-template-columns: minmax(110px, 0.5fr) minmax(220px, 1.5fr);
@@ -2836,6 +4162,9 @@
   background: rgba(255, 255, 255, 0.035);
 }
 
+/**
+ * Summary item with grid layout.
+ */
 .travel-documents-redesign .document-command-summary > div {
   display: grid;
   grid-template-columns: auto 1fr;
@@ -2846,12 +4175,18 @@
   border-right: 1px solid rgba(255, 255, 255, 0.12);
 }
 
+/**
+ * Icon in command summary.
+ */
 .travel-documents-redesign .document-command-summary svg {
   grid-row: 1 / 3;
   align-self: center;
   color: #5eead4;
 }
 
+/**
+ * Text in command summary.
+ */
 .travel-documents-redesign .document-command-summary span,
 .travel-documents-redesign .document-command-summary small {
   overflow: hidden;
@@ -2861,6 +4196,9 @@
   white-space: nowrap;
 }
 
+/**
+ * Strong text in command summary.
+ */
 .travel-documents-redesign .document-command-summary strong {
   overflow: hidden;
   color: #ffffff;
@@ -2870,6 +4208,9 @@
   white-space: nowrap;
 }
 
+/**
+ * Current item in command summary.
+ */
 .travel-documents-redesign .document-command-summary .document-command-current {
   display: grid;
   grid-template-columns: 1fr;
@@ -2877,6 +4218,13 @@
   background: rgba(255, 255, 255, 0.045);
 }
 
+/* ============================================================================
+   DOCUMENT LOADING PAGE
+   ============================================================================ */
+
+/**
+ * Loading page with centered content.
+ */
 .travel-documents-redesign .document-loading-page {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -2891,6 +4239,9 @@
   box-shadow: 0 12px 28px rgba(23, 33, 43, 0.08);
 }
 
+/**
+ * Loading mark with spinner.
+ */
 .travel-documents-redesign .document-loading-mark {
   position: relative;
   display: grid;
@@ -2903,6 +4254,9 @@
   color: #5eead4;
 }
 
+/**
+ * Spinner overlay on loading mark.
+ */
 .travel-documents-redesign .document-loading-mark .travel-tools-spinner {
   position: absolute;
   right: -7px;
@@ -2915,12 +4269,18 @@
   background: #ffffff;
 }
 
+/**
+ * Loading page text styles.
+ */
 .travel-documents-redesign .document-loading-page p,
 .travel-documents-redesign .document-loading-page h2,
 .travel-documents-redesign .document-loading-page span {
   margin: 0;
 }
 
+/**
+ * Loading page eyebrow.
+ */
 .travel-documents-redesign .document-loading-page p {
   margin-bottom: 4px;
   color: #0f766e;
@@ -2929,6 +4289,9 @@
   text-transform: uppercase;
 }
 
+/**
+ * Loading page heading.
+ */
 .travel-documents-redesign .document-loading-page h2 {
   margin-bottom: 5px;
   color: #17212b;
@@ -2936,11 +4299,17 @@
   font-weight: 650;
 }
 
+/**
+ * Loading page description.
+ */
 .travel-documents-redesign .document-loading-page div > span {
   color: #64748b;
   font-size: 13px;
 }
 
+/**
+ * Loading skeleton lines.
+ */
 .travel-documents-redesign .document-loading-lines {
   display: grid;
   grid-column: 2;
@@ -2948,6 +4317,9 @@
   width: min(100%, 390px);
 }
 
+/**
+ * Individual loading line with pulse animation.
+ */
 .travel-documents-redesign .document-loading-lines span {
   height: 7px;
   border-radius: 4px;
@@ -2955,22 +4327,38 @@
   animation: document-loading-pulse 1.2s ease-in-out infinite alternate;
 }
 
+/**
+ * Second loading line with width variation.
+ */
 .travel-documents-redesign .document-loading-lines span:nth-child(2) {
   width: 78%;
   animation-delay: 0.18s;
 }
 
+/**
+ * Third loading line with width variation.
+ */
 .travel-documents-redesign .document-loading-lines span:nth-child(3) {
   width: 56%;
   animation-delay: 0.36s;
 }
 
+/**
+ * Pulse animation keyframes for loading lines.
+ */
 @keyframes document-loading-pulse {
   to {
     background: #b7ddd8;
   }
 }
 
+/* ============================================================================
+   DOCUMENT CREATE DECK
+   ============================================================================ */
+
+/**
+ * Create deck with left accent border.
+ */
 .travel-documents-redesign .document-create-deck {
   gap: 16px;
   padding: 18px;
@@ -2980,25 +4368,40 @@
   box-shadow: none;
 }
 
+/**
+ * Template library container.
+ */
 .travel-documents-redesign .document-template-library {
   display: grid;
   gap: 12px;
   padding-top: 2px;
 }
 
+/**
+ * Template picker grid in library.
+ */
 .travel-documents-redesign .document-template-library .document-template-picker {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   overflow: visible;
 }
 
+/**
+ * Template card with increased min-height.
+ */
 .travel-documents-redesign .document-template-library .document-template-card {
   min-height: 210px;
 }
 
+/**
+ * Template select div with no max-height limit.
+ */
 .travel-documents-redesign .document-template-library .document-template-select div {
   max-height: none;
 }
 
+/**
+ * Template menu panel with dark theme.
+ */
 .travel-documents-redesign .document-template-library .document-template-menu-panel {
   border-color: rgba(255, 255, 255, 0.18);
   background: rgba(23, 33, 43, 0.84);
@@ -3006,26 +4409,41 @@
   backdrop-filter: blur(14px);
 }
 
+/**
+ * Menu item text color.
+ */
 .travel-documents-redesign .document-template-library .document-template-menu-panel button {
   color: #f8fafc;
 }
 
+/**
+ * Menu item hover state.
+ */
 .travel-documents-redesign .document-template-library .document-template-menu-panel button:hover {
   background: rgba(255, 255, 255, 0.12);
   color: #5eead4;
 }
 
+/**
+ * Danger menu item hover state.
+ */
 .travel-documents-redesign .document-template-library .document-template-menu-panel button:last-child:hover {
   background: rgba(127, 29, 29, 0.5);
   color: #fecaca;
 }
 
+/**
+ * Panel heading with bottom border.
+ */
 .travel-documents-redesign .document-create-deck .travel-tools-panel-heading {
   align-items: center;
   padding-bottom: 13px;
   border-bottom: 1px solid #e7edf3;
 }
 
+/**
+ * Mode actions container.
+ */
 .travel-documents-redesign .document-create-mode-actions {
   display: inline-flex;
   justify-content: flex-end;
@@ -3034,6 +4452,9 @@
   background: transparent;
 }
 
+/**
+ * Mode action button.
+ */
 .travel-documents-redesign .document-create-mode-actions button {
   display: inline-flex;
   align-items: center;
@@ -3050,6 +4471,9 @@
   box-shadow: 0 4px 10px rgba(23, 33, 43, 0.04);
 }
 
+/**
+ * Active mode button.
+ */
 .travel-documents-redesign .document-create-mode-actions button.active {
   border-color: #0f766e;
   background: #0f766e;
@@ -3057,12 +4481,18 @@
   box-shadow: 0 6px 14px rgba(15, 118, 110, 0.16);
 }
 
+/**
+ * Mode button hover state.
+ */
 .travel-documents-redesign .document-create-mode-actions button:not(.active):hover {
   border-color: #b7ddd8;
   background: #f0fdfa;
   color: #0f766e;
 }
 
+/**
+ * Create fields row with grid layout.
+ */
 .travel-documents-redesign .document-create-fields-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -3070,16 +4500,25 @@
   gap: 14px;
 }
 
+/**
+ * Form grid within create fields.
+ */
 .travel-documents-redesign .document-create-fields-row .travel-tools-form-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-top: 0;
 }
 
+/**
+ * Submit button in create deck.
+ */
 .travel-documents-redesign .document-create-submit {
   min-width: 132px;
   min-height: 42px;
 }
 
+/**
+ * Create deck heading text.
+ */
 .travel-documents-redesign .document-create-deck .travel-tools-panel-heading span {
   color: #17212b;
   font-size: 17px;
@@ -3087,18 +4526,27 @@
   text-transform: none;
 }
 
+/**
+ * Create deck subtitle.
+ */
 .travel-documents-redesign .document-create-deck .travel-tools-panel-heading h3 {
   margin-top: 3px;
   color: #64748b;
   font-size: 12px;
 }
 
+/**
+ * Create mode cards with constrained width.
+ */
 .travel-documents-redesign .document-create-deck .packing-create-card-mode {
   grid-template-columns: repeat(2, minmax(0, 230px));
   justify-content: start;
   gap: 8px;
 }
 
+/**
+ * Mode button with increased height.
+ */
 .travel-documents-redesign .document-create-deck .packing-create-mode button {
   min-height: 66px;
   border: 1px solid #d9e2ec;
@@ -3107,16 +4555,25 @@
   box-shadow: none;
 }
 
+/**
+ * Active mode button with left accent.
+ */
 .travel-documents-redesign .document-create-deck .packing-create-mode button.active {
   border-color: #0f766e;
   background: #ecfdf5;
   box-shadow: inset 3px 0 #0f766e;
 }
 
+/**
+ * Template carousel with horizontal padding.
+ */
 .travel-documents-redesign .document-template-carousel {
   padding: 0 44px;
 }
 
+/**
+ * Template card with reduced min-height.
+ */
 .travel-documents-redesign .document-template-card {
   min-height: 178px;
   border-color: #d9e2ec;
@@ -3125,6 +4582,9 @@
   box-shadow: none;
 }
 
+/**
+ * Active and hover states for template cards.
+ */
 .travel-documents-redesign .document-template-card.active,
 .travel-documents-redesign .document-template-card:hover {
   border-color: #0f766e;
@@ -3132,30 +4592,52 @@
   box-shadow: inset 0 3px #0f766e;
 }
 
+/**
+ * Template card label color.
+ */
 .travel-documents-redesign .document-template-card span {
   color: #0f766e;
 }
 
+/**
+ * Template item tag styling.
+ */
 .travel-documents-redesign .document-template-select em {
   border: 1px solid #d9e2ec;
   border-radius: 4px;
   background: #ffffff;
 }
 
+/**
+ * Template menu panel with rounded corners.
+ */
 .travel-documents-redesign .document-template-menu-panel {
   border-radius: 6px;
   box-shadow: 0 14px 30px rgba(23, 33, 43, 0.16);
 }
 
+/**
+ * Menu item with rounded corners.
+ */
 .travel-documents-redesign .document-template-menu-panel button {
   border-radius: 4px;
 }
 
+/* ============================================================================
+   DOCUMENT WORKBENCH
+   ============================================================================ */
+
+/**
+ * Workbench layout with refined sidebar width.
+ */
 .travel-documents-redesign .document-workbench {
   grid-template-columns: minmax(250px, 286px) minmax(0, 1fr);
   gap: 14px;
 }
 
+/**
+ * List panel with border and no padding.
+ */
 .travel-documents-redesign .document-workbench .travel-tools-list-panel {
   gap: 0;
   padding: 0;
@@ -3166,14 +4648,23 @@
   box-shadow: none;
 }
 
+/**
+ * Side section with padding.
+ */
 .travel-documents-redesign .document-workbench .travel-tools-side-section {
   padding: 16px;
 }
 
+/**
+ * Side section separator with border-top.
+ */
 .travel-documents-redesign .document-workbench .travel-tools-side-section + .travel-tools-side-section {
   border-top: 1px solid #d9e2ec;
 }
 
+/**
+ * Panel heading text styles.
+ */
 .travel-documents-redesign .document-workbench .travel-tools-panel-heading span {
   color: #17212b;
   font-size: 14px;
@@ -3181,11 +4672,17 @@
   text-transform: none;
 }
 
+/**
+ * Panel heading subtitle.
+ */
 .travel-documents-redesign .document-workbench .travel-tools-panel-heading h3 {
   color: #7b8794;
   font-size: 11px;
 }
 
+/**
+ * Panel heading count badge.
+ */
 .travel-documents-redesign .document-workbench .travel-tools-panel-heading > strong {
   width: 30px;
   height: 30px;
@@ -3195,23 +4692,35 @@
   font-size: 12px;
 }
 
+/**
+ * Filters within workbench.
+ */
 .travel-documents-redesign .document-workbench .travel-tools-filters {
   padding: 0;
   border: 0;
   background: transparent;
 }
 
+/**
+ * Search field with border.
+ */
 .travel-documents-redesign .document-workbench .travel-tools-search-field {
   border-color: #d9e2ec;
   border-radius: 5px;
   background: #f8fafc;
 }
 
+/**
+ * List stack with reduced gap.
+ */
 .travel-documents-redesign .document-workbench .travel-tools-list-stack {
   gap: 4px;
   margin-top: 10px;
 }
 
+/**
+ * List card with left accent.
+ */
 .travel-documents-redesign .document-workbench .travel-tools-list-card {
   position: relative;
   min-height: 54px;
@@ -3222,6 +4731,9 @@
   box-shadow: none;
 }
 
+/**
+ * Left accent bar on list card.
+ */
 .travel-documents-redesign .document-workbench .travel-tools-list-card::before {
   content: "";
   position: absolute;
@@ -3233,31 +4745,49 @@
   background: #cbd5e1;
 }
 
+/**
+ * Hover state for list card.
+ */
 .travel-documents-redesign .document-workbench .travel-tools-list-card:hover {
   border-color: #d9e2ec;
   background: #f8fafc;
   box-shadow: none;
 }
 
+/**
+ * Active state for list card.
+ */
 .travel-documents-redesign .document-workbench .travel-tools-list-card.active {
   border-color: #b7ddd8;
   background: #ecfdf5;
   box-shadow: none;
 }
 
+/**
+ * Active state accent bar.
+ */
 .travel-documents-redesign .document-workbench .travel-tools-list-card.active::before {
   background: #0f766e;
 }
 
+/**
+ * List card title text.
+ */
 .travel-documents-redesign .document-workbench .travel-tools-list-card span {
   color: #25313d;
   font-size: 13px;
 }
 
+/**
+ * List card secondary text.
+ */
 .travel-documents-redesign .document-workbench .travel-tools-list-card small {
   font-size: 11px;
 }
 
+/**
+ * Detail panel with no padding.
+ */
 .travel-documents-redesign .document-workbench .travel-tools-detail {
   gap: 0;
   padding: 0;
@@ -3268,6 +4798,9 @@
   box-shadow: none;
 }
 
+/**
+ * Status container in workspace.
+ */
 .travel-documents-redesign .document-workspace-status,
 .travel-documents-redesign .document-template-modal-status {
   display: grid;
@@ -3275,6 +4808,9 @@
   margin: 12px 20px 0;
 }
 
+/**
+ * Status message with padding.
+ */
 .travel-documents-redesign .document-workspace-status .travel-tools-status,
 .travel-documents-redesign .document-template-modal-status .travel-tools-status {
   margin: 0;
@@ -3282,28 +4818,43 @@
   border-radius: 5px;
 }
 
+/**
+ * Detail header with border bottom.
+ */
 .travel-documents-redesign .document-workbench .travel-tools-detail-header {
   padding: 18px 20px;
   border-bottom: 1px solid #d9e2ec;
   background: #f8fafc;
 }
 
+/**
+ * Detail header heading.
+ */
 .travel-documents-redesign .document-workbench .travel-tools-detail-header h3 {
   margin-bottom: 4px;
   color: #17212b;
   font-size: 24px;
 }
 
+/**
+ * Workspace label in detail header.
+ */
 .travel-documents-redesign .document-workbench .travel-tools-workspace-label {
   color: #0f766e;
   font-size: 11px;
 }
 
+/**
+ * Detail header description.
+ */
 .travel-documents-redesign .document-workbench .travel-tools-detail-header p {
   margin: 0;
   font-size: 12px;
 }
 
+/**
+ * Workspace meta badges.
+ */
 .travel-documents-redesign .document-workbench .travel-tools-workspace-meta span {
   border: 1px solid #d9e2ec;
   border-radius: 4px;
@@ -3311,6 +4862,9 @@
   color: #52606d;
 }
 
+/**
+ * Actions menu panel with dark theme.
+ */
 .travel-documents-redesign .document-workbench .travel-tools-actions-menu > div {
   gap: 5px;
   padding: 7px;
@@ -3320,26 +4874,41 @@
   backdrop-filter: blur(14px);
 }
 
+/**
+ * Actions menu item text color.
+ */
 .travel-documents-redesign .document-workbench .travel-tools-actions-menu button {
   color: #f8fafc;
 }
 
+/**
+ * Actions menu item hover.
+ */
 .travel-documents-redesign .document-workbench .travel-tools-actions-menu button:hover {
   background: rgba(255, 255, 255, 0.12);
   color: #5eead4;
 }
 
+/**
+ * Danger action hover in menu.
+ */
 .travel-documents-redesign .document-workbench .travel-tools-actions-menu button:last-child:hover {
   background: rgba(127, 29, 29, 0.5);
   color: #fecaca;
 }
 
+/**
+ * Workspace fields with border bottom.
+ */
 .travel-documents-redesign .document-workbench .packing-workspace-fields {
   padding: 16px 20px;
   border-bottom: 1px solid #e7edf3;
   background: #ffffff;
 }
 
+/**
+ * Inputs with rounded corners.
+ */
 .travel-documents-redesign .document-workbench .packing-title-input,
 .travel-documents-redesign .document-workbench input,
 .travel-documents-redesign .document-workbench select,
@@ -3347,6 +4916,9 @@
   border-radius: 5px;
 }
 
+/**
+ * Controls with padding and no border.
+ */
 .travel-documents-redesign .document-workbench .document-workspace-controls {
   gap: 12px;
   padding: 16px 20px 20px;
@@ -3355,6 +4927,9 @@
   background: #ffffff;
 }
 
+/**
+ * Document item filters with border.
+ */
 .travel-documents-redesign .document-workbench .travel-document-item-filters {
   padding: 10px;
   border: 1px solid #d9e2ec;
@@ -3362,6 +4937,9 @@
   background: #f8fafc;
 }
 
+/**
+ * Document file list with scroll.
+ */
 .travel-documents-redesign .document-workbench .travel-tools-document-file-list {
   gap: 0;
   max-height: 390px;
@@ -3372,6 +4950,9 @@
   scrollbar-gutter: stable;
 }
 
+/**
+ * Document list item with no box shadow.
+ */
 .travel-documents-redesign .document-workbench .travel-document-list-item {
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: start;
@@ -3385,14 +4966,23 @@
   box-shadow: none;
 }
 
+/**
+ * Last document item with no border.
+ */
 .travel-documents-redesign .document-workbench .travel-document-list-item:last-child {
   border-bottom: 0;
 }
 
+/**
+ * Removes accent bar from document items.
+ */
 .travel-documents-redesign .document-workbench .travel-document-list-item::before {
   display: none;
 }
 
+/**
+ * Document item hover state.
+ */
 .travel-documents-redesign .document-workbench .travel-document-list-item:hover {
   border-color: transparent;
   border-bottom-color: #e7edf3;
@@ -3401,6 +4991,9 @@
   transform: none;
 }
 
+/**
+ * Document item content container.
+ */
 .travel-documents-redesign .document-workbench .travel-document-list-item > div:first-child {
   display: grid;
   align-content: start;
@@ -3408,16 +5001,25 @@
   min-width: 0;
 }
 
+/**
+ * First item with top border radius.
+ */
 .travel-documents-redesign .document-workbench .travel-document-list-item:first-child {
   border-top-left-radius: 5px;
   border-top-right-radius: 5px;
 }
 
+/**
+ * Last item with bottom border radius.
+ */
 .travel-documents-redesign .document-workbench .travel-document-list-item:last-child {
   border-bottom-right-radius: 5px;
   border-bottom-left-radius: 5px;
 }
 
+/**
+ * Attached files container.
+ */
 .travel-documents-redesign .document-workbench .travel-document-attached-files {
   align-items: center;
   gap: 6px;
@@ -3425,6 +5027,9 @@
   margin-top: 10px;
 }
 
+/**
+ * Direct actions container.
+ */
 .travel-documents-redesign .document-item-direct-actions {
   display: inline-flex;
   align-items: center;
@@ -3432,6 +5037,9 @@
   padding-top: 1px;
 }
 
+/**
+ * Icon action button.
+ */
 .travel-documents-redesign .document-item-icon-action {
   position: relative;
   display: grid;
@@ -3446,20 +5054,32 @@
   cursor: pointer;
 }
 
+/**
+ * Icon action hover state.
+ */
 .travel-documents-redesign .document-item-icon-action:hover {
   border-color: #b7ddd8;
   background: #ecfdf5;
 }
 
+/**
+ * Delete action icon.
+ */
 .travel-documents-redesign .document-item-delete-action {
   color: var(--color-danger);
 }
 
+/**
+ * Delete action hover state.
+ */
 .travel-documents-redesign .document-item-delete-action:hover {
   border-color: #fecaca;
   background: #fef2f2;
 }
 
+/**
+ * Hidden file input in icon action.
+ */
 .travel-documents-redesign .document-item-icon-action input {
   position: absolute;
   width: 1px;
@@ -3468,22 +5088,34 @@
   clip: rect(0, 0, 0, 0);
 }
 
+/**
+ * Item title text color.
+ */
 .travel-documents-redesign .document-workbench .travel-tools-item-title-row strong {
   color: #25313d;
   font-size: 14px;
 }
 
+/**
+ * Priority badge with rounded corners.
+ */
 .travel-documents-redesign .document-workbench .priority-low,
 .travel-documents-redesign .document-workbench .travel-tools-quantity {
   border-radius: 4px;
 }
 
+/**
+ * Item meta with alignment.
+ */
 .travel-documents-redesign .document-workbench .travel-tools-item-meta {
   align-self: start;
   min-width: 0;
   padding-top: 7px;
 }
 
+/**
+ * File tag styling.
+ */
 .travel-documents-redesign .document-workbench .travel-document-attached-files span {
   min-width: 0;
   max-width: min(100%, 360px);
@@ -3493,6 +5125,9 @@
   background: #f0fdfa;
 }
 
+/**
+ * File name button.
+ */
 .travel-documents-redesign .document-workbench .travel-document-attached-files button:first-child {
   display: block;
   min-width: 0;
@@ -3507,6 +5142,9 @@
   white-space: nowrap;
 }
 
+/**
+ * File action buttons.
+ */
 .travel-documents-redesign .document-workbench .travel-document-attached-files a,
 .travel-documents-redesign .document-workbench .travel-document-attached-files button:last-child {
   display: grid;
@@ -3518,68 +5156,111 @@
   padding: 0;
 }
 
+/**
+ * Template fields with margin.
+ */
 .travel-documents-redesign .document-workbench .document-template-fields {
   margin: 16px 20px 0;
   border-radius: 6px;
 }
 
+/**
+ * Modal with rounded corners.
+ */
 .travel-documents-redesign .travel-tools-modal {
   border-radius: 6px;
   box-shadow: 0 22px 50px rgba(23, 33, 43, 0.22);
 }
 
+/**
+ * Modal backdrop with blur.
+ */
 .travel-documents-redesign .travel-tools-modal-backdrop {
   background: rgba(23, 33, 43, 0.58);
   backdrop-filter: blur(6px);
 }
 
+/**
+ * Modal with glass effect.
+ */
 .travel-documents-redesign .travel-tools-modal {
   border: 1px solid rgba(255, 255, 255, 0.64);
   background: rgba(255, 255, 255, 0.96);
   box-shadow: 0 24px 60px rgba(23, 33, 43, 0.3);
 }
 
+/**
+ * Modal header with border bottom.
+ */
 .travel-documents-redesign .travel-tools-modal-header {
   align-items: flex-start;
   padding-bottom: 13px;
   border-bottom: 1px solid #d9e2ec;
 }
 
+/**
+ * Modal heading color.
+ */
 .travel-documents-redesign .travel-tools-modal-header h3 {
   color: #0f766e;
 }
 
+/**
+ * Modal close button.
+ */
 .travel-documents-redesign .travel-tools-modal-header button {
   border-radius: 5px;
 }
 
+/**
+ * Modal footer with border top.
+ */
 .travel-documents-redesign .travel-tools-modal-actions {
   padding-top: 13px;
   border-top: 1px solid #d9e2ec;
 }
 
+/**
+ * Document edit backdrop.
+ */
 .travel-documents-redesign .document-edit-backdrop {
   z-index: 85;
   background: rgba(23, 33, 43, 0.58);
   backdrop-filter: blur(5px);
 }
 
+/**
+ * Document details edit modal width.
+ */
 .travel-documents-redesign .document-details-edit-modal {
   width: min(540px, 100%);
 }
 
+/**
+ * Document details modal header.
+ */
 .travel-documents-redesign .document-details-edit-modal .travel-tools-modal-header {
   align-items: flex-start;
   padding-bottom: 13px;
   border-bottom: 1px solid #e7edf3;
 }
 
+/**
+ * Workspace label in details modal.
+ */
 .travel-documents-redesign .document-details-edit-modal .travel-tools-workspace-label {
   margin-bottom: 4px;
   color: #0f766e;
   font-size: 11px;
 }
 
+/* ============================================================================
+   DOCUMENT TEMPLATE WORKSPACE
+   ============================================================================ */
+
+/**
+ * Template workspace modal with no internal gap.
+ */
 .travel-documents-redesign .travel-document-template-workspace {
   display: grid;
   gap: 0;
@@ -3590,6 +5271,9 @@
   background: rgba(255, 255, 255, 0.96);
 }
 
+/**
+ * Sticky header in template workspace.
+ */
 .travel-documents-redesign .travel-document-template-workspace .travel-tools-detail-header {
   position: sticky;
   top: 0;
@@ -3600,6 +5284,9 @@
   backdrop-filter: blur(14px);
 }
 
+/**
+ * Template close button.
+ */
 .travel-documents-redesign .document-template-close {
   display: grid;
   width: 36px;
@@ -3611,19 +5298,31 @@
   color: #64748b;
 }
 
+/**
+ * Template workspace heading.
+ */
 .travel-documents-redesign .travel-document-template-workspace .travel-tools-detail-header h3 {
   color: #0f766e;
   font-size: 20px;
 }
 
+/**
+ * Template workspace description.
+ */
 .travel-documents-redesign .travel-document-template-workspace .travel-tools-detail-header p {
   color: #64748b;
 }
 
+/**
+ * Workspace label in template.
+ */
 .travel-documents-redesign .travel-document-template-workspace .travel-tools-workspace-label {
   color: #0f766e;
 }
 
+/**
+ * Template step container.
+ */
 .travel-documents-redesign .document-template-step {
   display: grid;
   gap: 14px;
@@ -3634,12 +5333,18 @@
   background: #ffffff;
 }
 
+/**
+ * Details step with single column.
+ */
 .travel-documents-redesign .document-template-details-step {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: 14px;
 }
 
+/**
+ * Template step label.
+ */
 .travel-documents-redesign .document-template-step label {
   display: grid;
   align-content: start;
@@ -3649,6 +5354,9 @@
   font-weight: 650;
 }
 
+/**
+ * Template step label span.
+ */
 .travel-documents-redesign .document-template-step label > span,
 .travel-documents-redesign .document-template-items-heading span {
   color: #0f766e;
@@ -3657,6 +5365,9 @@
   text-transform: uppercase;
 }
 
+/**
+ * Template step inputs.
+ */
 .travel-documents-redesign .document-template-step input,
 .travel-documents-redesign .document-template-step select,
 .travel-documents-redesign .document-template-step textarea {
@@ -3671,12 +5382,18 @@
   outline: none;
 }
 
+/**
+ * Textarea in template step.
+ */
 .travel-documents-redesign .document-template-step textarea {
   min-height: 112px;
   padding: 11px 12px;
   resize: vertical;
 }
 
+/**
+ * Focus state for template inputs.
+ */
 .travel-documents-redesign .document-template-step input:focus,
 .travel-documents-redesign .document-template-step select:focus,
 .travel-documents-redesign .document-template-step textarea:focus {
@@ -3684,12 +5401,18 @@
   box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.13);
 }
 
+/**
+ * Helper text in template step.
+ */
 .travel-documents-redesign .document-template-step label small {
   color: #7b8794;
   font-size: 11px;
   line-height: 1.45;
 }
 
+/**
+ * Items heading with flex layout.
+ */
 .travel-documents-redesign .document-template-items-heading {
   display: flex;
   align-items: center;
@@ -3699,16 +5422,25 @@
   border-bottom: 1px solid #e7edf3;
 }
 
+/**
+ * Items heading content.
+ */
 .travel-documents-redesign .document-template-items-heading > div {
   display: grid;
   gap: 4px;
 }
 
+/**
+ * Items count text.
+ */
 .travel-documents-redesign .document-template-items-heading strong {
   color: #25313d;
   font-size: 16px;
 }
 
+/**
+ * Edit list with scroll.
+ */
 .travel-documents-redesign .document-template-edit-list {
   display: grid;
   gap: 10px;
@@ -3719,6 +5451,9 @@
   scrollbar-gutter: stable;
 }
 
+/**
+ * Edit item with grid layout.
+ */
 .travel-documents-redesign .document-template-edit-item {
   display: grid;
   grid-template-columns: minmax(130px, 0.45fr) minmax(180px, 0.8fr) minmax(220px, 1fr) auto;
@@ -3730,6 +5465,9 @@
   background: #f8fafc;
 }
 
+/**
+ * Delete button in edit item.
+ */
 .travel-documents-redesign .document-template-edit-item > button {
   display: grid;
   width: 42px;
@@ -3741,6 +5479,9 @@
   color: var(--color-danger);
 }
 
+/**
+ * Step actions footer.
+ */
 .travel-documents-redesign .document-template-step-actions {
   display: flex;
   justify-content: flex-end;
@@ -3751,12 +5492,18 @@
   background: rgba(248, 250, 252, 0.92);
 }
 
+/**
+ * Step action buttons.
+ */
 .travel-documents-redesign .document-template-step-actions button {
   display: inline-flex;
   align-items: center;
   gap: 7px;
 }
 
+/**
+ * Disabled primary action in step actions.
+ */
 .travel-documents-redesign .document-template-step-actions .primary-action:disabled,
 .travel-documents-redesign .document-template-step-actions .primary-action:disabled:hover {
   border-color: #cbd5e1;
@@ -3768,17 +5515,30 @@
   transform: none;
 }
 
+/**
+ * Modal inputs with rounded corners.
+ */
 .travel-documents-redesign .travel-tools-modal input,
 .travel-documents-redesign .travel-tools-modal select,
 .travel-documents-redesign .travel-tools-modal textarea {
   border-radius: 5px;
 }
 
+/**
+ * Empty detail with dashed border.
+ */
 .travel-documents-redesign .travel-tools-empty-detail {
   min-height: 360px;
   border-style: dashed;
 }
 
+/* ============================================================================
+   DOCUMENT REDESIGN RESPONSIVE
+   ============================================================================ */
+
+/**
+ * Tablet breakpoint for document redesign.
+ */
 @media (max-width: 1180px) {
   .travel-documents-redesign .document-command-header {
     grid-template-columns: 1fr;
@@ -3810,6 +5570,9 @@
   }
 }
 
+/**
+ * Mobile breakpoint for document redesign.
+ */
 @media (max-width: 760px) {
   .travel-documents-redesign .document-command-header {
     gap: 16px;
@@ -3930,12 +5693,21 @@
   }
 }
 
-/* Packing workspace mirrors the document-management layout while preserving packing controls. */
+/* ============================================================================
+   PACKING REDESIGN STYLES
+   ============================================================================ */
+
+/**
+ * Packing workspace mirrors the document-management layout while preserving packing controls.
+ */
 .packing-redesign {
   gap: 14px;
   color: #17212b;
 }
 
+/**
+ * Command header with two-column layout.
+ */
 .packing-redesign .document-command-header {
   display: grid;
   grid-template-columns: minmax(280px, 1fr) minmax(520px, 1.35fr);
@@ -3948,6 +5720,9 @@
   box-shadow: 0 10px 24px rgba(16, 42, 67, 0.045);
 }
 
+/**
+ * Title container with flex layout.
+ */
 .packing-redesign .document-command-title {
   display: flex;
   align-items: center;
@@ -3955,6 +5730,9 @@
   min-width: 0;
 }
 
+/**
+ * Icon container with primary color.
+ */
 .packing-redesign .document-command-icon {
   display: grid;
   width: 48px;
@@ -3967,6 +5745,9 @@
   color: #0f766e;
 }
 
+/**
+ * Title text styles.
+ */
 .packing-redesign .document-command-title p,
 .packing-redesign .document-command-title span {
   margin: 0;
@@ -3975,6 +5756,9 @@
   line-height: 1.45;
 }
 
+/**
+ * Eyebrow text.
+ */
 .packing-redesign .document-command-title p {
   margin-bottom: 3px;
   color: #0f766e;
@@ -3982,6 +5766,9 @@
   text-transform: uppercase;
 }
 
+/**
+ * Main heading.
+ */
 .packing-redesign .document-command-title h2 {
   margin: 0 0 4px;
   color: var(--navy);
@@ -3990,6 +5777,9 @@
   line-height: 1.15;
 }
 
+/**
+ * View toggle buttons.
+ */
 .packing-redesign .document-view-actions {
   display: inline-flex;
   align-self: center;
@@ -4001,6 +5791,9 @@
   box-shadow: 0 5px 12px rgba(16, 42, 67, 0.045);
 }
 
+/**
+ * Toggle button.
+ */
 .packing-redesign .document-view-actions button {
   display: inline-flex;
   align-items: center;
@@ -4016,11 +5809,17 @@
   font-weight: 700;
 }
 
+/**
+ * Active toggle button.
+ */
 .packing-redesign .document-view-actions button.active {
   background: #0f766e;
   color: #ffffff;
 }
 
+/**
+ * Count badge on toggle.
+ */
 .packing-redesign .document-view-actions button span {
   display: grid;
   min-width: 20px;
@@ -4031,6 +5830,9 @@
   font-size: 11px;
 }
 
+/**
+ * Loading page with centered content.
+ */
 .packing-redesign .document-loading-page {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -4045,6 +5847,9 @@
   box-shadow: 0 12px 28px rgba(23, 33, 43, 0.08);
 }
 
+/**
+ * Loading mark with spinner.
+ */
 .packing-redesign .document-loading-mark {
   position: relative;
   display: grid;
@@ -4057,6 +5862,9 @@
   color: #5eead4;
 }
 
+/**
+ * Spinner on loading mark.
+ */
 .packing-redesign .document-loading-mark .travel-tools-spinner {
   position: absolute;
   right: -7px;
@@ -4069,12 +5877,18 @@
   background: #ffffff;
 }
 
+/**
+ * Loading page text.
+ */
 .packing-redesign .document-loading-page p,
 .packing-redesign .document-loading-page h2,
 .packing-redesign .document-loading-page span {
   margin: 0;
 }
 
+/**
+ * Loading page eyebrow.
+ */
 .packing-redesign .document-loading-page p {
   margin-bottom: 4px;
   color: #0f766e;
@@ -4083,6 +5897,9 @@
   text-transform: uppercase;
 }
 
+/**
+ * Loading page heading.
+ */
 .packing-redesign .document-loading-page h2 {
   margin-bottom: 5px;
   color: #17212b;
@@ -4090,11 +5907,17 @@
   font-weight: 650;
 }
 
+/**
+ * Loading page description.
+ */
 .packing-redesign .document-loading-page div > span {
   color: #64748b;
   font-size: 13px;
 }
 
+/**
+ * Loading skeleton lines.
+ */
 .packing-redesign .document-loading-lines {
   display: grid;
   grid-column: 2;
@@ -4102,6 +5925,9 @@
   width: min(100%, 390px);
 }
 
+/**
+ * Individual loading line.
+ */
 .packing-redesign .document-loading-lines span {
   height: 7px;
   border-radius: 4px;
@@ -4109,16 +5935,25 @@
   animation: document-loading-pulse 1.2s ease-in-out infinite alternate;
 }
 
+/**
+ * Second loading line.
+ */
 .packing-redesign .document-loading-lines span:nth-child(2) {
   width: 78%;
   animation-delay: 0.18s;
 }
 
+/**
+ * Third loading line.
+ */
 .packing-redesign .document-loading-lines span:nth-child(3) {
   width: 56%;
   animation-delay: 0.36s;
 }
 
+/**
+ * Create deck with left accent.
+ */
 .packing-redesign .document-create-deck {
   gap: 16px;
   padding: 18px;
@@ -4128,12 +5963,18 @@
   box-shadow: none;
 }
 
+/**
+ * Panel heading with border bottom.
+ */
 .packing-redesign .document-create-deck .travel-tools-panel-heading {
   align-items: center;
   padding-bottom: 13px;
   border-bottom: 1px solid #e7edf3;
 }
 
+/**
+ * Panel heading text.
+ */
 .packing-redesign .document-create-deck .travel-tools-panel-heading span {
   color: #17212b;
   font-size: 17px;
@@ -4141,18 +5982,27 @@
   text-transform: none;
 }
 
+/**
+ * Panel heading subtitle.
+ */
 .packing-redesign .document-create-deck .travel-tools-panel-heading h3 {
   margin-top: 3px;
   color: #64748b;
   font-size: 12px;
 }
 
+/**
+ * Mode actions container.
+ */
 .packing-redesign .document-create-mode-actions {
   display: inline-flex;
   justify-content: flex-end;
   gap: 8px;
 }
 
+/**
+ * Mode action button.
+ */
 .packing-redesign .document-create-mode-actions button {
   display: inline-flex;
   align-items: center;
@@ -4169,6 +6019,9 @@
   box-shadow: 0 4px 10px rgba(23, 33, 43, 0.04);
 }
 
+/**
+ * Active mode button.
+ */
 .packing-redesign .document-create-mode-actions button.active {
   border-color: #0f766e;
   background: #0f766e;
@@ -4176,12 +6029,18 @@
   box-shadow: 0 6px 14px rgba(15, 118, 110, 0.16);
 }
 
+/**
+ * Mode button hover.
+ */
 .packing-redesign .document-create-mode-actions button:not(.active):hover {
   border-color: #b7ddd8;
   background: #f0fdfa;
   color: #0f766e;
 }
 
+/**
+ * Create fields row.
+ */
 .packing-redesign .document-create-fields-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -4189,27 +6048,42 @@
   gap: 14px;
 }
 
+/**
+ * Form grid in create fields.
+ */
 .packing-redesign .document-create-fields-row .travel-tools-form-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   margin-top: 0;
 }
 
+/**
+ * Submit button.
+ */
 .packing-redesign .document-create-submit {
   min-width: 132px;
   min-height: 42px;
 }
 
+/**
+ * Template library.
+ */
 .packing-redesign .document-template-library {
   display: grid;
   gap: 12px;
   padding-top: 2px;
 }
 
+/**
+ * Template picker grid.
+ */
 .packing-redesign .document-template-library .document-template-picker {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   overflow: visible;
 }
 
+/**
+ * Template card.
+ */
 .packing-redesign .document-template-library .document-template-card {
   min-height: 210px;
   border-color: #d9e2ec;
@@ -4218,6 +6092,9 @@
   box-shadow: none;
 }
 
+/**
+ * Active and hover states for template card.
+ */
 .packing-redesign .document-template-library .document-template-card.active,
 .packing-redesign .document-template-library .document-template-card:hover {
   border-color: #0f766e;
@@ -4225,10 +6102,16 @@
   box-shadow: inset 0 3px #0f766e;
 }
 
+/**
+ * Template select div with no max-height.
+ */
 .packing-redesign .document-template-library .document-template-select div {
   max-height: none;
 }
 
+/**
+ * Template menu panel with dark theme.
+ */
 .packing-redesign .document-template-library .document-template-menu-panel {
   border-color: rgba(255, 255, 255, 0.18);
   background: rgba(23, 33, 43, 0.84);
@@ -4236,25 +6119,40 @@
   backdrop-filter: blur(14px);
 }
 
+/**
+ * Menu item text color.
+ */
 .packing-redesign .document-template-library .document-template-menu-panel button {
   color: #f8fafc;
 }
 
+/**
+ * Menu item hover.
+ */
 .packing-redesign .document-template-library .document-template-menu-panel button:hover {
   background: rgba(255, 255, 255, 0.12);
   color: #5eead4;
 }
 
+/**
+ * Danger menu item hover.
+ */
 .packing-redesign .document-template-library .document-template-menu-panel button:last-child:hover {
   background: rgba(127, 29, 29, 0.5);
   color: #fecaca;
 }
 
+/**
+ * Workbench layout.
+ */
 .packing-redesign .document-workbench {
   grid-template-columns: minmax(250px, 286px) minmax(0, 1fr);
   gap: 14px;
 }
 
+/**
+ * Side panel with border.
+ */
 .packing-redesign .document-workbench .packing-side-panel {
   display: block;
   padding: 0;
@@ -4265,11 +6163,17 @@
   box-shadow: none;
 }
 
+/**
+ * Side section with padding.
+ */
 .packing-redesign .document-workbench .travel-tools-side-section {
   padding: 16px;
   border: 0;
 }
 
+/**
+ * Panel heading text.
+ */
 .packing-redesign .document-workbench .travel-tools-panel-heading span {
   color: #17212b;
   font-size: 14px;
@@ -4277,11 +6181,17 @@
   text-transform: none;
 }
 
+/**
+ * Panel heading subtitle.
+ */
 .packing-redesign .document-workbench .travel-tools-panel-heading h3 {
   color: #7b8794;
   font-size: 11px;
 }
 
+/**
+ * Panel heading count badge.
+ */
 .packing-redesign .document-workbench .travel-tools-panel-heading > strong {
   width: 30px;
   height: 30px;
@@ -4291,11 +6201,17 @@
   font-size: 12px;
 }
 
+/**
+ * List stack with reduced gap.
+ */
 .packing-redesign .document-workbench .travel-tools-list-stack {
   gap: 4px;
   margin-top: 10px;
 }
 
+/**
+ * List card with left accent.
+ */
 .packing-redesign .document-workbench .travel-tools-list-card {
   position: relative;
   min-height: 54px;
@@ -4306,6 +6222,9 @@
   box-shadow: none;
 }
 
+/**
+ * Left accent bar on list card.
+ */
 .packing-redesign .document-workbench .travel-tools-list-card::before {
   content: "";
   position: absolute;
@@ -4317,25 +6236,40 @@
   background: #cbd5e1;
 }
 
+/**
+ * Active state for list card.
+ */
 .packing-redesign .document-workbench .travel-tools-list-card.active {
   border-color: #b7ddd8;
   background: #ecfdf5;
   box-shadow: none;
 }
 
+/**
+ * Active state accent bar.
+ */
 .packing-redesign .document-workbench .travel-tools-list-card.active::before {
   background: #0f766e;
 }
 
+/**
+ * List card title text.
+ */
 .packing-redesign .document-workbench .travel-tools-list-card span {
   color: #25313d;
   font-size: 13px;
 }
 
+/**
+ * List card secondary text.
+ */
 .packing-redesign .document-workbench .travel-tools-list-card small {
   font-size: 11px;
 }
 
+/**
+ * Workspace detail with no padding.
+ */
 .packing-redesign .document-workbench .packing-workspace-detail {
   padding: 0;
   overflow: hidden;
@@ -4345,51 +6279,78 @@
   box-shadow: none;
 }
 
+/**
+ * Detail header with border bottom.
+ */
 .packing-redesign .document-workbench .packing-workspace-detail > .travel-tools-detail-header {
   padding: 18px 20px;
   border-bottom: 1px solid #d9e2ec;
   background: #f8fafc;
 }
 
+/**
+ * Detail header heading.
+ */
 .packing-redesign .document-workbench .packing-workspace-detail > .travel-tools-detail-header h3 {
   margin-bottom: 4px;
   color: #17212b;
   font-size: 24px;
 }
 
+/**
+ * Detail header description.
+ */
 .packing-redesign .document-workbench .packing-workspace-detail > .travel-tools-detail-header p {
   margin: 0;
   font-size: 12px;
 }
 
+/**
+ * Workspace label in detail header.
+ */
 .packing-redesign .document-workbench .packing-workspace-detail > .travel-tools-detail-header .travel-tools-workspace-label {
   color: #0f766e;
   font-size: 11px;
 }
 
+/**
+ * Workspace fields with single column.
+ */
 .packing-redesign .document-workbench .packing-workspace-fields {
   grid-template-columns: minmax(0, 1fr);
   padding: 16px 20px;
   border-bottom: 1px solid #e7edf3;
 }
 
+/**
+ * Status container in workspace.
+ */
 .packing-redesign .document-workspace-status {
   display: grid;
   gap: 6px;
   margin: 12px 20px 0;
 }
 
+/**
+ * Status message with padding.
+ */
 .packing-redesign .document-workspace-status .travel-tools-status {
   margin: 0;
   padding: 10px 12px;
   border-radius: 5px;
 }
 
+/**
+ * Workspace controls with no border.
+ */
 .packing-redesign .document-workbench .packing-workspace-controls {
   border: 0;
   border-radius: 0;
 }
 
+/**
+ * Actions menu panel with dark theme.
+ */
 .packing-redesign .document-workbench .travel-tools-actions-menu > div,
 .packing-redesign .packing-template-popup .travel-tools-actions-menu > div {
   gap: 5px;
@@ -4400,28 +6361,43 @@
   backdrop-filter: blur(14px);
 }
 
+/**
+ * Actions menu item text color.
+ */
 .packing-redesign .document-workbench .travel-tools-actions-menu button,
 .packing-redesign .packing-template-popup .travel-tools-actions-menu button {
   color: #f8fafc;
 }
 
+/**
+ * Actions menu item hover.
+ */
 .packing-redesign .document-workbench .travel-tools-actions-menu button:hover,
 .packing-redesign .packing-template-popup .travel-tools-actions-menu button:hover {
   background: rgba(255, 255, 255, 0.12);
   color: #5eead4;
 }
 
+/**
+ * Danger action hover.
+ */
 .packing-redesign .document-workbench .travel-tools-actions-menu button:last-child:hover,
 .packing-redesign .packing-template-popup .travel-tools-actions-menu button:last-child:hover {
   background: rgba(127, 29, 29, 0.5);
   color: #fecaca;
 }
 
+/**
+ * Modal backdrop with blur.
+ */
 .packing-redesign .travel-tools-modal-backdrop {
   background: rgba(23, 33, 43, 0.58);
   backdrop-filter: blur(6px);
 }
 
+/**
+ * Modal with glass effect.
+ */
 .packing-redesign .travel-tools-modal {
   border: 1px solid rgba(255, 255, 255, 0.64);
   border-radius: 6px;
@@ -4429,30 +6405,48 @@
   box-shadow: 0 24px 60px rgba(23, 33, 43, 0.3);
 }
 
+/**
+ * Modal header with border bottom.
+ */
 .packing-redesign .travel-tools-modal-header {
   align-items: flex-start;
   padding-bottom: 13px;
   border-bottom: 1px solid #d9e2ec;
 }
 
+/**
+ * Modal heading color.
+ */
 .packing-redesign .travel-tools-modal-header h3 {
   color: #0f766e;
 }
 
+/**
+ * Modal footer with border top.
+ */
 .packing-redesign .travel-tools-modal-actions {
   padding-top: 13px;
   border-top: 1px solid #d9e2ec;
 }
 
+/**
+ * Edit backdrops with higher z-index.
+ */
 .packing-redesign .packing-edit-backdrop,
 .packing-redesign .packing-template-edit-backdrop {
   z-index: 85;
 }
 
+/**
+ * Details edit modal width.
+ */
 .packing-redesign .packing-details-edit-modal {
   width: min(540px, 100%);
 }
 
+/**
+ * Template popup modal.
+ */
 .packing-redesign .packing-template-popup {
   display: grid;
   gap: 0;
@@ -4462,6 +6456,9 @@
   padding: 0;
 }
 
+/**
+ * Sticky header in template popup.
+ */
 .packing-redesign .packing-template-popup > .travel-tools-detail-header {
   position: sticky;
   top: 0;
@@ -4473,6 +6470,9 @@
   backdrop-filter: blur(14px);
 }
 
+/**
+ * Workspace label in template popup.
+ */
 .packing-redesign .packing-template-popup .travel-tools-workspace-label {
   color: #0f766e;
   font-size: 13px;
@@ -4480,6 +6480,9 @@
   letter-spacing: 0;
 }
 
+/**
+ * Header heading in template popup.
+ */
 .travel-documents-redesign .travel-document-template-workspace .travel-tools-detail-header h3,
 .packing-redesign .packing-template-popup .travel-tools-detail-header h3 {
   margin-bottom: 8px;
@@ -4489,6 +6492,9 @@
   letter-spacing: 0;
 }
 
+/**
+ * Header description in template popup.
+ */
 .packing-redesign .packing-template-popup .travel-tools-detail-header p {
   margin: 0;
   color: #64748b;
@@ -4496,6 +6502,9 @@
   line-height: 1.5;
 }
 
+/**
+ * Close button in template popup.
+ */
 .packing-redesign .packing-template-popup .document-template-close {
   display: grid;
   width: 36px;
@@ -4509,12 +6518,18 @@
   color: #64748b;
 }
 
+/**
+ * Status container in template popup.
+ */
 .packing-redesign .document-template-modal-status {
   display: grid;
   gap: 6px;
   margin: 12px 20px 0;
 }
 
+/**
+ * Template step container.
+ */
 .packing-redesign .document-template-step {
   display: grid;
   gap: 14px;
@@ -4525,10 +6540,16 @@
   background: #ffffff;
 }
 
+/**
+ * Details step with single column.
+ */
 .packing-redesign .document-template-details-step {
   grid-template-columns: minmax(0, 1fr);
 }
 
+/**
+ * Template step label.
+ */
 .packing-redesign .document-template-step label {
   display: grid;
   align-content: start;
@@ -4538,6 +6559,9 @@
   font-weight: 650;
 }
 
+/**
+ * Template step label span.
+ */
 .packing-redesign .document-template-step label > span,
 .packing-redesign .document-template-items-heading span {
   color: #0f766e;
@@ -4546,6 +6570,9 @@
   text-transform: uppercase;
 }
 
+/**
+ * Template step inputs.
+ */
 .packing-redesign .document-template-step input,
 .packing-redesign .document-template-step select,
 .packing-redesign .document-template-step textarea {
@@ -4560,12 +6587,18 @@
   outline: none;
 }
 
+/**
+ * Textarea in template step.
+ */
 .packing-redesign .document-template-step textarea {
   min-height: 112px;
   padding: 11px 12px;
   resize: vertical;
 }
 
+/**
+ * Focus state for template inputs.
+ */
 .packing-redesign .document-template-step input:focus,
 .packing-redesign .document-template-step select:focus,
 .packing-redesign .document-template-step textarea:focus {
@@ -4573,12 +6606,18 @@
   box-shadow: 0 0 0 3px rgba(15, 118, 110, 0.13);
 }
 
+/**
+ * Helper text in template step.
+ */
 .packing-redesign .document-template-step label small {
   color: #7b8794;
   font-size: 11px;
   line-height: 1.45;
 }
 
+/**
+ * Items heading with flex layout.
+ */
 .packing-redesign .document-template-items-heading {
   display: flex;
   align-items: center;
@@ -4588,16 +6627,25 @@
   border-bottom: 1px solid #e7edf3;
 }
 
+/**
+ * Items heading content.
+ */
 .packing-redesign .document-template-items-heading > div {
   display: grid;
   gap: 4px;
 }
 
+/**
+ * Items count text.
+ */
 .packing-redesign .document-template-items-heading strong {
   color: #25313d;
   font-size: 16px;
 }
 
+/**
+ * Edit list with scroll.
+ */
 .packing-redesign .document-template-edit-list {
   display: grid;
   gap: 10px;
@@ -4608,6 +6656,9 @@
   scrollbar-gutter: stable;
 }
 
+/**
+ * Inline edit item with grid layout.
+ */
 .packing-redesign .packing-template-inline-edit-item {
   display: grid;
   grid-template-columns: minmax(150px, 0.7fr) minmax(220px, 1fr) minmax(110px, 0.35fr) auto;
@@ -4619,6 +6670,9 @@
   background: #f8fafc;
 }
 
+/**
+ * Delete button in inline edit item.
+ */
 .packing-redesign .packing-template-inline-edit-item > button {
   display: grid;
   width: 42px;
@@ -4630,6 +6684,9 @@
   color: var(--color-danger);
 }
 
+/**
+ * Step actions footer.
+ */
 .packing-redesign .document-template-step-actions {
   display: flex;
   justify-content: flex-end;
@@ -4639,12 +6696,18 @@
   background: rgba(248, 250, 252, 0.92);
 }
 
+/**
+ * Step action buttons.
+ */
 .packing-redesign .document-template-step-actions button {
   display: inline-flex;
   align-items: center;
   gap: 7px;
 }
 
+/**
+ * Disabled primary action in step actions.
+ */
 .packing-redesign .document-template-step-actions .primary-action:disabled,
 .packing-redesign .document-template-step-actions .primary-action:disabled:hover {
   border-color: #cbd5e1;
@@ -4656,12 +6719,18 @@
   transform: none;
 }
 
+/**
+ * Direct actions for packing items.
+ */
 .packing-redesign .packing-item-direct-actions {
   display: inline-flex;
   align-items: center;
   gap: 6px;
 }
 
+/**
+ * Item title text color and size.
+ */
 .travel-documents-redesign .document-workbench .travel-tools-item-title-row strong,
 .packing-redesign .document-workbench .travel-tools-item-title-row strong {
   color: #25313d;
@@ -4670,14 +6739,23 @@
   line-height: 1.35;
 }
 
+/**
+ * Item category font size.
+ */
 .packing-redesign .document-workbench .travel-tools-item-category {
   font-size: 13px;
 }
 
+/**
+ * Item meta font size.
+ */
 .packing-redesign .document-workbench .travel-tools-item-meta span {
   font-size: 12px;
 }
 
+/**
+ * Icon action button for packing items.
+ */
 .packing-redesign .packing-item-icon-action {
   display: grid;
   width: 36px;
@@ -4689,20 +6767,36 @@
   color: #0f766e;
 }
 
+/**
+ * Icon action hover state.
+ */
 .packing-redesign .packing-item-icon-action:hover {
   border-color: #b7ddd8;
   background: #ecfdf5;
 }
 
+/**
+ * Delete action icon.
+ */
 .packing-redesign .packing-item-delete-action {
   color: var(--color-danger);
 }
 
+/**
+ * Delete action hover state.
+ */
 .packing-redesign .packing-item-delete-action:hover {
   border-color: #fecaca;
   background: #fef2f2;
 }
 
+/* ============================================================================
+   PACKING REDESIGN RESPONSIVE
+   ============================================================================ */
+
+/**
+ * Tablet breakpoint for packing redesign.
+ */
 @media (max-width: 1180px) {
   .packing-redesign .document-command-header,
   .packing-redesign .document-workbench {
@@ -4722,6 +6816,9 @@
   }
 }
 
+/**
+ * Mobile breakpoint for packing redesign.
+ */
 @media (max-width: 760px) {
   .packing-redesign .document-command-header {
     gap: 16px;
