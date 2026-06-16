@@ -31,7 +31,7 @@ const trip = {
   country: 'Japan',
   startDate: new Date('2026-07-01T00:00:00.000Z'),
   durationDays: 3,  // Trip spans 3 days - used for itinerary day generation
-  budget: { dailyLimit: 200, currency: 'MYR' },
+  budget: { totalAmount: 600, currency: 'MYR' },
 };
 
 // Test group covers itinerary operations including day generation,
@@ -61,7 +61,7 @@ describe('Itinerary service', () => {
         dayNumber: 1,
         title: 'Day 1',  // Default title for unmodified day
         location: expect.objectContaining({ name: 'Tokyo', country: 'Japan' }),
-        budget: { amount: 200, currency: 'MYR' },  // Daily budget from trip
+        budget: { amount: 0, currency: 'MYR' },  // Daily budgets are configured per itinerary day
       })
     );
   });
