@@ -10,6 +10,7 @@ const LANGUAGE_STORAGE_KEY = 'smartTravelPlanner.language';
 export const DEFAULT_LANGUAGE = 'english';
 
 let preferredLanguage = DEFAULT_LANGUAGE;
+
 // Format Language Label converts raw values into readable display text.
 const formatLanguageLabel = (value) =>
   value
@@ -17,6 +18,7 @@ const formatLanguageLabel = (value) =>
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(' ');
 
+// Maps language keys to their display labels for UI presentation
 const languageLabels = {
   english: 'English',
   chinese_simplified: '简体中文',
@@ -98,6 +100,7 @@ const languageLabels = {
   tongan: 'Lea Faka-Tonga',
 };
 
+// Maps language keys to country flag codes for visual language selection
 const languageFlags = {
   english: 'gb',
   chinese_simplified: 'cn',
@@ -178,8 +181,11 @@ const languageFlags = {
   malagasy: 'mg',
   tongan: 'to',
 };
+
+// Checks whether a given language key is supported in the system
 const isSupportedLanguage = (language) =>
   Boolean(language && Object.prototype.hasOwnProperty.call(languageLabels, language));
+
 // Save Preferred Language applies allowed changes to an existing record.
 const savePreferredLanguage = (language) => {
   if (!isSupportedLanguage(language) || typeof window === 'undefined') {
@@ -191,6 +197,8 @@ const savePreferredLanguage = (language) => {
     // Ignore storage failures so translation still works in private/restricted contexts.
   }
 };
+
+// Retrieves the saved language preference from local storage
 export const getSavedTranslateLanguage = () => {
   if (typeof window === 'undefined') {
     return DEFAULT_LANGUAGE;
@@ -202,6 +210,8 @@ export const getSavedTranslateLanguage = () => {
     return DEFAULT_LANGUAGE;
   }
 };
+
+// Returns a formatted list of all available languages with labels and flag URLs
 export const getAvailableLanguages = () =>
   Object.entries(languageLabels).map(([value, label]) => ({
     value,
@@ -211,12 +221,15 @@ export const getAvailableLanguages = () =>
       ? `https://flagcdn.com/24x18/${languageFlags[value]}.png`
       : '',
   }));
+
 // Remove Default Translate Selector removes a record after ownership checks.
 const removeDefaultTranslateSelector = () => {
   document
     .querySelectorAll('#translate, .translateSelectLanguage')
     .forEach((element) => element.remove());
 };
+
+// Configures the translate library with the preferred language settings
 const configureTranslate = (language = preferredLanguage) => {
   preferredLanguage = isSupportedLanguage(language) ? language : DEFAULT_LANGUAGE;
   savePreferredLanguage(preferredLanguage);
@@ -229,6 +242,8 @@ const configureTranslate = (language = preferredLanguage) => {
   window.translate.changeLanguage(preferredLanguage);
   removeDefaultTranslateSelector();
 };
+
+// Loads the translate client library and initializes translation
 export const loadTranslateClient = (language = DEFAULT_LANGUAGE) =>
   new Promise((resolve, reject) => {
     preferredLanguage = isSupportedLanguage(language) ? language : DEFAULT_LANGUAGE;
@@ -263,6 +278,8 @@ export const loadTranslateClient = (language = DEFAULT_LANGUAGE) =>
 
     document.body.appendChild(script);
   });
+
+// Changes the current translation language and persists the preference
 export const changeTranslateLanguage = (language) => {
   preferredLanguage = isSupportedLanguage(language) ? language : DEFAULT_LANGUAGE;
   savePreferredLanguage(preferredLanguage);
@@ -278,6 +295,8 @@ export const changeTranslateLanguage = (language) => {
     })
     .catch(() => {});
 };
+
+// Re-applies translation to the current page content after DOM updates
 export const refreshTranslatedContent = () => {
   if (!window.translate) {
     return;
@@ -295,13 +314,19 @@ export const refreshTranslatedContent = () => {
 
   window.setTimeout(refresh, 0);
 };
+
+// Fetches the list of available languages from the server-side language helper
 export const getLanguageHelperLanguages = () => axiosClient.get('/language/languages');
+
+// Translates text from source language to target language using the language helper
 export const translateLanguageHelperText = ({ sourceLanguage, targetLanguage, text }) =>
   axiosClient.post('/language/translate', {
     sourceLanguage,
     targetLanguage,
     text,
   });
+
+// Retrieves translation history with pagination and search capabilities
 export const getLanguageHelperHistory = ({ page = 1, limit = 10, search = '' } = {}) =>
   axiosClient.get('/language/history', {
     params: { page, limit, search },

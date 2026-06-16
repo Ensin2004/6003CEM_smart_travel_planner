@@ -2,6 +2,8 @@
  * App styles.
  * Layout, spacing, and interaction rules support the matching React view.
  */
+
+/* Styles for interactive counter element with hover and focus states */
 .counter {
   font-size: 16px;
   padding: 5px 10px;
@@ -19,6 +21,8 @@
     outline-offset: 2px;
   }
 }
+
+/* Hero section positioning for stacked technology logos */
 .hero {
   position: relative;
 
@@ -54,6 +58,8 @@
       scale(0.8);
   }
 }
+
+/* Centered layout container with flex column and responsive padding */
 #center {
   display: flex;
   flex-direction: column;
@@ -67,6 +73,8 @@
     gap: 18px;
   }
 }
+
+/* Next steps section with flexible layout and responsive behavior */
 #next-steps {
   display: flex;
   border-top: 1px solid var(--border);
@@ -91,6 +99,7 @@
   }
 }
 
+/* Documentation section with border styling for separation */
 #docs {
   border-right: 1px solid var(--border);
 
@@ -100,6 +109,7 @@
   }
 }
 
+/* Social links list with icon alignment and responsive grid */
 #next-steps ul {
   list-style: none;
   padding: 0;
@@ -149,6 +159,7 @@
   }
 }
 
+/* Spacer element with top border for visual separation */
 #spacer {
   height: 88px;
   border-top: 1px solid var(--border);
@@ -157,6 +168,7 @@
   }
 }
 
+/* Tick marks at the edges of the container with triangular indicators */
 .ticks {
   position: relative;
   width: 100%;

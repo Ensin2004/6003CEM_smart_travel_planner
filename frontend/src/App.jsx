@@ -9,14 +9,21 @@ import { CompareProvider } from './context/CompareProvider';
 import { CurrencyProvider } from './context/CurrencyProvider';
 import { NotificationProvider } from './context/NotificationProvider';
 import './styles/index.css';
+
 // App renders the main screen and handles nearby interactions.
 function App() {
   return (
+    // Provides client-side routing capabilities for the entire application
     <BrowserRouter>
+      {/* Manages authentication state and session across the application */}
       <AuthProvider>
+        {/* Handles real-time notifications and alerts throughout the app */}
         <NotificationProvider>
+          {/* Provides currency conversion and exchange rate functionality globally */}
           <CurrencyProvider>
+            {/* Manages comparison state for items across different contexts */}
             <CompareProvider>
+              {/* Defines the main route configuration and page rendering */}
               <AppRoutes />
             </CompareProvider>
           </CurrencyProvider>
@@ -25,5 +32,6 @@ function App() {
     </BrowserRouter>
   );
 }
-// Default export registers the primary  value.
+
+// Default export registers the primary value.
 export default App;

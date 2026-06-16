@@ -6,9 +6,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { logoutSession } from '../api/authApi';
 import AuthContext from './authContext';
 
+// Default idle timeout configuration for automatic session expiration
 const DEFAULT_IDLE_TIMEOUT_MINUTES = 30;
 const idleTimeoutMinutes = Number(import.meta.env.VITE_IDLE_TIMEOUT_MINUTES || DEFAULT_IDLE_TIMEOUT_MINUTES);
 const IDLE_TIMEOUT_MS = Math.max(idleTimeoutMinutes, 1) * 60 * 1000;
+
+// Clears all stored session data from local storage
 const clearStoredSession = () => {
   localStorage.removeItem('accessToken');
   localStorage.removeItem('refreshToken');
@@ -17,6 +20,7 @@ const clearStoredSession = () => {
 };
 
 export function AuthProvider({ children }) {
+  // Initializes user state from stored session data
   const [user, setUser] = useState(() => {
     const savedToken = localStorage.getItem('accessToken');
     const savedUser = localStorage.getItem('user');
@@ -32,6 +36,7 @@ export function AuthProvider({ children }) {
     }
   });
 
+  // Logout function that clears session, revokes token, and optionally redirects
   const logout = useCallback(({ redirect = false, revoke = true } = {}) => {
     const refreshToken = localStorage.getItem('refreshToken');
 
@@ -45,6 +50,8 @@ export function AuthProvider({ children }) {
       window.location.assign('/login');
     }
   }, []);
+
+  // Sets up idle session monitoring with activity detection
   useEffect(() => {
     if (!user || !localStorage.getItem('accessToken')) {
       return undefined;
@@ -52,6 +59,8 @@ export function AuthProvider({ children }) {
 
     const activityEvents = ['click', 'keydown', 'mousemove', 'scroll', 'touchstart'];
     let lastActivityWriteAt = 0;
+
+    // Marks user activity timestamp in local storage with throttling
     const markActivity = () => {
       if (Date.now() - lastActivityWriteAt < 10000) {
         return;
@@ -60,6 +69,8 @@ export function AuthProvider({ children }) {
       lastActivityWriteAt = Date.now();
       localStorage.setItem('lastActivityAt', String(Date.now()));
     };
+
+    // Checks if the session has exceeded the idle timeout
     const checkIdleSession = () => {
       const lastActivityAt = Number(localStorage.getItem('lastActivityAt') || Date.now());
 
@@ -71,12 +82,15 @@ export function AuthProvider({ children }) {
     markActivity();
     activityEvents.forEach((eventName) => window.addEventListener(eventName, markActivity, { passive: true }));
     const idleInterval = window.setInterval(checkIdleSession, 30 * 1000);
+
     // Cleanup prevents state updates after component unmount.
     return () => {
       activityEvents.forEach((eventName) => window.removeEventListener(eventName, markActivity));
       window.clearInterval(idleInterval);
     };
   }, [logout, user]);
+
+  // Memoized context value for auth state and methods
   const value = useMemo(
     () => ({
       user,

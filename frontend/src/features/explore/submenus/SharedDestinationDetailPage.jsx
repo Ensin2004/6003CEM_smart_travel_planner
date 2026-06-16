@@ -145,15 +145,6 @@ const getVisitTimingText = (place = {}) => {
     note: 'Use the Google listing for current hours.',
   };
 };
-const getReviewIdentifiers = (place = {}) => {
-  const fallbackId = String(place.id || '');
-  const idLooksLikeGoogleReference = fallbackId.startsWith('ChIJ') || fallbackId.startsWith('0x');
-
-  return {
-    dataId: place.dataId || (fallbackId.startsWith('0x') ? fallbackId : ''),
-    placeId: place.placeId || (idLooksLikeGoogleReference && fallbackId.startsWith('ChIJ') ? fallbackId : ''),
-  };
-};
 const getEstimatedPriceText = ({ config, place = {}, currencyCode = 'USD' }) => {
   const category = String(place.category || place.type || '').toLowerCase();
   let usdRange = [];
@@ -220,7 +211,7 @@ function SharedDestinationDetailPage({
   const [reviewSearch, setReviewSearch] = useState('');
   const [minRating, setMinRating] = useState('all');
   const [visibleReviewCount, setVisibleReviewCount] = useState(reviewPageSize);
-  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [selectedImageSelection, setSelectedImageSelection] = useState({ placeKey: '', index: 0 });
 
   useEffect(() => {
     let isActive = true;
@@ -309,11 +300,10 @@ function SharedDestinationDetailPage({
       setError(getErrorMessage(requestError));
     }
   };
-  useEffect(() => {
-    setSelectedImageIndex(0);
-  }, [place?.id, place?.dataId, place?.placeId]);
-
   const galleryImages = getGalleryImages(place);
+  const selectedImagePlaceKey = String(place?.id || place?.dataId || place?.placeId || place?.name || '');
+  const selectedImageIndex =
+    selectedImageSelection.placeKey === selectedImagePlaceKey ? selectedImageSelection.index : 0;
   const primaryImage = galleryImages[selectedImageIndex] || getPrimaryImage(place);
   const primaryImageSrc = getPlaceImageSrc(primaryImage);
   const openedFromSearchResult = description?.source === 'search-result';
@@ -435,7 +425,7 @@ function SharedDestinationDetailPage({
                       className={`shared-detail-thumb ${selectedImageIndex === index ? 'active' : ''}`}
                       key={`${imageUrl}-${index}`}
                       type="button"
-                      onClick={() => setSelectedImageIndex(index)}
+                      onClick={() => setSelectedImageSelection({ placeKey: selectedImagePlaceKey, index })}
                     >
                       <img src={getPlaceImageSrc(imageUrl)} alt="" loading="lazy" />
                     </button>

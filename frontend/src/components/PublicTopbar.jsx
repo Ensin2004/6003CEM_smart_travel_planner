@@ -6,11 +6,14 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import logo from '../assets/logo.png';
 import publicNavItems from './publicNavItems';
 import './PublicTopbar.css';
+
 // PublicTopbar renders the main screen and handles nearby interactions.
 function PublicTopbar() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
   const isLandingPage = pathname === '/';
+
+  // Handles smooth scrolling to sections on the landing page or navigation to landing with hash
   const handleSectionClick = (event, sectionId) => {
     event.preventDefault();
 
@@ -22,11 +25,15 @@ function PublicTopbar() {
 
     navigate({ pathname: '/', hash: `#${sectionId}` });
   };
+
   return (
     <nav className="landing-nav public-topbar" aria-label="Main navigation">
+      {/* Brand logo linking to home page */}
       <Link className="brand-mark" to="/" aria-label="Smart Travel Planner home">
         <img className="brand-logo" src={logo} alt="" aria-hidden="true" />
       </Link>
+
+      {/* Public navigation links with icons */}
       <div className="nav-links">
         {publicNavItems.map(([Icon, label, sectionId]) => (
           <a
@@ -39,6 +46,8 @@ function PublicTopbar() {
           </a>
         ))}
       </div>
+
+      {/* Authentication action buttons */}
       <div className="nav-actions">
         <Link to="/login">Login</Link>
         <Link className="nav-button" to="/register">
@@ -48,5 +57,6 @@ function PublicTopbar() {
     </nav>
   );
 }
-// Default export registers the primary  value.
+
+// Default export registers the primary value.
 export default PublicTopbar;

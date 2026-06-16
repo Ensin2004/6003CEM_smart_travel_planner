@@ -548,7 +548,7 @@ function ExplorePage() {
   const getWeatherDestination = (criteria) =>
     [criteria.destination, criteria.state, criteria.country].filter(Boolean).join(', ');
 
-  const getWeatherRequest = (criteria, items = []) => {
+  const getWeatherRequest = useCallback((criteria, items = []) => {
     const weatherDestination = getWeatherDestination(criteria);
     const locatedItem = items.find((item) => item.coordinates?.latitude && item.coordinates?.longitude);
     const coordinateLabel = locatedItem ? locatedItem.address || locatedItem.name || 'Selected search area' : '';
@@ -563,8 +563,8 @@ function ExplorePage() {
       longitude: locatedItem?.coordinates?.longitude ?? (weatherDestination ? undefined : hasCurrentCoordinates ? currentLongitude : undefined),
       locationLabel: coordinateLabel || weatherDestination || currentLocationLabel,
     };
-  };
-  const fetchDestinationWeather = async (viewId, weatherRequest) => {
+  }, [currentLocation.latitude, currentLocation.longitude, currentLocationName, destination]);
+  const fetchDestinationWeather = useCallback(async (viewId, weatherRequest) => {
     const weatherDestination = weatherRequest?.destination;
     const hasCoordinates = Number.isFinite(Number(weatherRequest?.latitude)) && Number.isFinite(Number(weatherRequest?.longitude));
 
@@ -601,7 +601,7 @@ function ExplorePage() {
     } finally {
       setWeatherLoadingView('');
     }
-  };
+  }, [travelDate]);
 
   useEffect(() => {
     if (!isSearchView || hasResults || activeWeather || isWeatherLoading) {
@@ -629,6 +629,8 @@ function ExplorePage() {
     currentLocation.latitude,
     currentLocation.longitude,
     currentLocation.state,
+    fetchDestinationWeather,
+    getWeatherRequest,
     hasResults,
     isSearchView,
     isWeatherLoading,

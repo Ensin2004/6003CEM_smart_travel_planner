@@ -99,7 +99,7 @@ function ExploreAiPanel({
     ]
       .filter(Boolean)
       .join('\n');
-  }, [activeAi?.summary, activeOption.label, destinationLabel, items, locationLabel, resultCount]);
+  }, [activeAi, activeOption.label, destinationLabel, items, locationLabel, resultCount]);
 
   const openQuestionMode = (question = '') => {
     setPanelMode('question');
