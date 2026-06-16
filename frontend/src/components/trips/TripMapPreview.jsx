@@ -8,7 +8,9 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { defaultMapCenter, getTripMapPoint } from './tripMapUtils';
 import './TripMapPreview.css';
+
 // Ordinary places use map pins, while optimized routes use numbered stop markers.
+// Creates a custom Leaflet divIcon marker with appropriate styling for different pin types
 const createTripMarker = ({
   index,
   tone = 'primary',
@@ -16,12 +18,15 @@ const createTripMarker = ({
   isHighlighted = false,
   showStopOrder = false,
 }) => {
+  // Builds the CSS class string for the marker based on its type and state
   const markerClass = [
     'shared-trip-map-pin',
     `shared-trip-map-pin-${tone}`,
     showStopOrder ? 'shared-trip-map-pin-numbered' : 'shared-trip-map-pin-location',
     isHighlighted ? 'shared-trip-map-pin-highlighted' : '',
   ].filter(Boolean).join(' ');
+  
+  // Determines what content to display inside the marker
   const markerContent = showStopOrder || isHighlighted
     ? label
     : '<span class="shared-trip-map-pin-dot"></span>';
@@ -34,12 +39,14 @@ const createTripMarker = ({
   });
 };
 
+// Updates the map view based on focus state, route bounds, or center coordinates
 function MapViewUpdater({ center, focusCenter, focusOffset, routeCoordinates, zoom }) {
   const map = useMap();
   const [latitude, longitude] = center;
   const [focusOffsetX, focusOffsetY] = focusOffset;
 
   useEffect(() => {
+    // When focusCenter is true, fly to a specific offset point
     if (focusCenter) {
       const targetPoint = map.project([latitude, longitude], zoom);
       const offsetCenter = map.unproject(
@@ -50,11 +57,13 @@ function MapViewUpdater({ center, focusCenter, focusOffset, routeCoordinates, zo
       return;
     }
 
+    // When route coordinates exist, fit the map to show the entire route
     if (routeCoordinates?.length > 1) {
       map.fitBounds(routeCoordinates, { animate: true, padding: [42, 42] });
       return;
     }
 
+    // Default: set the view to the center coordinates
     map.setView([latitude, longitude], zoom, { animate: true });
   }, [focusCenter, focusOffsetX, focusOffsetY, latitude, longitude, map, routeCoordinates, zoom]);
 
@@ -75,18 +84,24 @@ function TripMapPreview({
   showZoomControl = false,
   zoom,
 }) {
+  // Filters places that have location data (city, title, or name)
   const visiblePlaces = places.filter((place) => place?.city || place?.title || place?.name);
   const mapPoints = visiblePlaces.map(getTripMapPoint);
+  
+  // Determines the map center from provided coordinates or falls back to first place or default
   const requestedCenter = Array.isArray(center)
     && Number.isFinite(Number(center[0]))
     && Number.isFinite(Number(center[1]))
     ? [Number(center[0]), Number(center[1])]
     : null;
   const mapCenter = requestedCenter || mapPoints[0] || defaultMapCenter;
+  
+  // Sets zoom level: higher zoom for multiple places, lower for single place
   const mapZoom = zoom || (visiblePlaces.length > 1 ? 5 : 6);
   const routeCoordinates = route?.coordinates || [];
   const showStopOrder = routeCoordinates.length > 1;
   const highlightedPoint = highlightedPlace ? getTripMapPoint(highlightedPlace) : null;
+
   return (
     <div className={`shared-trip-map ${className}`.trim()}>
       <MapContainer
@@ -97,6 +112,7 @@ function TripMapPreview({
         attributionControl={false}
         className="shared-trip-leaflet-map"
       >
+        {/* Updates map view based on focus state or route bounds */}
         <MapViewUpdater
           center={mapCenter}
           focusCenter={focusCenter}
@@ -104,13 +120,19 @@ function TripMapPreview({
           routeCoordinates={routeCoordinates}
           zoom={mapZoom}
         />
+        
+        {/* OpenStreetMap tile layer with minimal attribution */}
         <TileLayer
           attribution=""
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
+        
+        {/* Connection line between points when no route is available */}
         {!routeCoordinates.length && mapPoints.length > 1
           ? <Polyline positions={mapPoints} pathOptions={{ color: '#0f766e', weight: 4 }} />
           : null}
+        
+        {/* Alternative route polylines shown as dashed lines for visual comparison */}
         {(route?.alternatives || [])
           .filter((alternative) => alternative.id !== route.id)
           .map((alternative) => (
@@ -120,9 +142,13 @@ function TripMapPreview({
               pathOptions={{ color: '#64748b', dashArray: '8 8', opacity: 0.5, weight: 4 }}
             />
           ))}
+        
+        {/* Main route polyline with prominent blue styling */}
         {routeCoordinates.length ? (
           <Polyline positions={routeCoordinates} pathOptions={{ color: '#2563eb', opacity: 0.92, weight: 5 }} />
         ) : null}
+        
+        {/* Renders markers for each visible place with appropriate styling */}
         {visiblePlaces.map((place, index) => {
           const point = getTripMapPoint(place, index);
           const isHighlighted = Boolean(
@@ -137,6 +163,7 @@ function TripMapPreview({
               position={point}
               icon={createTripMarker({
                 index,
+                // Selects color tone based on place type or day number
                 tone: place.type === 'idea' ? 'idea' : place.dayNumber ? `day-${((place.dayNumber - 1) % 6) + 1}` : 'primary',
                 label: showStopOrder ? index + 1 : place.dayNumber || index + 1,
                 isHighlighted,
@@ -168,5 +195,6 @@ function TripMapPreview({
     </div>
   );
 }
-// Default export registers the primary  value.
+
+// Default export registers the primary value.
 export default TripMapPreview;

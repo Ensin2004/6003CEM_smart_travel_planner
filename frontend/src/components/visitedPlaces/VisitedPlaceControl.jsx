@@ -7,11 +7,13 @@ import { useEffect, useRef, useState } from 'react';
 import { markVisitedPlace } from '../../api/visitedPlaceApi';
 import './VisitedPlaceControl.css';
 
+// Formats a date value to the YYYY-MM-DD string required by input[type="date"]
 const formatInputDate = (date) => {
   if (!date) return '';
   return new Date(date).toISOString().slice(0, 10);
 };
 
+// Generates a summary string for the visited place based on the record data
 const getVisitSummary = (visitedRecord) => {
   if (!visitedRecord) return 'Mark visited';
   const visitCount = visitedRecord.visitCount || visitedRecord.visits?.reduce((total, visit) => total + Number(visit.visitCount || 1), 0) || 1;
@@ -21,6 +23,7 @@ const getVisitSummary = (visitedRecord) => {
   return `Visited ${visitCount}x`;
 };
 
+// Main component for marking and managing visited places with popover form
 function VisitedPlaceControl({
   payload,
   visitedRecord,
@@ -35,11 +38,13 @@ function VisitedPlaceControl({
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
 
+  // Closes the popover and resets error state
   const closePopover = () => {
     setIsOpen(false);
     setError('');
   };
 
+  // Sets up click-outside and escape key handlers when popover is open
   useEffect(() => {
     if (!isOpen) return undefined;
 
@@ -63,6 +68,7 @@ function VisitedPlaceControl({
     };
   }, [isOpen]);
 
+  // Submits the visited place data to the API and notifies parent components
   const saveVisitedPlace = async (event) => {
     event.preventDefault();
     if (!payload || isSaving) return;
@@ -99,6 +105,7 @@ function VisitedPlaceControl({
       onClick={(event) => event.stopPropagation()}
       onKeyDown={(event) => event.stopPropagation()}
     >
+      {/* Main button that toggles the popover */}
       <button
         className={visitedRecord ? 'visited-place-button is-visited' : 'visited-place-button'}
         type="button"
@@ -109,6 +116,7 @@ function VisitedPlaceControl({
         {getVisitSummary(visitedRecord)}
       </button>
 
+      {/* Popover form for adding visit details */}
       {isOpen ? (
         <form className="visited-place-popover" onSubmit={saveVisitedPlace}>
           <div className="visited-place-popover-header">
@@ -122,15 +130,21 @@ function VisitedPlaceControl({
               <X size={15} aria-hidden="true" />
             </button>
           </div>
+          
+          {/* Visited date input field */}
           <label>
             <span>Visited date optional</span>
             <input type="date" value={visitedDate} onChange={(event) => setVisitedDate(event.target.value)} />
           </label>
+          
+          {/* Quick fill button for planned date from payload */}
           {payload?.visitedDate ? (
             <button className="visited-place-secondary" type="button" onClick={() => setVisitedDate(formatInputDate(payload.visitedDate))}>
               Use planned date
             </button>
           ) : null}
+          
+          {/* Visit count input with min/max constraints */}
           <label>
             <span>Number of visits</span>
             <input
@@ -141,11 +155,17 @@ function VisitedPlaceControl({
               onChange={(event) => setVisitCount(Math.max(1, Number(event.target.value) || 1))}
             />
           </label>
+          
+          {/* Optional notes input */}
           <label>
             <span>Note</span>
             <input value={notes} onChange={(event) => setNotes(event.target.value)} maxLength="500" placeholder="Optional memory" />
           </label>
+          
+          {/* Error message display */}
           {error ? <p role="alert">{error}</p> : null}
+          
+          {/* Submit button with loading state */}
           <button type="submit" disabled={isSaving}>
             {isSaving ? <LoaderCircle className="visited-place-spin" size={14} aria-hidden="true" /> : <PlusCircle size={14} aria-hidden="true" />}
             Add visit

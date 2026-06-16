@@ -2,6 +2,8 @@
  * Visited place helpers.
  * Shared identity helpers keep watermarks consistent across travel surfaces.
  */
+
+// Normalizes a string for consistent comparison by trimming, lowercasing, and collapsing spaces
 const normalizeKeyPart = (value) =>
   String(value || '')
     .trim()
@@ -9,6 +11,7 @@ const normalizeKeyPart = (value) =>
     .replace(/\s+/g, ' ')
     .slice(0, 180);
 
+// Builds a unique key for a visited place by combining type, externalId, title, and address
 export const buildVisitedPlaceKey = ({
   type = 'location',
   externalId = '',
@@ -21,6 +24,7 @@ export const buildVisitedPlaceKey = ({
     .filter(Boolean)
     .join('|');
 
+// Constructs a payload object for marking a place as visited with all required fields
 export const getVisitedPlacePayload = ({
   item = {},
   type = 'location',
@@ -51,8 +55,10 @@ export const getVisitedPlacePayload = ({
   };
 };
 
+// Builds a lookup map from an array of visited places for O(1) retrieval by placeKey
 export const buildVisitedLookup = (visitedPlaces = []) =>
   visitedPlaces.reduce((lookup, place) => {
     if (place.placeKey) lookup[place.placeKey] = place;
     return lookup;
   }, {});
+  

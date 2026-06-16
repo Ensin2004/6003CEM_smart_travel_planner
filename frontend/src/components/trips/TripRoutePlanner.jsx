@@ -20,6 +20,7 @@ import {
 import { getRouteBetweenPlaces, searchOpenStreetMapPlaces } from '../../api/mapApi';
 import './TripRoutePlanner.css';
 
+// Defines available travel modes with their identifiers, labels, and icons
 const routeModes = [
   { id: 'car', label: 'Car', icon: Car },
   { id: 'walking', label: 'Walk', icon: Footprints },
@@ -28,6 +29,7 @@ const routeModes = [
   { id: 'plane', label: 'Plane', icon: Plane },
 ];
 
+// Formats duration in seconds to a human-readable string
 const formatDuration = (seconds) => {
   if (!Number.isFinite(Number(seconds))) return '--';
   const minutes = Math.max(1, Math.round(Number(seconds) / 60));
@@ -37,6 +39,7 @@ const formatDuration = (seconds) => {
   return `${hours} hr${hours === 1 ? '' : 's'}${remainingMinutes ? ` ${remainingMinutes} min` : ''}`;
 };
 
+// Formats distance in meters to a human-readable string
 const formatDistance = (meters) => {
   if (!Number.isFinite(Number(meters))) return '--';
   return Number(meters) < 1000
@@ -44,6 +47,7 @@ const formatDistance = (meters) => {
     : `${(Number(meters) / 1000).toFixed(1)} km`;
 };
 
+// Normalizes various place formats into a consistent route point object
 const normalizeRoutePoint = (place, index = 0) => ({
   id: place.id || `trip-route-point-${Date.now()}-${index}`,
   name: place.name || place.title || place.city || `Stop ${index + 1}`,
@@ -56,18 +60,23 @@ function TripRoutePlanner({ itineraryPlaces = [], plan, onPlanChange }) {
   const [query, setQuery] = useState('');
   const [suggestions, setSuggestions] = useState([]);
   const [searchStatus, setSearchStatus] = useState('idle');
+  
+  // Extracts current plan state
   const selectedMode = plan.selectedMode || 'car';
   const selectedModeRoute = plan.results[selectedMode];
   const selectedRoute = selectedModeRoute?.alternatives?.find(
     (routeOption) => routeOption.id === plan.selectedRouteId
   ) || selectedModeRoute;
 
+  // Filters and normalizes itinerary places to valid route points
   const usableItineraryPlaces = useMemo(() => itineraryPlaces
     .map(normalizeRoutePoint)
     .filter((place) => Number.isFinite(place.lat) && Number.isFinite(place.lng)), [itineraryPlaces]);
 
+  // Updates the plan with the provided patch
   const updatePlan = (patch) => onPlanChange((currentPlan) => ({ ...currentPlan, ...patch }));
 
+  // Searches for places using OpenStreetMap based on the current query
   const searchPlaces = async (event) => {
     event.preventDefault();
     if (query.trim().length < 2) return;
@@ -84,6 +93,7 @@ function TripRoutePlanner({ itineraryPlaces = [], plan, onPlanChange }) {
     }
   };
 
+  // Adds a point to the route plan and clears search state
   const addPoint = (place) => {
     const point = normalizeRoutePoint(place, plan.points.length);
     if (!Number.isFinite(point.lat) || !Number.isFinite(point.lng)) return;
@@ -99,6 +109,7 @@ function TripRoutePlanner({ itineraryPlaces = [], plan, onPlanChange }) {
     setSuggestions([]);
   };
 
+  // Removes a point from the route plan
   const removePoint = (pointId) => {
     updatePlan({
       points: plan.points.filter((point) => point.id !== pointId),
@@ -109,6 +120,7 @@ function TripRoutePlanner({ itineraryPlaces = [], plan, onPlanChange }) {
     });
   };
 
+  // Adds all itinerary stops to the route plan, deduplicating by id
   const addItineraryStops = () => {
     const uniquePoints = new Map(plan.points.map((point) => [point.id, point]));
     usableItineraryPlaces.forEach((point) => uniquePoints.set(point.id, point));
@@ -121,6 +133,7 @@ function TripRoutePlanner({ itineraryPlaces = [], plan, onPlanChange }) {
     });
   };
 
+  // Calculates routes for all travel modes using Dijkstra optimization
   const calculateRoutes = async () => {
     if (plan.points.length < 2) {
       updatePlan({ status: 'error', message: 'Add at least two stops to calculate routes.' });
@@ -152,6 +165,7 @@ function TripRoutePlanner({ itineraryPlaces = [], plan, onPlanChange }) {
     }
   };
 
+  // Selects a travel mode and updates the active route
   const selectMode = (modeId) => {
     const modeRoute = plan.results[modeId];
     updatePlan({
@@ -163,12 +177,14 @@ function TripRoutePlanner({ itineraryPlaces = [], plan, onPlanChange }) {
 
   return (
     <div className="trip-route-workspace">
+      {/* Header section explaining Dijkstra optimization */}
       <section className="trip-route-intro">
         <span><Sparkles size={15} aria-hidden="true" /> Dijkstra optimization</span>
         <h3>Build the most efficient stop order</h3>
         <p>The first and last stops stay fixed while intermediate stops are reordered for the shortest path.</p>
       </section>
 
+      {/* Search form for adding route points */}
       <form className="trip-route-search" onSubmit={searchPlaces}>
         <input
           value={query}
@@ -182,6 +198,7 @@ function TripRoutePlanner({ itineraryPlaces = [], plan, onPlanChange }) {
         </button>
       </form>
 
+      {/* Search suggestions list */}
       {suggestions.length ? (
         <div className="trip-route-suggestions">
           {suggestions.map((place) => (
@@ -196,6 +213,7 @@ function TripRoutePlanner({ itineraryPlaces = [], plan, onPlanChange }) {
         </div>
       ) : null}
 
+      {/* Button to add all itinerary stops at once */}
       {usableItineraryPlaces.length ? (
         <button className="trip-route-itinerary-button" type="button" onClick={addItineraryStops}>
           <Route size={15} aria-hidden="true" />
@@ -203,6 +221,7 @@ function TripRoutePlanner({ itineraryPlaces = [], plan, onPlanChange }) {
         </button>
       ) : null}
 
+      {/* List of current route points */}
       <section className="trip-route-stops" aria-label="Route stops">
         <header>
           <strong>Route points</strong>
@@ -222,6 +241,7 @@ function TripRoutePlanner({ itineraryPlaces = [], plan, onPlanChange }) {
         )) : <p>Add two or more places to start planning.</p>}
       </section>
 
+      {/* Calculate routes button */}
       <button
         className="trip-route-calculate"
         type="button"
@@ -234,6 +254,7 @@ function TripRoutePlanner({ itineraryPlaces = [], plan, onPlanChange }) {
         {plan.status === 'loading' ? 'Calculating routes...' : 'Optimize and compare modes'}
       </button>
 
+      {/* Travel mode comparison grid */}
       <div className="trip-route-mode-grid" aria-label="Travel mode times">
         {routeModes.map((mode) => {
           const ModeIcon = mode.icon;
@@ -253,6 +274,7 @@ function TripRoutePlanner({ itineraryPlaces = [], plan, onPlanChange }) {
         })}
       </div>
 
+      {/* Route alternatives for the selected mode */}
       {selectedModeRoute?.alternatives?.length ? (
         <section className="trip-route-alternatives">
           <header>
@@ -278,6 +300,7 @@ function TripRoutePlanner({ itineraryPlaces = [], plan, onPlanChange }) {
         </section>
       ) : null}
 
+      {/* Optimization summary note */}
       {selectedModeRoute?.optimization ? (
         <p className="trip-route-optimization-note">
           Dijkstra optimized {selectedModeRoute.optimization.pointOrder.length} stops
@@ -286,6 +309,8 @@ function TripRoutePlanner({ itineraryPlaces = [], plan, onPlanChange }) {
             : '.'}
         </p>
       ) : null}
+      
+      {/* Status message display */}
       {plan.message ? <p className={`trip-route-message is-${plan.status}`}>{plan.message}</p> : null}
     </div>
   );

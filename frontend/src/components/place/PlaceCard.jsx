@@ -25,6 +25,8 @@ import { getVisitedPlacePayload } from '../visitedPlaces/visitedPlaceUtils';
 import { buildPlaceFavoritePayload } from '../../utils/favoriteUtils';
 import { getPlaceImageSrc } from '../../utils/placeImageProxy';
 import './PlaceCard.css';
+
+// Determines open/closed status from the openState string
 const getOpenStatus = (openState = '') => {
   const normalizedState = openState.toLowerCase();
 
@@ -38,8 +40,12 @@ const getOpenStatus = (openState = '') => {
 
   return { label: 'Hours unknown', tone: 'unknown' };
 };
+
+// Set of values considered as "missing" price information
 const missingPriceValues = new Set(['', '-', 'price unavailable', 'unavailable', 'not provided']);
 const hasPriceText = (value = '') => !missingPriceValues.has(String(value).trim().toLowerCase());
+
+// Approximate exchange rates for price estimation
 const approximateUsdRates = {
   USD: 1,
   MYR: 4.7,
@@ -51,20 +57,28 @@ const approximateUsdRates = {
   IDR: 16200,
   VND: 25400,
 };
+
+// Determines the currency code for a place from price details or fallback
 const getCurrencyForPlace = ({ item = {}, fallbackCurrency = 'USD' }) => {
   if (item.priceDetail?.currency) return item.priceDetail.currency;
   return fallbackCurrency || 'USD';
 };
+
+// Formats an amount as currency using Intl.NumberFormat
 const formatEstimatedMoney = (amount, currencyCode) =>
   new Intl.NumberFormat(undefined, {
     style: 'currency',
     currency: currencyCode,
     maximumFractionDigits: amount >= 1000 ? 0 : 2,
   }).format(amount);
+
+// Converts a USD range to the target currency using approximate rates
 const convertEstimateRange = (range, currencyCode) => {
   const rate = approximateUsdRates[currencyCode] || approximateUsdRates.USD;
   return range.map((amount) => amount * rate);
 };
+
+// Generates estimated price text for hotels and restaurants based on category
 const getEstimatedPriceText = ({ type, category = '', currencyCode = 'USD' }) => {
   const normalizedCategory = category.toLowerCase();
   let usdRange = [];
@@ -86,6 +100,8 @@ const getEstimatedPriceText = ({ type, category = '', currencyCode = 'USD' }) =>
   const [minimum, maximum] = convertEstimateRange(usdRange, currencyCode);
   return `${formatEstimatedMoney(minimum, currencyCode)} - ${formatEstimatedMoney(maximum, currencyCode)}`;
 };
+
+// Creates a deduplication key for image URLs to avoid duplicates
 const getImageDedupeKey = (imageUrl = '') => {
   try {
     const parsedUrl = new URL(imageUrl);
@@ -94,6 +110,8 @@ const getImageDedupeKey = (imageUrl = '') => {
     return imageUrl.split('?')[0].replace(/=[^/]+$/i, '');
   }
 };
+
+// Filters and deduplicates image URLs, preferring Google images over SerpAPI
 const getUniqueImages = (images = []) => {
   const seenImageKeys = new Set();
   const hasGoogleImage = images.some((imageUrl) => {
@@ -119,6 +137,7 @@ const getUniqueImages = (images = []) => {
     return true;
   });
 };
+
 // StarRating renders the main screen and handles nearby interactions.
 function StarRating({ rating }) {
   const normalizedRating = Math.max(0, Math.min(Number(rating) || 0, 5));
@@ -138,6 +157,7 @@ function StarRating({ rating }) {
     </div>
   );
 }
+
 // PlaceCard renders the main screen and handles nearby interactions.
 function PlaceCard({
   item,
@@ -157,10 +177,13 @@ function PlaceCard({
   visitedDefaultDate,
 }) {
   const navigate = useNavigate();
+  
+  // Memoized gallery images with deduplication
   const galleryImages = useMemo(() => {
     const imageCandidates = item.imageUrls?.length ? [item.imageUrl, ...item.imageUrls] : [item.imageUrl];
     return getUniqueImages(imageCandidates);
   }, [item.imageUrl, item.imageUrls]);
+  
   const [failedImages, setFailedImages] = useState(() => new Set());
   const visibleImages = useMemo(
     () => galleryImages.filter((imageUrl) => imageUrl && !failedImages.has(imageUrl)),
@@ -170,11 +193,14 @@ function PlaceCard({
   const normalizedImageIndex = activeImageIndex % Math.max(visibleImages.length, 1);
   const primaryImage = visibleImages[normalizedImageIndex];
   const primaryImageSrc = getPlaceImageSrc(primaryImage);
+  
   const openStatus = getOpenStatus(item.openState);
   const isHotelCard = type === 'hotels';
   const isFoodCard = type === 'food' || type === 'restaurants';
   const isAttractionCard = type === 'attractions';
   const canOpenDetails = isHotelCard || isFoodCard || isAttractionCard;
+  
+  // Builds visited place payload
   const visitedType = isHotelCard ? 'hotel' : isFoodCard ? 'restaurant' : type === 'food' ? 'food' : 'attraction';
   const visitedPayload = getVisitedPlacePayload({
     item: {
@@ -186,11 +212,15 @@ function PlaceCard({
     source: visitedSource || `explore-${type}`,
     defaultDate: visitedDefaultDate,
   });
+  
+  // Favorite state management
   const [favoriteOverride, setFavoriteOverride] = useState(null);
   const [currentFavoriteRecord, setCurrentFavoriteRecord] = useState(null);
   const [isSavingFavorite, setIsSavingFavorite] = useState(false);
   const effectiveFavoriteRecord = currentFavoriteRecord || favoriteRecord;
   const isFavorite = favoriteOverride ?? (Boolean(effectiveFavoriteRecord?._id) || isInitiallyFavorite);
+  
+  // Price display logic
   const priceIcon =
     type === 'hotels' ? (
       <Building2 size={16} aria-hidden="true" />
@@ -214,6 +244,8 @@ function PlaceCard({
   const originalPriceLabel = estimatedPrice ? 'AI price estimate' : 'Original price';
   const convertedPriceLabel = estimatedConvertedPrice && !hasPriceText(convertedPriceText) ? 'AI converted estimate' : 'Converted price';
   const displayHours = item.openState || 'Opening hours unavailable';
+  
+  // Comparison item preparation
   const compareItem = {
     ...item,
     category: categoryText,
@@ -222,6 +254,8 @@ function PlaceCard({
     hours: displayHours,
     imageUrl: primaryImage,
   };
+  
+  // Navigates to detail page for the selected place type
   const handleOpenDetails = () => {
     if (!canOpenDetails) return;
 
@@ -248,6 +282,8 @@ function PlaceCard({
       },
     });
   };
+  
+  // Handles favorite toggle with API calls
   const handleFavoriteClick = async (event) => {
     event.stopPropagation();
     if (isSavingFavorite) return;
@@ -279,11 +315,14 @@ function PlaceCard({
       setIsSavingFavorite(false);
     }
   };
+  
+  // Handles image carousel navigation
   const handleImageStep = (event, direction) => {
     event.stopPropagation();
     if (visibleImages.length < 2) return;
     setActiveImageIndex((currentIndex) => (currentIndex + direction + visibleImages.length) % visibleImages.length);
   };
+
   return (
     <article
       className={`explore-attraction ${canOpenDetails ? 'is-clickable' : ''}`}
@@ -297,6 +336,7 @@ function PlaceCard({
         }
       }}
     >
+      {/* Media section with image, gallery controls, and action buttons */}
       <div className="explore-attraction-media">
         {primaryImage ? (
           <img
@@ -318,6 +358,8 @@ function PlaceCard({
             <Image size={28} aria-hidden="true" />
           </div>
         )}
+        
+        {/* Gallery navigation controls for multiple images */}
         {visibleImages.length > 1 && (
           <div className="explore-card-gallery-controls" aria-label={`${item.name} photos`}>
             <button type="button" aria-label="Previous photo" onClick={(event) => handleImageStep(event, -1)}>
@@ -329,6 +371,8 @@ function PlaceCard({
             </button>
           </div>
         )}
+        
+        {/* Photo indicator dots */}
         {visibleImages.length > 1 && (
           <div className="explore-card-photo-dots" aria-label={`${item.name} photo position`}>
             {visibleImages.slice(0, 8).map((imageUrl, dotIndex) => (
@@ -346,7 +390,10 @@ function PlaceCard({
             {visibleImages.length > 8 && <span>+{visibleImages.length - 8}</span>}
           </div>
         )}
+        
         <span className="explore-card-rank">#{index + 1}</span>
+        
+        {/* Media action buttons: favorite and visited check */}
         <div className="explore-media-actions">
           <button
             className={`explore-favorite-button ${isFavorite ? 'active' : ''}`}
@@ -364,6 +411,8 @@ function PlaceCard({
           ) : null}
         </div>
       </div>
+      
+      {/* Body section with title, rating, facts, address, and actions */}
       <div className="explore-attraction-body">
         <div className="explore-attraction-title">
           <span className="explore-category" title={categoryText}>{priceIcon}{categoryText}</span>
@@ -377,6 +426,7 @@ function PlaceCard({
         </div>
 
         <div className="explore-card-facts" aria-label={`${item.name} details`}>
+          {/* Price display with original and converted amounts */}
           <div className="explore-card-price-row">
             <div title={originalPrice}>
               <span>{originalPriceLabel}</span>
@@ -388,6 +438,7 @@ function PlaceCard({
             </div>
           </div>
 
+          {/* Open status and hours */}
           <div className="explore-card-status-row">
             <span className={`explore-open-badge is-${openStatus.tone}`}>{openStatus.label}</span>
             <div>
@@ -396,6 +447,7 @@ function PlaceCard({
             </div>
           </div>
 
+          {/* Phone contact if available */}
           {item.phone && (
             <div className="explore-card-contact">
               <Phone size={15} aria-hidden="true" />
@@ -406,6 +458,7 @@ function PlaceCard({
           )}
         </div>
 
+        {/* Address display */}
         {item.address && (
           <p className="explore-address" title={item.address}>
             <MapPin size={15} aria-hidden="true" />
@@ -413,6 +466,7 @@ function PlaceCard({
           </p>
         )}
 
+        {/* Footer actions: visited control and compare button */}
         <div
           className="explore-card-footer-actions"
           onClick={(event) => event.stopPropagation()}
@@ -429,5 +483,6 @@ function PlaceCard({
     </article>
   );
 }
-// Default export registers the primary  value.
+
+// Default export registers the primary value.
 export default PlaceCard;

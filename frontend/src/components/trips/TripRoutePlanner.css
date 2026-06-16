@@ -1,3 +1,9 @@
+/**
+ * Trip route planning styles.
+ * Layout, spacing, and interaction rules for the route planner workspace.
+ */
+
+/* Main workspace container with grid layout and scrollable content */
 .trip-route-workspace {
   display: grid;
   gap: 11px;
@@ -5,6 +11,7 @@
   padding: 12px 14px 14px;
 }
 
+/* Introduction section with light blue gradient background */
 .trip-route-intro {
   display: grid;
   gap: 5px;
@@ -14,6 +21,7 @@
   padding: 12px;
 }
 
+/* Intro header with sparkle icon and uppercase text */
 .trip-route-intro > span {
   display: inline-flex;
   align-items: center;
@@ -24,6 +32,7 @@
   text-transform: uppercase;
 }
 
+/* Intro heading and paragraph margin reset */
 .trip-route-intro h3,
 .trip-route-intro p {
   margin: 0;
@@ -40,6 +49,7 @@
   line-height: 1.45;
 }
 
+/* Search form with input and submit button grid layout */
 .trip-route-search {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 42px;
@@ -66,6 +76,7 @@
   color: #ffffff;
 }
 
+/* Suggestions dropdown with bordered card style */
 .trip-route-suggestions {
   display: grid;
   overflow: hidden;
@@ -74,6 +85,7 @@
   background: #ffffff;
 }
 
+/* Individual suggestion button with grid layout */
 .trip-route-suggestions button {
   display: grid;
   grid-template-columns: 24px minmax(0, 1fr);
@@ -91,6 +103,7 @@
   border-bottom: 0;
 }
 
+/* Suggestion text containers with overflow handling */
 .trip-route-suggestions span,
 .trip-route-suggestions strong,
 .trip-route-suggestions small {
@@ -111,6 +124,7 @@
   font-size: 11px;
 }
 
+/* Button styles for itinerary and calculate actions */
 .trip-route-itinerary-button,
 .trip-route-calculate {
   display: inline-flex;
@@ -126,6 +140,7 @@
   font-weight: 700;
 }
 
+/* Stop list and alternatives sections with bordered cards */
 .trip-route-stops,
 .trip-route-alternatives {
   display: grid;
@@ -136,6 +151,7 @@
   padding: 10px;
 }
 
+/* Headers for stop and alternative sections */
 .trip-route-stops > header,
 .trip-route-alternatives > header {
   display: flex;
@@ -151,6 +167,7 @@
   font-weight: 650;
 }
 
+/* Individual stop item with numbered badge and remove button */
 .trip-route-stop {
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr) 30px;
@@ -161,6 +178,7 @@
   padding: 7px;
 }
 
+/* Stop number badge with circular teal background */
 .trip-route-stop > span {
   display: grid;
   width: 26px;
@@ -173,6 +191,7 @@
   font-weight: 750;
 }
 
+/* Stop text containers with overflow handling */
 .trip-route-stop div,
 .trip-route-stop strong,
 .trip-route-stop small {
@@ -198,11 +217,13 @@
   font-size: 11px;
 }
 
+/* Empty state message */
 .trip-route-stops > p {
   margin: 4px 0;
   text-align: center;
 }
 
+/* Remove button with transparent background */
 .trip-route-stop button {
   display: grid;
   width: 28px;
@@ -214,6 +235,7 @@
   color: #94a3b8;
 }
 
+/* Calculate routes button with teal theme */
 .trip-route-calculate {
   min-height: 42px;
   border-color: #0f766e;
@@ -221,17 +243,20 @@
   color: #ffffff;
 }
 
+/* Disabled state for calculate button */
 .trip-route-calculate:disabled {
   cursor: not-allowed;
   opacity: 0.55;
 }
 
+/* Mode selection grid with 5 columns */
 .trip-route-mode-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 5px;
 }
 
+/* Individual mode button with centered content */
 .trip-route-mode-grid button {
   display: grid;
   min-width: 0;
@@ -245,6 +270,7 @@
   padding: 7px 3px;
 }
 
+/* Active mode button with blue theme */
 .trip-route-mode-grid button.active {
   border-color: #2563eb;
   background: #eff6ff;
@@ -264,6 +290,7 @@
   white-space: nowrap;
 }
 
+/* Alternative route button with two-column layout */
 .trip-route-alternatives > button {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -282,6 +309,7 @@
   background: #eff6ff;
 }
 
+/* Alternative route content with flex layout */
 .trip-route-alternatives button > span {
   display: flex;
   min-width: 0;
@@ -289,6 +317,7 @@
   gap: 6px;
 }
 
+/* Badge for route attributes (Best, Fastest, Shortest) */
 .trip-route-alternatives em {
   border-radius: 999px;
   background: #dcfce7;
@@ -306,6 +335,7 @@
   white-space: nowrap;
 }
 
+/* Optimization note and message styles */
 .trip-route-optimization-note,
 .trip-route-message {
   margin: 0;
@@ -317,12 +347,15 @@
   line-height: 1.4;
 }
 
+/* Error message with red background */
 .trip-route-message.is-error {
   background: #fef2f2;
   color: #b91c1c;
 }
 
+/* Responsive adjustments for mobile screens */
 @media (max-width: 640px) {
+  /* Reduces mode grid to 3 columns on smaller screens */
   .trip-route-mode-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }

@@ -2,6 +2,8 @@
  * Compare button styles.
  * Tooltip and selected states make the hidden workflow easier to discover.
  */
+
+/* Base button styling for compare functionality across cards */
 .compare-button {
   position: relative;
   display: inline-flex;
@@ -21,10 +23,12 @@
   cursor: pointer;
 }
 
+/* Hover state with soft primary color background */
 .compare-button:hover:not(:disabled) {
   background: var(--color-primary-soft);
 }
 
+/* Selected state indicating item is already in comparison basket */
 .compare-button.is-selected {
   border-color: rgba(34, 197, 94, 0.22);
   background: rgba(34, 197, 94, 0.1);
@@ -32,6 +36,7 @@
   cursor: default;
 }
 
+/* Compact button variant for smaller card layouts */
 .compare-button-compact {
   width: 32px;
   height: 32px;
@@ -40,6 +45,7 @@
   padding: 0;
 }
 
+/* Tooltip that appears above the button on hover or focus */
 .compare-button::after {
   content: attr(data-tooltip);
   position: absolute;
@@ -62,6 +68,7 @@
   transition: opacity 0.14s ease, transform 0.14s ease;
 }
 
+/* Tooltip visible state on hover or keyboard focus */
 .compare-button:hover::after,
 .compare-button:focus-visible::after {
   opacity: 1;
