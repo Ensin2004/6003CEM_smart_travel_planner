@@ -203,7 +203,7 @@ const createPackingList = async (userId, data) => {
       daysBeforeTrip: data.reminder?.daysBeforeTrip ?? 2,
     },
   });
-  await notificationService.notifyPackingList(packingList, 'created');
+  await notificationService.schedulePackingListReminder(packingList);
   return packingList;
 };
 // Update Packing List applies allowed changes to an existing record.
@@ -225,13 +225,14 @@ const updatePackingList = async (listId, userId, data) => {
 
   const packingList = await packingListRepository.updateByIdAndUserId(listId, userId, updateData);
   if (!packingList) throw new AppError('Packing list not found', 404);
-  await notificationService.notifyPackingList(packingList, 'updated');
+  await notificationService.schedulePackingListReminder(packingList);
   return packingList;
 };
 // Delete Packing List removes a record after ownership checks.
 const deletePackingList = async (listId, userId) => {
   const packingList = await packingListRepository.deleteByIdAndUserId(listId, userId);
   if (!packingList) throw new AppError('Packing list not found', 404);
+  await notificationService.cancelPackingListReminder(packingList);
 };
 
 // Add Item builds a new record from validated input.
@@ -248,7 +249,7 @@ const addItem = async (listId, userId, data) => {
     isPacked: Boolean(data.isPacked),
   });
   const savedPackingList = await packingListRepository.save(packingList);
-  await notificationService.notifyPackingList(savedPackingList, 'updated');
+  await notificationService.schedulePackingListReminder(savedPackingList);
   return savedPackingList;
 };
 
@@ -267,7 +268,7 @@ const updateItem = async (listId, itemId, userId, data) => {
   });
 
   const savedPackingList = await packingListRepository.save(packingList);
-  await notificationService.notifyPackingList(savedPackingList, 'updated');
+  await notificationService.schedulePackingListReminder(savedPackingList);
   return savedPackingList;
 };
 
@@ -277,7 +278,9 @@ const deleteItem = async (listId, itemId, userId) => {
   if (!item) throw new AppError('Packing item not found', 404);
 
   item.deleteOne();
-  return packingListRepository.save(packingList);
+  const savedPackingList = await packingListRepository.save(packingList);
+  await notificationService.schedulePackingListReminder(savedPackingList);
+  return savedPackingList;
 };
 
 const duplicatePackingList = async (listId, userId, data) => {
@@ -308,7 +311,7 @@ const duplicatePackingList = async (listId, userId, data) => {
       daysBeforeTrip: source.reminder?.daysBeforeTrip ?? 2,
     },
   });
-  await notificationService.notifyPackingList(packingList, 'created');
+  await notificationService.schedulePackingListReminder(packingList);
   return packingList;
 };
 

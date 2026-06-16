@@ -170,6 +170,17 @@
   font-weight: 700;
 }
 
+.dashboard-card-heading > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.dashboard-card-heading > div:first-child > small {
+  color: #718199;
+  font-size: 11px;
+  font-weight: 500;
+}
+
 .dashboard-card-heading a,
 .dashboard-card-heading button,
 .list-card-toolbar button,
@@ -192,23 +203,14 @@
 
 .upcoming-trip-body {
   display: grid;
-  grid-template-columns: 190px minmax(0, 1fr);
-  gap: 22px;
-  align-items: start;
+  gap: 0;
   margin-top: 22px;
 }
 
-.trip-photo,
 .place-thumb {
   background-color: #e9eef6;
   background-position: center;
   background-size: cover;
-}
-
-.trip-photo {
-  width: 100%;
-  aspect-ratio: 1 / 0.9;
-  border-radius: 8px;
 }
 
 .trip-title-row {
@@ -239,18 +241,107 @@
 }
 
 .upcoming-trip-body p {
-  display: flex;
+  display: grid;
+  grid-template-columns: 18px 92px minmax(0, 1fr);
   align-items: center;
   gap: 10px;
-  margin: 16px 0 0;
+  margin: 0;
+  border-bottom: 1px solid #edf2f7;
   color: #53637d;
+  padding: 13px 0;
   font-size: 14px;
   font-weight: 500;
+}
+
+.upcoming-trip-body p:last-child {
+  border-bottom: 0;
 }
 
 .upcoming-trip-body p svg {
   flex: 0 0 auto;
   color: #73819a;
+}
+
+.upcoming-trip-body p span {
+  color: #728099;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.upcoming-trip-body p strong {
+  color: #243550;
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.upcoming-trip-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.upcoming-trip-list > a {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid #e3ebf3;
+  border-radius: 8px;
+  background: #f8fbfd;
+  color: inherit;
+  padding: 12px;
+  text-decoration: none;
+}
+
+.upcoming-trip-list > a:hover {
+  border-color: rgba(15, 159, 137, 0.34);
+  background: #f0fdfa;
+}
+
+.upcoming-trip-number {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 999px;
+  background: #dff8ed;
+  color: #0f8e74;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.upcoming-trip-details {
+  display: grid;
+  min-width: 0;
+  gap: 5px;
+}
+
+.upcoming-trip-details strong {
+  overflow: hidden;
+  color: #121c33;
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.upcoming-trip-details small {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #65758e;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.upcoming-trip-count {
+  border-radius: 999px;
+  background: #edf4ff;
+  color: #2f6fed;
+  padding: 6px 9px;
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
 }
 
 .dashboard-muted {
@@ -467,17 +558,21 @@
 
 .dashboard-list-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 18px;
 }
 
 .dashboard-list-card {
   display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
   gap: 16px;
 }
 
 .list-card-toolbar {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(220px, 240px) auto;
   align-items: center;
+  min-height: 48px;
 }
 
 .list-card-toolbar label {
@@ -504,9 +599,46 @@
   outline: none;
 }
 
+.visited-place-stats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(120px, 0.7fr)) minmax(220px, 1.4fr);
+  gap: 10px;
+}
+
+.visited-place-stats > div {
+  display: grid;
+  align-content: center;
+  min-height: 78px;
+  border: 1px solid #e1e9f2;
+  border-radius: 9px;
+  background: #f8fbfd;
+  padding: 12px 14px;
+}
+
+.visited-place-stats small,
+.visited-place-stats span {
+  color: #6b7890;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.visited-place-stats strong {
+  overflow: hidden;
+  color: #14213d;
+  font-size: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .place-list {
   display: grid;
+  align-content: start;
   gap: 14px;
+  max-height: 390px;
+  overflow-y: auto;
+  padding-right: 6px;
+  scrollbar-color: #a8c7d4 transparent;
+  scrollbar-width: thin;
 }
 
 .place-list article {
@@ -527,6 +659,7 @@
   width: 92px;
   height: 72px;
   border-radius: 8px;
+  background-repeat: no-repeat;
 }
 
 .place-list h4 {
@@ -950,18 +1083,27 @@
     grid-template-columns: 1fr;
   }
 
-  .trip-photo {
-    aspect-ratio: 16 / 9;
+  .upcoming-trip-list > a {
+    grid-template-columns: 32px minmax(0, 1fr);
+  }
+
+  .upcoming-trip-count {
+    grid-column: 2;
+    justify-self: start;
   }
 
   .list-card-toolbar {
+    grid-template-columns: 1fr;
     align-items: stretch;
-    flex-direction: column;
   }
 
   .list-card-toolbar label,
   .list-card-toolbar button {
     width: 100%;
+  }
+
+  .visited-place-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
 
@@ -979,6 +1121,10 @@
   .dashboard-stat-grid article > span {
     width: 44px;
     height: 44px;
+  }
+
+  .visited-place-stats {
+    grid-template-columns: 1fr;
   }
 
   .dashboard-card {

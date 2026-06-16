@@ -8,14 +8,31 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { defaultMapCenter, getTripMapPoint } from './tripMapUtils';
 import './TripMapPreview.css';
-// Create Trip Marker builds a new record from validated input.
-const createTripMarker = (index, tone = 'primary', label = index + 1, isHighlighted = false) =>
-  L.divIcon({
+// Ordinary places use map pins, while optimized routes use numbered stop markers.
+const createTripMarker = ({
+  index,
+  tone = 'primary',
+  label = index + 1,
+  isHighlighted = false,
+  showStopOrder = false,
+}) => {
+  const markerClass = [
+    'shared-trip-map-pin',
+    `shared-trip-map-pin-${tone}`,
+    showStopOrder ? 'shared-trip-map-pin-numbered' : 'shared-trip-map-pin-location',
+    isHighlighted ? 'shared-trip-map-pin-highlighted' : '',
+  ].filter(Boolean).join(' ');
+  const markerContent = showStopOrder || isHighlighted
+    ? label
+    : '<span class="shared-trip-map-pin-dot"></span>';
+
+  return L.divIcon({
     className: '',
-    html: `<span class="shared-trip-map-pin shared-trip-map-pin-${tone}${isHighlighted ? ' shared-trip-map-pin-highlighted' : ''}">${label}</span>`,
-    iconSize: isHighlighted ? [48, 48] : [34, 34],
-    iconAnchor: isHighlighted ? [24, 24] : [17, 17],
+    html: `<span class="${markerClass}">${markerContent}</span>`,
+    iconSize: isHighlighted ? [48, 48] : showStopOrder ? [34, 34] : [34, 42],
+    iconAnchor: isHighlighted ? [24, 24] : showStopOrder ? [17, 17] : [17, 42],
   });
+};
 
 function MapViewUpdater({ center, focusCenter, focusOffset, routeCoordinates, zoom }) {
   const map = useMap();
@@ -51,6 +68,7 @@ function TripMapPreview({
   focusCenter = false,
   focusOffset = [0, 0],
   highlightedPlace,
+  onPlaceClick,
   places = [],
   route,
   scrollWheelZoom = false,
@@ -67,6 +85,7 @@ function TripMapPreview({
   const mapCenter = requestedCenter || mapPoints[0] || defaultMapCenter;
   const mapZoom = zoom || (visiblePlaces.length > 1 ? 5 : 6);
   const routeCoordinates = route?.coordinates || [];
+  const showStopOrder = routeCoordinates.length > 1;
   const highlightedPoint = highlightedPlace ? getTripMapPoint(highlightedPlace) : null;
   return (
     <div className={`shared-trip-map ${className}`.trim()}>
@@ -116,12 +135,14 @@ function TripMapPreview({
             <Marker
               key={`${place.city || place.title || place.name}-${index}`}
               position={point}
-              icon={createTripMarker(
+              icon={createTripMarker({
                 index,
-                place.type === 'idea' ? 'idea' : place.dayNumber ? `day-${((place.dayNumber - 1) % 6) + 1}` : 'primary',
-                place.dayNumber || index + 1,
-                isHighlighted
-              )}
+                tone: place.type === 'idea' ? 'idea' : place.dayNumber ? `day-${((place.dayNumber - 1) % 6) + 1}` : 'primary',
+                label: showStopOrder ? index + 1 : place.dayNumber || index + 1,
+                isHighlighted,
+                showStopOrder,
+              })}
+              eventHandlers={onPlaceClick ? { click: () => onPlaceClick(place) } : undefined}
               zIndexOffset={isHighlighted ? 1000 : 0}
             >
               <Tooltip

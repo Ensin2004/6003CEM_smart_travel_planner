@@ -30,6 +30,27 @@
   font-size: 13px;
   font-weight: var(--font-weight-bold);
 }
+
+.shared-trip-map-pin-location {
+  width: 30px;
+  height: 30px;
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: -7px 8px 18px rgba(16, 42, 67, 0.25);
+}
+
+.shared-trip-map-pin-dot {
+  width: 10px;
+  height: 10px;
+  border: 2px solid rgba(255, 255, 255, 0.75);
+  border-radius: 999px;
+  background: #ffffff;
+}
+
+.shared-trip-map-pin-numbered {
+  border-radius: 999px;
+}
+
 .shared-trip-map-pin-idea {
   background: #7c3aed;
 }
@@ -38,7 +59,9 @@
   width: 48px;
   height: 48px;
   border-width: 4px;
+  border-radius: 999px;
   background: #dc2626;
+  transform: none;
   box-shadow:
     0 0 0 7px rgba(239, 68, 68, 0.2),
     0 14px 28px rgba(16, 42, 67, 0.32);

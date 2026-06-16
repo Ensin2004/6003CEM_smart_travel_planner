@@ -47,6 +47,8 @@ const destinationSegmentSchema = new mongoose.Schema(
     country: { type: String, trim: true, maxlength: 80 },
     city: { type: String, required: true, trim: true, maxlength: 120 },
     placeName: { type: String, trim: true, maxlength: 160 },
+    imageUrl: { type: String, trim: true, maxlength: 2000 },
+    imageUrls: [{ type: String, trim: true, maxlength: 2000 }],
     startDate: { type: Date, required: true },
     endDate: { type: Date, required: true },
     order: { type: Number, min: 1, default: 1 },

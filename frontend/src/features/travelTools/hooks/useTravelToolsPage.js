@@ -40,7 +40,7 @@ import {
   validateTemplateDraft,
 } from '../travelTools.validation';
 
-export function useTravelToolsPage() {
+export function useTravelToolsPage({ initialListId = '', initialTripId = '' } = {}) {
   // Core workspace state covers loaded lists, templates, trips, selected records, and request feedback.
   const [packingLists, setPackingLists] = useState([]);
   const [templates, setTemplates] = useState([]);
@@ -67,6 +67,7 @@ export function useTravelToolsPage() {
   const [editingItemId, setEditingItemId] = useState('');
   const [isEditingListTitle, setIsEditingListTitle] = useState(false);
   const [listTitleDraft, setListTitleDraft] = useState('');
+  const [listTripDraft, setListTripDraft] = useState('');
   const [isEditingTemplateTitle, setIsEditingTemplateTitle] = useState(false);
   const [templateTitleDraft, setTemplateTitleDraft] = useState('');
   const [isEditingTemplateDescription, setIsEditingTemplateDescription] = useState(false);
@@ -206,8 +207,13 @@ export function useTravelToolsPage() {
           notificationsOff: Boolean(preferences.notificationsOff),
           packingReminder: preferences.packingReminder !== false,
         });
-        setReminderDays(nextLists[0]?.reminder?.daysBeforeTrip ?? 2);
-        setSelectedListId((current) => current || nextLists[0]?._id || '');
+        const requestedList = nextLists.find((list) => String(list._id) === String(initialListId))
+          || nextLists.find((list) => String(list.tripId || '') === String(initialTripId));
+        setReminderDays(requestedList?.reminder?.daysBeforeTrip ?? nextLists[0]?.reminder?.daysBeforeTrip ?? 2);
+        setSelectedListId((current) => current || requestedList?._id || nextLists[0]?._id || '');
+        if (initialTripId && !requestedList) {
+          setCreateForm((current) => ({ ...current, tripId: initialTripId }));
+        }
         setError('');
       } catch (requestError) {
         if (isMounted) setError(getErrorMessage(requestError));
@@ -222,7 +228,7 @@ export function useTravelToolsPage() {
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [initialListId, initialTripId]);
 
   const replaceList = (updatedList) => {
     const normalizedList = normalizePackingListForUi(updatedList);
@@ -555,13 +561,16 @@ export function useTravelToolsPage() {
   const handleStartListTitleEdit = () => {
     if (!selectedList) return;
     setListTitleDraft(selectedList.title);
+    setListTripDraft(selectedList.tripId || '');
     setIsEditingListTitle(true);
+    setError('');
     setSuccessMessage('');
   };
 
   const handleCancelListTitleEdit = () => {
     setIsEditingListTitle(false);
     setListTitleDraft('');
+    setListTripDraft('');
   };
 
   const handleSaveListTitle = async (event) => {
@@ -581,11 +590,15 @@ export function useTravelToolsPage() {
     setError('');
     setSuccessMessage('');
     try {
-      const response = await updatePackingList(selectedList._id, { title: listTitleDraft.trim() });
+      const response = await updatePackingList(selectedList._id, {
+        title: listTitleDraft.trim(),
+        tripId: listTripDraft || null,
+      });
       replaceList(response.data.data.packingList);
       setIsEditingListTitle(false);
       setListTitleDraft('');
-      setSuccessMessage('Packing list name updated.');
+      setListTripDraft('');
+      setSuccessMessage('Packing list updated.');
     } catch (requestError) {
       setError(getErrorMessage(requestError));
     } finally {
@@ -819,11 +832,13 @@ export function useTravelToolsPage() {
     itemFormError,
     itemModalMode,
     listTitleDraft,
+    listTripDraft,
     packingLists,
     progress,
     remainingItems,
     reminderDays,
     runConfirmedAction,
+    saveTemplateDraft,
     selectedList,
     selectedTemplate,
     selectedTemplateId,
@@ -833,9 +848,11 @@ export function useTravelToolsPage() {
     setCreateMode,
     setFilters,
     setListTitleDraft,
+    setListTripDraft,
     setSelectedListId,
     setSelectedTemplateId,
     setTemplateDescriptionDraft,
+    setTemplateEditForm,
     setTemplateEditError,
     setTemplateFilters,
     setTemplateTitleDraft,

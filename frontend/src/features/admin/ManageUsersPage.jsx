@@ -3,6 +3,7 @@
  * Page state, event handlers, and render sections define the screen experience.
  */
 import {
+  Activity,
   AlertTriangle,
   Ban,
   Filter,
@@ -16,7 +17,10 @@ import {
   X,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import { getUserActivityLogs } from '../../api/adminLogApi';
 import { getAdminUsers, removeAdminUser } from '../../api/adminUserApi';
+import useNotifications from '../../hooks/useNotifications';
+import { getApiErrorMessage } from '../../utils/apiError';
 import './ManageUsersPage.css';
 
 const roleOptions = [
@@ -38,8 +42,16 @@ const formatDate = (value) => {
     dateStyle: 'medium',
   }).format(new Date(value));
 };
+const formatDateTime = (value) => {
+  if (!value) return 'Unknown';
+
+  return new Intl.DateTimeFormat('en', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }).format(new Date(value));
+};
 const getErrorMessage = (error) =>
-  error.response?.data?.message || 'Unable to load user accounts.';
+  getApiErrorMessage(error, 'Unable to load user accounts.');
 // Format Category Label converts raw values into readable display text.
 const formatCategoryLabel = (category = 'none') =>
   category
@@ -48,6 +60,7 @@ const formatCategoryLabel = (category = 'none') =>
     .join(' ');
 // ManageUsersPage renders the main screen and handles nearby interactions.
 function ManageUsersPage() {
+  const { subscribeToAdminUserCreated } = useNotifications();
   const [users, setUsers] = useState([]);
   const [summary, setSummary] = useState({
     total: 0,
@@ -62,13 +75,18 @@ function ManageUsersPage() {
     status: '',
   });
   const [selectedUser, setSelectedUser] = useState(null);
+  const [activityUser, setActivityUser] = useState(null);
+  const [activityLogs, setActivityLogs] = useState([]);
+  const [activityTotal, setActivityTotal] = useState(0);
+  const [isActivityLoading, setIsActivityLoading] = useState(false);
+  const [activityError, setActivityError] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isRemoving, setIsRemoving] = useState(false);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  const fetchUsers = useCallback(async ({ showSuccess = false } = {}) => {
-    setIsLoading(true);
+  const fetchUsers = useCallback(async ({ showSuccess = false, showLoading = true } = {}) => {
+    if (showLoading) setIsLoading(true);
     setError('');
     setSuccessMessage('');
     try {
@@ -82,7 +100,7 @@ function ManageUsersPage() {
     } catch (requestError) {
       setError(getErrorMessage(requestError));
     } finally {
-      setIsLoading(false);
+      if (showLoading) setIsLoading(false);
     }
   }, []);
   useEffect(() => {
@@ -92,6 +110,11 @@ function ManageUsersPage() {
     // Cleanup prevents state updates after component unmount.
     return () => window.clearTimeout(timeoutId);
   }, [fetchUsers]);
+  useEffect(() => {
+    return subscribeToAdminUserCreated(() => {
+      fetchUsers({ showLoading: false });
+    });
+  }, [fetchUsers, subscribeToAdminUserCreated]);
   const filteredUsers = useMemo(() => {
     const normalizedQuery = filters.query.trim().toLowerCase();
 
@@ -135,6 +158,26 @@ function ManageUsersPage() {
   };
   const closeRemoveDialog = () => {
     if (!isRemoving) setSelectedUser(null);
+  };
+  const openActivityDialog = async (user) => {
+    setActivityUser(user);
+    setActivityLogs([]);
+    setActivityTotal(0);
+    setActivityError('');
+    setIsActivityLoading(true);
+
+    try {
+      const response = await getUserActivityLogs(user.id || user._id, { limit: 50, page: 1 });
+      setActivityLogs(response.data.data.logs || []);
+      setActivityTotal(response.data.data.pagination?.total || 0);
+    } catch (requestError) {
+      setActivityError(getApiErrorMessage(requestError, 'Unable to load account activity.'));
+    } finally {
+      setIsActivityLoading(false);
+    }
+  };
+  const closeActivityDialog = () => {
+    if (!isActivityLoading) setActivityUser(null);
   };
   const confirmRemoveUser = async () => {
     if (!selectedUser) return;
@@ -347,7 +390,12 @@ function ManageUsersPage() {
               {filteredUsers.map((user) => (
                 <tr key={user.id || user._id}>
                   <td>
-                    <span className="manage-users-identity">
+                    <button
+                      className="manage-users-identity manage-users-identity-button"
+                      type="button"
+                      onClick={() => openActivityDialog(user)}
+                      title="View account activity"
+                    >
                       <span className="manage-users-avatar">
                         {user.avatarUrl ? <img src={user.avatarUrl} alt="" /> : user.name?.charAt(0) || 'U'}
                       </span>
@@ -355,7 +403,7 @@ function ManageUsersPage() {
                         <strong>{user.name}</strong>
                         <small><Mail size={13} aria-hidden="true" /> {user.email}</small>
                       </span>
-                    </span>
+                    </button>
                   </td>
                   <td>
                     <span className={`manage-users-role manage-users-role-${user.role}`}>{user.role}</span>
@@ -368,7 +416,7 @@ function ManageUsersPage() {
                       <strong>{user.issueSummary?.totalIssues || 0} issue(s)</strong>
                       <small>
                         Login {user.issueSummary?.loginIssues || 0} / API {user.issueSummary?.apiIssues || 0} / System{' '}
-                        {user.issueSummary?.systemIssues || 0}
+                        {user.issueSummary?.systemIssues || 0} / Rate limit {user.issueSummary?.rateLimitIssues || 0}
                       </small>
                     </span>
                   </td>
@@ -432,6 +480,69 @@ function ManageUsersPage() {
                 {isRemoving ? 'Removing...' : 'Remove account'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {activityUser && (
+        <div className="manage-users-dialog-backdrop" role="presentation" onMouseDown={closeActivityDialog}>
+          <div
+            className="manage-users-dialog manage-users-activity-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="user-activity-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="manage-users-activity-heading">
+              <div className="manage-users-dialog-icon manage-users-activity-icon">
+                <Activity size={22} aria-hidden="true" />
+              </div>
+              <div>
+                <p className="eyebrow">Account activity</p>
+                <h3 id="user-activity-title">{activityUser.name}</h3>
+                <p>{activityTotal} recorded event(s). Recent operational activity only.</p>
+              </div>
+              <button type="button" onClick={closeActivityDialog} disabled={isActivityLoading} aria-label="Close activity">
+                <X size={18} aria-hidden="true" />
+              </button>
+            </div>
+
+            <div className="manage-users-activity-summary">
+              <span>{activityUser.email}</span>
+              <span>{formatCategoryLabel(activityUser.role)}</span>
+              <span>{formatCategoryLabel(activityUser.status)}</span>
+              <span>{activityUser.country || 'Country not set'}</span>
+            </div>
+
+            {isActivityLoading ? (
+              <p className="settings-empty">Loading account activity...</p>
+            ) : activityError ? (
+              <p className="form-error">{activityError}</p>
+            ) : activityLogs.length === 0 ? (
+              <p className="settings-empty">No recorded activity for this account.</p>
+            ) : (
+              <div className="manage-users-activity-list">
+                {activityLogs.map((log) => (
+                  <article key={log._id}>
+                    <div>
+                      <span className={`manage-users-activity-status manage-users-activity-status-${log.status}`}>
+                        {formatCategoryLabel(log.status)}
+                      </span>
+                      <span className={`manage-users-activity-severity manage-users-activity-severity-${log.severity || 'info'}`}>
+                        {formatCategoryLabel(log.severity || 'info')}
+                      </span>
+                      <strong>{formatCategoryLabel(log.category || 'api')}</strong>
+                      <time>{formatDateTime(log.createdAt)}</time>
+                    </div>
+                    <p>{log.message || 'No message recorded'}</p>
+                    <small>
+                      {log.method || 'GET'} {log.endpoint || 'Endpoint not recorded'} | {log.errorCode || 'No error code'}
+                    </small>
+                    <small title={log.requestId}>Request ID: {log.requestId || 'Not recorded'}</small>
+                  </article>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       )}

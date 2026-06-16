@@ -1,8 +1,9 @@
 /**
- * Travel Guide module.
- * Business rules, repository access, and external integrations live in this layer.
+ * Travel guide aggregation service using Geoapify, REST Countries, Wikivoyage,
+ * weather, Explore listings, and AI recommendations.
  */
 const axios = require('axios');
+const { Country } = require('country-state-city');
 const env = require('../../config/env');
 const weatherService = require('../explore/weather.service');
 const placesService = require('../explore/places.service');
@@ -10,6 +11,7 @@ const restaurantService = require('../explore/restaurant.service');
 const hotelsService = require('../explore/hotels.service');
 const aiService = require('../explore/exploreAi.service');
 const travelGuideRepository = require('./travelGuide.repository');
+const { classifyExternalApiError } = require('../../utils/externalApiError');
 
 const geoapifyClient = axios.create({
   baseURL: 'https://api.geoapify.com',
@@ -17,7 +19,7 @@ const geoapifyClient = axios.create({
 });
 
 const restCountriesClient = axios.create({
-  baseURL: 'https://restcountries.com',
+  baseURL: 'https://api.restcountries.com',
   timeout: 10000,
 });
 
@@ -52,6 +54,7 @@ const withCache = async (key, params, fetcher) => {
 };
 const unavailable = (message = 'Geoapify API key is not configured') => ({
   available: false,
+  errorCode: 'INVALID_API_KEY',
   message,
 });
 const requireGeoapifyKey = () => {
@@ -79,8 +82,20 @@ const getFeatureName = (properties = {}) =>
   properties.country ||
   properties.formatted ||
   'Unnamed place';
-const getFeatureImage = (name, type) =>
-  `https://source.unsplash.com/900x640/?${encodeURIComponent(`${name} ${type} travel`)}`;
+const fallbackTravelImages = [
+  'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80',
+  'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=900&q=80',
+  'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=900&q=80',
+  'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=900&q=80',
+  'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=900&q=80',
+  'https://images.unsplash.com/photo-1527631746610-bca00a040d60?auto=format&fit=crop&w=900&q=80',
+];
+const getFeatureImage = (name = '', type = '') => {
+  const imageIndex = [...`${name}${type}`].reduce((total, character) => total + character.charCodeAt(0), 0)
+    % fallbackTravelImages.length;
+
+  return fallbackTravelImages[imageIndex];
+};
 // Normalize Feature prepares incoming data for consistent storage.
 const normalizeFeature = (feature = {}, index = 0, fallbackType = 'Destination') => {
   const properties = feature.properties || {};
@@ -187,30 +202,110 @@ const normalizeGuideItem = (item = {}, index = 0, fallbackType = 'Destination') 
 const getCountryCodeFilter = (countryCode) => (countryCode ? `countrycode:${countryCode.toLowerCase()}` : '');
 
 const regionFilters = new Set(['Asia', 'Europe', 'North America', 'South America', 'Oceania', 'Africa', 'Antarctica', 'Other']);
-const getCountryName = (country = {}) => country.name?.common || country.name?.official || '';
-const getCountryRegion = (country = {}) => country.continents?.find((continent) => regionFilters.has(continent)) || 'Other';
-const normalizeCountry = (country = {}) => {
-  const name = getCountryName(country);
-  const region = getCountryRegion(country);
+const normalizeV5Country = (country = {}) => {
+  const name = country.names?.common || '';
+  const countryCode = country.codes?.alpha_2 || '';
+  const region = country.continents?.find((continent) => regionFilters.has(continent)) || 'Other';
+  const flagUrl = country.flag?.url_png || country.flag?.url_svg || '';
 
   return {
-    id: country.cca2,
+    id: countryCode,
     name,
     type: 'Country',
     region: [region, country.subregion].filter(Boolean).join(' - '),
     continent: region,
     country: name,
-    countryCode: country.cca2,
-    imageUrl: country.flags?.png || country.flags?.svg || '',
-    flagUrl: country.flags?.png || country.flags?.svg || '',
-    currency: Object.keys(country.currencies || {}).join(', '),
+    countryCode,
+    imageUrl: flagUrl,
+    flagUrl,
+    currency: (country.currencies || []).map((currency) => currency.code).filter(Boolean).join(', '),
     coordinates: {
-      latitude: Number(country.latlng?.[0]),
-      longitude: Number(country.latlng?.[1]),
+      latitude: Number(country.coordinates?.lat),
+      longitude: Number(country.coordinates?.lng),
     },
   };
 };
+const getLocalCountryRegion = (country = {}) => {
+  const zones = country.timezones || [];
+  const zoneNames = zones.map((timezone) => timezone.zoneName || '');
+  const timezoneNames = zones.map((timezone) => timezone.tzName || '');
+  const latitude = Number(country.latitude);
 
+  if (zoneNames.some((zoneName) => zoneName.startsWith('Antarctica/')) || country.isoCode === 'AQ') return 'Antarctica';
+  if (zoneNames.some((zoneName) => zoneName.startsWith('Europe/'))) return 'Europe';
+  if (zoneNames.some((zoneName) => zoneName.startsWith('Africa/'))) return 'Africa';
+  if (zoneNames.some((zoneName) => zoneName.startsWith('Asia/'))) return 'Asia';
+  if (zoneNames.some((zoneName) => zoneName.startsWith('America/'))) {
+    return timezoneNames.some((timezoneName) => timezoneName.includes('North America')) || latitude >= 12
+      ? 'North America'
+      : 'South America';
+  }
+  if (zoneNames.some((zoneName) => zoneName.startsWith('Australia/') || zoneName.startsWith('Pacific/'))) return 'Oceania';
+
+  return 'Other';
+};
+const normalizeLocalCountry = (country = {}) => {
+  const region = getLocalCountryRegion(country);
+  const flagUrl = country.isoCode ? `https://flagcdn.com/w320/${country.isoCode.toLowerCase()}.png` : '';
+
+  return {
+    id: country.isoCode,
+    name: country.name,
+    type: 'Country',
+    region,
+    continent: region,
+    country: country.name,
+    countryCode: country.isoCode,
+    imageUrl: flagUrl,
+    flagUrl,
+    currency: country.currency || '',
+    coordinates: {
+      latitude: Number(country.latitude),
+      longitude: Number(country.longitude),
+    },
+  };
+};
+const getLocalCountryList = () => Country.getAllCountries().map(normalizeLocalCountry);
+const fetchRestCountries = async () => {
+  if (!env.restCountriesApiKey) {
+    throw Object.assign(new Error('REST Countries API key is not configured'), { isMissingKey: true });
+  }
+
+  const countries = [];
+  let offset = 0;
+  let hasMore = true;
+
+  while (hasMore) {
+    const response = await restCountriesClient.get('/countries/v5', {
+      headers: {
+        Authorization: `Bearer ${env.restCountriesApiKey}`,
+      },
+      params: {
+        limit: 100,
+        offset,
+      },
+    });
+    const objects = response.data?.data?.objects;
+    const metadata = response.data?.data?.meta;
+
+    if (!Array.isArray(objects) || response.data?.data?._demo) {
+      throw new Error('REST Countries returned an incomplete country catalogue');
+    }
+
+    countries.push(...objects);
+    hasMore = Boolean(metadata?.more);
+    offset += objects.length;
+    if (!objects.length) hasMore = false;
+  }
+
+  return countries;
+};
+
+/**
+ * Returns a filtered and paginated country catalogue from REST Countries.
+ * @param {object} input Region, search, current-country, and pagination options.
+ * @returns {Promise<object>} Normalized countries and pagination metadata.
+ */
 const getCountryList = async ({ region = '', search = '', currentCountry = '', currentCountryCode = '', limit = 24, page = 1 }) => {
   const currentPage = Math.max(Number(page) || 1, 1);
   const pageSize = Math.min(Number(limit) || 24, 48);
@@ -218,20 +313,20 @@ const getCountryList = async ({ region = '', search = '', currentCountry = '', c
   const normalizedSearch = search.trim().toLowerCase();
   const excludedCountry = currentCountry.trim().toLowerCase();
   const excludedCountryCode = currentCountryCode.trim().toUpperCase();
+  let countries;
+  let source = 'REST Countries';
   try {
-    const countries = await withCache('countries', { source: 'restcountries-v3.1' }, async () => {
-      const response = await restCountriesClient.get('/v3.1/all', {
-        params: {
-          fields: 'name,cca2,flags,region,subregion,continents,latlng,currencies',
-        },
-      });
+    countries = await withCache('countries', { source: 'restcountries-v5' }, fetchRestCountries);
+    countries = countries
+      .map(normalizeV5Country)
+      .filter((country) => country.countryCode && country.name);
+  } catch {
+    countries = getLocalCountryList();
+    source = 'Local country catalogue';
+  }
 
-      return response.data;
-    });
-
+  try {
     const filteredCountries = countries
-      .filter((country) => country.cca2 && getCountryName(country))
-      .map(normalizeCountry)
       .filter((country) => country.countryCode !== excludedCountryCode && country.name.toLowerCase() !== excludedCountry)
       .filter((country) => !normalizedRegion || country.continent === normalizedRegion)
       .filter((country) => !normalizedSearch || country.name.toLowerCase().includes(normalizedSearch))
@@ -241,6 +336,7 @@ const getCountryList = async ({ region = '', search = '', currentCountry = '', c
 
     return {
       available: true,
+      source,
       items,
       pagination: {
         page: currentPage,
@@ -250,10 +346,17 @@ const getCountryList = async ({ region = '', search = '', currentCountry = '', c
         hasMore: start + pageSize < filteredCountries.length,
       },
     };
-  } catch {
+  } catch (error) {
+    const failure = classifyExternalApiError(error, {
+      networkMessage: 'Country directory could not be reached.',
+      rateLimitMessage: 'Country directory rate limit exceeded.',
+      timeoutMessage: 'Country directory request timed out.',
+      unavailableMessage: 'Country directory temporarily unavailable.',
+    });
     return {
       available: false,
-      message: 'Country directory temporarily unavailable',
+      errorCode: failure.errorCode,
+      message: failure.message,
       items: [],
       pagination: {
         page: currentPage,
@@ -266,12 +369,20 @@ const getCountryList = async ({ region = '', search = '', currentCountry = '', c
   }
 };
 
+/**
+ * Finds domestic or international destinations through Geoapify.
+ * @param {object} input Country context, travel mode, region, search, and pagination.
+ * @returns {Promise<object>} Normalized destination cards and pagination metadata.
+ */
 const getDestinationList = async ({ country, countryCode, mode = 'domestic', region = '', limit = 24, page = 1, search = '' }) => {
   const currentPage = Math.max(Number(page) || 1, 1);
   const pageSize = Math.min(Number(limit) || 24, 48);
   const start = (currentPage - 1) * pageSize;
   if (env.serpApiKey && env.nodeEnv !== 'test') {
-    const attractions = await placesService.getAttractionsByDestination(`popular tourist destinations in ${country}`, start);
+    const attractions = await placesService.getAttractionsByDestination({
+      destination: `popular tourist destinations in ${country}`,
+      start,
+    });
     const items = (attractions.items || []).slice(0, pageSize).map((item, index) => normalizeGuideItem(item, start + index));
 
     return {
@@ -336,6 +447,11 @@ const getDestinationList = async ({ country, countryCode, mode = 'domestic', reg
   };
 };
 
+/**
+ * Aggregates a destination summary, weather, listings, gallery, and recommendations.
+ * @param {object} input Destination identity, date, coordinates, and listing offsets.
+ * @returns {Promise<object>} Complete travel-guide detail payload.
+ */
 const getDestinationDetails = async ({ destination, country, latitude, longitude, date, attractionStart = 0, restaurantStart = 0, hotelStart = 0 }) => {
   const locationText = [destination, country].filter(Boolean).join(', ');
   const locationFeature = latitude && longitude ? null : env.geoapifyApiKey ? await geocode(locationText) : null;

@@ -2,7 +2,8 @@
  * Settings module.
  * Exports and local helpers keep related behavior in a single module.
  */
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Trash2 } from 'lucide-react';
+import { useState } from 'react';
 // FaqSettings renders the main screen and handles nearby interactions.
 function FaqSettings({
   content,
@@ -15,6 +16,17 @@ function FaqSettings({
   setContent,
   setOpenFaq,
 }) {
+  const [faqToDelete, setFaqToDelete] = useState(null);
+  const confirmDeleteFaq = () => {
+    if (faqToDelete === null) return;
+
+    setContent((current) => ({
+      ...current,
+      faqs: current.faqs.filter((_, faqIndex) => faqIndex !== faqToDelete),
+    }));
+    setFaqToDelete(null);
+  };
+
   return (
     <section className="settings-pane settings-support-pane">
       {renderPaneHeader('FAQ', 'faqs')}
@@ -23,6 +35,18 @@ function FaqSettings({
           <div className="faq-editor-list">
             {content.faqs.map((faq, index) => (
               <div className="faq-editor" key={faq._id || index}>
+                <div className="faq-editor-header">
+                  <strong>FAQ {index + 1}</strong>
+                  <button
+                    className="faq-delete-button"
+                    type="button"
+                    onClick={() => setFaqToDelete(index)}
+                    aria-label={`Delete FAQ ${index + 1}`}
+                  >
+                    <Trash2 size={16} aria-hidden="true" />
+                    Delete
+                  </button>
+                </div>
                 <input
                   value={faq.question}
                   onChange={(event) => {
@@ -81,6 +105,36 @@ function FaqSettings({
               </article>
             ))
           )}
+        </div>
+      )}
+      {faqToDelete !== null && (
+        <div className="faq-dialog-backdrop" role="presentation" onMouseDown={() => setFaqToDelete(null)}>
+          <div
+            className="faq-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="faq-delete-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <div className="faq-dialog-icon">
+              <Trash2 size={22} aria-hidden="true" />
+            </div>
+            <div>
+              <h3 id="faq-delete-title">Delete this FAQ?</h3>
+              <p>
+                This FAQ will be removed from the editor. Click Save afterward to publish the change.
+              </p>
+            </div>
+            <div className="faq-dialog-actions">
+              <button type="button" onClick={() => setFaqToDelete(null)}>
+                Cancel
+              </button>
+              <button type="button" onClick={confirmDeleteFaq}>
+                <Trash2 size={16} aria-hidden="true" />
+                Delete FAQ
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </section>

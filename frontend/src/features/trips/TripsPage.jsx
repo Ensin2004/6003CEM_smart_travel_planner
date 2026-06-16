@@ -23,11 +23,13 @@ import {
   Plus,
   Search,
   Star,
+  Trash2,
   WalletCards,
+  X,
 } from 'lucide-react';
 import { addFavorite, getFavorites, removeFavorite } from '../../api/favoriteApi';
 import { getTripItinerary } from '../../api/itineraryApi';
-import { createTrip, getTrips } from '../../api/tripApi';
+import { createTrip, deleteTrip, getTrips } from '../../api/tripApi';
 import CompareButton from '../../components/compare/CompareButton';
 import TripMapPreview from '../../components/trips/TripMapPreview';
 import CurrencyContext from '../../context/currencyContext';
@@ -40,7 +42,7 @@ const defaultPreviewPlaces = [
   { city: 'Penang', country: 'Malaysia' },
   { city: 'Singapore', country: 'Singapore' },
 ];
-const tripFilters = ['All Trips', 'Active', 'Upcoming', 'Past', 'Drafts', 'Favorites'];
+const tripFilters = ['All Trips', 'Active', 'Upcoming', 'Past', 'Favorites'];
 
 // Date helpers keep exact-date and flexible-date planning consistent before the payload is built.
 
@@ -170,6 +172,9 @@ function TripsPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [formError, setFormError] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [openTripMenuId, setOpenTripMenuId] = useState('');
+  const [tripToDelete, setTripToDelete] = useState(null);
+  const [isDeletingTrip, setIsDeletingTrip] = useState(false);
 
   // Form state mirrors the backend trip payload closely so submission needs minimal remapping.
   const [form, setForm] = useState({
@@ -204,6 +209,16 @@ function TripsPage() {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    if (!openTripMenuId) return undefined;
+
+    const closeOpenTripMenu = (event) => {
+      if (!event.target.closest('.trip-dashboard-card-menu')) setOpenTripMenuId('');
+    };
+    document.addEventListener('mousedown', closeOpenTripMenu);
+    return () => document.removeEventListener('mousedown', closeOpenTripMenu);
+  }, [openTripMenuId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -331,6 +346,25 @@ function TripsPage() {
       setFavoriteMessage(error.response?.data?.message || 'Unable to update favourite right now.');
     } finally {
       setSavingFavoriteTripId('');
+    }
+  };
+
+  const handleDeleteTrip = async () => {
+    if (!tripToDelete?._id || isDeletingTrip) return;
+
+    setIsDeletingTrip(true);
+    setMessage('');
+    setFavoriteMessage('');
+    try {
+      await deleteTrip(tripToDelete._id);
+      setTrips((currentTrips) => currentTrips.filter((trip) => trip._id !== tripToDelete._id));
+      setFavorites((currentFavorites) => currentFavorites.filter((favorite) => favorite.externalId !== `trip-${tripToDelete._id}`));
+      setTripToDelete(null);
+      setFavoriteMessage('Trip deleted successfully.');
+    } catch (error) {
+      setMessage(error.response?.data?.message || 'Unable to delete the trip.');
+    } finally {
+      setIsDeletingTrip(false);
     }
   };
 
@@ -555,9 +589,33 @@ function TripsPage() {
                     <div className="trip-dashboard-card-body">
                       <div className="trip-dashboard-card-title">
                         <Link to={`/trips/${trip._id}`}>{tripTitle}</Link>
-                        <button type="button" aria-label={`More options for ${tripTitle}`}>
-                          <MoreVertical size={17} aria-hidden="true" />
-                        </button>
+                        <div className="trip-dashboard-card-menu">
+                          <button
+                            type="button"
+                            aria-label={`More options for ${tripTitle}`}
+                            aria-expanded={openTripMenuId === trip._id}
+                            onClick={() => setOpenTripMenuId((currentId) => (currentId === trip._id ? '' : trip._id))}
+                          >
+                            <MoreVertical size={17} aria-hidden="true" />
+                          </button>
+                          {openTripMenuId === trip._id ? (
+                            <div role="menu">
+                              <Link role="menuitem" to={`/trips/${trip._id}`}>View trip</Link>
+                              <button
+                                className="danger"
+                                type="button"
+                                role="menuitem"
+                                onClick={() => {
+                                  setOpenTripMenuId('');
+                                  setTripToDelete(trip);
+                                }}
+                              >
+                                <Trash2 size={15} aria-hidden="true" />
+                                Delete trip
+                              </button>
+                            </div>
+                          ) : null}
+                        </div>
                       </div>
                       <div className="trip-dashboard-card-meta">
                         <span><CalendarDays size={14} aria-hidden="true" />{formatDateRange(trip.startDate, trip.endDate)}</span>
@@ -709,6 +767,43 @@ function TripsPage() {
         </aside>
       </div>
       )}
+
+      {tripToDelete ? (
+        <div className="trip-delete-dialog-backdrop" role="presentation" onMouseDown={() => !isDeletingTrip && setTripToDelete(null)}>
+          <section
+            className="trip-delete-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="trip-delete-dialog-title"
+            onMouseDown={(event) => event.stopPropagation()}
+          >
+            <button
+              className="trip-delete-dialog-close"
+              type="button"
+              aria-label="Close confirmation"
+              disabled={isDeletingTrip}
+              onClick={() => setTripToDelete(null)}
+            >
+              <X size={19} aria-hidden="true" />
+            </button>
+            <div className="trip-delete-dialog-icon">
+              <Trash2 size={22} aria-hidden="true" />
+            </div>
+            <div>
+              <span>Delete trip</span>
+              <h3 id="trip-delete-dialog-title">Delete {tripToDelete.title || tripToDelete.destination}?</h3>
+              <p>This permanently removes the trip from My Trips. This action cannot be undone.</p>
+            </div>
+            <div className="trip-delete-dialog-actions">
+              <button type="button" disabled={isDeletingTrip} onClick={() => setTripToDelete(null)}>Cancel</button>
+              <button className="danger" type="button" disabled={isDeletingTrip} onClick={handleDeleteTrip}>
+                {isDeletingTrip ? <LoaderCircle className="trip-spin" size={16} aria-hidden="true" /> : <Trash2 size={16} aria-hidden="true" />}
+                {isDeletingTrip ? 'Deleting...' : 'Delete trip'}
+              </button>
+            </div>
+          </section>
+        </div>
+      ) : null}
     </section>
   );
 }

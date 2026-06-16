@@ -20,7 +20,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { getVisitedPlaces } from '../../../api/visitedPlaceApi';
 import PlaceCard from '../../../components/place/PlaceCard';
 import { buildVisitedLookup, getVisitedPlacePayload } from '../../../components/visitedPlaces/visitedPlaceUtils';
-import { attractionCategoryOptions, foodCategoryOptions, roomTypeOptions } from '../explore.constants';
 import { formatPercent, formatSpeed, formatTemperature, formatWeatherDate, getDateKey, getMaxWeatherDate, getMinWeatherDate } from '../explore.helpers';
 // PlaceSearchWorkspace renders the main screen and handles nearby interactions.
 function PlaceSearchWorkspace({
@@ -30,6 +29,7 @@ function PlaceSearchWorkspace({
   activeOption,
   activeWeather,
   countryOptions,
+  categoryOptions,
   destination,
   destinationLabel,
   error,
@@ -79,7 +79,11 @@ function PlaceSearchWorkspace({
   const visitedType = isHotelsView ? 'hotel' : isFoodView ? 'restaurant' : 'attraction';
   const visitedSource = `explore-${cardType}`;
   const usesPriceMetric = isHotelsView || isFoodView;
-  const categoryOptions = isHotelsView ? roomTypeOptions : isFoodView ? foodCategoryOptions : attractionCategoryOptions;
+  const activeCategoryOptions = isHotelsView
+    ? categoryOptions.hotel
+    : isFoodView
+      ? categoryOptions.food
+      : categoryOptions.attraction;
   const categoryValue = isHotelsView
     ? activeFilters.roomType
     : isFoodView
@@ -182,6 +186,7 @@ function PlaceSearchWorkspace({
                 <span className="sr-only">Country</span>
                 <select
                   value={activeFilters.countryCode}
+                  aria-required="true"
                   onChange={(event) =>
                     handleCountryChange(event.target.value, isHotelsView ? 'hotel' : isFoodView ? 'restaurant' : 'attraction')
                   }
@@ -221,7 +226,7 @@ function PlaceSearchWorkspace({
                   value={categoryValue}
                   onChange={(event) => updateFilterField(categoryField, event.target.value)}
                 >
-                  {categoryOptions.map((option) => (
+                  {activeCategoryOptions.map((option) => (
                     <option key={option.value || `any-${cardType}`} value={option.value}>
                       {option.label}
                     </option>

@@ -35,6 +35,9 @@ const tripBodyRules = [
   body('destinationSegments').optional().isArray(),
   body('destinationSegments.*.city').optional().trim().isLength({ min: 2, max: 120 }),
   body('destinationSegments.*.country').optional().trim().isLength({ max: 80 }),
+  body('destinationSegments.*.imageUrl').optional({ checkFalsy: true }).trim().isURL({ protocols: ['https'], require_protocol: true }).isLength({ max: 2000 }),
+  body('destinationSegments.*.imageUrls').optional().isArray({ max: 10 }),
+  body('destinationSegments.*.imageUrls.*').optional({ checkFalsy: true }).trim().isURL({ protocols: ['https'], require_protocol: true }).isLength({ max: 2000 }),
   body('destinationSegments.*.startDate').optional().isISO8601(),
   body('destinationSegments.*.endDate').optional().isISO8601(),
   body('destinationSegments.*.order').optional().isInt({ min: 1 }),
@@ -54,6 +57,7 @@ const tripBodyRules = [
 
 const updateTripRules = [
   objectIdRule,
+  body('title').optional().trim().isLength({ min: 1, max: 120 }),
   body('destination').optional().trim().isLength({ min: 2, max: 120 }),
   body('country').optional().trim().isLength({ max: 80 }),
   body('startDate').optional().isISO8601(),
@@ -66,6 +70,9 @@ const updateTripRules = [
   body('destinationSegments').optional().isArray(),
   body('destinationSegments.*.city').optional().trim().isLength({ min: 2, max: 120 }),
   body('destinationSegments.*.country').optional().trim().isLength({ max: 80 }),
+  body('destinationSegments.*.imageUrl').optional({ checkFalsy: true }).trim().isURL({ protocols: ['https'], require_protocol: true }).isLength({ max: 2000 }),
+  body('destinationSegments.*.imageUrls').optional().isArray({ max: 10 }),
+  body('destinationSegments.*.imageUrls.*').optional({ checkFalsy: true }).trim().isURL({ protocols: ['https'], require_protocol: true }).isLength({ max: 2000 }),
   body('destinationSegments.*.startDate').optional().isISO8601(),
   body('destinationSegments.*.endDate').optional().isISO8601(),
   body('destinationSegments.*.order').optional().isInt({ min: 1 }),

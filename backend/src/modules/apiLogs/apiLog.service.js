@@ -3,6 +3,7 @@
  * Business rules, repository access, and external integrations live in this layer.
  */
 const apiLogRepository = require('./apiLog.repository');
+const crypto = require('crypto');
 const logger = require('../../utils/logger');
 const notificationService = require('../notifications/notification.service');
 
@@ -18,6 +19,34 @@ const cleanMetadata = (metadata = {}) =>
     return safeMetadata;
   }, {});
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const getDateBoundary = (value, endOfDay = false) => {
+  const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
+  const date = new Date(isDateOnly ? `${value}T00:00:00.000` : value);
+
+  if (isDateOnly) {
+    if (endOfDay) {
+      date.setHours(23, 59, 59, 999);
+    } else {
+      date.setHours(0, 0, 0, 0);
+    }
+  }
+
+  return date;
+};
+const getDefaultErrorCode = ({ category, service, status, statusCode }) => {
+  if (status === 'success') return 'SUCCESS_EVENT';
+  if (statusCode === 429 || category === 'rate-limit') return 'RATE_LIMIT_EXCEEDED';
+  if (statusCode === 401) return 'AUTHENTICATION_REQUIRED';
+  if (statusCode === 403) return 'FORBIDDEN';
+  if (statusCode === 404) return 'NOT_FOUND';
+  if (statusCode === 409) return 'CONFLICT';
+  if (statusCode >= 500) {
+    return category === 'system' || service === 'server'
+      ? 'INTERNAL_SERVER_ERROR'
+      : 'EXTERNAL_SERVICE_ERROR';
+  }
+  return 'REQUEST_FAILED';
+};
 const maskEmail = (email = '') => {
   const normalizedEmail = String(email).trim().toLowerCase();
   const [name, domain] = normalizedEmail.split('@');
@@ -46,18 +75,24 @@ const formatLog = (log) => {
   };
 };
 // Build Filter transforms source data into the shape required nearby.
-const buildFilter = ({ status, category, severity, service, from, to } = {}) => {
-  const filter = {};
+const buildFilter = ({ status, category, severity, service, errorCode, requestId, userId, from, to } = {}) => {
+  const filter = {
+    errorCode: { $exists: true, $nin: [null, ''] },
+    requestId: { $exists: true, $nin: [null, ''] },
+  };
 
   if (status) filter.status = status;
   if (category) filter.category = category;
   if (severity) filter.severity = severity;
   if (service) filter.service = new RegExp(escapeRegex(service.trim()), 'i');
+  if (errorCode) filter.errorCode = errorCode.trim().toUpperCase();
+  if (requestId) filter.requestId = new RegExp(escapeRegex(requestId.trim()), 'i');
+  if (userId) filter.userId = userId;
 
   if (from || to) {
     filter.createdAt = {};
-    if (from) filter.createdAt.$gte = new Date(from);
-    if (to) filter.createdAt.$lte = new Date(to);
+    if (from) filter.createdAt.$gte = getDateBoundary(from);
+    if (to) filter.createdAt.$lte = getDateBoundary(to, true);
   }
 
   return filter;
@@ -85,6 +120,8 @@ const fillDailyCounts = (dailyCounts, days = 7) => {
   });
 };
 const recordEvent = async (data) => {
+  const errorCode = data.errorCode || getDefaultErrorCode(data);
+  const requestId = data.requestId || crypto.randomUUID();
   const metadata = cleanMetadata({
     ...data.metadata,
     ...(data.attemptedEmail && { attemptedEmailMasked: maskEmail(data.attemptedEmail) }),
@@ -98,6 +135,8 @@ const recordEvent = async (data) => {
     endpoint: data.endpoint,
     status: data.status,
     statusCode: data.statusCode,
+    errorCode,
+    requestId,
     message: data.message,
     userId: data.userId,
     ...(Object.keys(metadata).length && { metadata }),

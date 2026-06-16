@@ -23,8 +23,10 @@ import {
 } from '../../api/exploreApi';
 import { getFavorites } from '../../api/favoriteApi';
 import { getReverseGeocodeLocation } from '../../api/mapApi';
+import { getCategories } from '../../api/categoryApi';
 import CurrencyContext from '../../context/currencyContext';
-import { attractionCategoryOptions, foodCategoryOptions, roomTypeOptions } from './explore.constants';
+import useNotifications from '../../hooks/useNotifications';
+import { emptyCategoryOptions, groupCategoryOptions } from './explore.constants';
 import { formatMoney, getDateKey, getErrorMessage, getPriceConversionKey } from './explore.helpers';
 import AttractionsSubmenu from './submenus/Attractions';
 import RestaurantSubmenu from './submenus/Restaurant';
@@ -57,6 +59,7 @@ function ExplorePage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const currency = useContext(CurrencyContext);
+  const { subscribeToCategories } = useNotifications();
   const activeView = searchParams.get('view') || 'attractions';
   const destination = searchParams.get('q') || '';
   const restoredAttractionState = location.state?.attractionResults ? location.state : null;
@@ -176,6 +179,10 @@ function ExplorePage() {
     food: { loaded: 0, priced: 0, rated: 0, topRated: 0 },
     hotels: { loaded: 0, priced: 0, rated: 0, topRated: 0 },
   });
+  const [categoryOptions, setCategoryOptions] = useState(emptyCategoryOptions);
+  const roomTypeOptions = categoryOptions.hotel;
+  const attractionCategoryOptions = categoryOptions.attraction;
+  const foodCategoryOptions = categoryOptions.food;
   const activeOption = useMemo(
     () => viewOptions.find((option) => option.id === activeView) || viewOptions[0],
     [activeView]
@@ -219,6 +226,32 @@ function ExplorePage() {
   const selectedAttractionCategory = attractionSearchCriteria?.attractionCategory ?? attractionFilters.attractionCategory;
   const selectedAttractionCategoryLabel =
     attractionCategoryOptions.find((option) => option.value === selectedAttractionCategory)?.label || 'Any';
+
+  const loadCategoryOptions = useCallback(async () => {
+    const response = await getCategories();
+    return groupCategoryOptions(response.data?.data?.categories || []);
+  }, []);
+
+  useEffect(() => {
+    let isActive = true;
+
+    const refreshCategoryOptions = async ({ resetOnError = false } = {}) => {
+      try {
+        const nextCategoryOptions = await loadCategoryOptions();
+        if (isActive) setCategoryOptions(nextCategoryOptions);
+      } catch {
+        if (isActive && resetOnError) setCategoryOptions(emptyCategoryOptions);
+      }
+    };
+
+    refreshCategoryOptions({ resetOnError: true });
+    const unsubscribe = subscribeToCategories(refreshCategoryOptions);
+
+    return () => {
+      isActive = false;
+      unsubscribe();
+    };
+  }, [loadCategoryOptions, subscribeToCategories]);
   const submittedSearchCriteria = isHotelsView
     ? hotelSearchCriteria
     : isFoodView
@@ -267,7 +300,7 @@ function ExplorePage() {
         searchTitle: 'Search for hotels',
         resultLabel: 'Hotel results',
         emptyTitle: 'No hotels loaded yet',
-        emptyText: 'Search by hotel name, country, or location, or use the filters to discover matching hotel cards.',
+        emptyText: 'Select a country, then optionally narrow the search by hotel name, location, or room type.',
         readyText: 'Search text or filters can begin',
         matchesLabel: 'hotel matches',
       }
@@ -277,7 +310,7 @@ function ExplorePage() {
           searchTitle: 'Search for food',
           resultLabel: 'Restaurant results',
           emptyTitle: 'No restaurants loaded yet',
-          emptyText: 'Search by restaurant name, country, or location, or use the food category filter to discover matching restaurant cards.',
+          emptyText: 'Select a country, then optionally narrow the search by restaurant name, location, or food category.',
           readyText: 'Search text or filters can begin',
           matchesLabel: 'restaurant matches',
         }
@@ -286,7 +319,7 @@ function ExplorePage() {
         searchTitle: 'Search for attractions',
         resultLabel: 'Attraction results',
         emptyTitle: 'No attractions loaded yet',
-        emptyText: 'Search by attraction name, country, location, or category to discover matching attraction cards.',
+        emptyText: 'Select a country, then optionally narrow the search by attraction name, location, or category.',
         readyText: 'Search text or filters can begin',
         matchesLabel: 'curated matches',
       };
@@ -531,22 +564,6 @@ function ExplorePage() {
       locationLabel: coordinateLabel || weatherDestination || currentLocationLabel,
     };
   };
-  const withCurrentLocationFallback = (criteria) => {
-    if (criteria.country || criteria.state) {
-      return criteria;
-    }
-
-    const currentCountry = currentLocation.country?.trim() || '';
-    const currentState = currentLocation.state?.trim() || '';
-
-    return {
-      ...criteria,
-      destination: criteria.destination || (currentCountry || currentState ? '' : currentLocation.label === 'current area' ? '' : currentLocation.label),
-      country: criteria.country || currentCountry,
-      state: criteria.state || currentState,
-    };
-  };
-
   const fetchDestinationWeather = async (viewId, weatherRequest) => {
     const weatherDestination = weatherRequest?.destination;
     const hasCoordinates = Number.isFinite(Number(weatherRequest?.latitude)) && Number.isFinite(Number(weatherRequest?.longitude));
@@ -573,7 +590,7 @@ function ExplorePage() {
         ...currentWeather,
         [viewId]: response.data.data.weather,
       }));
-    } catch (requestError) {
+    } catch {
       setWeatherByView((currentWeather) => ({
         ...currentWeather,
         [viewId]: {
@@ -625,17 +642,12 @@ function ExplorePage() {
     attractionCategory: attractionFilters.attractionCategory,
   });
 
-  const hasAttractionCriteria = (criteria) =>
-    Boolean(criteria.destination || criteria.country || criteria.state || criteria.attractionCategory);
-
   const getHotelCriteria = () => ({
     destination: destination.trim(),
     country: hotelFilters.country.trim(),
     state: hotelFilters.state.trim(),
     roomType: hotelFilters.roomType,
   });
-
-  const hasHotelCriteria = (criteria) => Boolean(criteria.destination || criteria.country || criteria.state || criteria.roomType);
 
   const getRestaurantCriteria = () => ({
     destination: destination.trim(),
@@ -644,15 +656,10 @@ function ExplorePage() {
     foodCategory: restaurantFilters.foodCategory,
   });
 
-  const hasRestaurantCriteria = (criteria) =>
-    Boolean(criteria.destination || criteria.country || criteria.state || criteria.foodCategory);
-
   const fetchFilteredItems = async ({
     criteria,
     start = 0,
     append = false,
-    hasCriteria,
-    emptyMessage,
     search,
     responseKey,
     setItems,
@@ -662,12 +669,6 @@ function ExplorePage() {
     noun,
     viewId,
   }) => {
-    if (!hasCriteria(criteria)) {
-      setErrorScope(viewId);
-      setError(emptyMessage);
-      return;
-    }
-
     if (append) {
       setIsLoadingMore(true);
     } else {
@@ -724,8 +725,6 @@ function ExplorePage() {
       criteria,
       start,
       append,
-      hasCriteria: hasAttractionCriteria,
-      emptyMessage: 'Enter an attraction name, country, location, or category first.',
       search: searchAttractions,
       responseKey: 'attractions',
       setItems: setAttractions,
@@ -738,7 +737,7 @@ function ExplorePage() {
 
   const handleAttractionsSearch = async (event) => {
     event.preventDefault();
-    await fetchAttractions({ criteria: withCurrentLocationFallback(getAttractionCriteria()) });
+    await fetchAttractions({ criteria: getAttractionCriteria() });
   };
 
   const fetchHotels = async ({ criteria, start = 0, append = false }) =>
@@ -746,8 +745,6 @@ function ExplorePage() {
       criteria,
       start,
       append,
-      hasCriteria: hasHotelCriteria,
-      emptyMessage: 'Enter a hotel name, country, location, or room type first.',
       search: searchHotels,
       responseKey: 'hotels',
       setItems: setHotels,
@@ -760,7 +757,7 @@ function ExplorePage() {
 
   const handleHotelsSearch = async (event) => {
     event.preventDefault();
-    await fetchHotels({ criteria: withCurrentLocationFallback(getHotelCriteria()) });
+    await fetchHotels({ criteria: getHotelCriteria() });
   };
 
   const fetchRestaurants = async ({ criteria, start = 0, append = false }) =>
@@ -768,8 +765,6 @@ function ExplorePage() {
       criteria,
       start,
       append,
-      hasCriteria: hasRestaurantCriteria,
-      emptyMessage: 'Enter a restaurant name, country, location, or food category first.',
       search: searchRestaurants,
       responseKey: 'restaurants',
       setItems: setRestaurants,
@@ -782,7 +777,7 @@ function ExplorePage() {
 
   const handleRestaurantsSearch = async (event) => {
     event.preventDefault();
-    await fetchRestaurants({ criteria: withCurrentLocationFallback(getRestaurantCriteria()) });
+    await fetchRestaurants({ criteria: getRestaurantCriteria() });
   };
 
   const handleLoadMoreHotels = () => {
@@ -1270,6 +1265,7 @@ function ExplorePage() {
     activeOption,
     activeWeather,
     countryOptions,
+    categoryOptions,
     destination,
     destinationLabel,
     error: errorScope === activeOption.id ? error : '',

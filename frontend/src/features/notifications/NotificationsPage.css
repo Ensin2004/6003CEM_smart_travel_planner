@@ -236,6 +236,27 @@
   line-height: 1.5;
 }
 
+.notification-error-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-top: 9px;
+}
+
+.notification-error-context code,
+.notification-error-context span {
+  max-width: 100%;
+  padding: 4px 7px;
+  border-radius: 6px;
+  background: #fff1f2;
+  color: #9f1239;
+  font-size: 11px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .notifications-empty {
   display: grid;
   justify-items: center;

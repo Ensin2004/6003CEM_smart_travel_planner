@@ -1,6 +1,5 @@
 /**
- * Explore module.
- * Business rules, repository access, and external integrations live in this layer.
+ * Hotel discovery service backed by SerpApi Google Maps and Wikipedia summaries.
  */
 const axios = require('axios');
 const env = require('../../config/env');
@@ -65,6 +64,11 @@ const getHotelQuery = ({ destination, country, state, roomType }) => {
 
   return `${roomPrefix}hotels`;
 };
+/**
+ * Searches for hotels matching destination and room filters.
+ * @param {object} filters Destination, country, state, room type, and pagination input.
+ * @returns {Promise<object>} Normalized hotel results or an availability fallback.
+ */
 const getHotelsByDestination = async (filters) => {
   const normalizedFilters = normalizeFilters(filters);
 
@@ -72,7 +76,10 @@ const getHotelsByDestination = async (filters) => {
     return fallbackHotels(normalizedFilters, 'Enter a hotel name, country, location, or room type first.');
   }
   if (!env.serpApiKey || env.nodeEnv === 'test') {
-    return fallbackHotels(normalizedFilters, 'SerpApi key is not configured');
+    return {
+      ...fallbackHotels(normalizedFilters, 'SerpApi key is not configured'),
+      errorCode: 'INVALID_API_KEY',
+    };
   }
   try {
     return await searchGoogleMaps({
@@ -84,9 +91,9 @@ const getHotelsByDestination = async (filters) => {
       mapItem: (item, index) => normalizeHotel(item, index, normalizedFilters),
     });
   } catch (error) {
-    const { message, statusCode } = getGoogleMapsFailureMessage(error);
-    recordGoogleMapsFailure('hotels', message, statusCode, normalizedFilters);
-    return fallbackHotels(normalizedFilters, message);
+    const { errorCode, message, statusCode } = getGoogleMapsFailureMessage(error);
+    recordGoogleMapsFailure('hotels', message, statusCode, normalizedFilters, errorCode);
+    return { ...fallbackHotels(normalizedFilters, message), errorCode };
   }
 };
 const getWikipediaPageSummary = async (title) => {
@@ -159,6 +166,11 @@ const getWikipediaSummary = async (name, address = '') => {
     url: '',
   };
 };
+/**
+ * Enriches a hotel with listing data, photos, reviews, and a Wikipedia description.
+ * @param {object} input Hotel identity and provider identifiers.
+ * @returns {Promise<object>} Detailed hotel data with partial fallbacks when needed.
+ */
 const getHotelDetail = async ({ name, address, dataId, placeId }) => {
   const fallbackName = name || 'Selected hotel';
   const baseHotel = {
@@ -203,7 +215,7 @@ const getHotelDetail = async ({ name, address, dataId, placeId }) => {
       imageEnrichedItem = mergePlaceImages(item, photos.imageUrls);
     } catch (photoError) {
       const photoFailure = getGoogleMapsFailureMessage(photoError);
-      recordGoogleMapsFailure('hotel-detail-photos', photoFailure.message, photoFailure.statusCode, { name, address, dataId: dataId || item.dataId });
+      recordGoogleMapsFailure('hotel-detail-photos', photoFailure.message, photoFailure.statusCode, { name, address, dataId: dataId || item.dataId }, photoFailure.errorCode);
     }
 
     const reviews = await searchGoogleMapsReviews({
@@ -222,10 +234,11 @@ const getHotelDetail = async ({ name, address, dataId, placeId }) => {
       lastUpdated: new Date().toISOString(),
     };
   } catch (error) {
-    const { message, statusCode } = getGoogleMapsFailureMessage(error);
-    recordGoogleMapsFailure('hotel-detail', message, statusCode, { name, address, dataId, placeId });
+    const { errorCode, message, statusCode } = getGoogleMapsFailureMessage(error);
+    recordGoogleMapsFailure('hotel-detail', message, statusCode, { name, address, dataId, placeId }, errorCode);
     return {
       ...baseHotel,
+      errorCode,
       message,
     };
   }

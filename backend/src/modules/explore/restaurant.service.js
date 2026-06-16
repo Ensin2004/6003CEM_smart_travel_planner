@@ -1,6 +1,5 @@
 /**
- * Explore module.
- * Business rules, repository access, and external integrations live in this layer.
+ * Restaurant discovery service backed by SerpApi Google Maps and Wikipedia summaries.
  */
 const axios = require('axios');
 const env = require('../../config/env');
@@ -64,6 +63,11 @@ const getRestaurantQuery = ({ destination, country, state, foodCategory }) => {
 
   return `${categoryPrefix}restaurants`;
 };
+/**
+ * Searches for restaurants matching destination and food-category filters.
+ * @param {object} filters Destination, country, state, category, and pagination input.
+ * @returns {Promise<object>} Normalized restaurant results or an availability fallback.
+ */
 const getRestaurantsByDestination = async (filters) => {
   const normalizedFilters = normalizeFilters(filters);
 
@@ -71,7 +75,10 @@ const getRestaurantsByDestination = async (filters) => {
     return fallbackRestaurants(normalizedFilters, 'Enter a restaurant name, country, location, or food category first.');
   }
   if (!env.serpApiKey || env.nodeEnv === 'test') {
-    return fallbackRestaurants(normalizedFilters, 'SerpApi key is not configured');
+    return {
+      ...fallbackRestaurants(normalizedFilters, 'SerpApi key is not configured'),
+      errorCode: 'INVALID_API_KEY',
+    };
   }
   try {
     return await searchGoogleMaps({
@@ -83,9 +90,9 @@ const getRestaurantsByDestination = async (filters) => {
       mapItem: (item, index) => normalizeRestaurant(item, index, normalizedFilters),
     });
   } catch (error) {
-    const { message, statusCode } = getGoogleMapsFailureMessage(error);
-    recordGoogleMapsFailure('restaurants', message, statusCode, normalizedFilters);
-    return fallbackRestaurants(normalizedFilters, message);
+    const { errorCode, message, statusCode } = getGoogleMapsFailureMessage(error);
+    recordGoogleMapsFailure('restaurants', message, statusCode, normalizedFilters, errorCode);
+    return { ...fallbackRestaurants(normalizedFilters, message), errorCode };
   }
 };
 const getWikipediaPageSummary = async (title) => {
@@ -158,6 +165,11 @@ const getWikipediaSummary = async (name, address = '') => {
     url: '',
   };
 };
+/**
+ * Enriches a restaurant with listing data, photos, reviews, and a Wikipedia description.
+ * @param {object} input Restaurant identity and provider identifiers.
+ * @returns {Promise<object>} Detailed restaurant data with partial fallbacks when needed.
+ */
 const getRestaurantDetail = async ({ name, address, dataId, placeId }) => {
   const fallbackName = name || 'Selected restaurant';
   const baseRestaurant = {
@@ -202,7 +214,7 @@ const getRestaurantDetail = async ({ name, address, dataId, placeId }) => {
       imageEnrichedItem = mergePlaceImages(item, photos.imageUrls);
     } catch (photoError) {
       const photoFailure = getGoogleMapsFailureMessage(photoError);
-      recordGoogleMapsFailure('restaurant-detail-photos', photoFailure.message, photoFailure.statusCode, { name, address, dataId: dataId || item.dataId });
+      recordGoogleMapsFailure('restaurant-detail-photos', photoFailure.message, photoFailure.statusCode, { name, address, dataId: dataId || item.dataId }, photoFailure.errorCode);
     }
 
     const reviews = await searchGoogleMapsReviews({
@@ -221,10 +233,11 @@ const getRestaurantDetail = async ({ name, address, dataId, placeId }) => {
       lastUpdated: new Date().toISOString(),
     };
   } catch (error) {
-    const { message, statusCode } = getGoogleMapsFailureMessage(error);
-    recordGoogleMapsFailure('restaurant-detail', message, statusCode, { name, address, dataId, placeId });
+    const { errorCode, message, statusCode } = getGoogleMapsFailureMessage(error);
+    recordGoogleMapsFailure('restaurant-detail', message, statusCode, { name, address, dataId, placeId }, errorCode);
     return {
       ...baseRestaurant,
+      errorCode,
       message,
     };
   }

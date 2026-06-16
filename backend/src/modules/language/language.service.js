@@ -1,12 +1,13 @@
 /**
- * Language module.
- * Business rules, repository access, and external integrations live in this layer.
+ * LibreTranslate adapter and translation-history service.
+ * Synchronizes provider languages and persists successful user translations.
  */
 const axios = require('axios');
 const env = require('../../config/env');
 const AppError = require('../../utils/AppError');
 const logger = require('../../utils/logger');
 const apiLogService = require('../apiLogs/apiLog.service');
+const { classifyExternalApiError } = require('../../utils/externalApiError');
 const languageRepository = require('./language.repository');
 
 const CACHE_TTL_MS = 30 * 60 * 1000;
@@ -15,7 +16,7 @@ const DEFAULT_LIBRETRANSLATE_BASE_URL = 'http://127.0.0.1:5001';
 let lastLanguageSyncAt = 0;
 const getTranslationBaseUrl = () =>
   String(env.libreTranslateBaseUrl || DEFAULT_LIBRETRANSLATE_BASE_URL).replace(/\/$/, '');
-const recordLanguageEvent = (message, statusCode, metadata = {}) =>
+const recordLanguageEvent = (message, statusCode, metadata = {}, errorCode) =>
   apiLogService
     .recordEvent({
       service: 'libretranslate',
@@ -24,6 +25,7 @@ const recordLanguageEvent = (message, statusCode, metadata = {}) =>
       endpoint: 'language',
       status: 'fail',
       statusCode,
+      errorCode,
       message,
       metadata,
     })
@@ -58,6 +60,10 @@ const syncLanguagesFromProvider = async () => {
   lastLanguageSyncAt = Date.now();
   return languageRepository.upsertLanguages(providerLanguages);
 };
+/**
+ * Returns supported languages, refreshing repository data from LibreTranslate when stale.
+ * @returns {Promise<Array<object>>} Normalized language options.
+ */
 const getSupportedLanguages = async () => {
   const cachedLanguages = await languageRepository.findLanguages();
 
@@ -137,6 +143,11 @@ const createHistoryForTranslation = async ({ userId, source, target, sourceText,
     cached: translation.cached,
   });
 };
+/**
+ * Translates text and records successful authenticated-user translations.
+ * @param {object} input Source text, language codes, and optional user identifier.
+ * @returns {Promise<object>} Translation output and provider availability metadata.
+ */
 const translateText = async ({ text, sourceLanguage, targetLanguage, userId }) => {
   const { source, target } = await getLanguagesForTranslation(sourceLanguage, targetLanguage);
 
@@ -167,7 +178,7 @@ const translateText = async ({ text, sourceLanguage, targetLanguage, userId }) =
 
   if (languageRepository.getDailyUsage() >= env.libreTranslateDailyLimit) {
     const message = 'Daily translation limit reached. Please try again tomorrow.';
-    recordLanguageEvent(message, 429, { sourceLanguage, targetLanguage });
+    recordLanguageEvent(message, 429, { sourceLanguage, targetLanguage }, 'RATE_LIMIT_EXCEEDED');
     return buildUnavailableTranslation(message);
   }
 
@@ -204,25 +215,21 @@ const translateText = async ({ text, sourceLanguage, targetLanguage, userId }) =
     await createHistoryForTranslation({ userId, source, target, sourceText: text, translation });
     return translation;
   } catch (error) {
-    if (error.response?.status === 401 || error.response?.status === 403) {
-      recordLanguageEvent('Translation API key is invalid', 502, { sourceLanguage, targetLanguage });
-      return buildUnavailableTranslation('Translation service is not configured correctly.');
-    }
-    if (error.response?.status === 429) {
-      recordLanguageEvent('Translation API rate limit reached', 429, { sourceLanguage, targetLanguage });
-      return buildUnavailableTranslation('Translation service is busy. Please try again later.');
-    }
-    if (error.code === 'ECONNABORTED') {
-      recordLanguageEvent('Translation API timeout', 503, { sourceLanguage, targetLanguage });
-      return buildUnavailableTranslation('Translation service timed out. Please try again.');
-    }
-
-    const statusCode = error.response?.status >= 500 ? 503 : 502;
-    recordLanguageEvent('Translation service temporarily unavailable', statusCode, {
+    const failure = classifyExternalApiError(error, {
+      invalidApiKeyMessage: 'Translation API key is invalid or unauthorized.',
+      networkMessage: 'Translation service could not be reached.',
+      rateLimitMessage: 'Translation API rate limit reached.',
+      timeoutMessage: 'Translation service request timed out.',
+      unavailableMessage: 'Translation service temporarily unavailable.',
+    });
+    recordLanguageEvent(failure.message, failure.statusCode, {
       sourceLanguage,
       targetLanguage,
-    });
-    return buildUnavailableTranslation('Translation temporarily unavailable.');
+    }, failure.errorCode);
+    return {
+      ...buildUnavailableTranslation(failure.message),
+      errorCode: failure.errorCode,
+    };
   }
 };
 // Format History converts raw values into readable display text.
@@ -248,6 +255,12 @@ const formatHistory = (history) => ({
   cached: history.cached,
   createdAt: history.createdAt,
 });
+/**
+ * Returns paginated translation history belonging to a user.
+ * @param {string} userId Owner of the translation history.
+ * @param {object} query Pagination and search options.
+ * @returns {Promise<object>} Formatted history items and pagination metadata.
+ */
 const getHistory = async (userId, query = {}) => {
   const limit = Math.min(Number(query.limit) || 10, 50);
   const page = Math.max(Number(query.page) || 1, 1);
@@ -266,7 +279,12 @@ const getHistory = async (userId, query = {}) => {
     },
   };
 };
-// Delete History removes a record after ownership checks.
+/**
+ * Deletes a translation-history record only when it belongs to the user.
+ * @param {string} id Translation-history identifier.
+ * @param {string} userId Expected owner identifier.
+ * @returns {Promise<void>}
+ */
 const deleteHistory = async (id, userId) => {
   const deletedHistory = await languageRepository.deleteHistoryByIdAndUserId(id, userId);
   if (!deletedHistory) throw new AppError('Translation history not found', 404);

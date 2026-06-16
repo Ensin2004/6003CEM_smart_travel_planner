@@ -8,9 +8,15 @@ const itineraryRepository = require('./itinerary.repository');
 // Add Days builds a new record from validated input.
 const addDays = (date, days) => {
   const nextDate = new Date(date);
-  nextDate.setDate(nextDate.getDate() + days);
+  nextDate.setUTCDate(nextDate.getUTCDate() + days);
   return nextDate;
 };
+const startOfUtcDay = (date) => {
+  const value = new Date(date);
+  return new Date(Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate()));
+};
+const getInclusiveDayCount = (startDate, endDate) =>
+  Math.max(1, Math.round((startOfUtcDay(endDate) - startOfUtcDay(startDate)) / 86400000) + 1);
 const getTripForUser = async (tripId, userId) => {
   const trip = await tripRepository.findByIdAndUserId(tripId, userId);
   if (!trip) throw new AppError('Trip not found', 404);
@@ -110,6 +116,54 @@ const updateItem = async (itemId, userId, data) => {
   if (!item) throw new AppError('Itinerary item not found', 404);
   return item;
 };
+const syncTripDateRange = async (previousTrip, updatedTrip, userId) => {
+  const previousStart = startOfUtcDay(previousTrip.startDate);
+  const updatedStart = startOfUtcDay(updatedTrip.startDate);
+  const updatedDuration = getInclusiveDayCount(updatedTrip.startDate, updatedTrip.endDate);
+  const [savedDays, items] = await Promise.all([
+    itineraryRepository.findDaysByTripId(updatedTrip._id, userId),
+    itineraryRepository.findItemsByTripId(updatedTrip._id, userId),
+  ]);
+
+  await itineraryRepository.deleteDaysAfter(updatedTrip._id, userId, updatedDuration);
+  await Promise.all(
+    savedDays
+      .filter((day) => day.dayNumber <= updatedDuration)
+      .map((day) =>
+        itineraryRepository.updateDayDate(
+          updatedTrip._id,
+          userId,
+          day.dayNumber,
+          addDays(updatedStart, day.dayNumber - 1)
+        )
+      )
+  );
+
+  const itemUpdates = [];
+  const itemIdsToDelete = [];
+  items.forEach((item) => {
+    if (!item.scheduledDate) return;
+    const previousDayOffset = Math.round(
+      (startOfUtcDay(item.scheduledDate) - previousStart) / 86400000
+    );
+    if (previousDayOffset < 0 || previousDayOffset >= updatedDuration) {
+      itemIdsToDelete.push(item._id);
+      return;
+    }
+    itemUpdates.push(
+      itineraryRepository.updateItemScheduledDate(
+        item._id,
+        userId,
+        addDays(updatedStart, previousDayOffset)
+      )
+    );
+  });
+
+  await Promise.all([
+    itineraryRepository.deleteItemsByIds(itemIdsToDelete, userId),
+    ...itemUpdates,
+  ]);
+};
 // Delete Item removes a record after ownership checks.
 const deleteItem = async (itemId, userId) => {
   const item = await itineraryRepository.deleteItemByIdAndUserId(itemId, userId);
@@ -119,6 +173,7 @@ module.exports = {
   createItem,
   deleteItem,
   getItinerary,
+  syncTripDateRange,
   updateDay,
   updateItem,
 };

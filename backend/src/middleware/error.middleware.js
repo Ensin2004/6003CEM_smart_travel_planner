@@ -10,15 +10,32 @@ const apiLogService = require('../modules/apiLogs/apiLog.service');
 // Mongoose cast errors are rewritten into a client-friendly validation message.
 const handleCastError = (error) => ({
   statusCode: 400,
+  code: 'INVALID_PARAMETER',
   message: `Invalid ${error.path}: ${error.value}`,
 });
+
+const statusCodes = {
+  400: 'BAD_REQUEST',
+  401: 'AUTHENTICATION_REQUIRED',
+  403: 'FORBIDDEN',
+  404: 'NOT_FOUND',
+  409: 'CONFLICT',
+  422: 'VALIDATION_ERROR',
+  429: 'RATE_LIMIT_EXCEEDED',
+};
 
 const errorHandler = (error, req, res, next) => {
   let statusCode = error.statusCode || 500;
   let message = error.message || 'Something went wrong';
+  let code =
+    error.code ||
+    statusCodes[statusCode] ||
+    (statusCode >= 500 ? 'INTERNAL_SERVER_ERROR' : 'REQUEST_FAILED');
+
   if (error.name === 'CastError') {
     const castError = handleCastError(error);
     statusCode = castError.statusCode;
+    code = castError.code;
     message = castError.message;
   }
   if (error.retryAfterSeconds) {
@@ -36,6 +53,8 @@ const errorHandler = (error, req, res, next) => {
         endpoint: req.originalUrl,
         status: 'error',
         statusCode,
+        errorCode: code,
+        requestId: req.requestId,
         message: env.nodeEnv === 'production' ? 'Internal server error' : message,
         userId: req.user?.id,
       })
@@ -46,7 +65,10 @@ const errorHandler = (error, req, res, next) => {
   res.status(statusCode).json({
     status: `${statusCode}`.startsWith('4') ? 'fail' : 'error',
     message: env.nodeEnv === 'production' && statusCode === 500 ? 'Internal server error' : message,
-    ...(error.code && { code: error.code }),
+    code: env.nodeEnv === 'production' && statusCode >= 500 ? 'INTERNAL_SERVER_ERROR' : code,
+    requestId: req.requestId,
+    ...(error.errors && (statusCode < 500 || env.nodeEnv === 'development') && { errors: error.errors }),
+    ...(error.details && (statusCode < 500 || env.nodeEnv === 'development') && { details: error.details }),
     ...(error.email && { email: error.email }),
     ...(error.verificationExpiresAt && { verificationExpiresAt: error.verificationExpiresAt }),
     ...(error.retryAfterSeconds && { retryAfterSeconds: error.retryAfterSeconds }),

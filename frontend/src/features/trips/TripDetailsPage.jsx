@@ -3,20 +3,23 @@
  * Page state, event handlers, and render sections define the screen experience.
  */
 import { useContext, useEffect, useMemo, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Country, State } from 'country-state-city';
 import { toast } from 'react-toastify';
 import {
   ArrowLeft,
   AlertTriangle,
   BedDouble,
+  Bike,
   Building2,
   CalendarDays,
+  Car,
   ChevronDown,
-  CheckCircle2,
   Clock3,
   CloudSun,
   DollarSign,
+  Droplets,
+  Footprints,
   Image,
   Info,
   Landmark,
@@ -24,8 +27,10 @@ import {
   ListChecks,
   LoaderCircle,
   MapPin,
+  Navigation,
   Pencil,
   Plus,
+  Route,
   Search,
   Settings,
   Sparkles,
@@ -37,6 +42,7 @@ import {
   Umbrella,
   Utensils,
   WalletCards,
+  Wind,
   X,
 } from 'lucide-react';
 import {
@@ -47,21 +53,22 @@ import {
   updateItineraryItem,
 } from '../../api/itineraryApi';
 import { getTripAiRecommendations } from '../../api/aiAssistantApi';
-import { searchAttractions, searchHotels, searchRestaurants } from '../../api/exploreApi';
+import { searchAttractions, searchHotels, searchRestaurants, searchWeather } from '../../api/exploreApi';
 import { getTripSummary, updateTrip } from '../../api/tripApi';
 import {
-  addPackingItem,
-  addTravelDocumentItem,
-  createPackingList,
-  createTravelDocument,
   getPackingLists,
   getTravelDocuments,
-  updatePackingItem,
 } from '../../api/travelToolsApi';
-import { getGeocodeLocation, searchOpenStreetMapCategoryPlaces, searchOpenStreetMapPlaces } from '../../api/mapApi';
+import {
+  getGeocodeLocation,
+  getMapPlaceDetails,
+  getRouteBetweenPlaces,
+  searchMapCategoryPlaces,
+  searchOpenStreetMapCategoryPlaces,
+  searchOpenStreetMapPlaces,
+} from '../../api/mapApi';
 import { getVisitedPlaces } from '../../api/visitedPlaceApi';
 import TripMapPreview from '../../components/trips/TripMapPreview';
-import TripRoutePlanner from '../../components/trips/TripRoutePlanner';
 import { getTripMapPoint } from '../../components/trips/tripMapUtils';
 import TripAiAssistantPanel from './components/TripAiAssistantPanel';
 import VisitedPlaceControl from '../../components/visitedPlaces/VisitedPlaceControl';
@@ -76,6 +83,25 @@ const ideaCategories = [
   { id: 'train', label: 'Transport', icon: TrainFront },
   { id: 'shopping', label: 'Shopping', icon: Lightbulb },
 ];
+const routeModes = [
+  { id: 'car', label: 'Car', icon: Car },
+  { id: 'walking', label: 'Walk', icon: Footprints },
+  { id: 'bike', label: 'Bike', icon: Bike },
+];
+const formatRouteDuration = (seconds) => {
+  if (!Number.isFinite(Number(seconds))) return '--';
+  const minutes = Math.max(1, Math.round(Number(seconds) / 60));
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return `${hours} hr${hours === 1 ? '' : 's'}${remainingMinutes ? ` ${remainingMinutes} min` : ''}`;
+};
+const formatRouteDistance = (meters) => {
+  if (!Number.isFinite(Number(meters))) return '--';
+  return Number(meters) < 1000
+    ? `${Math.round(Number(meters))} m`
+    : `${(Number(meters) / 1000).toFixed(1)} km`;
+};
 const weatherModeIcons = {
   rainy: Umbrella,
   sunny: Sun,
@@ -83,32 +109,29 @@ const weatherModeIcons = {
   comfortable: CloudSun,
   default: CloudSun,
 };
-const defaultPackingItems = ['Passport', 'Charger', 'Umbrella', 'Medicine', 'Power Bank'];
-const defaultDocumentItems = [
-  { name: 'Flight Ticket', documentType: 'Ticket' },
-  { name: 'Hotel Booking', documentType: 'Booking' },
-  { name: 'Passport', documentType: 'Passport' },
-  { name: 'Visa', documentType: 'Visa' },
-  { name: 'Insurance', documentType: 'Insurance' },
-];
-const settingsStyleOptions = ['Food', 'Culture', 'Shopping'];
-const emptyLocationLabels = new Set(['not added yet']);
+const emptyLocationLabels = new Set([
+  'not added yet',
+  'set a day location',
+  'set day location',
+  'day location',
+  'current location',
+]);
 const getEditableLocationName = (value) => {
   const locationName = String(value || '').trim();
   return emptyLocationLabels.has(locationName.toLowerCase()) ? '' : locationName;
 };
 
 const itineraryGroups = [
-  { id: 'food', title: 'What to eat', addLabel: 'Food', categoryId: 'food', types: ['restaurant'], icon: Utensils },
-  { id: 'see', title: 'What to see and do', addLabel: 'Attractions', categoryId: 'attractions', types: ['attraction', 'custom'], icon: Landmark },
-  { id: 'stay', title: 'Where to stay', addLabel: 'Stay', categoryId: 'hotels', types: ['hotel'], icon: BedDouble },
-  { id: 'move', title: 'How to get there', addLabel: 'Transportation', categoryId: 'train', types: ['transport', 'flight'], icon: TrainFront },
+  { id: 'food', title: 'Food & dining', description: 'Restaurants, cafes, and local food', addLabel: 'Food', categoryId: 'food', types: ['restaurant'], icon: Utensils },
+  { id: 'see', title: 'Attractions & activities', description: 'Places to visit and things to do', addLabel: 'Attractions', categoryId: 'attractions', types: ['attraction', 'custom'], icon: Landmark },
+  { id: 'stay', title: 'Accommodation', description: 'Hotels and places to stay', addLabel: 'Stay', categoryId: 'hotels', types: ['hotel'], icon: BedDouble },
+  { id: 'move', title: 'Transportation', description: 'Stations, airports, and travel connections', addLabel: 'Transportation', categoryId: 'train', types: ['transport', 'flight'], icon: TrainFront },
 ];
 const categoryTextSearchTerms = {
   food: ['restaurants', 'cafes', 'food courts'],
-  attractions: ['tourist attractions', 'museums', 'landmarks'],
-  hotels: ['hotels', 'resorts', 'guest houses'],
-  train: ['train stations', 'transport hubs', 'bus stations'],
+  attractions: ['attractions', 'things to do', 'museums', 'landmarks', 'parks'],
+  hotels: ['hotels', 'places to stay', 'resorts', 'hostels', 'guest houses'],
+  train: ['train stations', 'railway stations', 'bus stations', 'transport hubs', 'airports'],
 };
 const getPlaceAddress = (place) => place.address || place.displayName || 'Location details unavailable';
 const getUniquePlaces = (places = []) => {
@@ -270,17 +293,43 @@ const searchCategoryPlacesByText = async (category, locationQuery, options = {})
 
   if (!trimmedLocation) return [];
 
-  const responses = await Promise.allSettled(searchTerms.map((term) =>
-    searchOpenStreetMapPlaces(`${term} in ${trimmedLocation}`, {
-      limit: options.limitPerTerm || 4,
-      signal: options.signal,
-    })
-  ));
+  const queries = searchTerms.flatMap((term) => [
+    `${term} in ${trimmedLocation}`,
+    `${term} near ${trimmedLocation}`,
+  ]);
+  const results = [];
 
-  return getUniquePlaces(responses
-    .filter((response) => response.status === 'fulfilled')
-    .flatMap((response) => response.value))
-    .slice(0, options.limit || 12);
+  for (const query of queries) {
+    try {
+      const places = await searchOpenStreetMapPlaces(query, {
+        limit: options.limitPerTerm || 4,
+        signal: options.signal,
+      });
+      results.push(...places);
+      if (getUniquePlaces(results).length >= (options.limit || 12)) break;
+    } catch (error) {
+      if (error.name === 'AbortError' || error.name === 'CanceledError') throw error;
+    }
+  }
+
+  return getUniquePlaces(results).slice(0, options.limit || 12);
+};
+const getMapCategoryForItemType = (type) => {
+  if (type === 'restaurant') return 'food';
+  if (type === 'hotel') return 'hotels';
+  if (type === 'transport' || type === 'flight') return 'train';
+  return 'attractions';
+};
+const searchProviderCategoryPlaces = async (category, center, locationQuery, options = {}) => {
+  if (!center) return [];
+
+  const result = await searchMapCategoryPlaces(category, center, {
+    destination: locationQuery,
+    limit: options.limit || 12,
+    signal: options.signal,
+  });
+
+  return result.items || [];
 };
 const searchExploreCategoryPlaces = async (category, locationQuery, options = {}) => {
   const destination = String(locationQuery || '').trim();
@@ -316,8 +365,6 @@ const searchExploreCategoryPlaces = async (category, locationQuery, options = {}
 
   return [];
 };
-const normalizeStyleValue = (value) => value.toLowerCase().replace(/\s+/g, '-');
-const hasStyle = (trip, style) => (trip?.travelPreferences?.styles || []).includes(normalizeStyleValue(style));
 const getChecklistProgress = (items = [], isDone) => {
   const completed = items.filter(isDone).length;
   return { completed, total: items.length };
@@ -345,23 +392,10 @@ const getRouteSummary = (days = []) => {
 
   return summary;
 };
-const getRouteCountries = (days = []) => {
-  const countryNames = days
-    .map((day) => {
-      const explicitCountry = day.location?.country;
-      if (explicitCountry) return explicitCountry;
-
-      const locationName = day.location?.name || '';
-      const countryMatch = Country.getAllCountries().find((country) => country.name.toLowerCase() === locationName.toLowerCase());
-      return countryMatch?.name || '';
-    })
-    .filter(Boolean);
-
-  return [...new Set(countryNames)];
-};
 // TripDetailsPage renders the main screen and handles nearby interactions.
 function TripDetailsPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const currency = useContext(CurrencyContext);
   const [activeTab, setActiveTab] = useState('itinerary');
   const [activeDayNumber, setActiveDayNumber] = useState('summary');
@@ -371,9 +405,11 @@ function TripDetailsPage() {
   const [visitedPlaces, setVisitedPlaces] = useState([]);
   const [weather, setWeather] = useState(null);
   const [weatherGuidance, setWeatherGuidance] = useState(null);
+  const [weatherStatus, setWeatherStatus] = useState('idle');
   const [showWeatherHelp, setShowWeatherHelp] = useState(true);
   const [ideas, setIdeas] = useState([]);
   const [tripRoutePlan, setTripRoutePlan] = useState({
+    dayNumber: null,
     points: [],
     results: {},
     selectedMode: 'car',
@@ -386,14 +422,22 @@ function TripDetailsPage() {
   const [ideaStatus, setIdeaStatus] = useState('idle');
   const [ideaDetailStatus, setIdeaDetailStatus] = useState('idle');
   const [selectedIdea, setSelectedIdea] = useState(null);
+  const [selectedPlaceSource, setSelectedPlaceSource] = useState('');
   const [ideaSearch, setIdeaSearch] = useState('');
   const [addMode, setAddMode] = useState(null);
+  const [ideaAddMode, setIdeaAddMode] = useState(null);
   const [message, setMessage] = useState('');
   const [panelWidth, setPanelWidth] = useState(460);
   const [isAddingIdea, setIsAddingIdea] = useState(false);
   const [selectedIdeaSchedule, setSelectedIdeaSchedule] = useState({ startTime: '09:00', endTime: '10:00' });
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [checklistModal, setChecklistModal] = useState(null);
+  const [tripSettingsForm, setTripSettingsForm] = useState({
+    title: '',
+    startDate: '',
+    endDate: '',
+  });
+  const [tripSettingsStatus, setTripSettingsStatus] = useState('idle');
+  const [tripSettingsError, setTripSettingsError] = useState('');
   const [packingList, setPackingList] = useState(null);
   const [travelDocument, setTravelDocument] = useState(null);
   const [toolsStatus, setToolsStatus] = useState('idle');
@@ -486,6 +530,78 @@ function TripDetailsPage() {
     [activeDayNumber, days]
   );
   useEffect(() => {
+    if (!activeDay || !trip) return undefined;
+
+    const dayLatitude = activeDay.location?.coordinates?.latitude;
+    const dayLongitude = activeDay.location?.coordinates?.longitude;
+    const hasDayCoordinates = Number.isFinite(Number(dayLatitude)) && Number.isFinite(Number(dayLongitude));
+    const dayLocation = [
+      getEditableLocationName(activeDay.location?.name),
+      activeDay.location?.country,
+    ].filter(Boolean).join(', ');
+
+    let isMounted = true;
+    setWeatherStatus('loading');
+    const weatherDate = activeDay.date ? new Date(activeDay.date).toISOString().slice(0, 10) : undefined;
+
+    Promise.resolve().then(async () => {
+      if (dayLocation || hasDayCoordinates) {
+        let latitude = hasDayCoordinates ? Number(dayLatitude) : undefined;
+        let longitude = hasDayCoordinates ? Number(dayLongitude) : undefined;
+
+        if (!hasDayCoordinates && dayLocation) {
+          const geocodedPlace = await getGeocodeLocation(dayLocation).catch(() => null);
+          if (geocodedPlace?.available) {
+            latitude = Number(geocodedPlace.latitude);
+            longitude = Number(geocodedPlace.longitude);
+          }
+        }
+
+        const response = await searchWeather({
+          destination: dayLocation,
+          date: weatherDate,
+          latitude,
+          longitude,
+          locationLabel: dayLocation,
+        });
+        return response.data?.data?.weather || null;
+      }
+
+      const currentLocation = await getBrowserCurrentLocationCenter();
+      if (!currentLocation) {
+        return {
+          available: false,
+          message: 'Allow location access to show weather when no day location is set.',
+        };
+      }
+
+      const response = await searchWeather({
+        date: weatherDate,
+        latitude: currentLocation[0],
+        longitude: currentLocation[1],
+        locationLabel: 'Current location',
+      });
+      return response.data?.data?.weather || null;
+    })
+      .then((nextWeather) => {
+        if (!isMounted) return;
+        setWeather(nextWeather);
+        setWeatherStatus('success');
+      })
+      .catch(() => {
+        if (!isMounted) return;
+        setWeather({
+          available: false,
+          message: 'Weather temporarily unavailable. Please try again shortly.',
+        });
+        setWeatherStatus('error');
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeDay, trip]);
+  useEffect(() => {
     if (!isEditingDayLocation || locationSearchText.trim().length < 2) {
       return undefined;
     }
@@ -563,7 +679,6 @@ function TripDetailsPage() {
     items: activeDayItems.filter((item) => group.types.includes(item.type)),
   })), [activeDayItems]);
   const plannedBudget = days.reduce((total, day) => total + Number(day.budget?.amount || 0), 0);
-  const itemSpend = items.reduce((total, item) => total + Number(item.priceEstimate?.amount || 0), 0);
   const tripCurrency = trip?.budget?.currency || currency?.selectedCurrency || 'MYR';
   const activeDayBudget = Number(activeDay?.budget?.amount || 0);
   const activeDaySpend = activeDayItems.reduce((total, item) => total + Number(item.priceEstimate?.amount || 0), 0);
@@ -585,6 +700,7 @@ function TripDetailsPage() {
   const totalBudget = Number(trip?.budget?.totalAmount || 0);
   const remainingBudget = Math.max(0, totalBudget - plannedBudget);
   const plannedBudgetPercent = totalBudget ? Math.min(100, Math.round((plannedBudget / totalBudget) * 100)) : 0;
+  const activeDaySpendPercent = activeDayBudget ? Math.min(100, Math.round((activeDaySpend / activeDayBudget) * 100)) : 0;
   const AddModeIcon = addMode?.icon || Plus;
   const recommendationLocation = getRecommendationLocation(trip, activeDay);
   const selectedIdeaHours = selectedIdea?.openState || selectedIdea?.hours || '';
@@ -595,6 +711,14 @@ function TripDetailsPage() {
   const weatherTemperature = weather?.temperature?.max || weather?.temperature?.mean
     ? `${Math.round(weather.temperature.max || weather.temperature.mean)}${weather.temperature.unit || 'C'}`
     : '';
+  const weatherRain = Number.isFinite(Number(weather?.precipitation?.probability))
+    ? `${Math.round(Number(weather.precipitation.probability))}% rain`
+    : Number.isFinite(Number(weather?.precipitation?.amountMm))
+      ? `${Number(weather.precipitation.amountMm).toFixed(1)} mm rain`
+      : 'Rain unavailable';
+  const weatherWind = Number.isFinite(Number(weather?.windSpeed?.max))
+    ? `${Number(weather.windSpeed.max).toFixed(1)} ${weather.windSpeed.unit || 'km/h'} wind`
+    : 'Wind unavailable';
   const WeatherModeIcon = weatherModeIcons[weatherGuidance?.mode] || CloudSun;
   const activeDayMapCenter = activeDayNumber !== 'summary'
     ? editedLocationMapCenter?.dayNumber === activeDay?.dayNumber
@@ -606,10 +730,20 @@ function TripDetailsPage() {
       const itemDay = days.find((day) => formatInputDate(day.date) === formatInputDate(item.scheduledDate));
 
       return {
-      title: item.title,
-      city: item.location?.address,
-      lat: item.location?.coordinates?.coordinates?.[1],
-      lng: item.location?.coordinates?.coordinates?.[0],
+        id: item.externalId || item._id,
+        itineraryItemId: item._id,
+        name: item.title,
+        title: item.title,
+        city: item.location?.address,
+        address: item.location?.address,
+        summary: item.description,
+        categoryId: getMapCategoryForItemType(item.type),
+        type: item.type,
+        price: item.priceEstimate?.amount
+          ? `${item.priceEstimate.amount} ${item.priceEstimate.currency || tripCurrency}`
+          : 'Price unavailable',
+        lat: item.location?.coordinates?.coordinates?.[1],
+        lng: item.location?.coordinates?.coordinates?.[0],
         dayNumber: itemDay?.dayNumber,
       };
     })
@@ -639,12 +773,22 @@ function TripDetailsPage() {
     }
     : null;
   const tripRouteMapPlaces = selectedTripRoute?.optimizedPoints || tripRoutePlan.points;
+  const isDayRouteOpen = Boolean(tripRoutePlan.dayNumber);
   const routeSummary = useMemo(() => getRouteSummary(days), [days]);
-  const routeCountries = useMemo(() => getRouteCountries(days), [days]);
   const packingProgress = getChecklistProgress(packingList?.items || [], (item) => item.isPacked);
   const documentProgress = getChecklistProgress(travelDocument?.items || [], (item) => item.files?.length);
+  const packingProgressPercent = packingProgress.total
+    ? Math.round((packingProgress.completed / packingProgress.total) * 100)
+    : 0;
+  const documentProgressPercent = documentProgress.total
+    ? Math.round((documentProgress.completed / documentProgress.total) * 100)
+    : 0;
   const summaryTripDuration = days.length || trip?.durationDays || 0;
-  const summaryLocationsSet = new Set(days.map((day) => day.location?.name).filter(Boolean));
+  const summaryLocationsSet = new Set(
+    days
+      .map((day) => getEditableLocationName(day.location?.name))
+      .filter(Boolean)
+  );
   const summaryPlannedItems = items.length;
   useEffect(() => {
     if (!trip || activeDayNumber === 'summary' || activeTab !== 'itinerary' || !activeDay) {
@@ -690,23 +834,26 @@ function TripDetailsPage() {
       }
 
       const previewResults = await Promise.allSettled(itineraryGroups.map(async (group) => {
-        const exploreResults = await searchExploreCategoryPlaces(group.categoryId, textLocationQuery, {
-          limit: 3,
-        });
-        const mapResults = exploreResults.length
-          ? []
-          : await searchOpenStreetMapCategoryPlaces(group.categoryId, center, {
-          limit: 3,
-          signal: controller.signal,
-        });
-        const textResults = exploreResults.length || mapResults.length
+        const [providerResults, mapResults] = await Promise.all([
+          searchProviderCategoryPlaces(group.categoryId, center, textLocationQuery, {
+            limit: 3,
+            signal: controller.signal,
+          }).catch(() => []),
+          searchOpenStreetMapCategoryPlaces(group.categoryId, center, {
+            limit: 3,
+            radius: 0.35,
+            signal: controller.signal,
+          }).catch(() => []),
+        ]);
+        const combinedResults = getUniquePlaces([...providerResults, ...mapResults]);
+        const textResults = combinedResults.length >= 3
           ? []
           : await searchCategoryPlacesByText(group.categoryId, textLocationQuery, {
           limit: 3,
           limitPerTerm: 2,
           signal: controller.signal,
-        });
-        const results = getUniquePlaces([...exploreResults, ...mapResults, ...textResults]).slice(0, 3);
+        }).catch(() => []);
+        const results = getUniquePlaces([...combinedResults, ...textResults]).slice(0, 3);
 
         return [
           group.id,
@@ -862,22 +1009,6 @@ function TripDetailsPage() {
     }
   };
 
-  const toggleTravelStyle = async (style) => {
-    const normalizedStyle = normalizeStyleValue(style);
-    const currentStyles = trip?.travelPreferences?.styles || [];
-    const nextStyles = currentStyles.includes(normalizedStyle)
-      ? currentStyles.filter((item) => item !== normalizedStyle)
-      : [...currentStyles, normalizedStyle];
-    const response = await updateTrip(id, {
-      travelPreferences: {
-        ...trip.travelPreferences,
-        styles: nextStyles,
-      },
-    });
-    const savedTrip = response.data?.data?.trip;
-    if (savedTrip) setTrip(savedTrip);
-  };
-
   const updateTripBudget = async (amount) => {
     const response = await updateTrip(id, {
       budget: {
@@ -890,66 +1021,72 @@ function TripDetailsPage() {
     if (savedTrip) setTrip(savedTrip);
   };
 
-  const openPackingChecklist = async () => {
-    setToolsMessage('');
-    if (packingList) {
-      setChecklistModal('packing');
-      return;
-    }
-
-    try {
-      const response = await createPackingList({
-        title: `${trip.title || trip.destination} packing list`,
-        tripId: id,
-        items: defaultPackingItems.map((name) => ({ name })),
-      });
-      setPackingList(response.data?.data?.packingList || null);
-      setChecklistModal('packing');
-    } catch (error) {
-      setToolsMessage(error.response?.data?.message || 'Unable to create packing list.');
-    }
+  const openTravelTool = (path, recordId) => {
+    const params = new URLSearchParams({ tripId: id });
+    if (recordId) params.set('recordId', recordId);
+    setSettingsOpen(false);
+    navigate(`${path}?${params.toString()}`);
   };
-
-  const openDocumentChecklist = async () => {
-    setToolsMessage('');
-    if (travelDocument) {
-      setChecklistModal('documents');
-      return;
-    }
-
-    try {
-      const response = await createTravelDocument({
-        name: `${trip.title || trip.destination} documents`,
-        tripId: id,
-        type: 'Custom',
-        items: defaultDocumentItems.map((item) => ({
-          ...item,
-          uploadLabel: `Upload ${item.name}`,
-        })),
-      });
-      setTravelDocument(response.data?.data?.document || response.data?.data?.travelDocument || null);
-      setChecklistModal('documents');
-    } catch (error) {
-      setToolsMessage(error.response?.data?.message || 'Unable to create document checklist.');
-    }
-  };
-
-  const togglePackingItem = async (item) => {
-    const response = await updatePackingItem(packingList._id, item._id, { isPacked: !item.isPacked });
-    setPackingList(response.data?.data?.packingList || response.data?.data?.list || packingList);
-  };
-
-  const addDefaultPackingItem = async (name) => {
-    const response = await addPackingItem(packingList._id, { name });
-    setPackingList(response.data?.data?.packingList || response.data?.data?.list || packingList);
-  };
-
-  const addDefaultDocumentItem = async (item) => {
-    const response = await addTravelDocumentItem(travelDocument._id, {
-      ...item,
-      uploadLabel: `Upload ${item.name}`,
+  const openTripSettings = () => {
+    setTripSettingsForm({
+      title: trip.title || trip.destination || '',
+      startDate: formatInputDate(trip.startDate),
+      endDate: formatInputDate(trip.endDate),
     });
-    setTravelDocument(response.data?.data?.document || response.data?.data?.travelDocument || travelDocument);
+    setTripSettingsError('');
+    setTripSettingsStatus('idle');
+    setSettingsOpen(true);
+  };
+  const saveTripSettings = async () => {
+    const title = tripSettingsForm.title.trim();
+    if (!title) {
+      setTripSettingsError('Enter a trip name.');
+      return;
+    }
+    if (!tripSettingsForm.startDate || !tripSettingsForm.endDate) {
+      setTripSettingsError('Choose both a start date and an end date.');
+      return;
+    }
+    if (new Date(tripSettingsForm.endDate) < new Date(tripSettingsForm.startDate)) {
+      setTripSettingsError('End date cannot be before the start date.');
+      return;
+    }
+
+    const oldDuration = Math.round(
+      (new Date(formatInputDate(trip.endDate)) - new Date(formatInputDate(trip.startDate))) / 86400000
+    ) + 1;
+    const newDuration = Math.round(
+      (new Date(tripSettingsForm.endDate) - new Date(tripSettingsForm.startDate)) / 86400000
+    ) + 1;
+    if (
+      newDuration < oldDuration
+      && !window.confirm(
+        `Shortening this trip to ${newDuration} day${newDuration === 1 ? '' : 's'} will remove itinerary days and planned items outside the new date range. Continue?`
+      )
+    ) {
+      return;
+    }
+
+    setTripSettingsStatus('saving');
+    setTripSettingsError('');
+    try {
+      const response = await updateTrip(id, {
+        title,
+        startDate: tripSettingsForm.startDate,
+        endDate: tripSettingsForm.endDate,
+      });
+      const itineraryResponse = await getTripItinerary(id);
+      const itinerary = itineraryResponse.data?.data || {};
+      setTrip(response.data?.data?.trip || itinerary.trip);
+      setDays(itinerary.days || []);
+      setItems(itinerary.items || []);
+      setActiveDayNumber('summary');
+      setTripSettingsStatus('success');
+      toast.success('Trip name and dates updated.');
+    } catch (error) {
+      setTripSettingsStatus('error');
+      setTripSettingsError(error.response?.data?.message || 'Unable to update trip details.');
+    }
   };
 
   const updateItemPriceLocal = (item, amount) => {
@@ -1018,17 +1155,21 @@ function TripDetailsPage() {
           || trip.destination;
       }
 
-      const exploreResults = await searchExploreCategoryPlaces(category, locationQuery, { limit: 12 });
-      const mapResults = exploreResults.length || !center
-        ? []
-        : await searchOpenStreetMapCategoryPlaces(category, center, { limit: 12 });
-      const textResults = exploreResults.length || mapResults.length
+      const [exploreResults, providerResults, mapResults] = await Promise.all([
+        searchExploreCategoryPlaces(category, locationQuery, { limit: 12 }).catch(() => []),
+        searchProviderCategoryPlaces(category, center, locationQuery, { limit: 12 }).catch(() => []),
+        center
+          ? searchOpenStreetMapCategoryPlaces(category, center, { limit: 12, radius: 0.35 }).catch(() => [])
+          : Promise.resolve([]),
+      ]);
+      const combinedResults = getUniquePlaces([...exploreResults, ...providerResults, ...mapResults]);
+      const textResults = combinedResults.length >= 6
         ? []
         : await searchCategoryPlacesByText(category, locationQuery, {
         limit: 12,
-        limitPerTerm: 5,
-      });
-      const results = getUniquePlaces([...exploreResults, ...mapResults, ...textResults]).slice(0, 12);
+        limitPerTerm: 4,
+      }).catch(() => []);
+      const results = getUniquePlaces([...combinedResults, ...textResults]).slice(0, 12);
       const nextIdeas = results.map((idea) => formatIdeaPlace({
         ...idea,
         summary: idea.displayName || `${category} near ${locationQuery}`,
@@ -1044,9 +1185,98 @@ function TripDetailsPage() {
   };
 
   const openAddSearch = (group) => {
-    setAddMode(group);
+    setActiveTab('ideas');
+    setIdeaAddMode(group);
+    setAddMode(null);
+    closeDayRoute();
     setIdeaSearch('');
     loadIdeas(group.categoryId, '');
+  };
+
+  const optimizeDayRoute = async (day) => {
+    const dayPoints = mapPlaces.filter((place) => place.dayNumber === day.dayNumber);
+    setActiveTab('itinerary');
+    setActiveDayNumber(day.dayNumber);
+    setIsEditingDayLocation(false);
+    setIsDayMenuOpen(false);
+    setSelectedIdea(null);
+    setAddMode(null);
+
+    if (dayPoints.length < 2) {
+      setTripRoutePlan((current) => ({
+        ...current,
+        dayNumber: day.dayNumber,
+        points: dayPoints,
+        results: {},
+        selectedRouteId: '',
+        status: 'error',
+        message: `Add at least two places to Day ${day.dayNumber} before optimizing its route.`,
+      }));
+      return;
+    }
+
+    setTripRoutePlan((current) => ({
+      ...current,
+      dayNumber: day.dayNumber,
+      points: dayPoints,
+      results: {},
+      selectedRouteId: '',
+      status: 'loading',
+      message: `Optimizing Day ${day.dayNumber} route...`,
+    }));
+
+    try {
+      const routeEntries = await Promise.all(routeModes.map(async (mode) => [
+        mode.id,
+        await getRouteBetweenPlaces(dayPoints, null, { mode: mode.id }),
+      ]));
+      const results = Object.fromEntries(routeEntries);
+      const selectedMode = results[tripRoutePlan.selectedMode] ? tripRoutePlan.selectedMode : 'car';
+      const activeRoute = results[selectedMode] || results.car;
+
+      setTripRoutePlan((current) => ({
+        ...current,
+        dayNumber: day.dayNumber,
+        points: dayPoints,
+        results,
+        selectedMode,
+        selectedRouteId: activeRoute?.id || '',
+        status: 'success',
+        message: activeRoute?.message || '',
+      }));
+    } catch (error) {
+      setTripRoutePlan((current) => ({
+        ...current,
+        dayNumber: day.dayNumber,
+        points: dayPoints,
+        results: {},
+        selectedRouteId: '',
+        status: 'error',
+        message: error.message || 'Unable to optimize this day route.',
+      }));
+    }
+  };
+
+  const selectDayRouteMode = (modeId) => {
+    const modeRoute = tripRoutePlan.results[modeId];
+    setTripRoutePlan((current) => ({
+      ...current,
+      selectedMode: modeId,
+      selectedRouteId: modeRoute?.id || '',
+      message: modeRoute?.message || '',
+    }));
+  };
+
+  const closeDayRoute = () => {
+    setTripRoutePlan((current) => ({
+      ...current,
+      dayNumber: null,
+      points: [],
+      results: {},
+      selectedRouteId: '',
+      status: 'idle',
+      message: '',
+    }));
   };
 
   const closeAddSearch = () => {
@@ -1061,7 +1291,39 @@ function TripDetailsPage() {
 
   const selectIdea = async (idea) => {
     setSelectedIdea(idea);
+    setSelectedPlaceSource('idea');
     setIdeaDetailStatus('success');
+  };
+
+  const selectTripPlace = async (place) => {
+    if (!place) return;
+
+    const normalizedPlace = formatIdeaPlace({
+      ...place,
+      name: place.name || place.title,
+      address: place.address || place.city,
+    }, place.categoryId || getMapCategoryForItemType(place.type));
+
+    setSelectedIdea(normalizedPlace);
+    setSelectedPlaceSource(place.itineraryItemId || place._id ? 'itinerary' : 'idea');
+    setIdeaDetailStatus('loading');
+
+    try {
+      const details = await getMapPlaceDetails(normalizedPlace);
+      const enrichedPlace = details?.item
+        ? formatIdeaPlace({
+          ...normalizedPlace,
+          ...details.item,
+          name: details.item.name || normalizedPlace.name,
+          address: details.item.address || normalizedPlace.address,
+        }, normalizedPlace.categoryId)
+        : normalizedPlace;
+
+      setSelectedIdea(enrichedPlace);
+      setIdeaDetailStatus(details?.available ? 'success' : 'fallback');
+    } catch {
+      setIdeaDetailStatus('fallback');
+    }
   };
 
   const askTripAiAssistant = async () => {
@@ -1128,10 +1390,11 @@ function TripDetailsPage() {
 
   const selectAiPlace = (place) => {
     setSelectedIdea(place);
+    setSelectedPlaceSource('idea');
     setIdeaDetailStatus('success');
   };
 
-  const addIdeaToDay = async (idea, modeOverride = addMode) => {
+  const addIdeaToDay = async (idea, modeOverride = ideaAddMode || addMode) => {
     if (!idea || isAddingIdea) return;
 
     setIsAddingIdea(true);
@@ -1165,6 +1428,7 @@ function TripDetailsPage() {
         setItems((currentItems) => [...currentItems, savedItem]);
         setActiveTab('itinerary');
         setAddMode(null);
+        setIdeaAddMode(null);
         setSelectedIdea(null);
         toast.success(`Added ${savedItem.title} to Day ${activeDay?.dayNumber || 1}.`);
       }
@@ -1219,7 +1483,7 @@ function TripDetailsPage() {
           </div>
         </div>
         <div className="trip-details-topbar-actions">
-          <button className="trip-settings-button" type="button" onClick={() => setSettingsOpen(true)}>
+          <button className="trip-settings-button" type="button" onClick={openTripSettings}>
             <Settings size={16} aria-hidden="true" />
             Settings
           </button>
@@ -1243,35 +1507,96 @@ function TripDetailsPage() {
             </header>
 
             <section className="trip-settings-section">
-              <h4>Travel Style</h4>
-              <div className="trip-settings-checks">
-                {settingsStyleOptions.map((style) => (
-                  <label key={style}>
-                    <input
-                      type="checkbox"
-                      checked={hasStyle(trip, style)}
-                      onChange={() => toggleTravelStyle(style)}
-                    />
-                    <span>{style}</span>
-                  </label>
-                ))}
+              <h4>Trip Details</h4>
+              <label className="trip-settings-field">
+                <span>Trip name</span>
+                <input
+                  type="text"
+                  maxLength="120"
+                  value={tripSettingsForm.title}
+                  onChange={(event) => setTripSettingsForm((current) => ({
+                    ...current,
+                    title: event.target.value,
+                  }))}
+                />
+              </label>
+              <div className="trip-settings-date-grid">
+                <label className="trip-settings-field">
+                  <span>Start date</span>
+                  <input
+                    type="date"
+                    value={tripSettingsForm.startDate}
+                    onChange={(event) => setTripSettingsForm((current) => ({
+                      ...current,
+                      startDate: event.target.value,
+                    }))}
+                  />
+                </label>
+                <label className="trip-settings-field">
+                  <span>End date</span>
+                  <input
+                    type="date"
+                    min={tripSettingsForm.startDate}
+                    value={tripSettingsForm.endDate}
+                    onChange={(event) => setTripSettingsForm((current) => ({
+                      ...current,
+                      endDate: event.target.value,
+                    }))}
+                  />
+                </label>
               </div>
+              <div className="trip-settings-info">
+                <Info size={17} aria-hidden="true" />
+                <p>
+                  Extending the range adds empty days. Shortening it removes leftover days and
+                  planned items. Existing retained days move to their new dates.
+                </p>
+              </div>
+              <button
+                className="trip-settings-save"
+                type="button"
+                onClick={saveTripSettings}
+                disabled={tripSettingsStatus === 'saving'}
+              >
+                {tripSettingsStatus === 'saving' ? 'Saving...' : 'Save trip details'}
+              </button>
+              {tripSettingsError ? (
+                <p className="trip-settings-inline-error" role="alert">{tripSettingsError}</p>
+              ) : null}
             </section>
 
             <section className="trip-settings-section trip-settings-row">
               <div>
                 <h4>Packing List</h4>
-                <p>{packingProgress.completed} / {packingProgress.total || defaultPackingItems.length} Completed</p>
+                <p>
+                  {packingList
+                    ? `${packingProgress.completed} / ${packingProgress.total} packed`
+                    : 'No packing list linked to this trip'}
+                </p>
               </div>
-              <button type="button" onClick={openPackingChecklist}>Open</button>
+              <button
+                type="button"
+                onClick={() => openTravelTool('/packing-lists', packingList?._id)}
+              >
+                {packingList ? 'Manage' : 'Create'}
+              </button>
             </section>
 
             <section className="trip-settings-section trip-settings-row">
               <div>
                 <h4>Document Checklist</h4>
-                <p>{documentProgress.completed} / {documentProgress.total || defaultDocumentItems.length} Completed</p>
+                <p>
+                  {travelDocument
+                    ? `${documentProgress.completed} / ${documentProgress.total} with files`
+                    : 'No document checklist linked to this trip'}
+                </p>
               </div>
-              <button type="button" onClick={openDocumentChecklist}>Open</button>
+              <button
+                type="button"
+                onClick={() => openTravelTool('/travel-documents', travelDocument?._id || travelDocument?.id)}
+              >
+                {travelDocument ? 'Manage' : 'Create'}
+              </button>
             </section>
 
             <section className="trip-settings-section">
@@ -1342,24 +1667,25 @@ function TripDetailsPage() {
                 </button>
               </form>
 
-              {showWeatherHelp && weatherGuidance ? (
-                <section className={weatherGuidance.available ? 'trip-weather-helper' : 'trip-weather-helper is-compact'} aria-label="Weather planning help">
+              {showWeatherHelp && (weatherGuidance || weather) ? (
+                <section className={weather?.available ? 'trip-weather-helper' : 'trip-weather-helper is-compact'} aria-label="Weather planning help">
                   <div className="trip-weather-helper-heading">
                     <span><WeatherModeIcon size={16} aria-hidden="true" /></span>
                     <div>
-                      <strong>{weatherGuidance.headline}</strong>
-                      {weatherGuidance.available ? (
-                        <small>{weather?.available ? `${weather.condition}${weatherTemperature ? `, ${weatherTemperature}` : ''}` : weatherGuidance.message}</small>
+                      <strong>{weather?.available ? 'Plan for the day weather' : weatherGuidance?.headline || 'Weather planning'}</strong>
+                      {weather?.available ? (
+                        <small>{`${weather.condition}${weatherTemperature ? `, ${weatherTemperature}` : ''}`}</small>
                       ) : null}
                     </div>
                     <button className="trip-weather-hide" type="button" onClick={() => setShowWeatherHelp(false)}>
                       Default
                     </button>
                   </div>
-                  {weatherGuidance.available ? (
+                  {weather?.available ? (
                     <div className="trip-weather-tip-list">
-                      {(weatherGuidance.packingTips || []).slice(0, 2).map((tip) => <span key={tip}>{tip}</span>)}
-                      {(weatherGuidance.placeTips || []).slice(0, 1).map((tip) => <span key={tip}>{tip}</span>)}
+                      {weather.travelTip ? <span>{weather.travelTip}</span> : null}
+                      {(weatherGuidance?.packingTips || []).slice(0, 1).map((tip) => <span key={tip}>{tip}</span>)}
+                      {(weatherGuidance?.placeTips || []).slice(0, 1).map((tip) => <span key={tip}>{tip}</span>)}
                     </div>
                   ) : null}
                 </section>
@@ -1418,16 +1744,15 @@ function TripDetailsPage() {
                 </button>
                 <button className={activeTab === 'ideas' ? 'active' : ''} type="button" onClick={() => {
                   setActiveTab('ideas');
+                  setIdeaAddMode(null);
+                  closeDayRoute();
                   if (ideas.length === 0) loadIdeas();
                 }}>
                   Ideas
                 </button>
-                <button className={activeTab === 'route' ? 'active' : ''} type="button" onClick={() => setActiveTab('route')}>
-                  Route
-                </button>
               </nav>
 
-              {activeTab !== 'route' ? <div className="trip-day-tabs" aria-label="Itinerary days">
+              {activeTab === 'itinerary' ? <div className="trip-day-tabs" aria-label="Itinerary days">
                 <div className="trip-day-selector">
                   <div className="trip-day-quick-list">
                     <button
@@ -1435,6 +1760,7 @@ function TripDetailsPage() {
                       type="button"
                       onClick={() => {
                         setActiveDayNumber('summary');
+                        closeDayRoute();
                         setIsEditingDayLocation(false);
                         setIsDayMenuOpen(false);
                       }}
@@ -1443,19 +1769,29 @@ function TripDetailsPage() {
                       <small>{routeSummary.length} stop{routeSummary.length === 1 ? '' : 's'}</small>
                     </button>
                     {visibleDayTabs.map((day) => (
-                      <button
-                        className={activeDayNumber === day.dayNumber ? 'trip-day-tab-button active' : 'trip-day-tab-button'}
-                        type="button"
-                        key={day.dayNumber}
-                        onClick={() => {
-                          setActiveDayNumber(day.dayNumber);
-                          setIsEditingDayLocation(false);
-                          setIsDayMenuOpen(false);
-                        }}
-                      >
-                        <span>Day {day.dayNumber}</span>
-                        <small>{formatDate(day.date)}</small>
-                      </button>
+                      <div className="trip-day-tab-group" key={day.dayNumber}>
+                        <button
+                          className={activeDayNumber === day.dayNumber ? 'trip-day-tab-button active' : 'trip-day-tab-button'}
+                          type="button"
+                          onClick={() => {
+                            setActiveDayNumber(day.dayNumber);
+                            closeDayRoute();
+                            setIsEditingDayLocation(false);
+                            setIsDayMenuOpen(false);
+                          }}
+                        >
+                          <span>Day {day.dayNumber}</span>
+                          <small>{formatDate(day.date)}</small>
+                        </button>
+                        <button
+                          className={tripRoutePlan.dayNumber === day.dayNumber ? 'trip-day-route-button active' : 'trip-day-route-button'}
+                          type="button"
+                          onClick={() => optimizeDayRoute(day)}
+                          aria-label={`Optimize route for Day ${day.dayNumber}`}
+                        >
+                          <Route size={15} aria-hidden="true" />
+                        </button>
+                      </div>
                     ))}
                     {hasOverflowDayTabs ? (
                       <button
@@ -1477,6 +1813,7 @@ function TripDetailsPage() {
                         role="menuitem"
                         onClick={() => {
                           setActiveDayNumber('summary');
+                          closeDayRoute();
                           setIsEditingDayLocation(false);
                           setIsDayMenuOpen(false);
                         }}
@@ -1485,20 +1822,30 @@ function TripDetailsPage() {
                         <small>{routeSummary.length} stop{routeSummary.length === 1 ? '' : 's'}</small>
                       </button>
                       {days.map((day) => (
-                        <button
-                          className={activeDayNumber === day.dayNumber ? 'active' : ''}
-                          type="button"
-                          role="menuitem"
-                          key={day.dayNumber}
-                          onClick={() => {
-                            setActiveDayNumber(day.dayNumber);
-                            setIsEditingDayLocation(false);
-                            setIsDayMenuOpen(false);
-                          }}
-                        >
-                          <span>Day {day.dayNumber}</span>
-                          <small>{formatDate(day.date)}{day.location?.name ? ` · ${day.location.name}` : ''}</small>
-                        </button>
+                        <div className="trip-day-menu-row" key={day.dayNumber}>
+                          <button
+                            className={activeDayNumber === day.dayNumber ? 'active' : ''}
+                            type="button"
+                            role="menuitem"
+                            onClick={() => {
+                              setActiveDayNumber(day.dayNumber);
+                              closeDayRoute();
+                              setIsEditingDayLocation(false);
+                              setIsDayMenuOpen(false);
+                            }}
+                          >
+                            <span>Day {day.dayNumber}</span>
+                            <small>{formatDate(day.date)}{day.location?.name ? ` · ${day.location.name}` : ''}</small>
+                          </button>
+                          <button
+                            className={tripRoutePlan.dayNumber === day.dayNumber ? 'trip-day-menu-route active' : 'trip-day-menu-route'}
+                            type="button"
+                            onClick={() => optimizeDayRoute(day)}
+                            aria-label={`Optimize route for Day ${day.dayNumber}`}
+                          >
+                            <Route size={15} aria-hidden="true" />
+                          </button>
+                        </div>
                       ))}
                     </div>
                   ) : null}
@@ -1541,47 +1888,65 @@ function TripDetailsPage() {
                     </span>
                   </section>
 
-                  <section className="trip-route-summary is-summary-tab" aria-label="Route summary">
-                    <div className="trip-route-summary-heading">
-                      <MapPin size={15} aria-hidden="true" />
-                      <h3>Route Summary</h3>
-                    </div>
-                    <div className="trip-route-country-summary">
-                      <strong>{routeCountries.length} countr{routeCountries.length === 1 ? 'y' : 'ies'} involved</strong>
-                      <span>{routeCountries.length ? routeCountries.join(', ') : 'Set day locations to see countries.'}</span>
-                    </div>
-                    <div className="trip-route-summary-list">
-                      {routeSummary.map((stop) => (
-                        <span key={`${stop.name}-${stop.country}-${stop.startDay}`}>
-                          <strong>{stop.name}</strong>
-                          <small>
-                            {stop.startDay === stop.endDay
-                              ? `Day ${stop.startDay}`
-                              : `Days ${stop.startDay}-${stop.endDay}`}
-                          </small>
-                        </span>
-                      ))}
-                    </div>
-                    <p className="trip-route-summary-note">
-                      Day locations power nearby ideas, weather context, and route planning. Open each day to set a state, city, or popular area.
-                    </p>
-                  </section>
-
                   <section className="trip-summary-grid" aria-label="Planning summary">
-                    <div>
-                      <h3>Checklist Progress</h3>
-                      <p>Packing list: {packingProgress.completed} / {packingProgress.total || defaultPackingItems.length}</p>
-                      <p>Documents: {documentProgress.completed} / {documentProgress.total || defaultDocumentItems.length}</p>
-                    </div>
-                    <div>
-                      <h3>Budget Snapshot</h3>
-                      <p>Total: {currency?.formatAmount ? currency.formatAmount(totalBudget, tripCurrency) : `${tripCurrency} ${totalBudget}`}</p>
-                      <p>Daily planned: {currency?.formatAmount ? currency.formatAmount(plannedBudget, tripCurrency) : plannedBudget}</p>
-                    </div>
-                    <div>
-                      <h3>Next Planning Step</h3>
-                      <p>{summaryLocationsSet.size ? 'Add food, attractions, hotels, and transport to each day.' : 'Set each day location first so ideas match the correct area.'}</p>
-                    </div>
+                    <article className="trip-summary-card checklist">
+                      <header>
+                        <span><ListChecks size={17} aria-hidden="true" /></span>
+                        <div>
+                          <h3>Checklist Progress</h3>
+                          <p>Your trip preparation status</p>
+                        </div>
+                      </header>
+                      <div className="trip-summary-progress-row">
+                        <div>
+                          <strong>Packing list</strong>
+                          <small>{packingList
+                            ? `${packingProgress.completed} of ${packingProgress.total} packed`
+                            : 'No list linked'}</small>
+                        </div>
+                        <b>{packingList ? `${packingProgressPercent}%` : '--'}</b>
+                        <span><i style={{ width: `${packingProgressPercent}%` }} /></span>
+                      </div>
+                      <div className="trip-summary-progress-row documents">
+                        <div>
+                          <strong>Documents</strong>
+                          <small>{travelDocument
+                            ? `${documentProgress.completed} of ${documentProgress.total} uploaded`
+                            : 'No checklist linked'}</small>
+                        </div>
+                        <b>{travelDocument ? `${documentProgressPercent}%` : '--'}</b>
+                        <span><i style={{ width: `${documentProgressPercent}%` }} /></span>
+                      </div>
+                    </article>
+
+                    <article className="trip-summary-card budget">
+                      <header>
+                        <span><WalletCards size={17} aria-hidden="true" /></span>
+                        <div>
+                          <h3>Budget Snapshot</h3>
+                          <p>How much of the trip budget is planned</p>
+                        </div>
+                      </header>
+                      <div className="trip-summary-budget-total">
+                        <span>Total trip budget</span>
+                        <strong>
+                          {currency?.formatAmount
+                            ? currency.formatAmount(totalBudget, tripCurrency)
+                            : `${tripCurrency} ${totalBudget}`}
+                        </strong>
+                      </div>
+                      <div className="trip-summary-budget-bar">
+                        <span><i style={{ width: `${plannedBudgetPercent}%` }} /></span>
+                        <div>
+                          <small>
+                            Planned: {currency?.formatAmount
+                              ? currency.formatAmount(plannedBudget, tripCurrency)
+                              : `${tripCurrency} ${plannedBudget}`}
+                          </small>
+                          <b>{plannedBudgetPercent}%</b>
+                        </div>
+                      </div>
+                    </article>
                   </section>
                 </div>
               ) : (
@@ -1592,6 +1957,14 @@ function TripDetailsPage() {
                     <h3>{activeDay.title || `Day ${activeDay.dayNumber}`}</h3>
                     <p>{formatDate(activeDay.date)}</p>
                   </div>
+                  <button
+                    className={tripRoutePlan.dayNumber === activeDay.dayNumber ? 'trip-day-header-route active' : 'trip-day-header-route'}
+                    type="button"
+                    onClick={() => optimizeDayRoute(activeDay)}
+                  >
+                    <Route size={16} aria-hidden="true" />
+                    Optimize day route
+                  </button>
                 </section>
               )}
 
@@ -1689,42 +2062,95 @@ function TripDetailsPage() {
                 <Info size={15} aria-hidden="true" />
               </label>
               <section className="trip-budget-overview" aria-label="Budget overview">
-                <div className={`trip-budget-card is-${activeDayBudgetStatus.tone}`}>
-                  <div className="trip-stat-card-head">
-                    <span>Budget</span>
+                <div className={`trip-statistic-card trip-budget-card is-${activeDayBudgetStatus.tone}`}>
+                  <div className="trip-statistic-card-header">
+                    <span className="trip-statistic-card-icon"><WalletCards size={16} aria-hidden="true" /></span>
+                    <div>
+                      <strong>Today&apos;s budget</strong>
+                      <small>Day {activeDay?.dayNumber || ''}</small>
+                    </div>
+                    <span className="trip-budget-status">{activeDayBudgetStatus.text}</span>
+                  </div>
+                  <div className="trip-statistic-card-main">
+                    <div className="trip-budget-summary-value">
+                      <strong>{currency?.formatAmount ? currency.formatAmount(activeDaySpend, tripCurrency) : `${tripCurrency} ${activeDaySpend}`}</strong>
+                      <span>spent today</span>
+                    </div>
                     {activeDay ? (
                       <label className="trip-budget-input" title="Daily budget for this itinerary day. Item estimates below count against this amount.">
-                        <span>{tripCurrency}</span>
-                        <input
-                          aria-label="Daily budget"
-                          type="number"
-                          min="0"
-                          value={activeDay.budget?.amount || 0}
-                          onChange={(event) => updateDayLocal(activeDay.dayNumber, {
-                            budget: { amount: Number(event.target.value), currency: tripCurrency },
-                          })}
-                          onBlur={() => saveDay(activeDay)}
-                        />
+                        <span>Day limit</span>
+                        <div>
+                          <small>{tripCurrency}</small>
+                          <input
+                            aria-label="Daily budget"
+                            type="number"
+                            min="0"
+                            value={activeDay.budget?.amount || 0}
+                            onChange={(event) => updateDayLocal(activeDay.dayNumber, {
+                              budget: { amount: Number(event.target.value), currency: tripCurrency },
+                            })}
+                            onBlur={() => saveDay(activeDay)}
+                          />
+                        </div>
                       </label>
                     ) : null}
                   </div>
-                  <strong>{currency?.formatAmount ? currency.formatAmount(activeDaySpend, tripCurrency) : `${tripCurrency} ${activeDaySpend}`}</strong>
-                  <small>of {currency?.formatAmount ? currency.formatAmount(activeDayBudget, tripCurrency) : `${tripCurrency} ${activeDayBudget}`}</small>
-                  <span className="trip-budget-status">{activeDayBudgetStatus.text}</span>
+                  <span className="trip-budget-bar is-day"><em style={{ width: `${activeDaySpendPercent}%` }} /></span>
                 </div>
-                <div>
-                  <span>Trip allocation</span>
-                  <strong>{plannedBudgetPercent}% planned</strong>
-                  <span className="trip-budget-bar"><em style={{ width: `${plannedBudgetPercent}%` }} /></span>
-                  <small>{currency?.formatAmount ? currency.formatAmount(remainingBudget, tripCurrency) : remainingBudget} left</small>
-                </div>
-                <div className="trip-weather-budget-card">
-                  <span>Weather</span>
-                  <div className="trip-weather-stat">
-                    <WeatherModeIcon size={22} aria-hidden="true" />
-                    <strong>{weather?.available ? `${weather.condition}${weatherTemperature ? `, ${weatherTemperature}` : ''}` : 'Weather unavailable'}</strong>
+                <div className="trip-statistic-card trip-allocation-card">
+                  <div className="trip-statistic-card-header">
+                    <span className="trip-statistic-card-icon"><DollarSign size={16} aria-hidden="true" /></span>
+                    <div>
+                      <strong>Trip budget allocation</strong>
+                      <small>{plannedBudgetPercent}% assigned across itinerary days</small>
+                    </div>
+                    <strong className="trip-allocation-percent">{plannedBudgetPercent}%</strong>
                   </div>
-                  <small>{weatherGuidance?.packingTips?.[0] || weather?.message || 'Plan with flexible indoor and outdoor options.'}</small>
+                  <div className="trip-statistic-card-main">
+                    <div className="trip-budget-summary-value">
+                      <strong>{currency?.formatAmount ? currency.formatAmount(plannedBudget, tripCurrency) : plannedBudget}</strong>
+                      <span>of {currency?.formatAmount ? currency.formatAmount(totalBudget, tripCurrency) : totalBudget}</span>
+                    </div>
+                    <div className="trip-budget-remaining">
+                      <span>Unallocated</span>
+                      <strong>{currency?.formatAmount ? currency.formatAmount(remainingBudget, tripCurrency) : remainingBudget}</strong>
+                    </div>
+                  </div>
+                  <span className="trip-budget-bar"><em style={{ width: `${plannedBudgetPercent}%` }} /></span>
+                </div>
+                <div className="trip-statistic-card trip-weather-budget-card">
+                  <div className="trip-statistic-card-header">
+                    <span className="trip-statistic-card-icon"><WeatherModeIcon size={17} aria-hidden="true" /></span>
+                    <div>
+                      <strong>Weather</strong>
+                      <small>{weather?.location?.name || activeDayLocationLabel}</small>
+                    </div>
+                  </div>
+                  {weatherStatus === 'loading' ? (
+                    <div className="trip-weather-loading">
+                      <LoaderCircle className="trip-details-spin" size={16} aria-hidden="true" />
+                      Checking day weather...
+                    </div>
+                  ) : weather?.available ? (
+                    <>
+                      <div className="trip-weather-stat">
+                        <strong>{weatherTemperature || '--'}</strong>
+                        <span>{weather.condition}</span>
+                      </div>
+                      <div className="trip-weather-metrics">
+                        <span><Droplets size={13} aria-hidden="true" />{weatherRain}</span>
+                        <span><Wind size={13} aria-hidden="true" />{weatherWind}</span>
+                      </div>
+                      <small>{weather.travelTip || weatherGuidance?.packingTips?.[0] || 'Plan with flexible indoor and outdoor options.'}</small>
+                    </>
+                  ) : (
+                    <>
+                      <div className="trip-weather-stat">
+                        <strong>Weather unavailable</strong>
+                      </div>
+                      <small>{weather?.message || 'Set a specific day location to check weather.'}</small>
+                    </>
+                  )}
                 </div>
               </section>
 
@@ -1757,7 +2183,7 @@ function TripDetailsPage() {
                         <span><GroupIcon size={16} aria-hidden="true" /></span>
                         <div>
                           <h3>{group.title}</h3>
-                          <small>{toVisitItemCount} place{toVisitItemCount === 1 ? '' : 's'} to visit / {visitedItemCount} visited</small>
+                          <small>{group.description}</small>
                         </div>
                       </div>
 
@@ -1769,14 +2195,24 @@ function TripDetailsPage() {
                         <ChevronDown size={17} aria-hidden="true" />
                       </button>
 
+                      <div className="trip-group-saved-heading">
+                        <span>Your added places</span>
+                        <small>{toVisitItemCount} to visit · {visitedItemCount} visited</small>
+                      </div>
+                      {group.items.length === 0 ? (
+                        <div className="trip-group-empty">
+                          No places added yet. Use the blue Add {group.addLabel} button or choose a nearby suggestion below.
+                        </div>
+                      ) : null}
+
                       <div className="trip-group-ideas">
                         <div className="trip-group-ideas-heading">
-                          <Sparkles size={14} aria-hidden="true" />
-                          <span>
+                          <span><Sparkles size={14} aria-hidden="true" /> Nearby suggestions</span>
+                          <small>
                             {dayGroupIdeaStatus === 'loading'
-                              ? 'Finding nearby ideas...'
+                              ? 'Finding places near the day location...'
                               : `Ideas near ${dayGroupIdeaSource || activeDayLocationLabel}`}
-                          </span>
+                          </small>
                         </div>
                         {dayGroupIdeaStatus === 'loading' ? (
                           <small className="trip-group-idea-message">Loading suggestions for this day.</small>
@@ -1820,19 +2256,59 @@ function TripDetailsPage() {
                         return (
                         <article className="trip-itinerary-item" key={item._id}>
                           {visitedRecord ? <span className="visited-place-watermark">Visited</span> : null}
-                          <div className="trip-item-card-main">
+                          <div
+                            className="trip-item-card-main"
+                            role="button"
+                            tabIndex="0"
+                            onClick={() => selectTripPlace({
+                              ...item,
+                              id: item.externalId || item._id,
+                              name: item.title,
+                              address: item.location?.address,
+                              lat: itemPoint.lat,
+                              lng: itemPoint.lng,
+                              categoryId: getMapCategoryForItemType(item.type),
+                            })}
+                            onKeyDown={(event) => {
+                              if (event.key === 'Enter' || event.key === ' ') {
+                                event.preventDefault();
+                                selectTripPlace({
+                                  ...item,
+                                  id: item.externalId || item._id,
+                                  name: item.title,
+                                  address: item.location?.address,
+                                  lat: itemPoint.lat,
+                                  lng: itemPoint.lng,
+                                  categoryId: getMapCategoryForItemType(item.type),
+                                });
+                              }
+                            }}
+                          >
                             <span className="trip-itinerary-thumb">
                               {itemPreviewUrl ? <img src={itemPreviewUrl} alt="" loading="lazy" /> : <MapPin size={20} aria-hidden="true" />}
                             </span>
                             <div className="trip-item-card-copy">
                               <div className="trip-item-title-row">
                                 <strong>{item.title}</strong>
-                                <span className={visitedRecord ? 'trip-visit-status is-visited' : 'trip-visit-status'}>
-                                  {visitedRecord ? 'Visited' : 'Place to visit'}
-                                </span>
-                                <button type="button" onClick={() => removeItem(item._id)} aria-label={`Remove ${item.title}`}>
-                                  <Trash2 size={15} aria-hidden="true" />
-                                </button>
+                                <div className="trip-item-header-actions">
+                                  <VisitedPlaceControl
+                                    compact
+                                    payload={visitedPayload}
+                                    visitedRecord={visitedRecord}
+                                    onVisitedChange={handleVisitedChange}
+                                  />
+                                  <button
+                                    className="trip-item-remove"
+                                    type="button"
+                                    onClick={(event) => {
+                                      event.stopPropagation();
+                                      removeItem(item._id);
+                                    }}
+                                    aria-label={`Remove ${item.title}`}
+                                  >
+                                    <Trash2 size={15} aria-hidden="true" />
+                                  </button>
+                                </div>
                               </div>
                               <p><MapPin size={13} aria-hidden="true" />{item.location?.address || item.description || 'Location details unavailable'}</p>
                               <div className="trip-item-mini-meta">
@@ -1870,12 +2346,6 @@ function TripDetailsPage() {
                                 onBlur={() => saveItemPrice(item._id)}
                               />
                             </label>
-                            <VisitedPlaceControl
-                              compact
-                              payload={visitedPayload}
-                              visitedRecord={visitedRecord}
-                              onVisitedChange={handleVisitedChange}
-                            />
                           </div>
                           {itemTimeWarning ? (
                             <p className="trip-opening-warning">
@@ -1893,14 +2363,19 @@ function TripDetailsPage() {
               </>
               )}
             </div>
-              ) : activeTab === 'route' ? (
-                <TripRoutePlanner
-                  itineraryPlaces={mapPlaces}
-                  plan={tripRoutePlan}
-                  onPlanChange={setTripRoutePlan}
-                />
               ) : (
-            <div className="trip-ideas-workspace">
+            <div className={ideaAddMode ? 'trip-ideas-workspace has-add-context' : 'trip-ideas-workspace'}>
+              {ideaAddMode ? (
+                <div className="trip-ideas-add-context">
+                  <div>
+                    <span>Add to Day {activeDay?.dayNumber || 1}</span>
+                    <strong>{ideaAddMode.title}</strong>
+                  </div>
+                  <button type="button" onClick={() => setIdeaAddMode(null)} aria-label="Exit add mode">
+                    <X size={16} aria-hidden="true" />
+                  </button>
+                </div>
+              ) : null}
               <form className="trip-idea-search" onSubmit={handleIdeaSearch}>
                 <input
                   value={ideaSearch}
@@ -1921,7 +2396,12 @@ function TripDetailsPage() {
                       className={ideaCategory === category.id ? 'active' : ''}
                       type="button"
                       key={category.id}
-                      onClick={() => loadIdeas(category.id, ideaSearch)}
+                      onClick={() => {
+                        if (ideaAddMode) {
+                          setIdeaAddMode(itineraryGroups.find((group) => group.categoryId === category.id) || null);
+                        }
+                        loadIdeas(category.id, ideaSearch);
+                      }}
                     >
                       <CategoryIcon size={15} aria-hidden="true" />
                       {category.label}
@@ -1933,7 +2413,11 @@ function TripDetailsPage() {
               {ideaStatus === 'loading' ? (
                 <p className="settings-empty"><LoaderCircle className="trip-details-spin" size={16} aria-hidden="true" /> Loading ideas...</p>
               ) : ideas.length === 0 ? (
-                <p className="settings-empty">Choose a category to load map-based ideas for this trip.</p>
+                <div className="trip-add-empty">
+                  <Search size={24} aria-hidden="true" />
+                  <h3>No places found</h3>
+                  <p>Try another category or search for a more specific city, state, or area.</p>
+                </div>
               ) : (
                 <div className="trip-idea-list">
                   {ideas.map((idea) => {
@@ -1994,13 +2478,16 @@ function TripDetailsPage() {
         />
 
         <main className="trip-details-map-area">
-          {activeTab !== 'route' ? <div className="trip-details-map-toolbar">
+          {!isDayRouteOpen ? <div className="trip-details-map-toolbar">
             {ideaCategories.map((category) => {
               const CategoryIcon = category.icon;
 
               return (
                 <button type="button" key={category.id} onClick={() => {
                   setActiveTab('ideas');
+                  if (ideaAddMode) {
+                    setIdeaAddMode(itineraryGroups.find((group) => group.categoryId === category.id) || null);
+                  }
                   loadIdeas(category.id, ideaSearch);
                 }}>
                   <CategoryIcon size={15} aria-hidden="true" />
@@ -2010,22 +2497,45 @@ function TripDetailsPage() {
             })}
           </div> : (
             <div className="trip-details-map-toolbar trip-route-map-toolbar">
-              <span><Sparkles size={15} aria-hidden="true" /> Best route highlighted · alternatives dashed</span>
+              <span><Navigation size={15} aria-hidden="true" /> Day {tripRoutePlan.dayNumber} optimized route</span>
             </div>
           )}
+          {isDayRouteOpen ? (
+            <div className="trip-day-route-modes" aria-label="Travel mode times">
+              {routeModes.map((mode) => {
+                const ModeIcon = mode.icon;
+                const modeRoute = tripRoutePlan.results[mode.id];
+
+                return (
+                  <button
+                    className={tripRoutePlan.selectedMode === mode.id ? 'active' : ''}
+                    type="button"
+                    key={mode.id}
+                    onClick={() => selectDayRouteMode(mode.id)}
+                    disabled={tripRoutePlan.status === 'loading' || !modeRoute}
+                  >
+                    <ModeIcon size={16} aria-hidden="true" />
+                    <span>{mode.label}</span>
+                    <strong>{tripRoutePlan.status === 'loading' ? '...' : formatRouteDuration(modeRoute?.durationSeconds)}</strong>
+                  </button>
+                );
+              })}
+            </div>
+          ) : null}
           <TripMapPreview
-            center={isAiAssistantOpen && selectedIdea ? [selectedIdea.lat, selectedIdea.lng] : activeTab === 'itinerary' ? activeDayMapCenter : undefined}
+            center={selectedIdea ? [selectedIdea.lat, selectedIdea.lng] : activeDayMapCenter || undefined}
             className="trip-details-map"
-            focusCenter={Boolean(isAiAssistantOpen && selectedIdea)}
-            focusOffset={isAiAssistantOpen && selectedIdea ? [170, 0] : [0, 0]}
-            highlightedPlace={isAiAssistantOpen ? selectedIdea : null}
-            places={isAiAssistantOpen && selectedIdea ? aiMapPlaces : activeTab === 'route' ? tripRouteMapPlaces : aiMapPlaces}
-            route={activeTab === 'route' ? selectedTripRoute : null}
+            focusCenter={Boolean(selectedIdea)}
+            focusOffset={selectedIdea ? [170, 0] : [0, 0]}
+            highlightedPlace={selectedIdea}
+            onPlaceClick={selectTripPlace}
+            places={isAiAssistantOpen && selectedIdea ? aiMapPlaces : isDayRouteOpen ? tripRouteMapPlaces : aiMapPlaces}
+            route={isDayRouteOpen ? selectedTripRoute : null}
             scrollWheelZoom
             showZoomControl
             zoom={isAiAssistantOpen && selectedIdea ? 17 : activeDayNumber !== 'summary' ? 10 : undefined}
           />
-          {(addMode || activeTab === 'ideas' || isAiAssistantOpen) && selectedIdea ? (
+          {selectedIdea ? (
             <aside className="trip-place-detail-panel" aria-label={`${selectedIdea.name} details`}>
               {visitedLookup[getIdeaVisitedPayload(selectedIdea).placeKey] ? <span className="visited-place-watermark">Visited</span> : null}
               <button className="trip-place-detail-close" type="button" onClick={() => setSelectedIdea(null)} aria-label="Close place details">
@@ -2066,7 +2576,7 @@ function TripDetailsPage() {
                 </dl>
               </div>
               <div className="trip-place-actions">
-                <div className="trip-place-time-grid">
+                {selectedPlaceSource !== 'itinerary' ? <div className="trip-place-time-grid">
                   <label>
                     <span>From</span>
                     <input
@@ -2083,8 +2593,8 @@ function TripDetailsPage() {
                       onChange={(event) => setSelectedIdeaSchedule((current) => ({ ...current, endTime: event.target.value }))}
                     />
                   </label>
-                </div>
-                {selectedIdeaWarning ? (
+                </div> : null}
+                {selectedPlaceSource !== 'itinerary' && selectedIdeaWarning ? (
                   <p className="trip-opening-warning">
                     <AlertTriangle size={14} aria-hidden="true" />
                     {selectedIdeaWarning}
@@ -2095,69 +2605,64 @@ function TripDetailsPage() {
                   visitedRecord={visitedLookup[getIdeaVisitedPayload(selectedIdea).placeKey]}
                   onVisitedChange={handleVisitedChange}
                 />
-                <button type="button" onClick={() => addIdeaToDay(selectedIdea)} disabled={isAddingIdea || selectedIdea.fallback || hasInvalidSelectedIdeaTime}>
+                {selectedPlaceSource !== 'itinerary' ? <button type="button" onClick={() => addIdeaToDay(selectedIdea)} disabled={isAddingIdea || selectedIdea.fallback || hasInvalidSelectedIdeaTime}>
                   {isAddingIdea ? <LoaderCircle className="trip-details-spin" size={16} aria-hidden="true" /> : <Plus size={16} aria-hidden="true" />}
                   {isAddingIdea ? 'Adding...' : 'Add to itinerary'}
-                </button>
-                {selectedIdea.fallback ? <small>Choose a real place result before adding.</small> : null}
+                </button> : null}
+                {selectedPlaceSource !== 'itinerary' && selectedIdea.fallback ? <small>Choose a real place result before adding.</small> : null}
               </div>
             </aside>
           ) : null}
-          <div className="trip-details-summary-strip">
-            {showWeatherHelp ? <span><CloudSun size={16} aria-hidden="true" />{weather?.available ? weather.condition : weather?.message || 'Weather unavailable'}</span> : null}
-            <span><WalletCards size={16} aria-hidden="true" />Daily planned: {currency?.formatAmount ? currency.formatAmount(plannedBudget, tripCurrency) : plannedBudget}</span>
-            <span><CheckCircle2 size={16} aria-hidden="true" />Item estimates: {currency?.formatAmount ? currency.formatAmount(itemSpend, tripCurrency) : itemSpend}</span>
-          </div>
+          {isDayRouteOpen ? (
+            <aside className="trip-day-route-panel" aria-label={`Day ${tripRoutePlan.dayNumber} route order`}>
+              <header>
+                <div>
+                  <span><Route size={14} aria-hidden="true" /> Day {tripRoutePlan.dayNumber}</span>
+                  <h3>Recommended stop order</h3>
+                </div>
+                <button type="button" onClick={closeDayRoute} aria-label="Close day route">
+                  <X size={17} aria-hidden="true" />
+                </button>
+              </header>
+              {tripRoutePlan.status === 'loading' ? (
+                <p className="trip-day-route-state"><LoaderCircle className="trip-details-spin" size={17} aria-hidden="true" /> Comparing all travel modes...</p>
+              ) : tripRoutePlan.status === 'error' ? (
+                <p className="trip-day-route-state is-error">{tripRoutePlan.message}</p>
+              ) : (
+                <>
+                  <div className="trip-day-route-summary">
+                    <strong>{routeModes.find((mode) => mode.id === tripRoutePlan.selectedMode)?.label}</strong>
+                    <span>{formatRouteDuration(selectedTripRoute?.durationSeconds)} · {formatRouteDistance(selectedTripRoute?.distanceMeters)}</span>
+                  </div>
+                  <ol className="trip-day-route-order">
+                    {tripRouteMapPlaces.map((place, index) => (
+                      <li
+                        key={place.id || `${place.title}-${index}`}
+                        role="button"
+                        tabIndex="0"
+                        onClick={() => selectTripPlace(place)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            selectTripPlace(place);
+                          }
+                        }}
+                      >
+                        <span>{index + 1}</span>
+                        <div>
+                          <strong>{place.title || place.name || `Stop ${index + 1}`}</strong>
+                          <small>{index === 0 ? 'Go here first' : index === tripRouteMapPlaces.length - 1 ? 'Final stop' : `Then continue to stop ${index + 1}`}</small>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
+                  {tripRoutePlan.message ? <p className="trip-day-route-note">{tripRoutePlan.message}</p> : null}
+                </>
+              )}
+            </aside>
+          ) : null}
         </main>
       </div>
-      {checklistModal ? (
-        <div className="trip-checklist-modal-backdrop" role="presentation" onClick={() => setChecklistModal(null)}>
-          <section className="trip-checklist-modal" role="dialog" aria-modal="true" aria-labelledby="trip-checklist-title" onClick={(event) => event.stopPropagation()}>
-            <header>
-              <h3 id="trip-checklist-title">{checklistModal === 'packing' ? 'Packing List' : 'Documents'}</h3>
-              <button type="button" onClick={() => setChecklistModal(null)} aria-label="Close checklist">
-                <X size={18} aria-hidden="true" />
-              </button>
-            </header>
-
-            {checklistModal === 'packing' ? (
-              <div className="trip-checklist-items">
-                {(packingList?.items || []).map((item) => (
-                  <label key={item._id}>
-                    <input type="checkbox" checked={Boolean(item.isPacked)} onChange={() => togglePackingItem(item)} />
-                    <span>{item.name}</span>
-                  </label>
-                ))}
-                {defaultPackingItems
-                  .filter((name) => !(packingList?.items || []).some((item) => item.name.toLowerCase() === name.toLowerCase()))
-                  .map((name) => (
-                    <button type="button" key={name} onClick={() => addDefaultPackingItem(name)}>
-                      <Plus size={15} aria-hidden="true" />
-                      {name}
-                    </button>
-                  ))}
-              </div>
-            ) : (
-              <div className="trip-checklist-items">
-                {(travelDocument?.items || []).map((item) => (
-                  <label key={item._id}>
-                    <input type="checkbox" checked={Boolean(item.files?.length)} readOnly />
-                    <span>{item.name}</span>
-                  </label>
-                ))}
-                {defaultDocumentItems
-                  .filter((defaultItem) => !(travelDocument?.items || []).some((item) => item.name.toLowerCase() === defaultItem.name.toLowerCase()))
-                  .map((item) => (
-                    <button type="button" key={item.name} onClick={() => addDefaultDocumentItem(item)}>
-                      <Plus size={15} aria-hidden="true" />
-                      {item.name}
-                    </button>
-                  ))}
-              </div>
-            )}
-          </section>
-        </div>
-      ) : null}
     </section>
   );
 }

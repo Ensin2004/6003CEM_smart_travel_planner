@@ -254,7 +254,7 @@
   display: grid;
   align-content: end;
   min-height: 178px;
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid transparent;
   border-radius: 8px;
   padding: 12px;
@@ -267,9 +267,24 @@
   cursor: pointer;
 }
 
+.travel-guide-card:has(.visited-place-control.is-open) {
+  z-index: 10;
+}
+
 .travel-guide-card:hover {
   box-shadow: 0 14px 30px rgba(16, 42, 67, 0.16);
   transform: translateY(-2px);
+}
+
+.travel-guide-card.is-visited {
+  border-color: rgba(74, 222, 128, 0.72);
+  box-shadow: inset 0 0 0 1px rgba(240, 253, 244, 0.28);
+}
+
+.travel-guide-card.is-visited:hover {
+  box-shadow:
+    inset 0 0 0 1px rgba(240, 253, 244, 0.28),
+    0 14px 30px rgba(16, 42, 67, 0.16);
 }
 
 .travel-guide-view-more {
@@ -321,6 +336,7 @@
 .travel-guide-card::after {
   position: absolute;
   inset: 0;
+  border-radius: inherit;
   background:
     linear-gradient(180deg, rgba(16, 42, 67, 0.04), rgba(16, 42, 67, 0.84)),
     linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(15, 118, 110, 0.1));
@@ -332,6 +348,7 @@
   inset: 0;
   width: 100%;
   height: 100%;
+  border-radius: inherit;
   object-fit: cover;
   transition: transform 0.24s ease;
 }
@@ -390,6 +407,13 @@
   margin-top: 9px;
 }
 
+.travel-guide-card .visited-place-popover {
+  top: auto;
+  right: auto;
+  bottom: calc(100% + 6px);
+  left: 0;
+}
+
 .travel-guide-card .compare-button {
   justify-self: start;
   margin-top: 8px;
@@ -397,12 +421,23 @@
 }
 
 .travel-guide-card .visited-place-watermark {
-  width: auto;
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  left: auto;
+  z-index: 3;
+  display: inline-flex;
+  width: fit-content;
   max-width: none;
+  align-items: center;
+  gap: 4px;
   overflow: visible;
-  background: rgba(240, 253, 244, 0.94);
-  color: #166534;
-  padding: 5px 8px;
+  border: 1px solid rgba(187, 247, 208, 0.92);
+  background: rgba(240, 253, 244, 0.96);
+  color: #15803d;
+  padding: 5px 9px;
+  box-shadow: 0 6px 16px rgba(20, 83, 45, 0.18);
+  line-height: 1;
   text-overflow: clip;
   white-space: nowrap;
 }
@@ -738,6 +773,25 @@
   color: var(--muted);
   font-size: 14px;
   line-height: 1.55;
+}
+
+.travel-guide-weather-updating {
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  margin-left: auto;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.76);
+  color: var(--teal);
+  padding: 5px 9px;
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.travel-guide-weather-card .travel-guide-weather-context {
+  color: #475569;
+  font-size: 12px;
+  font-weight: 650;
 }
 
 .travel-guide-ai-picks {

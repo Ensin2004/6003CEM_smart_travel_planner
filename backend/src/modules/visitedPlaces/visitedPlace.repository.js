@@ -24,9 +24,17 @@ const addVisitByUserAndPlaceKey = (userId, placeKey, placeData, visitEntry) =>
 
 const deleteByIdAndUserId = (id, userId) => VisitedPlace.findOneAndDelete({ _id: id, userId });
 
+const updateImagesByIdAndUserId = (id, userId, imageUrl, imageUrls) =>
+  VisitedPlace.findOneAndUpdate(
+    { _id: id, userId },
+    { $set: { imageUrl, imageUrls } },
+    { new: true, runValidators: true }
+  );
+
 module.exports = {
   deleteByIdAndUserId,
   findBetweenDates,
   findByUserId,
   addVisitByUserAndPlaceKey,
+  updateImagesByIdAndUserId,
 };

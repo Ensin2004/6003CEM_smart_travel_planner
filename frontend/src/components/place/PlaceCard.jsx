@@ -177,7 +177,11 @@ function PlaceCard({
   const canOpenDetails = isHotelCard || isFoodCard || isAttractionCard;
   const visitedType = isHotelCard ? 'hotel' : isFoodCard ? 'restaurant' : type === 'food' ? 'food' : 'attraction';
   const visitedPayload = getVisitedPlacePayload({
-    item,
+    item: {
+      ...item,
+      imageUrl: primaryImage || item.imageUrl,
+      imageUrls: visibleImages.length ? visibleImages : item.imageUrls,
+    },
     type: visitedType,
     source: visitedSource || `explore-${type}`,
     defaultDate: visitedDefaultDate,

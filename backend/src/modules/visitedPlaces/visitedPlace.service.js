@@ -3,8 +3,12 @@
  * Business rules for place identity, calendar grouping, and ownership live here.
  */
 const AppError = require('../../utils/AppError');
+const env = require('../../config/env');
+const { normalizePlaceItem, searchGoogleMaps } = require('../explore/googleMaps.service');
 const visitedPlaceRepository = require('./visitedPlace.repository');
 
+const imageEnrichmentCache = new Map();
+const IMAGE_ENRICHMENT_LIMIT = 10;
 const normalizeKeyPart = (value) =>
   String(value || '')
     .trim()
@@ -22,6 +26,52 @@ const buildPlaceKey = (data = {}) => {
 };
 
 const listVisitedPlaces = (userId) => visitedPlaceRepository.findByUserId(userId);
+
+const enrichVisitedPlaceImages = async (userId) => {
+  const records = await visitedPlaceRepository.findByUserId(userId);
+  if (!env.serpApiKey || env.nodeEnv === 'test') {
+    return { enrichedCount: 0, visitedPlaces: records };
+  }
+
+  const missingImageRecords = records
+    .filter((record) => !record.imageUrl && !record.imageUrls?.length && record.title)
+    .slice(0, IMAGE_ENRICHMENT_LIMIT);
+  let enrichedCount = 0;
+
+  for (const record of missingImageRecords) {
+    const query = [record.title, record.address].filter(Boolean).join(', ');
+
+    try {
+      const result = await searchGoogleMaps({
+        cache: imageEnrichmentCache,
+        cacheKey: `visited-image:${query.toLowerCase()}`,
+        query,
+        metadata: {},
+        mapItem: (item, index) => normalizePlaceItem(item, index, {
+          name: record.title,
+          category: record.type,
+        }),
+      });
+      const matchedPlace = result.items?.find((item) => item.imageUrl) || result.items?.[0];
+      if (!matchedPlace?.imageUrl) continue;
+
+      await visitedPlaceRepository.updateImagesByIdAndUserId(
+        record._id,
+        userId,
+        matchedPlace.imageUrl,
+        matchedPlace.imageUrls?.length ? matchedPlace.imageUrls : [matchedPlace.imageUrl]
+      );
+      enrichedCount += 1;
+    } catch {
+      // A failed provider lookup should not prevent other visited places from loading.
+    }
+  }
+
+  return {
+    enrichedCount,
+    visitedPlaces: enrichedCount ? await visitedPlaceRepository.findByUserId(userId) : records,
+  };
+};
 
 const markVisitedPlace = (userId, data) => {
   const placeKey = data.placeKey || buildPlaceKey(data);
@@ -45,6 +95,8 @@ const markVisitedPlace = (userId, data) => {
     address: data.address,
     source: data.source || 'manual',
     externalId: data.externalId,
+    imageUrl: data.imageUrl,
+    imageUrls: data.imageUrls,
   }, visitEntry);
 };
 
@@ -74,6 +126,8 @@ const getVisitedCalendar = async (userId, { startDate, endDate }) => {
           address: record.address,
           source: record.source,
           externalId: record.externalId,
+          imageUrl: record.imageUrl,
+          imageUrls: record.imageUrls,
           visitedDate: visit.visitedDate,
           visitCount: visit.visitCount,
           notes: visit.notes,
@@ -87,6 +141,7 @@ const getVisitedCalendar = async (userId, { startDate, endDate }) => {
 
 module.exports = {
   buildPlaceKey,
+  enrichVisitedPlaceImages,
   getVisitedCalendar,
   listVisitedPlaces,
   markVisitedPlace,

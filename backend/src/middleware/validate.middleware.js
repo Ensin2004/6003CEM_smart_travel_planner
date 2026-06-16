@@ -16,7 +16,9 @@ const validate = (req, res, next) => {
   // Error objects are reduced to field and message so frontend forms can display them directly.
   return res.status(400).json({
     status: 'fail',
+    code: 'VALIDATION_ERROR',
     message: 'Validation failed',
+    requestId: req.requestId,
     errors: errors.array().map((error) => ({
       field: error.path,
       message: error.msg,

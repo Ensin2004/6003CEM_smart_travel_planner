@@ -6,6 +6,13 @@ const { body, query } = require('express-validator');
 
 const optionalDestinationRule = query('destination').optional({ checkFalsy: true }).trim().isLength({ min: 2, max: 120 });
 const optionalFilterRule = (field) => query(field).optional({ checkFalsy: true }).trim().isLength({ max: 80 });
+const requiredCountryRule = query('country')
+  .trim()
+  .notEmpty()
+  .withMessage('Select a country before searching.')
+  .bail()
+  .isLength({ max: 80 })
+  .withMessage('Country must be 80 characters or fewer.');
 const optionalCoordinateRule = (field, min, max) =>
   query(field).optional({ checkFalsy: true }).isFloat({ min, max }).withMessage(`${field} must be a valid coordinate`);
 const optionalStartRule = query('start')
@@ -67,14 +74,10 @@ const weatherRules = [
 
 const attractionRules = [
   optionalDestinationRule,
-  optionalFilterRule('country'),
+  requiredCountryRule,
   optionalFilterRule('state'),
   optionalFilterRule('attractionCategory'),
   optionalStartRule,
-  requireAnySearchValue(
-    ['destination', 'country', 'state', 'attractionCategory'],
-    'Enter an attraction name, country, location, or category first.'
-  ),
 ];
 
 const attractionDetailRules = [
@@ -87,14 +90,10 @@ const attractionDetailRules = [
 
 const hotelRules = [
   optionalDestinationRule,
-  optionalFilterRule('country'),
+  requiredCountryRule,
   optionalFilterRule('state'),
   optionalFilterRule('roomType'),
   optionalStartRule,
-  requireAnySearchValue(
-    ['destination', 'country', 'state', 'roomType'],
-    'Enter a hotel name, country, location, or room type first.'
-  ),
 ];
 
 const hotelDetailRules = [
@@ -107,14 +106,10 @@ const hotelDetailRules = [
 
 const restaurantRules = [
   optionalDestinationRule,
-  optionalFilterRule('country'),
+  requiredCountryRule,
   optionalFilterRule('state'),
   optionalFilterRule('foodCategory'),
   optionalStartRule,
-  requireAnySearchValue(
-    ['destination', 'country', 'state', 'foodCategory'],
-    'Enter a restaurant name, country, location, or food category first.'
-  ),
 ];
 
 const restaurantDetailRules = [

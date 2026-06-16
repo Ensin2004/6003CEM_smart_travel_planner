@@ -1,11 +1,12 @@
 /**
- * AI Assistant module.
- * Business rules and Groq integration live in this layer.
+ * Groq-backed AI assistant service for contextual chat and trip recommendations.
+ * Provider failures are normalized and logged before a user-safe response is returned.
  */
 const axios = require('axios');
 const env = require('../../config/env');
 const logger = require('../../utils/logger');
 const apiLogService = require('../apiLogs/apiLog.service');
+const { classifyExternalApiError } = require('../../utils/externalApiError');
 
 const dailyUsage = {
   date: '',
@@ -29,7 +30,7 @@ const consumeDailyQuota = () => {
   return true;
 };
 
-const recordAiChatFailure = (message, statusCode, metadata = {}) =>
+const recordAiChatFailure = (message, statusCode, metadata = {}, errorCode) =>
   env.nodeEnv === 'test'
     ? Promise.resolve()
     : apiLogService
@@ -40,29 +41,22 @@ const recordAiChatFailure = (message, statusCode, metadata = {}) =>
           endpoint: 'ai/chat',
           status: 'fail',
           statusCode,
+          errorCode,
           message,
           metadata,
         })
         .catch((error) => logger.error(`Failed to record AI chat event: ${error.message}`));
 
 const classifyGroqError = (error) => {
-  if (error.isDailyLimit) {
-    return { message: 'Daily AI chat limit reached. Please try again tomorrow.', statusCode: 429 };
-  }
-  if (error.response?.status === 401 || error.response?.status === 403) {
-    return { message: 'Groq chat is temporarily unavailable.', statusCode: 502 };
-  }
-  if (error.response?.status === 429) {
-    return { message: 'Groq chat is busy right now. Please try again later.', statusCode: 429 };
-  }
-  if (error.code === 'ECONNABORTED') {
-    return { message: 'Groq chat took too long. Please try again.', statusCode: 503 };
-  }
-  if (!error.response) {
-    return { message: 'Groq chat could not be reached. Please try again.', statusCode: 503 };
-  }
-
-  return { message: 'Groq chat is temporarily unavailable.', statusCode: error.response.status || 503 };
+  return classifyExternalApiError(error, {
+    invalidApiKeyMessage: 'Groq API key is invalid or unauthorized.',
+    networkMessage: 'Groq chat could not be reached. Please try again.',
+    rateLimitMessage: error.isDailyLimit
+      ? 'Daily AI chat limit reached. Please try again tomorrow.'
+      : 'Groq chat is busy right now. Please try again later.',
+    timeoutMessage: 'Groq chat took too long. Please try again.',
+    unavailableMessage: 'Groq chat is temporarily unavailable.',
+  });
 };
 
 const buildPrompt = ({ prompt, page }) => `
@@ -131,11 +125,17 @@ ${history.map((message) => `${message.role}: ${message.text}`).join('\n') || 'No
 User request: ${prompt}
 `;
 
+/**
+ * Sends a page-aware user prompt to the configured Groq chat model.
+ * @param {{prompt: string, page?: string}} input Chat request context.
+ * @returns {Promise<object>} The assistant response and availability metadata.
+ */
 const chat = async ({ prompt, page }) => {
   if (!env.groqApiKey || env.nodeEnv === 'test') {
     return {
       available: false,
       answer: 'Groq chat is not configured yet. Add GROQ_API_KEY to the backend environment to enable AI answers.',
+      errorCode: 'INVALID_API_KEY',
       lastUpdated: new Date().toISOString(),
     };
   }
@@ -143,11 +143,12 @@ const chat = async ({ prompt, page }) => {
   if (!consumeDailyQuota()) {
     const error = new Error('Daily AI chat limit reached. Please try again tomorrow.');
     error.isDailyLimit = true;
-    const { message, statusCode } = classifyGroqError(error);
-    recordAiChatFailure(message, statusCode, { page });
+    const { errorCode, message, statusCode } = classifyGroqError(error);
+    recordAiChatFailure(message, statusCode, { page }, errorCode);
     return {
       available: false,
       answer: message,
+      errorCode,
       lastUpdated: new Date().toISOString(),
     };
   }
@@ -181,21 +182,28 @@ const chat = async ({ prompt, page }) => {
       lastUpdated: new Date().toISOString(),
     };
   } catch (error) {
-    const { message, statusCode } = classifyGroqError(error);
-    recordAiChatFailure(message, statusCode, { page });
+    const { errorCode, message, statusCode } = classifyGroqError(error);
+    recordAiChatFailure(message, statusCode, { page }, errorCode);
     return {
       available: false,
       answer: message,
+      errorCode,
       lastUpdated: new Date().toISOString(),
     };
   }
 };
 
+/**
+ * Generates structured recommendations using the trip, planned places, and chat history.
+ * @param {object} input Recommendation context supplied by the trip assistant.
+ * @returns {Promise<object>} Categorized recommendations or a provider fallback result.
+ */
 const getTripRecommendations = async ({ prompt, trip, plannedPlaces, history = [] }) => {
   if (!env.groqApiKey || env.nodeEnv === 'test') {
     return {
       available: false,
       answer: 'Groq trip recommendations are not configured yet.',
+      errorCode: 'INVALID_API_KEY',
       places: [],
       lastUpdated: new Date().toISOString(),
     };
@@ -205,6 +213,7 @@ const getTripRecommendations = async ({ prompt, trip, plannedPlaces, history = [
     return {
       available: false,
       answer: 'Daily AI chat limit reached. Please try again tomorrow.',
+      errorCode: 'RATE_LIMIT_EXCEEDED',
       places: [],
       lastUpdated: new Date().toISOString(),
     };
@@ -236,11 +245,12 @@ const getTripRecommendations = async ({ prompt, trip, plannedPlaces, history = [
 
     return normalizeTripRecommendations(extractJson(response));
   } catch (error) {
-    const { message, statusCode } = classifyGroqError(error);
-    recordAiChatFailure(message, statusCode, { page: 'trip-details' });
+    const { errorCode, message, statusCode } = classifyGroqError(error);
+    recordAiChatFailure(message, statusCode, { page: 'trip-details' }, errorCode);
     return {
       available: false,
       answer: message,
+      errorCode,
       places: [],
       lastUpdated: new Date().toISOString(),
     };

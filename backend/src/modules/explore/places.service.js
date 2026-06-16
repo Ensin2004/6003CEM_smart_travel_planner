@@ -1,6 +1,5 @@
 /**
- * Explore module.
- * Business rules, repository access, and external integrations live in this layer.
+ * Attraction discovery service backed by SerpApi Google Maps and Wikipedia summaries.
  */
 const axios = require('axios');
 const env = require('../../config/env');
@@ -75,6 +74,11 @@ const getAttractionQuery = ({ destination, country, state, attractionCategory })
 
   return category;
 };
+/**
+ * Searches for attractions matching destination and category filters.
+ * @param {object} filters Destination, country, state, category, and pagination input.
+ * @returns {Promise<object>} Normalized attraction results or an availability fallback.
+ */
 const getAttractionsByDestination = async (filters) => {
   const normalizedFilters = normalizeFilters(filters);
 
@@ -82,7 +86,10 @@ const getAttractionsByDestination = async (filters) => {
     return fallbackAttractions(normalizedFilters, 'Enter an attraction name, country, location, or category first.');
   }
   if (!env.serpApiKey || env.nodeEnv === 'test') {
-    return fallbackAttractions(normalizedFilters, 'SerpApi key is not configured');
+    return {
+      ...fallbackAttractions(normalizedFilters, 'SerpApi key is not configured'),
+      errorCode: 'INVALID_API_KEY',
+    };
   }
   try {
     const attractions = await searchGoogleMaps({
@@ -97,9 +104,9 @@ const getAttractionsByDestination = async (filters) => {
     const { query, ...publicAttractions } = attractions;
     return publicAttractions;
   } catch (error) {
-    const { message, statusCode } = getGoogleMapsFailureMessage(error);
-    recordGoogleMapsFailure('attractions', message, statusCode, normalizedFilters);
-    return fallbackAttractions(normalizedFilters, message);
+    const { errorCode, message, statusCode } = getGoogleMapsFailureMessage(error);
+    recordGoogleMapsFailure('attractions', message, statusCode, normalizedFilters, errorCode);
+    return { ...fallbackAttractions(normalizedFilters, message), errorCode };
   }
 };
 const getWikipediaPageSummary = async (title) => {
@@ -172,6 +179,11 @@ const getWikipediaSummary = async (name, address = '') => {
     url: '',
   };
 };
+/**
+ * Enriches an attraction with listing data, photos, reviews, and a Wikipedia description.
+ * @param {object} input Attraction identity and provider identifiers.
+ * @returns {Promise<object>} Detailed attraction data with partial fallbacks when needed.
+ */
 const getAttractionDetail = async ({ name, address, dataId, placeId }) => {
   const fallbackName = name || 'Selected attraction';
   const baseAttraction = {
@@ -216,7 +228,7 @@ const getAttractionDetail = async ({ name, address, dataId, placeId }) => {
       imageEnrichedItem = mergePlaceImages(item, photos.imageUrls);
     } catch (photoError) {
       const photoFailure = getGoogleMapsFailureMessage(photoError);
-      recordGoogleMapsFailure('attraction-detail-photos', photoFailure.message, photoFailure.statusCode, { name, address, dataId: dataId || item.dataId });
+      recordGoogleMapsFailure('attraction-detail-photos', photoFailure.message, photoFailure.statusCode, { name, address, dataId: dataId || item.dataId }, photoFailure.errorCode);
     }
 
     const reviews = await searchGoogleMapsReviews({
@@ -235,10 +247,11 @@ const getAttractionDetail = async ({ name, address, dataId, placeId }) => {
       lastUpdated: new Date().toISOString(),
     };
   } catch (error) {
-    const { message, statusCode } = getGoogleMapsFailureMessage(error);
-    recordGoogleMapsFailure('attraction-detail', message, statusCode, { name, address, dataId, placeId });
+    const { errorCode, message, statusCode } = getGoogleMapsFailureMessage(error);
+    recordGoogleMapsFailure('attraction-detail', message, statusCode, { name, address, dataId, placeId }, errorCode);
     return {
       ...baseAttraction,
+      errorCode,
       message,
     };
   }

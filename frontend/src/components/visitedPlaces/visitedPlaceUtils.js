@@ -32,6 +32,8 @@ export const getVisitedPlacePayload = ({
   const title = item.title || item.name || item.displayName || 'Visited place';
   const address = item.address || item.displayName || item.location?.address || '';
   const externalId = item.externalId || item.dataId || item.placeId || item.id || title;
+  const imageUrl = item.imageUrl || item.imageUrls?.[0] || item.photoUrl || item.thumbnail || '';
+  const imageUrls = item.imageUrls || (imageUrl ? [imageUrl] : []);
   const placeKey = buildVisitedPlaceKey({ source, type, externalId, title, address });
 
   return {
@@ -41,6 +43,8 @@ export const getVisitedPlacePayload = ({
     address,
     source,
     externalId,
+    imageUrl,
+    imageUrls,
     visitedDate: defaultDate,
     tripId,
     itineraryItemId,

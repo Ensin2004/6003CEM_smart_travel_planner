@@ -5,6 +5,7 @@
 import {
   ArrowLeft,
   BookOpenCheck,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Compass,
@@ -22,9 +23,20 @@ import CompareButton from '../../components/compare/CompareButton';
 import VisitedPlaceControl from '../../components/visitedPlaces/VisitedPlaceControl';
 import { buildVisitedLookup, getVisitedPlacePayload } from '../../components/visitedPlaces/visitedPlaceUtils';
 import useAuth from '../../hooks/useAuth';
+import { getApiErrorMessage } from '../../utils/apiError';
+import { getPlaceImageSrc } from '../../utils/placeImageProxy';
 import './TravelGuidePage.css';
 const getErrorMessage = (error) =>
-  error.response?.data?.message || error.response?.data?.error || error.message || 'Unable to load travel guides right now.';
+  getApiErrorMessage(error, 'Unable to load travel guides right now.');
+const getCountryLoadStatus = (countryGuide) => {
+  const shown = countryGuide.items?.length || 0;
+  const total = countryGuide.pagination?.total ?? shown;
+  const countryLabel = total === 1 ? 'country' : 'countries';
+
+  return total > shown
+    ? `${total} ${countryLabel} found. ${shown} loaded on this page.`
+    : `${total} ${countryLabel} loaded.`;
+};
 
 const regionFilters = {
   All: '',
@@ -37,8 +49,28 @@ const regionFilters = {
   Antarctica: 'Antarctica',
   Other: 'Other',
 };
+const fallbackTravelImages = [
+  'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80',
+  'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=900&q=80',
+  'https://images.unsplash.com/photo-1501785888041-af3ef285b470?auto=format&fit=crop&w=900&q=80',
+  'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?auto=format&fit=crop&w=900&q=80',
+  'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=900&q=80',
+  'https://images.unsplash.com/photo-1527631746610-bca00a040d60?auto=format&fit=crop&w=900&q=80',
+];
+const getFallbackTravelImage = (name = '') => {
+  const imageIndex = [...name].reduce((total, character) => total + character.charCodeAt(0), 0)
+    % fallbackTravelImages.length;
+
+  return fallbackTravelImages[imageIndex];
+};
 // DestinationCard renders the main screen and handles nearby interactions.
 function DestinationCard({ destination, onOpen, visitedRecord, onVisitedChange }) {
+  const imageCandidates = useMemo(
+    () => [...new Set([destination.imageUrl, ...(destination.imageUrls || []), getFallbackTravelImage(destination.name)].filter(Boolean))],
+    [destination.imageUrl, destination.imageUrls, destination.name]
+  );
+  const [failedImageCount, setFailedImageCount] = useState(0);
+  const imageUrl = imageCandidates[Math.min(failedImageCount, imageCandidates.length - 1)];
   const visitedPayload = getVisitedPlacePayload({
     item: destination,
     type: 'location',
@@ -56,7 +88,7 @@ function DestinationCard({ destination, onOpen, visitedRecord, onVisitedChange }
 
   return (
     <article
-      className="travel-guide-card"
+      className={visitedRecord ? 'travel-guide-card is-visited' : 'travel-guide-card'}
       role="button"
       tabIndex="0"
       onClick={() => onOpen(destination)}
@@ -67,8 +99,20 @@ function DestinationCard({ destination, onOpen, visitedRecord, onVisitedChange }
         }
       }}
     >
-      {visitedRecord ? <span className="visited-place-watermark">Visited</span> : null}
-      <img src={destination.imageUrl} alt="" loading="lazy" />
+      {visitedRecord ? (
+        <span className="visited-place-watermark">
+          <CheckCircle2 size={13} aria-hidden="true" />
+          Visited
+        </span>
+      ) : null}
+      {imageUrl && (
+        <img
+          src={getPlaceImageSrc(imageUrl)}
+          alt=""
+          loading="lazy"
+          onError={() => setFailedImageCount((count) => Math.min(count + 1, imageCandidates.length))}
+        />
+      )}
       <span>{destination.type || 'Destination'}</span>
       <strong>{destination.name}</strong>
       {destination.region && <small>{destination.region}</small>}
@@ -184,7 +228,7 @@ function TravelGuidePage() {
           setDestinations(countryGuide.items || []);
           setPagination(countryGuide.pagination || { page: 1, totalPages: 1, hasMore: false });
           if (countryGuide.available) {
-            setStatus(`${countryGuide.items?.length || 0} countr${countryGuide.items?.length === 1 ? 'y' : 'ies'} loaded.`);
+            setStatus(getCountryLoadStatus(countryGuide));
           } else {
             setError(countryGuide.message || 'Travel guide countries are unavailable.');
           }
@@ -246,7 +290,7 @@ function TravelGuidePage() {
     userCountryCode,
   ]);
   const loadMoreDestinations = () => {
-    changePage(Math.min(pagination.page + 1, pagination.totalPages));
+    changePage(Math.min(pagination.page + 1, pagination.totalPages), { append: true });
   };
   const handleModeChange = (nextMode) => {
     setGuideMode(nextMode);
@@ -279,7 +323,7 @@ function TravelGuidePage() {
 
     navigate(`/travel-guide/destination?${params.toString()}`);
   };
-  const changePage = async (nextPage) => {
+  const changePage = async (nextPage, { append = false } = {}) => {
     if (nextPage < 1 || nextPage > pagination.totalPages || nextPage === pagination.page) {
       return;
     }
@@ -299,10 +343,14 @@ function TravelGuidePage() {
         });
         const countryGuide = response.data.data.countries;
 
-        setDestinations(countryGuide.items || []);
+        setDestinations((currentDestinations) => (
+          append
+            ? [...currentDestinations, ...(countryGuide.items || [])]
+            : countryGuide.items || []
+        ));
         setPagination(countryGuide.pagination || pagination);
         if (countryGuide.available) {
-          setStatus(`${countryGuide.items?.length || 0} countr${countryGuide.items?.length === 1 ? 'y' : 'ies'} loaded.`);
+          setStatus(getCountryLoadStatus(countryGuide));
         } else {
           setStatus('');
           setError(countryGuide.message || 'Travel guide countries are unavailable.');
@@ -325,7 +373,11 @@ function TravelGuidePage() {
       });
       const guide = response.data.data.guide;
 
-      setDestinations(guide.items || []);
+      setDestinations((currentDestinations) => (
+        append
+          ? [...currentDestinations, ...(guide.items || [])]
+          : guide.items || []
+      ));
       setPagination(guide.pagination || pagination);
       if (guide.available) {
         setStatus(`${guide.items?.length || 0} guide result${guide.items?.length === 1 ? '' : 's'} loaded.`);

@@ -16,6 +16,11 @@ const markVisitedPlace = catchAsync(async (req, res) => {
   sendSuccess(res, 201, { visitedPlace }, 'Visited place saved');
 });
 
+const enrichVisitedPlaceImages = catchAsync(async (req, res) => {
+  const result = await visitedPlaceService.enrichVisitedPlaceImages(req.user.id);
+  sendSuccess(res, 200, result, 'Visited place images updated');
+});
+
 const getVisitedCalendar = catchAsync(async (req, res) => {
   const days = await visitedPlaceService.getVisitedCalendar(req.user.id, req.query);
   sendSuccess(res, 200, { days });
@@ -27,6 +32,7 @@ const removeVisitedPlace = catchAsync(async (req, res) => {
 });
 
 module.exports = {
+  enrichVisitedPlaceImages,
   getVisitedCalendar,
   listVisitedPlaces,
   markVisitedPlace,

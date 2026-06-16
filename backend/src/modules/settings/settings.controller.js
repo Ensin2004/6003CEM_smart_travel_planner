@@ -4,6 +4,7 @@
  */
 const catchAsync = require('../../utils/catchAsync');
 const { sendSuccess } = require('../../utils/apiResponse');
+const { emitSettingsContentUpdated } = require('../notifications/notification.socket');
 const settingsService = require('./settings.service');
 const getContent = catchAsync(async (req, res) => {
   const content = await settingsService.getContent();
@@ -12,6 +13,7 @@ const getContent = catchAsync(async (req, res) => {
 // Update Content applies allowed changes to an existing record.
 const updateContent = catchAsync(async (req, res) => {
   const content = await settingsService.updateContent(req.user.role, req.body);
+  emitSettingsContentUpdated(content);
   sendSuccess(res, 200, { content }, 'Settings content updated');
 });
 module.exports = { getContent, updateContent };

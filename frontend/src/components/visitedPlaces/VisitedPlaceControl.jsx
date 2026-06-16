@@ -2,8 +2,8 @@
  * Visited place control.
  * Button, date picker, and saved state display are shared across place cards.
  */
-import { CalendarCheck, CheckCircle2, LoaderCircle, PlusCircle } from 'lucide-react';
-import { useState } from 'react';
+import { CalendarCheck, CheckCircle2, LoaderCircle, PlusCircle, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import { markVisitedPlace } from '../../api/visitedPlaceApi';
 import './VisitedPlaceControl.css';
 
@@ -27,12 +27,41 @@ function VisitedPlaceControl({
   onVisitedChange,
   compact = false,
 }) {
+  const controlRef = useRef(null);
   const [isOpen, setIsOpen] = useState(false);
   const [visitedDate, setVisitedDate] = useState('');
   const [visitCount, setVisitCount] = useState(1);
   const [notes, setNotes] = useState('');
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState('');
+
+  const closePopover = () => {
+    setIsOpen(false);
+    setError('');
+  };
+
+  useEffect(() => {
+    if (!isOpen) return undefined;
+
+    const handlePointerDown = (event) => {
+      if (!controlRef.current?.contains(event.target)) {
+        closePopover();
+      }
+    };
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        closePopover();
+      }
+    };
+
+    document.addEventListener('pointerdown', handlePointerDown);
+    document.addEventListener('keydown', handleKeyDown);
+
+    return () => {
+      document.removeEventListener('pointerdown', handlePointerDown);
+      document.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [isOpen]);
 
   const saveVisitedPlace = async (event) => {
     event.preventDefault();
@@ -60,11 +89,21 @@ function VisitedPlaceControl({
   };
 
   return (
-    <div className={compact ? 'visited-place-control is-compact' : 'visited-place-control'} onClick={(event) => event.stopPropagation()}>
+    <div
+      ref={controlRef}
+      className={[
+        'visited-place-control',
+        compact ? 'is-compact' : '',
+        isOpen ? 'is-open' : '',
+      ].filter(Boolean).join(' ')}
+      onClick={(event) => event.stopPropagation()}
+      onKeyDown={(event) => event.stopPropagation()}
+    >
       <button
         className={visitedRecord ? 'visited-place-button is-visited' : 'visited-place-button'}
         type="button"
         onClick={() => setIsOpen((currentValue) => !currentValue)}
+        aria-expanded={isOpen}
       >
         {visitedRecord ? <CheckCircle2 size={15} aria-hidden="true" /> : <CalendarCheck size={15} aria-hidden="true" />}
         {getVisitSummary(visitedRecord)}
@@ -72,6 +111,17 @@ function VisitedPlaceControl({
 
       {isOpen ? (
         <form className="visited-place-popover" onSubmit={saveVisitedPlace}>
+          <div className="visited-place-popover-header">
+            <strong>Add visit details</strong>
+            <button
+              className="visited-place-close"
+              type="button"
+              onClick={closePopover}
+              aria-label="Close visit details"
+            >
+              <X size={15} aria-hidden="true" />
+            </button>
+          </div>
           <label>
             <span>Visited date optional</span>
             <input type="date" value={visitedDate} onChange={(event) => setVisitedDate(event.target.value)} />

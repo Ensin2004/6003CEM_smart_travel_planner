@@ -23,6 +23,7 @@ const makeOwnedRepository = (Model, sort = { updatedAt: -1, createdAt: -1 }) => 
 
 const packingListRepository = {
   ...makeOwnedRepository(PackingList),
+  findByTripIdAndUserId: (tripId, userId) => PackingList.find({ tripId, userId }),
   save: (packingList) => packingList.save(),
 };
 

@@ -6,6 +6,7 @@ const logger = require('../../utils/logger');
 const AppError = require('../../utils/AppError');
 const { sendNotificationEmail } = require('../../utils/email.service');
 const userRepository = require('../users/user.repository');
+const { packingListRepository } = require('../travelTools/travelTools.repository');
 const notificationRepository = require('./notification.repository');
 const { emitNotification, emitUnreadCount } = require('./notification.socket');
 
@@ -25,17 +26,52 @@ const isNotificationAllowed = (user, type) => {
   if (type === 'packing-list' && preferences.packingReminder === false) return false;
   if (['admin-rate-limit', 'admin-error-log', 'admin-login-lock'].includes(type) && preferences.errorLogs === false) return false;
   if (type === 'admin-signup' && preferences.systemAlerts === false) return false;
+  if (type === 'admin-feedback' && preferences.ratingFeedback === false) return false;
   return true;
 };
 
 const dispatchNotification = async (notification) => {
   const user = await userRepository.findById(notification.userId);
-  if (!user) return notification;
+  if (!user) {
+    await notificationRepository.deleteById(notification._id);
+    return null;
+  }
 
   if (!isNotificationAllowed(user, notification.type)) {
-    notification.sentAt = new Date();
-    await notificationRepository.save(notification);
-    return notification;
+    await notificationRepository.deleteById(notification._id);
+    return null;
+  }
+
+  if (notification.type === 'packing-list') {
+    const packingListId = notification.metadata?.packingListId;
+    const packingList = packingListId
+      ? await packingListRepository.findByIdAndUserId(packingListId, notification.userId)
+      : null;
+    const hasUnpackedItems = packingList?.items?.some((item) => !item.isPacked);
+    const expectedScheduledAt = packingList?.tripStartDate
+      ? new Date(packingList.tripStartDate)
+      : null;
+    if (expectedScheduledAt) {
+      expectedScheduledAt.setDate(
+        expectedScheduledAt.getDate() - (packingList.reminder?.daysBeforeTrip ?? 2)
+      );
+    }
+    const hasCurrentSchedule =
+      expectedScheduledAt &&
+      notification.scheduledAt &&
+      expectedScheduledAt.getTime() === new Date(notification.scheduledAt).getTime();
+
+    if (
+      !packingList ||
+      !packingList.tripId ||
+      !packingList.tripStartDate ||
+      packingList.reminder?.enabled === false ||
+      !hasUnpackedItems ||
+      !hasCurrentSchedule
+    ) {
+      await notificationRepository.deleteById(notification._id);
+      return null;
+    }
   }
 
   notification.sentAt = new Date();
@@ -106,22 +142,26 @@ const getLockedAccountLabel = async (log) => {
 };
 
 const notifyAdminsOfApiLog = async (log) => {
-  const isRateLimit = log.category === 'rate-limit';
-  const isLoginLock =
-    log.category === 'auth' &&
-    log.statusCode === 429 &&
-    log.message === 'Account locked after repeated failed login attempts';
+  const { errorCode, requestId } = log;
+  const isRateLimit = errorCode === 'RATE_LIMIT_EXCEEDED';
+  const isLoginLock = errorCode === 'ACCOUNT_LOCKED';
   const isError = log.status === 'error' || ['error', 'critical'].includes(log.severity);
 
   if (!isRateLimit && !isLoginLock && !isError) return Promise.resolve([]);
 
-  const title = isLoginLock ? 'Account Lockout Alert' : isRateLimit ? 'Rate limit alert' : 'System error logged';
+  const title = isLoginLock
+    ? 'Account Lockout Alert'
+    : isRateLimit
+      ? 'Rate limit alert'
+      : `System error${errorCode ? `: ${errorCode}` : ''}`;
   const statusText = log.statusCode ? ` (${log.statusCode})` : '';
   const endpointText = log.endpoint ? ` on ${log.endpoint}` : '';
+  const codeText = errorCode ? ` [${errorCode}]` : '';
+  const requestText = requestId ? ` Request ID: ${requestId}.` : '';
   const lockedAccount = isLoginLock ? await getLockedAccountLabel(log) : null;
   const message = isLoginLock
-    ? `A user account (${lockedAccount}) was locked after repeated failed login attempts. Review the authentication logs for possible brute-force activity.`
-    : `${log.service || 'System'}${endpointText} recorded ${log.category || 'api'} ${log.status || 'event'}${statusText}: ${log.message}`;
+    ? `A user account (${lockedAccount}) was locked after repeated failed login attempts.${requestText} Review the authentication logs for possible brute-force activity.`
+    : `${log.service || 'System'}${endpointText} recorded ${log.category || 'api'} ${log.status || 'event'}${statusText}${codeText}: ${log.message || 'No message recorded'}.${requestText}`;
 
   return notifyAdmins({
     type: isLoginLock ? 'admin-login-lock' : isRateLimit ? 'admin-rate-limit' : 'admin-error-log',
@@ -134,6 +174,8 @@ const notifyAdminsOfApiLog = async (log) => {
       severity: log.severity,
       status: log.status,
       statusCode: log.statusCode,
+      errorCode,
+      requestId,
       service: log.service,
       endpoint: log.endpoint,
     },
@@ -149,6 +191,19 @@ const notifyAdminsOfNewSignup = (user) =>
       url: '/admin/users',
       userId: user._id,
       email: user.email,
+    },
+  });
+
+const notifyAdminsOfNewFeedback = (feedback) =>
+  notifyAdmins({
+    type: 'admin-feedback',
+    title: 'New rating submitted',
+    message: `${feedback.userName} submitted a ${feedback.rating}-star rating${feedback.feedback ? ' with feedback' : ''}.`,
+    metadata: {
+      url: '/admin/settings?section=feedback',
+      feedbackId: feedback._id,
+      userId: feedback.userId,
+      rating: feedback.rating,
     },
   });
 
@@ -171,11 +226,25 @@ const scheduleTripReminder = async (trip) => {
   });
 };
 
-const notifyPackingList = (packingList) => {
+const schedulePackingListReminder = async (packingList) => {
+  if (!packingList?._id || !packingList?.userId) return null;
+
+  await notificationRepository.deletePendingPackingListReminder(packingList._id, packingList.userId);
+
   const unpackedCount = packingList.items?.filter((item) => !item.isPacked).length || 0;
-  if (!unpackedCount) return null;
+  if (
+    !packingList.tripId ||
+    !packingList.tripStartDate ||
+    packingList.reminder?.enabled === false ||
+    !unpackedCount
+  ) {
+    return null;
+  }
 
   const tripDestination = packingList.destination || 'your destination';
+  const daysBeforeTrip = packingList.reminder?.daysBeforeTrip ?? 2;
+  const scheduledAt = new Date(packingList.tripStartDate);
+  scheduledAt.setDate(scheduledAt.getDate() - daysBeforeTrip);
 
   return createNotification({
     userId: packingList.userId,
@@ -183,8 +252,36 @@ const notifyPackingList = (packingList) => {
     type: 'packing-list',
     title: 'Packing List Reminder',
     message: `There are still unpacked items in your packing list ${packingList.title}, please check your items before the trip to ${tripDestination}.`,
+    scheduledAt,
     metadata: { url: '/packing-lists', packingListId: packingList._id },
   });
+};
+
+const cancelPackingListReminder = (packingList) => {
+  if (!packingList?._id || !packingList?.userId) return null;
+  return notificationRepository.deletePendingPackingListReminder(packingList._id, packingList.userId);
+};
+
+const reschedulePackingListRemindersForTrip = async (trip) => {
+  if (!trip?._id || !trip?.userId) return [];
+
+  const packingLists = await packingListRepository.findByTripIdAndUserId(trip._id, trip.userId);
+  return Promise.all(
+    packingLists.map(async (packingList) => {
+      packingList.destination = trip.destination;
+      packingList.tripStartDate = trip.startDate;
+      packingList.tripEndDate = trip.endDate;
+      const savedPackingList = await packingListRepository.save(packingList);
+      return schedulePackingListReminder(savedPackingList);
+    })
+  );
+};
+
+const cancelPackingListRemindersForTrip = async (trip) => {
+  if (!trip?._id || !trip?.userId) return [];
+
+  const packingLists = await packingListRepository.findByTripIdAndUserId(trip._id, trip.userId);
+  return Promise.all(packingLists.map((packingList) => cancelPackingListReminder(packingList)));
 };
 
 const listNotifications = async (userId, sort = 'desc') => {
@@ -226,8 +323,13 @@ module.exports = {
   markAllNotificationsRead,
   markNotificationRead,
   notifyAdminsOfApiLog,
+  notifyAdminsOfNewFeedback,
   notifyAdminsOfNewSignup,
-  notifyPackingList,
+  cancelPackingListReminder,
+  cancelPackingListRemindersForTrip,
+  processDueNotifications,
+  reschedulePackingListRemindersForTrip,
+  schedulePackingListReminder,
   scheduleTripReminder,
   startNotificationWorker,
 };
