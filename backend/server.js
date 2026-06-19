@@ -10,6 +10,7 @@ const { createServer } = require('http');
 const { setupNotificationSocket } = require('./src/modules/notifications/notification.socket');
 const { startNotificationWorker } = require('./src/modules/notifications/notification.service');
 
+// Initializes the server with database connection and all services.
 const startServer = async () => {
   // Local development can still boot the API without MongoDB, but database-backed routes will fail later.
   if (env.mongoUri) {
@@ -18,10 +19,16 @@ const startServer = async () => {
     console.warn('MONGODB_URI is not set. Server started without database connection.');
   }
 
+  // Creates HTTP server from the Express application.
   const server = createServer(app);
+
+  // Sets up WebSocket for real-time notification delivery.
   setupNotificationSocket(server);
+
+  // Starts background worker for processing notification queues.
   startNotificationWorker();
 
+  // Begins listening for incoming requests on the configured port.
   server.listen(env.port, () => {
     console.log(`Smart Travel Planner API running on port ${env.port}`);
   });

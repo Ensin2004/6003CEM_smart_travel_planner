@@ -28,21 +28,32 @@ const {
   searchGoogleMapsReviews,
 } = require('../explore/googleMaps.service');
 
+// Cache TTL: 30 minutes
 const CACHE_TTL_MS = 30 * 60 * 1000;
+
+// In-memory cache for quick lookup
 const inMemoryCache = new Map();
+
+// Geoapify client for geocoding
 const geoapifyClient = axios.create({
   baseURL: 'https://api.geoapify.com',
   timeout: 8000,
 });
+
+// OpenRouteService client for routing
 const openRouteServiceClient = axios.create({
   baseURL: 'https://api.openrouteservice.org',
   timeout: 12000,
 });
+
+// Map travel modes to OpenRouteService profiles
 const openRouteServiceProfiles = {
   car: 'driving-car',
   walking: 'foot-walking',
   bike: 'cycling-regular',
 };
+
+// Estimated speeds (km/h) for fallback route calculations
 const estimatedModeSpeedsKph = {
   walking: 5,
   car: 45,
@@ -51,6 +62,7 @@ const estimatedModeSpeedsKph = {
   plane: 700,
 };
 
+// Map category names to search queries
 const mapCategoryQueries = {
   hotels: 'hotels',
   airports: 'airports',
@@ -59,25 +71,75 @@ const mapCategoryQueries = {
   attractions: 'tourist attractions',
   shopping: 'shopping malls',
 };
+
+/**
+ * Creates a fallback places response when search fails.
+ * @param {string} category - Place category
+ * @param {string} message - Error message
+ * @returns {Object} Fallback response object
+ */
 const fallbackPlaces = (category, message = 'Map place details temporarily unavailable') => ({
   available: false,
   category,
   message,
   items: [],
 });
+
+/**
+ * Extracts photo URL from Foursquare photo object.
+ * @param {Object} photo - Photo object with prefix and suffix
+ * @returns {string} Full photo URL
+ */
 const getPhotoUrl = (photo = {}) =>
   photo.prefix && photo.suffix ? `${photo.prefix}800x600${photo.suffix}` : '';
+
+/**
+ * Extracts hours summary from Foursquare hours object.
+ * @param {Object} hours - Hours object
+ * @returns {string} Human-readable hours string
+ */
 const getHoursSummary = (hours = {}) => {
   if (hours.display) return hours.display;
   if (typeof hours.open_now === 'boolean') return hours.open_now ? 'Open now' : 'Closed now';
   return '';
 };
+
+/**
+ * Formats address from Foursquare location object.
+ * @param {Object} location - Location object
+ * @returns {string} Formatted address string
+ */
 const getAddress = (location = {}) =>
   location.formatted_address ||
   [location.address, location.locality, location.region, location.country].filter(Boolean).join(', ');
+
+/**
+ * Safely extracts coordinate as number.
+ * @param {*} value - Coordinate value
+ * @returns {number|null} Valid coordinate or null
+ */
 const getCoordinate = (value) => (Number.isFinite(Number(value)) ? Number(value) : null);
+
+/**
+ * Normalizes text for matching/string comparison.
+ * @param {string} value - Text to normalize
+ * @returns {string} Lowercase alphanumeric only
+ */
 const normalizeMatchText = (value = '') => value.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+/**
+ * Converts degrees to radians.
+ * @param {number} degrees - Angle in degrees
+ * @returns {number} Angle in radians
+ */
 const toRadians = (degrees) => degrees * (Math.PI / 180);
+
+/**
+ * Calculates distance between two points using Haversine formula.
+ * @param {Object} firstPoint - First point with lat and lng
+ * @param {Object} secondPoint - Second point with lat and lng
+ * @returns {number} Distance in meters
+ */
 const getDistanceMeters = (firstPoint, secondPoint) => {
   const earthRadiusMeters = 6371000;
   const firstLat = toRadians(Number(firstPoint.lat));
@@ -89,11 +151,24 @@ const getDistanceMeters = (firstPoint, secondPoint) => {
 
   return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(haversineValue), Math.sqrt(1 - haversineValue));
 };
+
+/**
+ * Calculates total path distance for a series of points.
+ * @param {Array} points - Array of points with lat and lng
+ * @returns {number} Total distance in meters
+ */
 const getPathDistanceMeters = (points) => points.slice(1).reduce(
   (totalDistance, point, index) => totalDistance + getDistanceMeters(points[index], point),
   0
 );
+
+/**
+ * Optimizes point order using Dijkstra's algorithm to minimize travel distance.
+ * @param {Array} points - Array of points with lat and lng
+ * @returns {Array} Optimal order indices
+ */
 const getDijkstraOptimizedOrder = (points) => {
+  // For 3 or fewer points, no optimization needed
   if (points.length <= 3) {
     return points.map((_, index) => index);
   }
@@ -108,23 +183,24 @@ const getDijkstraOptimizedOrder = (points) => {
 
   distances.set(getStateKey(0, 0), 0);
 
+  // Dijkstra's algorithm for TSP path optimization
   while (queue.length) {
     queue.sort((firstState, secondState) => firstState.distance - secondState.distance);
     const currentState = queue.shift();
     const currentKey = getStateKey(currentState.mask, currentState.currentIndex);
 
     if (currentState.distance !== distances.get(currentKey)) {
-      continue;
+      continue; // Skip outdated queue entries
     }
     if (currentState.mask === allVisitedMask) {
-      break;
+      break; // All intermediate points visited
     }
 
     intermediateIndexes.forEach((pointIndex, bitIndex) => {
       const bit = 1 << bitIndex;
 
       if (currentState.mask & bit) {
-        return;
+        return; // Already visited this point
       }
 
       const nextMask = currentState.mask | bit;
@@ -134,6 +210,7 @@ const getDijkstraOptimizedOrder = (points) => {
       );
       const nextKey = getStateKey(nextMask, pointIndex);
 
+      // Update if better path found
       if (nextDistance < (distances.get(nextKey) ?? Number.POSITIVE_INFINITY)) {
         distances.set(nextKey, nextDistance);
         previousStates.set(nextKey, currentKey);
@@ -142,6 +219,7 @@ const getDijkstraOptimizedOrder = (points) => {
     });
   }
 
+  // Find best final state (all intermediate visited, then go to destination)
   let bestFinalState = null;
   intermediateIndexes.forEach((pointIndex) => {
     const stateKey = getStateKey(allVisitedMask, pointIndex);
@@ -158,9 +236,10 @@ const getDijkstraOptimizedOrder = (points) => {
   });
 
   if (!bestFinalState) {
-    return points.map((_, index) => index);
+    return points.map((_, index) => index); // Fallback to original order
   }
 
+  // Reconstruct path from state history
   const reversedIntermediateOrder = [];
   let stateKey = bestFinalState.stateKey;
 
@@ -172,6 +251,12 @@ const getDijkstraOptimizedOrder = (points) => {
 
   return [0, ...reversedIntermediateOrder.reverse(), destinationIndex];
 };
+
+/**
+ * Optimizes route by reordering points for shortest path.
+ * @param {Array} points - Array of points with lat and lng
+ * @returns {Object} Optimized points and optimization metadata
+ */
 const optimizeMapPoints = (points) => {
   const pointOrder = getDijkstraOptimizedOrder(points);
   const optimizedPoints = pointOrder.map((pointIndex) => points[pointIndex]);
@@ -189,6 +274,12 @@ const optimizeMapPoints = (points) => {
     },
   };
 };
+
+/**
+ * Ranks routes by distance and duration scores.
+ * @param {Array} routes - Array of route objects
+ * @returns {Array} Ranked routes with rank and best flags
+ */
 const rankRoutes = (routes) => {
   const distances = routes.map((route) => route.distanceMeters);
   const durations = routes.map((route) => route.durationSeconds);
@@ -202,6 +293,7 @@ const rankRoutes = (routes) => {
       ...route,
       isShortest: route.distanceMeters === shortestDistance,
       isFastest: route.durationSeconds === shortestDuration,
+      // Lower score is better (composite of distance and duration)
       score:
         ((route.distanceMeters - shortestDistance) / distanceRange)
         + ((route.durationSeconds - shortestDuration) / durationRange),
@@ -213,6 +305,15 @@ const rankRoutes = (routes) => {
       isBest: index === 0,
     }));
 };
+
+/**
+ * Generates estimated routes when external API is unavailable.
+ * @param {Array} points - Route points
+ * @param {string} mode - Travel mode
+ * @param {string} message - Status message
+ * @param {Object} optimization - Optimization metadata
+ * @returns {Object} Estimated route response
+ */
 const getEstimatedMapRoutes = (points, mode, message, optimization) => {
   const distanceMeters = getPathDistanceMeters(points);
   const speedKph = estimatedModeSpeedsKph[mode] || estimatedModeSpeedsKph.car;
@@ -233,12 +334,20 @@ const getEstimatedMapRoutes = (points, mode, message, optimization) => {
     optimization,
   };
 };
+
+/**
+ * Normalizes OpenRouteService response to standard route format.
+ * @param {Object} feature - GeoJSON feature from OpenRouteService
+ * @param {number} index - Route index
+ * @returns {Object} Normalized route object
+ */
 const normalizeOpenRouteServiceRoute = (feature, index) => ({
   id: `ors-route-${index + 1}`,
   distanceMeters: Number(feature.properties?.summary?.distance || 0),
   durationSeconds: Number(feature.properties?.summary?.duration || 0),
   coordinates: (feature.geometry?.coordinates || []).map(([longitude, latitude]) => [latitude, longitude]),
 });
+
 /**
  * Calculates and ranks routes for map points, with local estimates as fallback.
  * @param {object} input Ordered map points and travel mode.
@@ -249,10 +358,13 @@ const getMapRoutes = async ({ points = [], mode = 'car' }) => {
     lat: Number(point.lat),
     lng: Number(point.lng),
   }));
+  
+  // Optimize point order for efficient routing
   const optimizedRoute = optimizeMapPoints(normalizedPoints);
   const optimizedPoints = optimizedRoute.points;
   const profile = openRouteServiceProfiles[mode];
 
+  // Return estimated route if mode is not supported by OpenRouteService
   if (!profile) {
     return getEstimatedMapRoutes(
       optimizedPoints,
@@ -261,6 +373,8 @@ const getMapRoutes = async ({ points = [], mode = 'car' }) => {
       optimizedRoute.optimization
     );
   }
+  
+  // Return estimated route if API key is not configured
   if (!env.openRouteServiceApiKey) {
     return getEstimatedMapRoutes(
       optimizedPoints,
@@ -276,6 +390,7 @@ const getMapRoutes = async ({ points = [], mode = 'car' }) => {
       instructions: false,
     };
 
+    // Request alternative routes for point-to-point navigation
     if (optimizedPoints.length === 2) {
       requestBody.alternative_routes = {
         target_count: 2,
@@ -295,12 +410,14 @@ const getMapRoutes = async ({ points = [], mode = 'car' }) => {
         },
       }
     );
+    
     const routes = rankRoutes(
       (response.data?.features || [])
         .map(normalizeOpenRouteServiceRoute)
         .filter((route) => route.coordinates.length && route.distanceMeters > 0 && route.durationSeconds > 0)
     );
 
+    // Fallback to estimated route if no valid routes returned
     if (!routes.length) {
       return getEstimatedMapRoutes(
         optimizedPoints,
@@ -320,6 +437,7 @@ const getMapRoutes = async ({ points = [], mode = 'car' }) => {
       optimization: optimizedRoute.optimization,
     };
   } catch (error) {
+    // Log failure and return estimated route
     logger.warn(`OpenRouteService route lookup failed: ${error.message}`);
     return getEstimatedMapRoutes(
       optimizedPoints,
@@ -329,6 +447,13 @@ const getMapRoutes = async ({ points = [], mode = 'car' }) => {
     );
   }
 };
+
+/**
+ * Creates a fallback location response for reverse geocoding.
+ * @param {Object} coordinates - Latitude and longitude
+ * @param {string} message - Error message
+ * @returns {Object} Fallback location object
+ */
 const fallbackLocation = ({ latitude, longitude }, message = 'Current location name unavailable') => ({
   available: false,
   message,
@@ -340,6 +465,14 @@ const fallbackLocation = ({ latitude, longitude }, message = 'Current location n
     longitude: Number(longitude),
   },
 });
+
+/**
+ * Records geocoding failures to the logging service.
+ * @param {string} message - Error message
+ * @param {number} statusCode - HTTP status code
+ * @param {Object} metadata - Additional context
+ * @param {string} errorCode - Standardized error code
+ */
 const recordMapGeocodeFailure = (message, statusCode, metadata = {}, errorCode) => {
   logger.warn(`Geoapify reverse geocode failed: ${message}`);
   if (env.nodeEnv === 'test') {
@@ -361,7 +494,14 @@ const recordMapGeocodeFailure = (message, statusCode, metadata = {}, errorCode) 
     })
     .catch((error) => logger.error(`Failed to record map geocode event: ${error.message}`));
 };
-// Foursquare results are normalized to the existing Leaflet marker and detail-card contract.
+
+/**
+ * Normalizes Foursquare place to map display format.
+ * @param {Object} item - Foursquare place object
+ * @param {number} index - Index for fallback ID
+ * @param {string} category - Place category
+ * @returns {Object} Normalized place for map display
+ */
 const normalizeMapPlace = (item = {}, index, category = 'attractions') => {
   const coordinates = item.geocodes?.main || item.geocodes?.roof || {};
   const categoryName = item.categories?.[0]?.name || category;
@@ -403,6 +543,14 @@ const normalizeMapPlace = (item = {}, index, category = 'attractions') => {
     lng: getCoordinate(item.longitude ?? coordinates.longitude),
   };
 };
+
+/**
+ * Normalizes Google Maps place to map display format.
+ * @param {Object} item - Google Maps place object
+ * @param {number} index - Index for fallback ID
+ * @param {string} category - Place category
+ * @returns {Object} Normalized place for map display
+ */
 const normalizeGoogleMapPlace = (item = {}, index, category = 'attractions') => {
   const normalized = normalizePlaceItem(item, index, { name: 'Untitled place', category });
   const price = getText(item.price || item.price_level);
@@ -420,6 +568,13 @@ const normalizeGoogleMapPlace = (item = {}, index, category = 'attractions') => 
     lng: getCoordinate(normalized.coordinates?.longitude),
   };
 };
+
+/**
+ * Merges place details from multiple providers.
+ * @param {Object} basePlace - Primary place object
+ * @param {Object} richPlace - Secondary place with additional details
+ * @returns {Object} Merged place object
+ */
 const mergePlaceDetails = (basePlace, richPlace) => {
   if (!richPlace) return basePlace;
 
@@ -433,8 +588,17 @@ const mergePlaceDetails = (basePlace, richPlace) => {
     address: richPlace.address || basePlace?.address,
   };
 };
+
+/**
+ * Merges places from Foursquare and Google Maps, deduplicating by name.
+ * @param {Array} foursquarePlaces - Places from Foursquare
+ * @param {Array} googlePlaces - Places from Google Maps
+ * @returns {Array} Merged and deduplicated place list
+ */
 const mergeProviderPlaces = (foursquarePlaces, googlePlaces) => {
   const unusedGooglePlaces = [...googlePlaces];
+  
+  // Match Foursquare places with Google places by name similarity
   const mergedFoursquarePlaces = foursquarePlaces.map((place) => {
     const matchKey = normalizeMatchText(place.name);
     const matchIndex = unusedGooglePlaces.findIndex((candidate) => {
@@ -442,12 +606,20 @@ const mergeProviderPlaces = (foursquarePlaces, googlePlaces) => {
       return candidateKey === matchKey || candidateKey.includes(matchKey) || matchKey.includes(candidateKey);
     });
 
+    // Merge if match found, otherwise keep Foursquare place
     if (matchIndex < 0) return place;
     return mergePlaceDetails(place, unusedGooglePlaces.splice(matchIndex, 1)[0]);
   });
 
   return [...mergedFoursquarePlaces, ...unusedGooglePlaces];
 };
+
+/**
+ * Retrieves category-specific places from explore services.
+ * @param {string} category - Place category
+ * @param {string} destination - Destination name
+ * @returns {Promise<Object>} Place search results
+ */
 const getExploreCategoryPlaces = async (category, destination) => {
   if (category === 'attractions') {
     return placesService.getAttractionsByDestination(destination);
@@ -459,6 +631,7 @@ const getExploreCategoryPlaces = async (category, destination) => {
     return restaurantService.getRestaurantsByDestination({ destination });
   }
 
+  // Default to Google Maps search for other categories
   return searchGoogleMaps({
     cache: new Map(),
     cacheKey: `${category}|${destination}`,
@@ -467,6 +640,12 @@ const getExploreCategoryPlaces = async (category, destination) => {
     mapItem: (item, index) => normalizeGoogleMapPlace(item, index, category),
   });
 };
+
+/**
+ * Retrieves detailed place information from explore services.
+ * @param {Object} params - Place identification parameters
+ * @returns {Promise<Object>} Place details with reviews
+ */
 const getExplorePlaceDetails = async ({ category, name, address, dataId, placeId }) => {
   if (category === 'attractions') {
     return placesService.getAttractionDetail({ name, address, dataId, placeId });
@@ -478,6 +657,7 @@ const getExplorePlaceDetails = async ({ category, name, address, dataId, placeId
     return restaurantService.getRestaurantDetail({ name, address, dataId, placeId });
   }
 
+  // Default to Google Maps search for other categories
   const result = await searchGoogleMaps({
     cache: new Map(),
     cacheKey: ['map-detail', category, name, address, dataId, placeId].join('|').toLowerCase(),
@@ -492,16 +672,26 @@ const getExplorePlaceDetails = async ({ category, name, address, dataId, placeId
 
   return { available: Boolean(item), item, reviews, message: item ? '' : 'Place details were not found.' };
 };
+
+/**
+ * Retrieves cached data from in-memory or database cache.
+ * @param {string} cacheKey - Cache key
+ * @returns {Promise<Object|null>} Cached data or null
+ */
 const getCache = async (cacheKey) => {
+  // Check in-memory cache first
   const cached = inMemoryCache.get(cacheKey);
 
   if (cached && Date.now() - cached.createdAt < CACHE_TTL_MS) {
     return { ...cached.data, cached: true };
   }
 
+  // Skip database cache in test environment
   if (env.nodeEnv === 'test') {
     return null;
   }
+  
+  // Check database cache
   try {
     const databaseCache = await mapRepository.findValidCache(cacheKey);
     return databaseCache ? { ...databaseCache.data, cached: true } : null;
@@ -509,18 +699,30 @@ const getCache = async (cacheKey) => {
     return null;
   }
 };
+
+/**
+ * Stores data in both in-memory and database caches.
+ * @param {string} cacheKey - Cache key
+ * @param {Object} data - Data to cache
+ * @returns {Promise<void>}
+ */
 const setCache = async (cacheKey, data) => {
+  // Store in-memory cache
   inMemoryCache.set(cacheKey, { data, createdAt: Date.now() });
 
+  // Skip database cache in test environment
   if (env.nodeEnv === 'test') {
     return;
   }
+  
+  // Store database cache (fire and forget)
   try {
     await mapRepository.upsertCache(cacheKey, data, CACHE_TTL_MS);
   } catch {
     // In-memory cache still prevents repeated calls during this process.
   }
 };
+
 /**
  * Searches nearby places and merges available provider results.
  * @param {object} input Category, destination, coordinates, and result limit.
@@ -536,20 +738,26 @@ const searchMapPlaces = async ({ category, destination, latitude, longitude, lim
     Number(longitude).toFixed(4),
     parsedLimit,
   ].join('|');
+  
+  // Check cache
   const cached = await getCache(cacheKey);
-
   if (cached) {
     return cached;
   }
+  
+  // Validate API keys
   if ((!env.foursquareApiKey && !env.serpApiKey) || env.nodeEnv === 'test') {
     return {
       ...fallbackPlaces(category, 'Foursquare and SerpApi keys are not configured'),
       errorCode: 'INVALID_API_KEY',
     };
   }
+  
   try {
     const query = mapCategoryQueries[category] || mapCategoryQueries.attractions;
     const locationText = destination || `${Number(latitude).toFixed(5)},${Number(longitude).toFixed(5)}`;
+    
+    // Query both providers in parallel
     const [foursquareResult, googleResult] = await Promise.allSettled([
       env.foursquareApiKey
         ? searchFoursquarePlaces({ query, latitude, longitude, limit: parsedLimit })
@@ -558,6 +766,8 @@ const searchMapPlaces = async ({ category, destination, latitude, longitude, lim
         ? getExploreCategoryPlaces(category, locationText)
         : Promise.resolve({ items: [] }),
     ]);
+    
+    // Normalize results from both providers
     const foursquarePlaces = foursquareResult.status === 'fulfilled'
       ? foursquareResult.value.map((item, index) => normalizeMapPlace(item, index, category))
       : [];
@@ -572,8 +782,11 @@ const searchMapPlaces = async ({ category, destination, latitude, longitude, lim
           id: String(place.id || place.placeId || place.dataId || index),
         }))
       : [];
+      
+    // Merge and deduplicate places
     const places = mergeProviderPlaces(foursquarePlaces, googlePlaces);
 
+    // Record failures for rejected promises
     if (foursquareResult.status === 'rejected') {
       const { errorCode, message, statusCode } = getFoursquareFailureMessage(foursquareResult.reason);
       recordFoursquareFailure('map-places', message, statusCode, { category, destination, latitude, longitude }, errorCode);
@@ -588,9 +801,12 @@ const searchMapPlaces = async ({ category, destination, latitude, longitude, lim
       : googleResult.value?.available === false
         ? googleResult.value.message || ''
         : '';
+        
+    // Filter places with valid coordinates
     const visiblePlaces = places
       .filter((place) => Number.isFinite(Number(place.lat)) && Number.isFinite(Number(place.lng)))
       .slice(0, parsedLimit);
+      
     const publicPlaces = {
       available: visiblePlaces.length > 0,
       category,
@@ -601,6 +817,7 @@ const searchMapPlaces = async ({ category, destination, latitude, longitude, lim
       lastUpdated: new Date().toISOString(),
     };
 
+    // Cache successful responses
     if (!googleWarning) {
       await setCache(cacheKey, publicPlaces);
     }
@@ -609,6 +826,7 @@ const searchMapPlaces = async ({ category, destination, latitude, longitude, lim
     return fallbackPlaces(category, error.message || 'Map places are temporarily unavailable');
   }
 };
+
 /**
  * Retrieves and enriches details for a selected map place.
  * @param {object} input Category, place identity, address, and provider identifiers.
@@ -640,11 +858,14 @@ const getMapPlaceDetails = async ({
   ]
     .join('|')
     .toLowerCase();
+    
+  // Check cache
   const cached = await getCache(cacheKey);
-
   if (cached) {
     return cached;
   }
+  
+  // Validate API keys
   if ((!env.serpApiKey && !env.foursquareApiKey) || env.nodeEnv === 'test') {
     return {
       available: false,
@@ -652,11 +873,13 @@ const getMapPlaceDetails = async ({
       item: null,
     };
   }
+  
   try {
     let foursquarePlace = null;
     let googlePlace = null;
     let googleWarning = '';
 
+    // Fetch Google Maps details if API key is available
     if (env.serpApiKey) {
       try {
         const googleDetails = await getExplorePlaceDetails({
@@ -688,11 +911,13 @@ const getMapPlaceDetails = async ({
       }
     }
 
+    // Fetch Foursquare details if API key is available
     if (env.foursquareApiKey) {
       try {
         if (foursquarePlaceId) {
           foursquarePlace = await getFoursquarePlace(foursquarePlaceId);
         } else {
+          // Search for place by name and coordinates
           const matches = await searchFoursquarePlaces({
             query: fallbackName,
             latitude,
@@ -714,12 +939,14 @@ const getMapPlaceDetails = async ({
       }
     }
 
+    // Merge details from both providers
     const foursquareItem = foursquarePlace ? normalizeMapPlace(foursquarePlace, 0, category) : null;
     const item = mergePlaceDetails(foursquareItem, googlePlace);
     if (item) {
       item.detailSource = googlePlace ? 'serpapi' : 'foursquare';
       item.enrichmentMessage = googleWarning;
     }
+    
     const details = {
       available: Boolean(item),
       message: googleWarning || (item ? '' : 'Place details were not found.'),
@@ -727,6 +954,7 @@ const getMapPlaceDetails = async ({
       lastUpdated: new Date().toISOString(),
     };
 
+    // Cache successful responses
     if (!googleWarning) {
       await setCache(cacheKey, details);
     }
@@ -739,6 +967,7 @@ const getMapPlaceDetails = async ({
     };
   }
 };
+
 /**
  * Delegates map weather lookup using destination text or known coordinates.
  * @param {object} input Destination, date, coordinates, and display label.
@@ -750,6 +979,13 @@ const getMapWeather = ({ destination, date, latitude, longitude, locationLabel }
     longitude,
     locationLabel,
   });
+
+/**
+ * Normalizes reverse geocoding response to consistent format.
+ * @param {Object} feature - Geoapify feature
+ * @param {Object} coordinates - Latitude and longitude
+ * @returns {Object} Normalized location object
+ */
 const normalizeReverseGeocodeLocation = (feature = {}, coordinates = {}) => {
   const properties = feature.properties || {};
   const state = properties.state || properties.county || properties.city || '';
@@ -772,6 +1008,7 @@ const normalizeReverseGeocodeLocation = (feature = {}, coordinates = {}) => {
     },
   };
 };
+
 /**
  * Resolves coordinates into a human-readable Geoapify location.
  * @param {{latitude: number, longitude: number}} coordinates Map coordinates.
@@ -781,11 +1018,14 @@ const getReverseGeocodeLocation = async ({ latitude, longitude }) => {
   const parsedLatitude = Number(latitude);
   const parsedLongitude = Number(longitude);
   const cacheKey = ['reverse-geocode', parsedLatitude.toFixed(4), parsedLongitude.toFixed(4)].join('|');
+  
+  // Check cache
   const cached = await getCache(cacheKey);
-
   if (cached) {
     return cached;
   }
+  
+  // Validate API key
   if (!env.geoapifyApiKey || env.nodeEnv === 'test') {
     return fallbackLocation({ latitude: parsedLatitude, longitude: parsedLongitude }, 'Geoapify API key is not configured');
   }
@@ -817,6 +1057,7 @@ const getReverseGeocodeLocation = async ({ latitude, longitude }) => {
     return fallbackLocation({ latitude: parsedLatitude, longitude: parsedLongitude }, message);
   }
 };
+
 /**
  * Resolves a location query into coordinates through Geoapify.
  * @param {string} query Location name or address.
@@ -825,9 +1066,12 @@ const getReverseGeocodeLocation = async ({ latitude, longitude }) => {
 const getGeocodeLocation = async (query) => {
   const normalizedQuery = String(query || '').trim();
   const cacheKey = ['geocode', normalizedQuery.toLowerCase()].join('|');
+  
+  // Check cache
   const cached = await getCache(cacheKey);
-
   if (cached) return cached;
+  
+  // Validate API key
   if (!env.geoapifyApiKey || env.nodeEnv === 'test') {
     return {
       available: false,
@@ -877,6 +1121,7 @@ const getGeocodeLocation = async (query) => {
     return { available: false, errorCode: failure.errorCode, message: failure.message };
   }
 };
+
 module.exports = {
   getGeocodeLocation,
   getMapPlaces: searchMapPlaces,

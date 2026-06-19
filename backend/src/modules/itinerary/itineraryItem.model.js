@@ -82,6 +82,7 @@ const itineraryItemSchema = new mongoose.Schema(
   { timestamps: true }  // Automatically add createdAt and updatedAt fields
 );
 
+// Indexes for query performance and geospatial operations
 // Enable efficient queries for finding all items in a trip on a specific date
 itineraryItemSchema.index({ tripId: 1, scheduledDate: 1 });
 

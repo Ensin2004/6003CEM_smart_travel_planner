@@ -10,15 +10,40 @@ const { packingListRepository } = require('../travelTools/travelTools.repository
 const notificationRepository = require('./notification.repository');
 const { emitNotification, emitUnreadCount } = require('./notification.socket');
 
+/**
+ * Gets the client base URL from environment or falls back to localhost.
+ * @returns {string} Client application base URL
+ */
 const getClientBaseUrl = () => env.clientOrigin.split(',')[0]?.trim() || 'http://localhost:5173';
+
+/**
+ * Converts a notification to plain object if it has a toJSON method.
+ * @param {Object} notification - Notification document
+ * @returns {Object} Plain notification object
+ */
 const toPlainNotification = (notification) =>
   typeof notification.toJSON === 'function' ? notification.toJSON() : notification;
 
+/**
+ * Generates an action URL for a notification.
+ * Uses metadata.url if available, otherwise falls back to notifications list.
+ * 
+ * @param {Object} notification - Notification document
+ * @returns {string} Full action URL
+ */
 const getNotificationActionUrl = (notification) => {
   if (notification.metadata?.url) return `${getClientBaseUrl()}${notification.metadata.url}`;
   return `${getClientBaseUrl()}/notifications`;
 };
 
+/**
+ * Checks if a notification should be delivered based on user preferences.
+ * Returns false if notifications are globally off or specific types are disabled.
+ * 
+ * @param {Object} user - User document with notificationPreferences
+ * @param {string} type - Notification type
+ * @returns {boolean} True if notification is allowed
+ */
 const isNotificationAllowed = (user, type) => {
   const preferences = user.notificationPreferences || {};
   if (preferences.notificationsOff) return false;
@@ -30,6 +55,13 @@ const isNotificationAllowed = (user, type) => {
   return true;
 };
 
+/**
+ * Dispatches a notification to a user via Socket.IO and email.
+ * Validates user, preferences, and packing list conditions before sending.
+ * 
+ * @param {Object} notification - Notification document to dispatch
+ * @returns {Promise<Object|null>} Dispatched notification or null if skipped
+ */
 const dispatchNotification = async (notification) => {
   const user = await userRepository.findById(notification.userId);
   if (!user) {
@@ -42,6 +74,7 @@ const dispatchNotification = async (notification) => {
     return null;
   }
 
+  // Special validation for packing list reminders
   if (notification.type === 'packing-list') {
     const packingListId = notification.metadata?.packingListId;
     const packingList = packingListId
@@ -61,6 +94,7 @@ const dispatchNotification = async (notification) => {
       notification.scheduledAt &&
       expectedScheduledAt.getTime() === new Date(notification.scheduledAt).getTime();
 
+    // Delete notification if packing list conditions are not met
     if (
       !packingList ||
       !packingList.tripId ||
@@ -74,12 +108,15 @@ const dispatchNotification = async (notification) => {
     }
   }
 
+  // Mark as sent and save
   notification.sentAt = new Date();
   await notificationRepository.save(notification);
 
+  // Emit via Socket.IO with updated unread count
   const unreadCount = await notificationRepository.countUnreadByUserId(notification.userId);
   emitNotification(notification.userId.toString(), toPlainNotification(notification), unreadCount);
 
+  // Send email notification (best effort)
   try {
     await sendNotificationEmail({
       to: user.email,
@@ -95,6 +132,18 @@ const dispatchNotification = async (notification) => {
   return notification;
 };
 
+/**
+ * Creates a new notification and dispatches it immediately or schedules it.
+ * @param {Object} params - Notification parameters
+ * @param {string} params.userId - Recipient user ID
+ * @param {string} params.tripId - Optional trip reference
+ * @param {string} params.type - Notification type
+ * @param {string} params.title - Notification title
+ * @param {string} params.message - Notification message
+ * @param {Date} params.scheduledAt - Schedule time (optional)
+ * @param {Object} params.metadata - Additional metadata
+ * @returns {Promise<Object|null>} Created notification or null if not allowed
+ */
 const createNotification = async ({ userId, tripId, type = 'system', title, message, scheduledAt, metadata = {} }) => {
   const user = await userRepository.findById(userId);
   if (!user || !isNotificationAllowed(user, type)) return null;
@@ -109,6 +158,7 @@ const createNotification = async ({ userId, tripId, type = 'system', title, mess
     metadata,
   });
 
+  // Dispatch immediately if scheduled time is now or in the past
   if (!scheduledAt || new Date(scheduledAt) <= new Date()) {
     await dispatchNotification(notification);
   }
@@ -116,6 +166,15 @@ const createNotification = async ({ userId, tripId, type = 'system', title, mess
   return notification;
 };
 
+/**
+ * Notifies all active admin users about a system event.
+ * @param {Object} params - Notification parameters
+ * @param {string} params.type - Notification type (admin-*)
+ * @param {string} params.title - Notification title
+ * @param {string} params.message - Notification message
+ * @param {Object} params.metadata - Additional metadata
+ * @returns {Promise<Array>} Created notifications
+ */
 const notifyAdmins = async ({ type = 'system', title, message, metadata = {} }) => {
   const admins = await userRepository.findActiveAdmins();
   const createdNotifications = await Promise.all(
@@ -133,6 +192,11 @@ const notifyAdmins = async ({ type = 'system', title, message, metadata = {} }) 
   return createdNotifications.filter(Boolean);
 };
 
+/**
+ * Gets a readable label for a locked account.
+ * @param {Object} log - API log document
+ * @returns {Promise<string>} Account label
+ */
 const getLockedAccountLabel = async (log) => {
   if (log.metadata?.attemptedEmailMasked) return log.metadata.attemptedEmailMasked;
   if (!log.userId) return 'unknown account';
@@ -141,6 +205,11 @@ const getLockedAccountLabel = async (log) => {
   return lockedUser?.name || lockedUser?.email || log.userId.toString();
 };
 
+/**
+ * Notifies admins about API log events (rate limits, errors, lockouts).
+ * @param {Object} log - API log document
+ * @returns {Promise<Array>} Created notifications
+ */
 const notifyAdminsOfApiLog = async (log) => {
   const { errorCode, requestId } = log;
   const isRateLimit = errorCode === 'RATE_LIMIT_EXCEEDED';
@@ -182,6 +251,11 @@ const notifyAdminsOfApiLog = async (log) => {
   });
 };
 
+/**
+ * Notifies admins of a new user signup.
+ * @param {Object} user - User document
+ * @returns {Promise<Array>} Created notifications
+ */
 const notifyAdminsOfNewSignup = (user) =>
   notifyAdmins({
     type: 'admin-signup',
@@ -194,6 +268,11 @@ const notifyAdminsOfNewSignup = (user) =>
     },
   });
 
+/**
+ * Notifies admins of new feedback submission.
+ * @param {Object} feedback - Feedback document
+ * @returns {Promise<Array>} Created notifications
+ */
 const notifyAdminsOfNewFeedback = (feedback) =>
   notifyAdmins({
     type: 'admin-feedback',
@@ -207,12 +286,20 @@ const notifyAdminsOfNewFeedback = (feedback) =>
     },
   });
 
+/**
+ * Schedules a trip reminder notification.
+ * Deletes existing pending reminder before creating new one.
+ * 
+ * @param {Object} trip - Trip document
+ * @returns {Promise<Object|null>} Created notification or null
+ */
 const scheduleTripReminder = async (trip) => {
   if (!trip?.startDate || !trip?.userId) return null;
 
   const scheduledAt = new Date(trip.startDate);
   scheduledAt.setDate(scheduledAt.getDate() - 1);
 
+  // Delete any existing pending trip reminder
   await notificationRepository.deletePendingByTripAndType(trip._id, trip.userId, 'trip-reminder');
 
   return createNotification({
@@ -226,9 +313,17 @@ const scheduleTripReminder = async (trip) => {
   });
 };
 
+/**
+ * Schedules a packing list reminder.
+ * Validates packing list conditions before creating notification.
+ * 
+ * @param {Object} packingList - Packing list document
+ * @returns {Promise<Object|null>} Created notification or null
+ */
 const schedulePackingListReminder = async (packingList) => {
   if (!packingList?._id || !packingList?.userId) return null;
 
+  // Delete existing pending reminder for this packing list
   await notificationRepository.deletePendingPackingListReminder(packingList._id, packingList.userId);
 
   const unpackedCount = packingList.items?.filter((item) => !item.isPacked).length || 0;
@@ -257,11 +352,21 @@ const schedulePackingListReminder = async (packingList) => {
   });
 };
 
+/**
+ * Cancels pending packing list reminders.
+ * @param {Object} packingList - Packing list document
+ * @returns {Promise<Object>} Delete operation result
+ */
 const cancelPackingListReminder = (packingList) => {
   if (!packingList?._id || !packingList?.userId) return null;
   return notificationRepository.deletePendingPackingListReminder(packingList._id, packingList.userId);
 };
 
+/**
+ * Reschedules packing list reminders for all lists in a trip.
+ * @param {Object} trip - Trip document
+ * @returns {Promise<Array>} Created notifications
+ */
 const reschedulePackingListRemindersForTrip = async (trip) => {
   if (!trip?._id || !trip?.userId) return [];
 
@@ -277,6 +382,11 @@ const reschedulePackingListRemindersForTrip = async (trip) => {
   );
 };
 
+/**
+ * Cancels all packing list reminders for a trip.
+ * @param {Object} trip - Trip document
+ * @returns {Promise<Array>} Delete results
+ */
 const cancelPackingListRemindersForTrip = async (trip) => {
   if (!trip?._id || !trip?.userId) return [];
 
@@ -284,12 +394,25 @@ const cancelPackingListRemindersForTrip = async (trip) => {
   return Promise.all(packingLists.map((packingList) => cancelPackingListReminder(packingList)));
 };
 
+/**
+ * Lists notifications for a user with unread count.
+ * @param {string} userId - User ID
+ * @param {string} sort - Sort direction ('asc' or 'desc')
+ * @returns {Promise<Object>} Notifications and unread count
+ */
 const listNotifications = async (userId, sort = 'desc') => {
   const notifications = await notificationRepository.findByUserId(userId, sort === 'asc' ? 'asc' : 'desc');
   const unreadCount = await notificationRepository.countUnreadByUserId(userId);
   return { notifications, unreadCount };
 };
 
+/**
+ * Marks a single notification as read.
+ * @param {string} notificationId - Notification ID
+ * @param {string} userId - User ID for ownership verification
+ * @returns {Promise<Object>} Updated notification and unread count
+ * @throws {AppError} If notification not found
+ */
 const markNotificationRead = async (notificationId, userId) => {
   const notification = await notificationRepository.markReadByIdAndUserId(notificationId, userId);
   if (!notification) throw new AppError('Notification not found', 404);
@@ -299,17 +422,31 @@ const markNotificationRead = async (notificationId, userId) => {
   return { notification, unreadCount };
 };
 
+/**
+ * Marks all notifications as read for a user.
+ * @param {string} userId - User ID
+ * @returns {Promise<Object>} Updated unread count
+ */
 const markAllNotificationsRead = async (userId) => {
   await notificationRepository.markAllReadByUserId(userId);
   emitUnreadCount(userId, 0);
   return { unreadCount: 0 };
 };
 
+/**
+ * Processes all due unsent notifications.
+ * Used by the notification worker to deliver scheduled notifications.
+ * @returns {Promise<void>}
+ */
 const processDueNotifications = async () => {
   const notifications = await notificationRepository.findDueUnsent();
   await Promise.all(notifications.map((notification) => dispatchNotification(notification)));
 };
 
+/**
+ * Starts the notification worker that processes due notifications every minute.
+ * @returns {NodeJS.Timeout} Interval handle
+ */
 const startNotificationWorker = () => {
   processDueNotifications().catch((error) => logger.warn(`Notification worker failed: ${error.message}`));
   return setInterval(() => {

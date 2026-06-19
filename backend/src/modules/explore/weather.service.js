@@ -70,15 +70,19 @@ const fallbackWeather = (message = 'Weather temporarily unavailable') => ({
 const consumeDailyQuota = () => {
   const today = getTodayKey();
   const dailyLimit = Math.max(Number(env.openMeteoDailyLimit) || 500, 0);
+  
+  // Reset counter when date changes
   if (dailyUsage.date !== today) {
     dailyUsage.date = today;
     dailyUsage.count = 0;
   }
 
+  // Check if daily limit has been reached
   if (dailyUsage.count >= dailyLimit) {
     return false;
   }
 
+  // Increment counter and allow the request
   dailyUsage.count += 1;
   return true;
 };
@@ -128,26 +132,32 @@ const getLocationLabel = (location) =>
 const getTravelTip = ({ condition, precipitationAmount, precipitationProbability, temperatureMax, forecastType }) => {
   const lowerCondition = condition.toLowerCase();
 
+  // Seasonal forecasts are less precise - recommend rechecking later
   if (forecastType === 'seasonal') {
     return 'Use this as a planning signal, then recheck closer to the travel date.';
   }
 
+  // Severe weather conditions - recommend indoor activities
   if (lowerCondition.includes('thunder') || precipitationAmount >= 15 || precipitationProbability >= 70) {
     return 'Plan indoor stops, nearby dining, and shorter walking transfers.';
   }
 
+  // Rainy conditions - recommend flexibility
   if (lowerCondition.includes('rain') || lowerCondition.includes('drizzle')) {
     return 'Keep outdoor plans flexible and save a few indoor options.';
   }
 
+  // Hot weather - recommend shade and hydration
   if (temperatureMax >= 32) {
     return 'Prioritize shaded attractions, water breaks, and air-conditioned food stops.';
   }
 
+  // Cold weather - recommend indoor warmth
   if (temperatureMax <= 8) {
     return 'Choose warm indoor stops and check transit walking time.';
   }
 
+  // Ideal conditions for general sightseeing
   return 'Good conditions for flexible sightseeing and dining plans.';
 };
 
@@ -276,10 +286,12 @@ const normalizeDailyForecast = ({ destination, date, location, response, forecas
   const daily = response.data?.daily || {};
   const index = daily.time?.findIndex((time) => time === date) ?? -1;
 
+  // Check if the requested date exists in the response
   if (index < 0) {
     return fallbackWeather('Weather forecast is unavailable for this date.');
   }
 
+  // Extract weather data for the specific date
   const weatherCode = daily.weather_code?.[index];
   const { condition, icon } = getWeatherCondition(weatherCode);
   const temperatureMax = Number(daily.temperature_2m_max?.[index]);
@@ -343,6 +355,7 @@ const normalizeCurrentWeather = ({ destination, date, location, response }) => {
   const temperature = Number(current.temperature);
   const windSpeedMax = Number(current.windspeed);
   const { condition, icon } = getWeatherCondition(current.weathercode);
+  
   return {
     available: true,
     destination,
@@ -421,9 +434,12 @@ const getWeatherByDestination = async (destination, date = getTodayKey(), locati
     recordWeatherFailure(message, statusCode, { destination: normalizedDestination, date: requestedDate }, errorCode);
     return { ...fallbackWeather(message), errorCode };
   }
+  
   try {
+    // Get location - either from coordinates or geocoding
     const location = resolvedLocation || (await geocodeDestination(normalizedDestination));
     resolvedLocation = location;
+    
     if (!location) {
       return {
         ...fallbackWeather('Destination weather location could not be found. Try a city, state, or country name.'),
@@ -433,6 +449,8 @@ const getWeatherByDestination = async (destination, date = getTodayKey(), locati
 
     // Determines which forecast type to use based on the requested date relative to today
     const forecastType = daysFromToday < 0 ? 'historical' : daysFromToday === 0 ? 'current' : daysFromToday <= FORECAST_DAYS ? 'forecast' : 'seasonal';
+    
+    // Fetch appropriate weather data based on forecast type
     const response =
       forecastType === 'historical'
         ? await fetchHistoricalForecast(location, requestedDate)
@@ -443,6 +461,8 @@ const getWeatherByDestination = async (destination, date = getTodayKey(), locati
         : forecastType === 'seasonal'
           ? await fetchSeasonalForecast(location, requestedDate)
           : await fetchDailyForecast(location, requestedDate);
+          
+    // Normalize the response into the standard weather format
     const weather =
       forecastType === 'current'
         ? normalizeCurrentWeather({
@@ -459,9 +479,11 @@ const getWeatherByDestination = async (destination, date = getTodayKey(), locati
           forecastType,
         });
 
+    // Cache successful responses
     weatherCache.set(cacheKey, { data: weather, createdAt: Date.now() });
     return weather;
   } catch (error) {
+    // Handle and log API failures
     const { errorCode, message, statusCode } = classifyWeatherError(error);
     recordWeatherFailure(message, statusCode, { destination: normalizedDestination, date: requestedDate }, errorCode);
     return { ...fallbackWeather(message), errorCode };

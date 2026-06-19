@@ -4,8 +4,10 @@
  */
 const { priorityLevels } = require('./travelTools.constants');
 
+// Destructure priority levels for easy access
 const [highPriority, mediumPriority, lowPriority] = priorityLevels;
 
+// System packing templates with pre-defined item lists
 const templates = [
   {
     key: 'beach-trip',
@@ -68,6 +70,7 @@ const templates = [
     ],
   },
 ];
+
 // Map Template Items transforms source data into the shape required nearby.
 const mapTemplateItems = (items) =>
   items.map(([name, category, priority, quantity]) => ({
@@ -78,8 +81,11 @@ const mapTemplateItems = (items) =>
     isPacked: false,
   }));
 
+// Transform templates into final format with normalized items
 const packingTemplates = templates.map((template) => ({
   ...template,
   items: mapTemplateItems(template.items),
 }));
+
+// Export the templates array
 module.exports = packingTemplates;

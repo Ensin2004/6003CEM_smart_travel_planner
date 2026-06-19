@@ -14,13 +14,13 @@ const env = require('./env');
 // Main function that establishes MongoDB connection with optional DNS overrides
 const connectDatabase = async () => {
   // Strict query mode prevents accidental filtering by fields missing from schemas.
-  // Enables Mongoose to reject queries that reference fields not defined in schemas,
-  // reducing the risk of unexpected behavior from typos or malformed queries.
+  // This ensures that query filters only include fields defined in the schema,
+  // avoiding silent failures from typos or undefined fields.
   mongoose.set('strictQuery', true);
 
   // Custom DNS servers are applied only when configured through environment variables.
-  // This is particularly useful for environments where MongoDB Atlas hostnames
-  // require custom resolution (e.g., development environments with internal DNS).
+  // This allows overriding default DNS resolution for MongoDB Atlas connections
+  // in environments with restricted network access or custom DNS requirements.
   if (env.mongoDnsServers.length > 0) {
     dns.setServers(env.mongoDnsServers);
   }
@@ -28,9 +28,8 @@ const connectDatabase = async () => {
   // Establish connection to MongoDB using the URI from environment configuration
   await mongoose.connect(env.mongoUri);
   
-  // Log successful connection (production would use structured logger instead of console)
+  // Log successful connection establishment for operational monitoring
   console.log('MongoDB connected');
 };
 
-// Export the connection function for use in application startup
 module.exports = connectDatabase;

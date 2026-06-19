@@ -7,8 +7,13 @@ const env = require('../../config/env');
 const { normalizePlaceItem, searchGoogleMaps } = require('../explore/googleMaps.service');
 const visitedPlaceRepository = require('./visitedPlace.repository');
 
+// In-memory cache for image enrichment results to avoid repeated API calls.
 const imageEnrichmentCache = new Map();
+
+// Maximum number of records to process in a single image enrichment run.
 const IMAGE_ENRICHMENT_LIMIT = 10;
+
+// Normalizes string values for consistent comparison and key generation.
 const normalizeKeyPart = (value) =>
   String(value || '')
     .trim()
@@ -16,6 +21,7 @@ const normalizeKeyPart = (value) =>
     .replace(/\s+/g, ' ')
     .slice(0, 180);
 
+// Builds a unique composite key from place attributes.
 const buildPlaceKey = (data = {}) => {
   const type = normalizeKeyPart(data.type || 'location');
   const externalId = normalizeKeyPart(data.externalId);
@@ -25,8 +31,10 @@ const buildPlaceKey = (data = {}) => {
   return [type, externalId || title, address].filter(Boolean).join('|');
 };
 
+// Retrieves all visited places for a user without additional processing.
 const listVisitedPlaces = (userId) => visitedPlaceRepository.findByUserId(userId);
 
+// Enriches visited places with images from external search providers.
 const enrichVisitedPlaceImages = async (userId) => {
   const records = await visitedPlaceRepository.findByUserId(userId);
   if (!env.serpApiKey || env.nodeEnv === 'test') {
@@ -73,6 +81,7 @@ const enrichVisitedPlaceImages = async (userId) => {
   };
 };
 
+// Creates or updates a visited place with visit entry.
 const markVisitedPlace = (userId, data) => {
   const placeKey = data.placeKey || buildPlaceKey(data);
   if (!placeKey) throw new AppError('Place details are required.', 400);
@@ -100,12 +109,14 @@ const markVisitedPlace = (userId, data) => {
   }, visitEntry);
 };
 
+// Removes a visited place record by ID, verifying ownership.
 const removeVisitedPlace = async (userId, visitedPlaceId) => {
   const record = await visitedPlaceRepository.deleteByIdAndUserId(visitedPlaceId, userId);
   if (!record) throw new AppError('Visited place not found', 404);
   return record;
 };
 
+// Fetches and groups visited places by calendar date within a range.
 const getVisitedCalendar = async (userId, { startDate, endDate }) => {
   const start = startDate ? new Date(`${startDate}T00:00:00.000Z`) : new Date('1970-01-01T00:00:00.000Z');
   const end = endDate ? new Date(`${endDate}T23:59:59.999Z`) : new Date('2999-12-31T23:59:59.999Z');
@@ -139,6 +150,7 @@ const getVisitedCalendar = async (userId, { startDate, endDate }) => {
   return [...dayMap.entries()].map(([date, places]) => ({ date, places }));
 };
 
+// Exports all service functions for use by controllers.
 module.exports = {
   buildPlaceKey,
   enrichVisitedPlaceImages,

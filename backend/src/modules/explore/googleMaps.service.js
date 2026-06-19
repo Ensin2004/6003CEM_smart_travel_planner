@@ -8,28 +8,52 @@ const logger = require('../../utils/logger');
 const apiLogService = require('../apiLogs/apiLog.service');
 const { classifyExternalApiError } = require('../../utils/externalApiError');
 
+// Cache lifetime: 30 minutes for search results
 const CACHE_TTL_MS = 30 * 60 * 1000;
+// Default number of results per page
 const DEFAULT_PAGE_SIZE = 20;
+// Maximum photo pages to fetch
 const DEFAULT_PHOTO_PAGE_LIMIT = 2;
+
+// Daily usage tracking object for SerpApi quota management
 const dailyUsage = {
-  date: '',
-  count: 0,
+  date: '', // Current tracking date (YYYY-MM-DD)
+  count: 0, // Number of requests made today
 };
 
+// Pre-configured axios client for SerpApi
 const serpApiClient = axios.create({
   baseURL: 'https://serpapi.com',
-  timeout: 8000,
+  timeout: 8000, // 8-second timeout for API calls
 });
+
+// Allowed image hosts for security - only these domains can be proxied
 const allowedImageHosts = new Set([
-  'lh3.googleusercontent.com',
-  'streetviewpixels-pa.googleapis.com',
-  'serpapi.com',
+  'lh3.googleusercontent.com', // Google static images
+  'streetviewpixels-pa.googleapis.com', // Google Street View
+  'serpapi.com', // SerpApi hosted images
 ]);
+
+/**
+ * Extracts text content from various data structures.
+ * Handles strings, numbers, and objects with text/string properties.
+ * 
+ * @param {*} value - Value to extract text from
+ * @returns {string} Extracted text as string
+ */
 const getText = (value) => {
   if (!value) return '';
   if (typeof value === 'string' || typeof value === 'number') return String(value);
   return value.text || value.string || value.localizedString || value.name || value.title || '';
 };
+
+/**
+ * Picks a single primary image URL from a place item.
+ * Tries multiple possible image field names in order of preference.
+ * 
+ * @param {Object} item - Place item with image fields
+ * @returns {string} First available image URL or empty string
+ */
 const pickImage = (item = {}) => {
   const image =
     item.thumbnail ||
@@ -44,6 +68,12 @@ const pickImage = (item = {}) => {
   if (typeof image === 'string') return image;
   return image.url || image.photoUrl || image.thumbnailUrl || image.sizes?.medium?.url || image.sizes?.small?.url || '';
 };
+
+/**
+ * Extracts image URL from various image object formats.
+ * @param {*} image - Image object or string
+ * @returns {string} Image URL as string
+ */
 const getImageUrl = (image) => {
   if (!image) return '';
   if (typeof image === 'string') return image;
@@ -62,14 +92,31 @@ const getImageUrl = (image) => {
     ''
   );
 };
+
+/**
+ * Creates a deduplication key for an image URL.
+ * Strips query parameters and trailing path segments for accurate comparison.
+ * 
+ * @param {string} imageUrl - Image URL to deduplicate
+ * @returns {string} Deduplication key
+ */
 const getImageDedupeKey = (imageUrl) => {
   try {
     const parsedUrl = new URL(imageUrl);
+    // Remove query parameters and trailing path segments like =w200-h200
     return `${parsedUrl.origin}${parsedUrl.pathname.replace(/=[^/]+$/i, '')}`;
   } catch {
     return imageUrl.split('?')[0].replace(/=[^/]+$/i, '');
   }
 };
+
+/**
+ * Flattens nested image candidates into an array of URLs.
+ * Recursively handles arrays and objects for deep extraction.
+ * 
+ * @param {*} value - Value to flatten
+ * @returns {Array<string>} Flattened array of image URLs
+ */
 const flattenImageCandidates = (value) => {
   if (!value) return [];
   if (typeof value === 'string') return [value];
@@ -90,7 +137,16 @@ const flattenImageCandidates = (value) => {
 
   return [];
 };
+
+/**
+ * Picks and deduplicates all image URLs from a place item.
+ * Combines multiple image sources and removes duplicates.
+ * 
+ * @param {Object} item - Place item with image fields
+ * @returns {Array<string>} Deduplicated array of image URLs
+ */
 const pickImages = (item = {}) => {
+  // Collect all potential image sources
   const candidates = [
     item.images,
     item.photos,
@@ -106,6 +162,7 @@ const pickImages = (item = {}) => {
     .flatMap(flattenImageCandidates)
     .filter(Boolean);
 
+  // Deduplicate using normalized keys
   const seenImageKeys = new Set();
   return candidates.filter((imageUrl) => {
     const key = getImageDedupeKey(imageUrl);
@@ -114,6 +171,13 @@ const pickImages = (item = {}) => {
     return true;
   });
 };
+
+/**
+ * Merges place data with image URLs, ensuring image fields are populated.
+ * @param {Object} place - Place object to enhance
+ * @param {Array} imageUrls - Additional image URLs to merge
+ * @returns {Object} Enhanced place with imageUrl and imageUrls
+ */
 const mergePlaceImages = (place = {}, imageUrls = []) => {
   const mergedImageUrls = pickImages({
     ...place,
@@ -130,6 +194,12 @@ const mergePlaceImages = (place = {}, imageUrls = []) => {
     imageUrls: mergedImageUrls,
   };
 };
+
+/**
+ * Extracts opening hours from various response formats.
+ * @param {Object} item - Place item with hours fields
+ * @returns {string} Formatted hours string
+ */
 const getOpeningHours = (item = {}) => {
   if (Array.isArray(item.hours)) return item.hours.filter(Boolean).join(' | ');
   if (Array.isArray(item.operating_hours)) return item.operating_hours.filter(Boolean).join(' | ');
@@ -137,6 +207,11 @@ const getOpeningHours = (item = {}) => {
   if (typeof item.operating_hours === 'string') return item.operating_hours;
   return '';
 };
+
+/**
+ * Currency inference rules for price parsing.
+ * Maps country/location patterns to currency codes.
+ */
 const countryCurrencyHints = [
   [/argentina/i, 'ARS'],
   [/brazil/i, 'BRL'],
@@ -158,6 +233,12 @@ const countryCurrencyHints = [
   [/switzerland/i, 'CHF'],
   [/united kingdom|england|scotland|wales/i, 'GBP'],
 ];
+
+/**
+ * Infers currency code from context text.
+ * @param {Object} context - Context with country, state, destination, address
+ * @returns {string} Inferred currency code or empty string
+ */
 const inferCurrencyFromContext = (context = {}) => {
   const locationText = [context.country, context.state, context.destination, context.address]
     .filter(Boolean)
@@ -165,14 +246,33 @@ const inferCurrencyFromContext = (context = {}) => {
   const matchedHint = countryCurrencyHints.find(([pattern]) => pattern.test(locationText));
   return matchedHint?.[1] || '';
 };
+
+/**
+ * Gets currency display prefix for UI formatting.
+ * @param {string} currency - Currency code
+ * @returns {string} Display prefix symbol
+ */
 const getCurrencyDisplayPrefix = (currency) => {
   if (currency === 'MYR') return 'RM';
   if (currency === 'SGD') return 'S$';
   return currency;
 };
+
+/**
+ * Parses price string to extract numeric value.
+ * Handles various number formats including:
+ * - Decimal and thousands separators (1,234.56 or 1.234,56)
+ * - Dot-separated thousands (1.234.567)
+ * - Comma-separated thousands (1,234,567)
+ * - Comma as decimal separator (123,45)
+ * 
+ * @param {string} value - Price string to parse
+ * @returns {number} Parsed number or NaN
+ */
 const parsePriceNumber = (value = '') => {
   const normalizedValue = String(value).replace(/\s/g, '');
 
+  // Handle mixed decimal and thousands separators
   if (normalizedValue.includes(',') && normalizedValue.includes('.')) {
     const lastComma = normalizedValue.lastIndexOf(',');
     const lastDot = normalizedValue.lastIndexOf('.');
@@ -181,20 +281,32 @@ const parsePriceNumber = (value = '') => {
     return Number(normalizedValue.replaceAll(thousandsSeparator, '').replace(decimalSeparator, '.'));
   }
 
+  // Handle dot-separated thousands (1.234.567)
   if (/^\d{1,3}(?:\.\d{3})+$/.test(normalizedValue)) {
     return Number(normalizedValue.replaceAll('.', ''));
   }
 
+  // Handle comma-separated thousands (1,234,567)
   if (/^\d{1,3}(?:,\d{3})+$/.test(normalizedValue)) {
     return Number(normalizedValue.replaceAll(',', ''));
   }
 
+  // Handle comma as decimal separator (123,45)
   if (/^\d+,\d{1,2}$/.test(normalizedValue)) {
     return Number(normalizedValue.replace(',', '.'));
   }
 
   return Number(normalizedValue.replace(/,/g, ''));
 };
+
+/**
+ * Extracts and parses price information from a place item.
+ * Returns structured price data with currency, amount, and display format.
+ * 
+ * @param {*} price - Price value from API response
+ * @param {Object} context - Context for currency inference
+ * @returns {Object|null} Price detail object or null
+ */
 const getPriceDetail = (price, context = {}) => {
   const text = getText(price);
   if (!text) {
@@ -202,6 +314,8 @@ const getPriceDetail = (price, context = {}) => {
   }
 
   const contextCurrency = inferCurrencyFromContext(context);
+  
+  // Currency matchers in order of precedence
   const currencyMatchers = [
     [/RM\s*/i, 'MYR'],
     [/MYR\s*/i, 'MYR'],
@@ -216,33 +330,35 @@ const getPriceDetail = (price, context = {}) => {
     [/CLP\s*/i, 'CLP'],
     [/COP\s*/i, 'COP'],
     [/MXN\s*/i, 'MXN'],
-    [/\u20ac\s*/, 'EUR'],
+    [/\u20ac\s*/, 'EUR'], // Euro symbol
     [/EUR\s*/i, 'EUR'],
-    [/\u00a3\s*/, 'GBP'],
+    [/\u00a3\s*/, 'GBP'], // Pound symbol
     [/GBP\s*/i, 'GBP'],
-    [/\u00a5\s*/, 'JPY'],
+    [/\u00a5\s*/, 'JPY'], // Yen symbol
     [/JPY\s*/i, 'JPY'],
-    [/\u20a9\s*/, 'KRW'],
+    [/\u20a9\s*/, 'KRW'], // Won symbol
     [/KRW\s*/i, 'KRW'],
-    [/\u0e3f\s*/, 'THB'],
+    [/\u0e3f\s*/, 'THB'], // Baht symbol
     [/THB\s*/i, 'THB'],
-    [/\u20b9\s*/, 'INR'],
+    [/\u20b9\s*/, 'INR'], // Rupee symbol
     [/INR\s*/i, 'INR'],
-    [/\u20ab\s*/, 'VND'],
+    [/\u20ab\s*/, 'VND'], // Dong symbol
     [/VND\s*/i, 'VND'],
-    [/\u20b1\s*/, 'PHP'],
+    [/\u20b1\s*/, 'PHP'], // Peso symbol
     [/PHP\s*/i, 'PHP'],
     [/CNY\s*/i, 'CNY'],
     [/AUD\s*/i, 'AUD'],
     [/CAD\s*/i, 'CAD'],
     [/CHF\s*/i, 'CHF'],
     [/IDR\s*/i, 'IDR'],
-    [/\$\s*/, contextCurrency || 'USD'],
+    [/\$\s*/, contextCurrency || 'USD'], // Default dollar sign
   ];
+  
   const match = currencyMatchers.find(([pattern]) => pattern.test(text));
   const amounts = [...text.matchAll(/\d+(?:[.,]\d+)*/g)]
     .map((result) => parsePriceNumber(result[0]))
     .filter((amount) => Number.isFinite(amount));
+  
   const hasAmbiguousDollarAmount = /^\$\s*\d/.test(text.trim());
   const display =
     hasAmbiguousDollarAmount && contextCurrency && contextCurrency !== 'USD'
@@ -250,21 +366,34 @@ const getPriceDetail = (price, context = {}) => {
       : text;
 
   return {
-    display,
-    currency: match?.[1] || '',
-    amount: Number.isFinite(amounts[0]) ? amounts[0] : null,
-    maxAmount: Number.isFinite(amounts[1]) ? amounts[1] : null,
-    isRange: amounts.length > 1,
-    isTier: /^\$+$/.test(text.trim()),
+    display, // Formatted display string
+    currency: match?.[1] || '', // Currency code
+    amount: Number.isFinite(amounts[0]) ? amounts[0] : null, // First amount (minimum for range)
+    maxAmount: Number.isFinite(amounts[1]) ? amounts[1] : null, // Second amount (maximum for range)
+    isRange: amounts.length > 1, // Whether price is a range
+    isTier: /^\$+$/.test(text.trim()), // Whether price is tiered ($, $$, $$$)
   };
 };
-// Build Public Place Url transforms source data into the shape required nearby.
+
+/**
+ * Build Public Place Url transforms source data into the shape required nearby.
+ * Constructs a Google Maps search URL for a place.
+ * 
+ * @param {Object} item - Place item
+ * @returns {string} Google Maps URL
+ */
 const buildPublicPlaceUrl = (item = {}) => {
   if (item.website) return item.website;
 
   const query = [getText(item.title || item.name), getText(item.address)].filter(Boolean).join(' ');
   return query ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}` : '';
 };
+
+/**
+ * Extracts GPS coordinates from a place item.
+ * @param {Object} item - Place item with coordinates
+ * @returns {Object|undefined} Coordinates object or undefined
+ */
 const getCoordinates = (item = {}) =>
   item.gps_coordinates?.latitude || item.gps_coordinates?.longitude
     ? {
@@ -272,42 +401,72 @@ const getCoordinates = (item = {}) =>
         longitude: item.gps_coordinates.longitude,
       }
     : undefined;
+
+/**
+ * Checks and consumes daily quota for SerpApi calls.
+ * Resets counter if the date has changed since last check.
+ * 
+ * @returns {boolean} True if quota is available and consumed, false if limit reached
+ */
 const consumeDailyQuota = () => {
   const today = new Date().toISOString().slice(0, 10);
   const dailyLimit = Math.max(Number(env.serpApiDailyLimit) || 100, 0);
+  
+  // Reset counter when date changes
   if (dailyUsage.date !== today) {
     dailyUsage.date = today;
     dailyUsage.count = 0;
   }
 
+  // Check if daily limit has been reached
   if (dailyUsage.count >= dailyLimit) {
     return false;
   }
 
+  // Increment counter and allow the request
   dailyUsage.count += 1;
   return true;
 };
-// Normalize Place Item prepares incoming data for consistent storage.
+
+/**
+ * Normalize Place Item prepares incoming data for consistent storage.
+ * Maps raw SerpApi response fields to standardized application fields.
+ * 
+ * @param {Object} item - Raw place item from API
+ * @param {number} index - Index for fallback ID
+ * @param {Object} defaults - Default values for missing fields
+ * @returns {Object} Normalized place item
+ */
 const normalizePlaceItem = (item = {}, index, defaults = {}) => ({
   id: String(item.place_id || item.data_id || item.data_cid || item.position || index),
-  placeId: getText(item.place_id),
-  dataId: getText(item.data_id || item.data_cid),
+  placeId: getText(item.place_id), // Google Maps place identifier
+  dataId: getText(item.data_id || item.data_cid), // Google Maps data identifier
   name: getText(item.title || item.name) || defaults.name,
-  rating: Number(item.rating || 0) || null,
-  reviewCount: Number(item.reviews || 0) || 0,
+  rating: Number(item.rating || 0) || null, // Star rating out of 5
+  reviewCount: Number(item.reviews || 0) || 0, // Number of reviews
   category: getText(item.type || item.types?.[0]) || defaults.category,
-  openState: getText(item.open_state || item.status),
-  hoursSummary: getOpeningHours(item),
+  openState: getText(item.open_state || item.status), // Current open/closed status
+  hoursSummary: getOpeningHours(item), // Formatted opening hours
   phone: getText(item.phone || item.phone_number || item.telephone),
-  imageUrl: pickImage(item),
-  imageUrls: pickImages(item),
+  imageUrl: pickImage(item), // Primary image
+  imageUrls: pickImages(item), // All images
   address: getText(item.address),
-  coordinates: getCoordinates(item),
-  url: buildPublicPlaceUrl(item),
+  coordinates: getCoordinates(item), // Latitude/longitude
+  url: buildPublicPlaceUrl(item), // Google Maps URL
 });
+
+/**
+ * Records Google Maps API failures to the API log system.
+ * @param {string} endpoint - API endpoint that failed
+ * @param {string} message - Error message
+ * @param {number} statusCode - HTTP status code
+ * @param {Object} metadata - Additional context
+ * @param {string} errorCode - Standardized error code
+ * @returns {Promise<void>}
+ */
 const recordGoogleMapsFailure = (endpoint, message, statusCode, metadata, errorCode) =>
   env.nodeEnv === 'test'
-    ? Promise.resolve()
+    ? Promise.resolve() // Skip logging in test environment
     : apiLogService
         .recordEvent({
           service: 'serpapi',
@@ -321,6 +480,12 @@ const recordGoogleMapsFailure = (endpoint, message, statusCode, metadata, errorC
           metadata,
         })
         .catch((error) => logger.error(`Failed to record ${endpoint} API event: ${error.message}`));
+
+/**
+ * Classifies Google Maps API errors into standardized error responses.
+ * @param {Error} error - Error from axios or application
+ * @returns {Object} Classified error with errorCode, message, and statusCode
+ */
 const getGoogleMapsFailureMessage = (error) => {
   return classifyExternalApiError(error, {
     // Message shown when API key is missing, expired, or invalid
@@ -343,6 +508,14 @@ const getGoogleMapsFailureMessage = (error) => {
     unavailableMessage: 'SerpApi is temporarily unavailable.',
   });
 };
+
+/**
+ * Extracts local results from SerpApi response data.
+ * Handles various response structures from different endpoint types.
+ * 
+ * @param {Object} data - SerpApi response data
+ * @returns {Array} Array of result items
+ */
 const getLocalResults = (data = {}) => {
   const candidates = [
     data.local_results,
@@ -353,6 +526,7 @@ const getLocalResults = (data = {}) => {
 
   return candidates.find((candidate) => Array.isArray(candidate)) || [];
 };
+
 /**
  * Searches Google Maps through SerpApi and maps provider rows to application records.
  * @param {object} options Cache, query, pagination, metadata, and item mapper options.
@@ -379,10 +553,10 @@ const searchGoogleMaps = async ({ cache, cacheKey, query, start = 0, metadata = 
     params: {
       engine: 'google_maps',
       type: 'search',
-      q: query,
-      start,
+      q: query, // Search query string
+      start, // Pagination offset
       google_domain: 'google.com',
-      hl: 'en',
+      hl: 'en', // Language
       api_key: env.serpApiKey,
     },
   });
@@ -400,9 +574,9 @@ const searchGoogleMaps = async ({ cache, cacheKey, query, start = 0, metadata = 
     available: rawItems.length > 0,
     ...metadata,
     query,
-    nextStart: start + rawItems.length,
+    nextStart: start + rawItems.length, // Next page starting index
     hasMore: rawItems.length >= DEFAULT_PAGE_SIZE || Boolean(response.data?.serpapi_pagination?.next),
-    items: rawItems.map(mapItem),
+    items: rawItems.map(mapItem), // Apply mapping function
     message: rawItems.length ? '' : `No Google Maps results found for "${query}".`,
     lastUpdated: new Date().toISOString(),
   };
@@ -414,53 +588,70 @@ const searchGoogleMaps = async ({ cache, cacheKey, query, start = 0, metadata = 
   }
   return data;
 };
-// Normalize Review prepares incoming data for consistent storage.
+
+/**
+ * Normalize Review prepares incoming data for consistent storage.
+ * Maps raw review fields to standardized application format.
+ * 
+ * @param {Object} review - Raw review from API
+ * @param {number} index - Index for fallback ID
+ * @returns {Object} Normalized review object
+ */
 const normalizeReview = (review = {}, index = 0) => ({
   id: String(review.review_id || review.link || review.user?.link || index),
   author: getText(review.user?.name || review.user || review.author || review.name) || 'Google user',
   authorLink: getText(review.user?.link || review.user?.profile || review.link),
   avatarUrl: getText(review.user?.thumbnail || review.user?.image || review.user?.avatar || review.profile_photo_url || review.thumbnail),
-  rating: Number(review.rating || 0) || null,
+  rating: Number(review.rating || 0) || null, // Star rating out of 5
   date: getText(review.date || review.iso_date || review.relative_time_description),
-  text: getText(review.snippet || review.text || review.review),
-  likes: Number(review.likes || 0) || 0,
-  ownerReply: {
+  text: getText(review.snippet || review.text || review.review), // Review content
+  likes: Number(review.likes || 0) || 0, // Number of likes
+  ownerReply: { // Owner response to review
     author: getText(review.response?.author || review.owner_answer?.author || review.reply?.author) || 'Owner response',
     date: getText(review.response?.date || review.owner_answer?.date || review.reply?.date),
     text: getText(review.response?.snippet || review.response?.text || review.owner_answer?.snippet || review.owner_answer?.text || review.reply?.text),
   },
 });
+
 /**
  * Retrieves a page of normalized Google Maps reviews for a place.
  * @param {object} options Place identifiers, sort order, locale, and page token.
  * @returns {Promise<object>} Review items and the next-page token.
  */
 const searchGoogleMapsReviews = async ({ dataId, placeId, sortBy = 'qualityScore', hl = 'en', nextPageToken = '' }) => {
+  // Validate that at least one identifier is provided
   if (!dataId && !placeId) {
     return { available: false, message: 'Google review identifier is unavailable', items: [] };
   }
 
+  // Enforce daily API quota
   if (!consumeDailyQuota()) {
     const error = new Error('Daily travel data API limit reached. Please try again tomorrow.');
     error.isDailyLimit = true;
     throw error;
   }
+  
+  // Build request parameters
   const params = {
     engine: 'google_maps_reviews',
-    sort_by: sortBy,
+    sort_by: sortBy, // qualityScore, relevance, newest, highestRating, lowestRating
     hl,
     api_key: env.serpApiKey,
   };
+  
+  // Use data_id if available, otherwise fall back to place_id
   if (dataId) {
     params.data_id = dataId;
   } else {
     params.place_id = placeId;
   }
 
+  // Add pagination token if provided
   if (nextPageToken) {
     params.next_page_token = nextPageToken;
   }
 
+  // Execute request
   const response = await serpApiClient.get('/search', { params });
   if (response.data?.error) {
     throw new Error(response.data.error);
@@ -474,12 +665,14 @@ const searchGoogleMapsReviews = async ({ dataId, placeId, sortBy = 'qualityScore
     lastUpdated: new Date().toISOString(),
   };
 };
+
 /**
  * Retrieves and deduplicates Google Maps photo URLs across limited result pages.
  * @param {object} options Place identifier, locale, and maximum page count.
  * @returns {Promise<object>} Photo URLs and remaining pagination metadata.
  */
 const searchGoogleMapsPhotos = async ({ dataId, hl = 'en', maxPages = DEFAULT_PHOTO_PAGE_LIMIT }) => {
+  // Validate dataId is provided
   if (!dataId) {
     return { available: false, message: 'Google photo identifier is unavailable', imageUrls: [] };
   }
@@ -488,7 +681,9 @@ const searchGoogleMapsPhotos = async ({ dataId, hl = 'en', maxPages = DEFAULT_PH
   let nextPageToken = '';
   let pageCount = 0;
 
+  // Loop through photo pages until no more pages or max pages reached
   do {
+    // Enforce daily API quota for each page
     if (!consumeDailyQuota()) {
       const error = new Error('Daily travel data API limit reached. Please try again tomorrow.');
       error.isDailyLimit = true;
@@ -518,11 +713,12 @@ const searchGoogleMapsPhotos = async ({ dataId, hl = 'en', maxPages = DEFAULT_PH
 
   return {
     available: allPhotos.length > 0,
-    imageUrls: pickImages({ photos: allPhotos }),
+    imageUrls: pickImages({ photos: allPhotos }), // Extract and deduplicate image URLs
     nextPageToken,
     lastUpdated: new Date().toISOString(),
   };
 };
+
 /**
  * Proxies an image from an approved Google or SerpApi host.
  * @param {string} imageUrl Remote HTTPS image URL.
@@ -532,6 +728,7 @@ const searchGoogleMapsPhotos = async ({ dataId, hl = 'en', maxPages = DEFAULT_PH
 const fetchGooglePlaceImage = async (imageUrl = '') => {
   let parsedUrl;
 
+  // Parse and validate URL format
   try {
     parsedUrl = new URL(imageUrl);
   } catch {
@@ -540,23 +737,27 @@ const fetchGooglePlaceImage = async (imageUrl = '') => {
     throw error;
   }
 
+  // Validate protocol and host for security
   if (parsedUrl.protocol !== 'https:' || !allowedImageHosts.has(parsedUrl.hostname)) {
     const error = new Error('Image host is not allowed');
     error.statusCode = 400;
     throw error;
   }
 
+  // Fetch image as stream with appropriate headers
   const response = await axios.get(parsedUrl.toString(), {
     responseType: 'stream',
-    timeout: 15000,
-    maxRedirects: 3,
+    timeout: 15000, // 15-second timeout for images
+    maxRedirects: 3, // Follow up to 3 redirects
     headers: {
       accept: 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8',
       'user-agent': 'Mozilla/5.0 SmartTravelPlanner/1.0',
     },
   });
+  
   const contentType = response.headers['content-type'] || '';
 
+  // Verify the response is actually an image
   if (!contentType.startsWith('image/')) {
     const error = new Error('Remote URL did not return an image');
     error.statusCode = 502;
@@ -564,12 +765,13 @@ const fetchGooglePlaceImage = async (imageUrl = '') => {
   }
 
   return {
-    stream: response.data,
+    stream: response.data, // Readable stream of image data
     contentType,
     contentLength: response.headers['content-length'] || '',
-    cacheControl: response.headers['cache-control'] || 'public, max-age=86400',
+    cacheControl: response.headers['cache-control'] || 'public, max-age=86400', // Default 24-hour cache
   };
 };
+
 module.exports = {
   fetchGooglePlaceImage,
   getGoogleMapsFailureMessage,

@@ -4,8 +4,12 @@
  */
 const { query } = require('express-validator');
 
+// Validate that at least one flight filter is provided
 const requireAnyFlightFilter = query().custom((_, { req }) => {
+  // Check if any search field has a value
   const hasSearchValue = ['airlineName', 'fromCountryCode', 'toCountryCode'].some((field) => Boolean(req.query[field]?.trim()));
+  
+  // Throw error if no filters provided
   if (!hasSearchValue) {
     throw new Error('Enter an airline name or select at least one country.');
   }
@@ -13,32 +17,44 @@ const requireAnyFlightFilter = query().custom((_, { req }) => {
   return true;
 });
 
+// Validation rules for flight lookup endpoint
 const flightLookupRules = [
+  // Validate airline name if provided
   query('airlineName')
     .optional({ checkFalsy: true })
     .trim()
     .isLength({ min: 2, max: 120 })
     .withMessage('Airline name must be between 2 and 120 characters'),
+  
+  // Validate from country code if provided
   query('fromCountryCode')
     .optional({ checkFalsy: true })
     .trim()
     .isISO31661Alpha2()
     .withMessage('From country must use a valid country code'),
+  
+  // Validate from country name if provided
   query('fromCountryName')
     .optional({ checkFalsy: true })
     .trim()
     .isLength({ min: 2, max: 80 })
     .withMessage('From country name must be between 2 and 80 characters'),
+  
+  // Validate to country code if provided
   query('toCountryCode')
     .optional({ checkFalsy: true })
     .trim()
     .isISO31661Alpha2()
     .withMessage('To country must use a valid country code'),
+  
+  // Validate to country name if provided
   query('toCountryName')
     .optional({ checkFalsy: true })
     .trim()
     .isLength({ min: 2, max: 80 })
     .withMessage('To country name must be between 2 and 80 characters'),
+  
+  // Validate departure date if provided
   query('departureDate')
     .optional({ checkFalsy: true })
     .trim()
@@ -46,6 +62,7 @@ const flightLookupRules = [
     .withMessage('Departure date must use YYYY-MM-DD format')
     .bail()
     .custom((value) => {
+      // Check if date is in the past
       const today = new Date(new Date().toISOString().slice(0, 10));
       const requestedDate = new Date(value);
 
@@ -55,10 +72,14 @@ const flightLookupRules = [
 
       return true;
     }),
+  
+  // Apply the any-filter requirement
   requireAnyFlightFilter,
 ];
 
+// Validation rules for train station timetable endpoint
 const trainStationTimetableRules = [
+  // Validate station code if provided
   query('stationCode')
     .optional({ checkFalsy: true })
     .trim()
@@ -67,16 +88,22 @@ const trainStationTimetableRules = [
     .bail()
     .matches(/^[a-z0-9:_-]+$/i)
     .withMessage('Station code can only contain letters, numbers, colon, underscore, or hyphen'),
+  
+  // Validate station search query if provided
   query('stationQuery')
     .optional({ checkFalsy: true })
     .trim()
     .isLength({ min: 2, max: 120 })
     .withMessage('Station search must be between 2 and 120 characters'),
+  
+  // Validate departure date if provided
   query('departureDate')
     .optional({ checkFalsy: true })
     .trim()
     .isISO8601({ strict: true, strictSeparator: true })
     .withMessage('Departure date must use YYYY-MM-DD format'),
+  
+  // Validate arrival date if provided
   query('arrivalDate')
     .optional({ checkFalsy: true })
     .trim()
@@ -84,7 +111,9 @@ const trainStationTimetableRules = [
     .withMessage('Arrival date must use YYYY-MM-DD format'),
 ];
 
+// Validation rules for train service timetable endpoint
 const trainServiceTimetableRules = [
+  // Validate service identifier if provided
   query('serviceIdentifier')
     .optional({ checkFalsy: true })
     .trim()
@@ -93,6 +122,8 @@ const trainServiceTimetableRules = [
     .bail()
     .matches(/^[a-z0-9:_-]+$/i)
     .withMessage('Service identifier can only contain letters, numbers, colon, underscore, or hyphen'),
+  
+  // Validate train UID if provided
   query('trainUid')
     .optional({ checkFalsy: true })
     .trim()
@@ -101,10 +132,14 @@ const trainServiceTimetableRules = [
     .bail()
     .matches(/^[a-z0-9_-]+$/i)
     .withMessage('Train UID can only contain letters, numbers, underscore, or hyphen'),
+  
+  // Validate service date (required)
   query('serviceDate')
     .trim()
     .isISO8601({ strict: true, strictSeparator: true })
     .withMessage('Service date must use YYYY-MM-DD format'),
+  
+  // Validate actual journey RID if provided
   query('actualRid')
     .optional({ checkFalsy: true })
     .trim()
@@ -113,6 +148,8 @@ const trainServiceTimetableRules = [
     .bail()
     .matches(/^[a-z0-9_-]+$/i)
     .withMessage('Actual journey RID can only contain letters, numbers, underscore, or hyphen'),
+  
+  // Ensure at least one service identifier is provided
   query().custom((_, { req }) => {
     if (!req.query.serviceIdentifier?.trim() && !req.query.trainUid?.trim()) {
       throw new Error('Select a train from the station timetable first.');
@@ -121,4 +158,6 @@ const trainServiceTimetableRules = [
     return true;
   }),
 ];
+
+// Export validation rule sets
 module.exports = { flightLookupRules, trainStationTimetableRules, trainServiceTimetableRules };

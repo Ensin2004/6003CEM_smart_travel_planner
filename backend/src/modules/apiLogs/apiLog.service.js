@@ -7,18 +7,44 @@ const crypto = require('crypto');
 const logger = require('../../utils/logger');
 const notificationService = require('../notifications/notification.service');
 
+// Default pagination constants
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 100;
+
+/**
+ * Cleans and truncates metadata values for safe storage.
+ * Removes undefined/null values and limits string length.
+ * 
+ * @param {Object} metadata - Raw metadata object
+ * @returns {Object} Cleaned metadata with safe values
+ */
 const cleanMetadata = (metadata = {}) =>
   Object.entries(metadata).reduce((safeMetadata, [key, value]) => {
+    // Skip undefined or null values
     if (value === undefined || value === null) {
       return safeMetadata;
     }
 
+    // Convert to string and truncate to 200 characters
     safeMetadata[key] = String(value).slice(0, 200);
     return safeMetadata;
   }, {});
+
+/**
+ * Escapes special characters in a string for use in regex.
+ * @param {string} value - String to escape
+ * @returns {string} Escaped string safe for regex
+ */
 const escapeRegex = (value) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+/**
+ * Parses date values and handles date-only strings (YYYY-MM-DD).
+ * Optionally sets time to end of day for range queries.
+ * 
+ * @param {string} value - Date string or ISO date
+ * @param {boolean} endOfDay - Whether to set time to 23:59:59.999
+ * @returns {Date} Parsed date object
+ */
 const getDateBoundary = (value, endOfDay = false) => {
   const isDateOnly = /^\d{4}-\d{2}-\d{2}$/.test(value);
   const date = new Date(isDateOnly ? `${value}T00:00:00.000` : value);
@@ -33,6 +59,14 @@ const getDateBoundary = (value, endOfDay = false) => {
 
   return date;
 };
+
+/**
+ * Determines a default error code based on log properties.
+ * Maps status codes and categories to standardized error codes.
+ * 
+ * @param {Object} params - Log properties
+ * @returns {string} Standardized error code
+ */
 const getDefaultErrorCode = ({ category, service, status, statusCode }) => {
   if (status === 'success') return 'SUCCESS_EVENT';
   if (statusCode === 429 || category === 'rate-limit') return 'RATE_LIMIT_EXCEEDED';
@@ -47,6 +81,14 @@ const getDefaultErrorCode = ({ category, service, status, statusCode }) => {
   }
   return 'REQUEST_FAILED';
 };
+
+/**
+ * Masks email addresses for privacy in logs.
+ * Shows first character and domain only.
+ * 
+ * @param {string} email - Email address to mask
+ * @returns {string} Masked email or empty string
+ */
 const maskEmail = (email = '') => {
   const normalizedEmail = String(email).trim().toLowerCase();
   const [name, domain] = normalizedEmail.split('@');
@@ -56,7 +98,14 @@ const maskEmail = (email = '') => {
 
   return `${name[0]}***@${domain}`;
 };
-// Format Log converts raw values into readable display text.
+
+/**
+ * Format Log converts raw values into readable display text.
+ * Enriches log with populated user information and masked email.
+ * 
+ * @param {Object} log - Raw log document from repository
+ * @returns {Object} Formatted log with enhanced user data
+ */
 const formatLog = (log) => {
   const populatedUser = log.userId && typeof log.userId === 'object' ? log.userId : null;
 
@@ -74,21 +123,32 @@ const formatLog = (log) => {
     attemptedEmail: log.metadata?.attemptedEmailMasked,
   };
 };
-// Build Filter transforms source data into the shape required nearby.
+
+/**
+ * Build Filter transforms source data into the shape required nearby.
+ * Constructs MongoDB filter object from query parameters.
+ * 
+ * @param {Object} params - Query parameters for filtering
+ * @returns {Object} MongoDB filter object
+ */
 const buildFilter = ({ status, category, severity, service, errorCode, requestId, userId, from, to } = {}) => {
   const filter = {
-    errorCode: { $exists: true, $nin: [null, ''] },
-    requestId: { $exists: true, $nin: [null, ''] },
+    errorCode: { $exists: true, $nin: [null, ''] }, // Ensure errorCode exists and is not null/empty
+    requestId: { $exists: true, $nin: [null, ''] }, // Ensure requestId exists and is not null/empty
   };
 
+  // Apply exact match filters
   if (status) filter.status = status;
   if (category) filter.category = category;
   if (severity) filter.severity = severity;
+  
+  // Apply case-insensitive partial match filters
   if (service) filter.service = new RegExp(escapeRegex(service.trim()), 'i');
   if (errorCode) filter.errorCode = errorCode.trim().toUpperCase();
   if (requestId) filter.requestId = new RegExp(escapeRegex(requestId.trim()), 'i');
   if (userId) filter.userId = userId;
 
+  // Apply date range filter
   if (from || to) {
     filter.createdAt = {};
     if (from) filter.createdAt.$gte = getDateBoundary(from);
@@ -97,11 +157,27 @@ const buildFilter = ({ status, category, severity, service, errorCode, requestId
 
   return filter;
 };
-// Normalize Pagination prepares incoming data for consistent storage.
+
+/**
+ * Normalize Pagination prepares incoming data for consistent storage.
+ * Validates and applies default limits for pagination parameters.
+ * 
+ * @param {Object} params - Pagination parameters
+ * @returns {Object} Normalized pagination object
+ */
 const normalizePagination = ({ limit, page } = {}) => ({
   limit: Math.min(Number(limit) || DEFAULT_LIMIT, MAX_LIMIT),
   page: Math.max(Number(page) || 1, 1),
 });
+
+/**
+ * Fills missing daily count entries for charts and trends.
+ * Ensures all days in the range have data points.
+ * 
+ * @param {Array} dailyCounts - Raw daily aggregated counts
+ * @param {number} days - Number of days to include
+ * @returns {Array} Complete daily data with zero-filled missing dates
+ */
 const fillDailyCounts = (dailyCounts, days = 7) => {
   const today = new Date();
 
@@ -119,14 +195,25 @@ const fillDailyCounts = (dailyCounts, days = 7) => {
     };
   });
 };
+
+/**
+ * Records a single API event log entry.
+ * Handles error code assignment, metadata cleaning, and notification.
+ * 
+ * @param {Object} data - Log event data
+ * @returns {Promise<Object>} Created log document
+ */
 const recordEvent = async (data) => {
   const errorCode = data.errorCode || getDefaultErrorCode(data);
   const requestId = data.requestId || crypto.randomUUID();
+  
+  // Clean and mask sensitive metadata
   const metadata = cleanMetadata({
     ...data.metadata,
     ...(data.attemptedEmail && { attemptedEmailMasked: maskEmail(data.attemptedEmail) }),
   });
 
+  // Create log entry in repository
   const log = await apiLogRepository.create({
     service: data.service,
     category: data.category || 'api',
@@ -142,12 +229,19 @@ const recordEvent = async (data) => {
     ...(Object.keys(metadata).length && { metadata }),
   });
 
+  // Asynchronously notify admins of important log events
   notificationService
     .notifyAdminsOfApiLog(log)
     .catch((error) => logger.error(`Failed to notify admins about API log: ${error.message}`));
 
   return log;
 };
+
+/**
+ * Retrieves recent logs with filtering and pagination.
+ * @param {Object} query - Filter and pagination parameters
+ * @returns {Promise<Array>} Formatted log entries
+ */
 const getRecentLogs = async (query = {}) => {
   const filter = buildFilter(query);
   const pagination = normalizePagination(query);
@@ -155,11 +249,20 @@ const getRecentLogs = async (query = {}) => {
   const logs = await apiLogRepository.findMany({ filter, ...pagination });
   return logs.map(formatLog);
 };
+
+/**
+ * Retrieves monitoring dashboard data with summary statistics.
+ * Aggregates metrics for system health monitoring.
+ * 
+ * @param {Object} query - Filter and pagination parameters
+ * @returns {Promise<Object>} Monitoring data with logs, summary, and pagination
+ */
 const getMonitoring = async (query = {}) => {
   const filter = buildFilter(query);
   const pagination = normalizePagination(query);
   const lastDay = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
+  // Execute all aggregation queries in parallel for performance
   const [
     logs,
     totalLogs,
@@ -212,4 +315,5 @@ const getMonitoring = async (query = {}) => {
     },
   };
 };
+
 module.exports = { getRecentLogs, getMonitoring, maskEmail, recordEvent };
