@@ -8,6 +8,7 @@ import {
   Route,
   Trophy,
 } from 'lucide-react';
+import { DashboardDonutCard, DashboardRankedBarCard } from './DashboardInsightCharts';
 
 function StatisticTile({ detail, icon: Icon, label, value }) {
   return (
@@ -32,6 +33,7 @@ function ProgressRow({ label, value }) {
 }
 
 function DashboardStatisticsPanel({
+  chartData,
   countryInsights,
   monthlyTripCounts,
   userStatistics,
@@ -133,6 +135,39 @@ function DashboardStatisticsPanel({
             ))}
           </div>
         </article>
+      </div>
+
+      <div className="statistics-analytics-grid">
+        <DashboardDonutCard
+          detail="Trip lifecycle distribution"
+          rows={chartData.tripStatusRows}
+          title="Trip Status Mix"
+        />
+        <DashboardDonutCard
+          detail="Trips grouped by travel length"
+          rows={chartData.tripDurationRows}
+          title="Duration Bands"
+        />
+        <DashboardDonutCard
+          detail="Date quality of visit records"
+          rows={chartData.visitDateRows}
+          title="Visit Date Quality"
+        />
+        <DashboardRankedBarCard
+          detail="Countries already visited or planned"
+          rows={chartData.countryRows}
+          title="Country Detail"
+        />
+        <DashboardRankedBarCard
+          detail="Top repeat destinations"
+          rows={chartData.topPlaceRows}
+          title="Most Visited Places"
+        />
+        <DashboardRankedBarCard
+          detail="Category performance by visit count"
+          rows={visitTypeRows}
+          title="Category Performance"
+        />
       </div>
     </section>
   );

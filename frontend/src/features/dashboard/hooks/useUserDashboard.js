@@ -75,6 +75,18 @@ const getTripDurationDays = (trip) => {
   return Math.max(1, Math.round((end - start) / 86400000) + 1);
 };
 
+const buildCountRows = (items, getLabel, colors = chartColors) => {
+  const counts = items.reduce((lookup, item) => {
+    const label = getLabel(item);
+    if (!label) return lookup;
+    return { ...lookup, [label]: (lookup[label] || 0) + 1 };
+  }, {});
+
+  return Object.entries(counts)
+    .map(([label, value], index) => ({ label, value, color: colors[index % colors.length] }))
+    .sort((firstRow, secondRow) => secondRow.value - firstRow.value || firstRow.label.localeCompare(secondRow.label));
+};
+
 export function useUserDashboard() {
   const { user } = useAuth();
   const [monthDate, setMonthDate] = useState(() => new Date());
@@ -344,6 +356,88 @@ export function useUserDashboard() {
     });
   }, [filteredTrips, monthDate]);
   const maxMonthlyTripCount = Math.max(...monthlyTripCounts, 1);
+  const monthlyVisitCounts = useMemo(() => {
+    const year = monthDate.getFullYear();
+    const counts = Array.from({ length: 12 }, () => 0);
+
+    filteredVisitedPlaces.forEach((place) => {
+      (place.visits || []).forEach((visit) => {
+        if (!visit.visitedDate) return;
+        const visitDate = new Date(visit.visitedDate);
+        if (visitDate.getFullYear() !== year) return;
+        counts[visitDate.getMonth()] += Number(visit.visitCount || 1);
+      });
+    });
+
+    return counts;
+  }, [filteredVisitedPlaces, monthDate]);
+
+  const dashboardChartData = useMemo(() => {
+    const tripStatusRows = [
+      { label: 'Active', value: tripGroups.active.length, color: '#0f9f89' },
+      { label: 'Upcoming', value: tripGroups.upcoming.length, color: '#2f6fed' },
+      { label: 'Past', value: tripGroups.past.length, color: '#9b6df3' },
+    ];
+    const placeSourceRows = buildCountRows(visitedPlaceRows, (place) => getTypeLabel(place.source || 'manual')).slice(0, 5);
+    const topPlaceRows = [...visitedPlaceRows]
+      .sort((firstPlace, secondPlace) => Number(secondPlace.totalVisits || 0) - Number(firstPlace.totalVisits || 0))
+      .slice(0, 6)
+      .map((place, index) => ({
+        label: place.title || 'Untitled place',
+        value: Number(place.totalVisits || 0),
+        color: chartColors[index % chartColors.length],
+      }));
+    const countryRows = [
+      ...(countryInsights?.visitedCountries || []).map((row) => ({ ...row, color: '#0f9f89', group: 'Visited' })),
+      ...(countryInsights?.nextCountries || []).map((row, index) => ({
+        ...row,
+        color: ['#2f6fed', '#9b6df3', '#f4a22c'][index % 3],
+        group: 'To visit',
+      })),
+    ].slice(0, 8);
+    const tripDurationRows = [
+      { label: '1-3 days', min: 1, max: 3, color: '#0f9f89' },
+      { label: '4-7 days', min: 4, max: 7, color: '#2f6fed' },
+      { label: '8-14 days', min: 8, max: 14, color: '#f4a22c' },
+      { label: '15+ days', min: 15, max: Infinity, color: '#9b6df3' },
+    ].map((bucket) => ({
+      ...bucket,
+      value: filteredTrips.filter((trip) => {
+        const days = getTripDurationDays(trip);
+        return days >= bucket.min && days <= bucket.max;
+      }).length,
+    }));
+    const visitDateRows = [
+      { label: 'Dated visits', value: visitedPlaceRows.reduce((total, place) => total + Number(place.datedVisits || 0), 0), color: '#0f9f89' },
+      { label: 'No date saved', value: visitedPlaceRows.reduce((total, place) => total + Number(place.undatedVisits || 0), 0), color: '#e05252' },
+    ];
+    const planningRows = [
+      { label: 'Visited places', value: uniquePlaceCount, color: '#0f9f89' },
+      { label: 'Places to visit', value: placeToVisitCount, color: '#9b6df3' },
+      { label: 'Saved places', value: favorites.length, color: '#f4a22c' },
+    ];
+
+    return {
+      countryRows,
+      monthlyVisitCounts,
+      placeSourceRows,
+      planningRows,
+      topPlaceRows,
+      tripDurationRows,
+      tripStatusRows,
+      visitDateRows,
+    };
+  }, [
+    countryInsights,
+    favorites.length,
+    filteredTrips,
+    monthlyVisitCounts,
+    placeToVisitCount,
+    tripGroups,
+    uniquePlaceCount,
+    visitedPlaceRows,
+  ]);
+
   const userStatistics = useMemo(() => {
     const tripDurations = filteredTrips.map((trip) => ({
       trip,
@@ -575,6 +669,7 @@ export function useUserDashboard() {
     activeReport,
     calendarCells,
     clearDateRangeFilter,
+    dashboardChartData,
     dateRangeFilter,
     error,
     favoritesCount: favorites.length,

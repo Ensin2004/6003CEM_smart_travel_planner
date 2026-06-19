@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import DashboardOverview from './components/DashboardOverview';
 import DashboardDateRangeFilter from './components/DashboardDateRangeFilter';
+import { DashboardOverviewCharts, DashboardPlaceCharts } from './components/DashboardInsightCharts';
 import DashboardPlaceLists from './components/DashboardPlaceLists';
 import DashboardReports from './components/DashboardReports';
 import DashboardStats from './components/DashboardStats';
@@ -56,6 +57,10 @@ function UserDashboard() {
             tripStatus={dashboard.tripStatus}
             upcomingTrips={dashboard.upcomingTrips}
           />
+          <DashboardOverviewCharts
+            chartData={dashboard.dashboardChartData}
+            monthlyTripCounts={dashboard.monthlyTripCounts}
+          />
           <DashboardReports
             activeReport={dashboard.activeReport}
             countryInsights={dashboard.countryInsights}
@@ -80,6 +85,7 @@ function UserDashboard() {
       {activeTab === 'statistics' ? (
         <>
           <DashboardStatisticsPanel
+            chartData={dashboard.dashboardChartData}
             countryInsights={dashboard.countryInsights}
             monthlyTripCounts={dashboard.monthlyTripCounts}
             userStatistics={dashboard.userStatistics}
@@ -107,19 +113,25 @@ function UserDashboard() {
       ) : null}
 
       {activeTab === 'places' ? (
-        <DashboardPlaceLists
-          activePlaceMenu={dashboard.activePlaceMenu}
-          handleVisitedPlaceAction={dashboard.handleVisitedPlaceAction}
-          openCategoryMenu={dashboard.openCategoryMenu}
-          placeRows={dashboard.placeRows}
-          searchTerm={dashboard.searchTerm}
-          setActivePlaceMenu={dashboard.setActivePlaceMenu}
-          setOpenCategoryMenu={dashboard.setOpenCategoryMenu}
-          setSearchTerm={dashboard.setSearchTerm}
-          setVisitedCategory={dashboard.setVisitedCategory}
-          visitedCategories={dashboard.visitedCategories}
-          visitedCategory={dashboard.visitedCategory}
-        />
+        <>
+          <DashboardPlaceCharts
+            chartData={dashboard.dashboardChartData}
+            visitTypeRows={dashboard.visitTypeRows}
+          />
+          <DashboardPlaceLists
+            activePlaceMenu={dashboard.activePlaceMenu}
+            handleVisitedPlaceAction={dashboard.handleVisitedPlaceAction}
+            openCategoryMenu={dashboard.openCategoryMenu}
+            placeRows={dashboard.placeRows}
+            searchTerm={dashboard.searchTerm}
+            setActivePlaceMenu={dashboard.setActivePlaceMenu}
+            setOpenCategoryMenu={dashboard.setOpenCategoryMenu}
+            setSearchTerm={dashboard.setSearchTerm}
+            setVisitedCategory={dashboard.setVisitedCategory}
+            visitedCategories={dashboard.visitedCategories}
+            visitedCategory={dashboard.visitedCategory}
+          />
+        </>
       ) : null}
     </section>
   );
