@@ -1,7 +1,6 @@
 /**
  * Contains authentication rules for registration, login, refresh, logout, and email verification.
- * This service also handles account lockouts and audit logging so controllers only coordinate
- * request and response data.
+ * This service also handles account lockouts and audit logging so controllers only coordinate request and response data.
  */
 const AppError = require('../../utils/AppError');
 const crypto = require('crypto');
@@ -16,10 +15,22 @@ const { emitAdminUserCreated } = require('../notifications/notification.socket')
 const { normalizePreferences } = require('../users/user.service');
 const { sendVerificationEmail } = require('../../utils/email.service');
 
-const MAX_FAILED_LOGIN_ATTEMPTS = 5;
-const LOCK_STEP_MINUTES = 15;
+// Security constants for account protection
+const MAX_FAILED_LOGIN_ATTEMPTS = 5; // Number of failed attempts before lockout
+const LOCK_STEP_MINUTES = 15; // Base lock duration in minutes, multiplies with each lock level
 
+/**
+ * Calculates remaining lock seconds for a locked account.
+ * @param {Date} lockUntil - Date when the lock expires
+ * @returns {number} Seconds until lock expires (minimum 1)
+ */
 const getLockRetrySeconds = (lockUntil) => Math.max(Math.ceil((lockUntil.getTime() - Date.now()) / 1000), 1);
+
+/**
+ * Formats lock duration in minutes for user-friendly messages.
+ * @param {Date} lockUntil - Date when the lock expires
+ * @returns {number} Minutes until lock expires
+ */
 const formatLockMinutes = (lockUntil) => Math.ceil(getLockRetrySeconds(lockUntil) / 60);
 
 // Lockout errors carry retry timing so the API response can set headers and guide the login screen.
@@ -92,14 +103,23 @@ const createEmailVerificationToken = () => {
   return { token, hashedToken, expiresAt };
 };
 
+/**
+ * Sends email verification link to a user.
+ * Generates token, stores hashed version, and dispatches email.
+ * 
+ * @param {Object} user - User document to verify
+ * @returns {Promise<Date>} Expiration date of the verification token
+ */
 const sendUserVerificationEmail = async (user) => {
   const { token, hashedToken, expiresAt } = createEmailVerificationToken();
   const verificationUrl = `${getClientBaseUrl()}/verify-email?token=${token}`;
 
+  // Store hashed token for verification, not the plain token
   user.emailVerificationToken = hashedToken;
   user.emailVerificationExpiresAt = expiresAt;
   await user.save({ validateBeforeSave: false });
 
+  // Send verification email to the user
   await sendVerificationEmail({
     to: user.email,
     name: user.name,
@@ -122,6 +142,14 @@ const createEmailNotVerifiedError = (user) => {
   return error;
 };
 
+/**
+ * Registers a new user account.
+ * Creates user, sends verification email, and notifies admins.
+ * 
+ * @param {Object} data - Registration data (email, password, name, preferences)
+ * @returns {Promise<Object>} Created user with verification metadata
+ * @throws {AppError} If email is already registered
+ */
 const register = async (data) => {
   const existingUser = await authRepository.findByEmail(data.email);
   if (existingUser) throw new AppError('Email is already registered', 409);
@@ -134,7 +162,10 @@ const register = async (data) => {
     role: 'user',
     isEmailVerified: false,
   });
+  
   const verificationExpiresAt = await sendUserVerificationEmail(user);
+  
+  // Notify admins about new user registration
   emitAdminUserCreated(user._id.toString());
   notificationService
     .notifyAdminsOfNewSignup(user)
@@ -145,6 +176,17 @@ const register = async (data) => {
   return { user, email: user.email, verificationExpiresAt };
 };
 
+/**
+ * Authenticates a user with email and password.
+ * Handles account lockout, failed attempt tracking, and email verification checks.
+ * 
+ * @param {Object} params - Login credentials
+ * @param {string} params.email - User email
+ * @param {string} params.password - User password
+ * @param {Object} context - Request context with requestId for logging
+ * @returns {Promise<Object>} User with access and refresh tokens
+ * @throws {AppError} For invalid credentials, locked accounts, or unverified email
+ */
 const login = async ({ email, password }, { requestId } = {}) => {
   const user = await authRepository.findByEmail(email, true);
 
@@ -188,6 +230,7 @@ const login = async ({ email, password }, { requestId } = {}) => {
     throw createAccountLockedError(user.loginLockUntil);
   }
 
+  // Verify password
   if (!(await user.comparePassword(password))) {
     const failedAttempts = (user.failedLoginAttempts || 0) + 1;
 
@@ -261,6 +304,14 @@ const login = async ({ email, password }, { requestId } = {}) => {
   return { user, accessToken, refreshToken };
 };
 
+/**
+ * Verifies email using the verification token.
+ * Activates account and issues tokens upon successful verification.
+ * 
+ * @param {string} token - Verification token from email link
+ * @returns {Promise<Object>} User with tokens for automatic login
+ * @throws {AppError} For invalid, expired, or used tokens
+ */
 const verifyEmail = async (token) => {
   const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
   const user = await authRepository.findByEmailVerificationToken(hashedToken);
@@ -302,6 +353,13 @@ const verifyEmail = async (token) => {
   return { user, email: user.email, accessToken, refreshToken };
 };
 
+/**
+ * Resends email verification link to a user.
+ * 
+ * @param {string} email - User email address
+ * @returns {Promise<Object>} Status with verification expiration
+ * @throws {AppError} If email not found or account is disabled
+ */
 const resendVerificationEmail = async (email) => {
   const user = await authRepository.findByEmail(email, true);
 
@@ -323,6 +381,14 @@ const resendVerificationEmail = async (email) => {
   return { email: user.email, verificationExpiresAt };
 };
 
+/**
+ * Refreshes access token using a valid refresh token.
+ * Implements token rotation for enhanced security.
+ * 
+ * @param {string} refreshToken - Refresh token from client
+ * @returns {Promise<Object>} New access and refresh tokens
+ * @throws {AppError} For invalid or expired tokens
+ */
 const refresh = async (refreshToken) => {
   let decoded;
 
@@ -360,6 +426,13 @@ const refresh = async (refreshToken) => {
   return { user, accessToken, refreshToken: nextRefreshToken };
 };
 
+/**
+ * Logs out a user by invalidating the refresh token.
+ * Idempotent operation - handles already expired tokens gracefully.
+ * 
+ * @param {string} refreshToken - Refresh token to invalidate
+ * @returns {Promise<Object>} Logout confirmation
+ */
 const logout = async (refreshToken) => {
   try {
     const decoded = jwt.verify(refreshToken, env.refreshJwtSecret);
@@ -378,6 +451,14 @@ const logout = async (refreshToken) => {
   return { loggedOut: true };
 };
 
+/**
+ * Validates email for password reset flow.
+ * Checks if email exists and account is active.
+ * 
+ * @param {string} email - User email address
+ * @returns {Promise<Object>} Confirmation with email
+ * @throws {AppError} If email not found or account disabled
+ */
 const checkPasswordResetEmail = async (email) => {
   const user = await authRepository.findByEmail(email);
 
@@ -392,6 +473,16 @@ const checkPasswordResetEmail = async (email) => {
   return { email: user.email };
 };
 
+/**
+ * Resets password using validated email.
+ * Invalidates existing refresh sessions and clears lockout counters.
+ * 
+ * @param {Object} params - Reset parameters
+ * @param {string} params.email - User email
+ * @param {string} params.password - New password
+ * @returns {Promise<Object>} Confirmation with email
+ * @throws {AppError} If email not found or account disabled
+ */
 const resetPassword = async ({ email, password }) => {
   const user = await authRepository.findByEmail(email, true);
 

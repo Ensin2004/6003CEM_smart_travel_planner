@@ -12,32 +12,51 @@ const validate = require('../../middleware/validate.middleware');
 const router = express.Router();
 
 // Route section connects URL patterns with validation, authentication, and controller actions.
+
+/**
+ * GET /countries
+ * Retrieves a list of countries with optional filters.
+ * Protected route - requires authentication.
+ * Rate limited to prevent abuse.
+ */
 router.get(
   '/countries',
-  protect,
-  travelGuideRateLimit,
-  travelGuideValidation.countryListRules,
-  validate,
-  travelGuideController.getCountries
+  protect, // Authentication middleware
+  travelGuideRateLimit, // Rate limiting middleware
+  travelGuideValidation.countryListRules, // Validation rules for request
+  validate, // Execute validation
+  travelGuideController.getCountries // Controller handler
 );
 
-// Route section connects URL patterns with validation, authentication, and controller actions.
+/**
+ * GET /destinations
+ * Retrieves a list of travel destinations with optional filters.
+ * Protected route - requires authentication.
+ * Rate limited to prevent abuse.
+ */
 router.get(
   '/destinations',
-  protect,
-  travelGuideRateLimit,
-  travelGuideValidation.destinationListRules,
-  validate,
-  travelGuideController.getDestinations
+  protect, // Authentication middleware
+  travelGuideRateLimit, // Rate limiting middleware
+  travelGuideValidation.destinationListRules, // Validation rules for request
+  validate, // Execute validation
+  travelGuideController.getDestinations // Controller handler
 );
 
-// Route section connects URL patterns with validation, authentication, and controller actions.
+/**
+ * GET /destination
+ * Retrieves detailed information about a specific destination.
+ * Protected route - requires authentication.
+ * Rate limited to prevent abuse.
+ */
 router.get(
   '/destination',
-  protect,
-  travelGuideRateLimit,
-  travelGuideValidation.destinationDetailRules,
-  validate,
-  travelGuideController.getDestinationDetails
+  protect, // Authentication middleware
+  travelGuideRateLimit, // Rate limiting middleware
+  travelGuideValidation.destinationDetailRules, // Validation rules for request
+  validate, // Execute validation
+  travelGuideController.getDestinationDetails // Controller handler
 );
+
+// Export the router for use in main application
 module.exports = router;

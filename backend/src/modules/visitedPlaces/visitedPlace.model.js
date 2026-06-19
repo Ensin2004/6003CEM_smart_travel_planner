@@ -10,12 +10,23 @@ const mongoose = require('mongoose');
 // Allows tracking multiple visits to the same location over time
 const visitEntrySchema = new mongoose.Schema(
   {
-    visitedDate: { type: Date, index: true },                              // When the visit occurred (optional for undated visits)
-    visitCount: { type: Number, min: 1, max: 999, default: 1 },           // Number of times visited on this occasion (1-999)
-    notes: { type: String, trim: true, maxlength: 500 },                  // Personal notes about this specific visit
-    tripId: { type: mongoose.Schema.Types.ObjectId, ref: 'Trip' },        // Which trip this visit was part of
-    itineraryItemId: { type: mongoose.Schema.Types.ObjectId, ref: 'ItineraryItem' }, // Specific itinerary item associated
-    createdAt: { type: Date, default: Date.now },                         // When this visit entry was recorded
+    // When the visit occurred (optional for undated visits)
+    visitedDate: { type: Date, index: true },
+
+    // Number of times visited on this occasion (1-999)
+    visitCount: { type: Number, min: 1, max: 999, default: 1 },
+
+    // Personal notes about this specific visit
+    notes: { type: String, trim: true, maxlength: 500 },
+
+    // Which trip this visit was part of
+    tripId: { type: mongoose.Schema.Types.ObjectId, ref: 'Trip' },
+
+    // Specific itinerary item associated
+    itineraryItemId: { type: mongoose.Schema.Types.ObjectId, ref: 'ItineraryItem' },
+
+    // When this visit entry was recorded
+    createdAt: { type: Date, default: Date.now },
   },
   { _id: true }  // Each visit entry gets its own unique identifier
 );
@@ -26,11 +37,11 @@ const visitedPlaceSchema = new mongoose.Schema(
   {
     // Owner of this visited place record
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
-    
+
     // Unique key generated from place attributes (type, externalId, source)
     // Ensures same place from different sources is recognized as identical
     placeKey: { type: String, required: true, trim: true, maxlength: 420 },
-    
+
     // Category of the place - used for filtering and statistics
     type: {
       type: String,
@@ -38,23 +49,23 @@ const visitedPlaceSchema = new mongoose.Schema(
       default: 'location',
       index: true,
     },
-    
+
     // Display name of the place
     title: { type: String, required: true, trim: true, maxlength: 160 },
-    
+
     // Physical address (optional)
     address: { type: String, trim: true, maxlength: 240 },
-    
+
     // Original data source (e.g., 'foursquare', 'google-maps', 'explore-attractions')
     source: { type: String, trim: true, maxlength: 80 },
-    
+
     // Provider-specific identifier (e.g., fsq_place_id, place_id)
     externalId: { type: String, trim: true, maxlength: 180 },
-    
+
     // Place images cached from external providers
     imageUrl: { type: String, trim: true, maxlength: 2000 },
     imageUrls: [{ type: String, trim: true, maxlength: 2000 }],
-    
+
     // Array of visit entries - supports multiple visits to the same place
     visits: { type: [visitEntrySchema], default: [] },
   },

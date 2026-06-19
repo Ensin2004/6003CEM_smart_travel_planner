@@ -22,9 +22,30 @@ const { thirdPartyApiRateLimit } = require('../../middleware/rateLimit.middlewar
 
 const router = express.Router();
 
+/**
+ * GET /image - Proxies Google Place images.
+ * Public endpoint - no authentication required for images.
+ * 
+ * Middleware chain:
+ * 1. placeImageRules - Query parameter validation
+ * 2. validate - Validation result processing
+ * 3. exploreController.getPlaceImage - Route handler (streams image)
+ */
 router.get('/image', placeImageRules, validate, exploreController.getPlaceImage);
 
 // Route section connects URL patterns with validation, authentication, and controller actions.
+
+/**
+ * GET /weather - Retrieves weather for a destination.
+ * Requires authentication and applies third-party API rate limiting.
+ * 
+ * Middleware chain:
+ * 1. protect - Authentication verification
+ * 2. thirdPartyApiRateLimit - Rate limiting for API cost protection
+ * 3. weatherRules - Query parameter validation
+ * 4. validate - Validation result processing
+ * 5. exploreController.getWeather - Route handler
+ */
 router.get(
   '/weather',
   protect,
@@ -33,10 +54,19 @@ router.get(
   validate,
   exploreController.getWeather
 );
-//  route wires  to validation, access checks, and controller logic.
+
+/**
+ * GET /attractions - Retrieves attractions for a destination.
+ * route wires endpoint to validation, access checks, and controller logic.
+ */
 router.get('/attractions', protect, thirdPartyApiRateLimit, attractionRules, validate, exploreController.getAttractions);
 
 // Route section connects URL patterns with validation, authentication, and controller actions.
+
+/**
+ * GET /attractions/detail - Retrieves detailed information for a specific attraction.
+ * route wires endpoint to validation, access checks, and controller logic.
+ */
 router.get(
   '/attractions/detail',
   protect,
@@ -47,6 +77,11 @@ router.get(
 );
 
 // Route section connects URL patterns with validation, authentication, and controller actions.
+
+/**
+ * GET /hotels/detail - Retrieves detailed information for a specific hotel.
+ * route wires endpoint to validation, access checks, and controller logic.
+ */
 router.get(
   '/hotels/detail',
   protect,
@@ -57,6 +92,11 @@ router.get(
 );
 
 // Route section connects URL patterns with validation, authentication, and controller actions.
+
+/**
+ * GET /hotels - Retrieves hotels for a destination.
+ * route wires endpoint to validation, access checks, and controller logic.
+ */
 router.get(
   '/hotels',
   protect,
@@ -67,6 +107,11 @@ router.get(
 );
 
 // Route section connects URL patterns with validation, authentication, and controller actions.
+
+/**
+ * GET /restaurants/detail - Retrieves detailed information for a specific restaurant.
+ * route wires endpoint to validation, access checks, and controller logic.
+ */
 router.get(
   '/restaurants/detail',
   protect,
@@ -77,6 +122,11 @@ router.get(
 );
 
 // Route section connects URL patterns with validation, authentication, and controller actions.
+
+/**
+ * GET /restaurants - Retrieves restaurants for a destination.
+ * route wires endpoint to validation, access checks, and controller logic.
+ */
 router.get(
   '/restaurants',
   protect,
@@ -87,6 +137,11 @@ router.get(
 );
 
 // Route section connects URL patterns with validation, authentication, and controller actions.
+
+/**
+ * GET /reviews - Retrieves reviews for a specific place.
+ * route wires endpoint to validation, access checks, and controller logic.
+ */
 router.get(
   '/reviews',
   protect,
@@ -97,6 +152,11 @@ router.get(
 );
 
 // Route section connects URL patterns with validation, authentication, and controller actions.
+
+/**
+ * POST /ai-recommendations - Generates AI-powered recommendations.
+ * route wires endpoint to validation, access checks, and controller logic.
+ */
 router.post(
   '/ai-recommendations',
   protect,
@@ -105,4 +165,5 @@ router.post(
   validate,
   exploreController.getAiRecommendations
 );
+
 module.exports = router;

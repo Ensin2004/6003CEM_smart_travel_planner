@@ -10,9 +10,17 @@ const apiLogService = require('../apiLogs/apiLog.service');
 const currencyRepository = require('./currency.repository');
 const { classifyExternalApiError } = require('../../utils/externalApiError');
 
+// Frankfurter API endpoint for exchange rates
 const FRANKFURTER_BASE_URL = 'https://api.frankfurter.app';
+
+// Cache configuration - rates are valid for 1 hour
 const CACHE_TTL_MS = 60 * 60 * 1000;
+
+// In-memory rate cache to reduce API calls
 const rateCache = new Map();
+
+// Fallback exchange rates based on USD for when the API is unavailable
+// These rates should be updated periodically or replaced with a more reliable source
 const fallbackUsdRates = {
   USD: 1,
   EUR: 0.92,
@@ -59,21 +67,44 @@ const recordCurrencyFailure = (message, statusCode, metadata = {}, errorCode) =>
  */
 const getSupportedCurrencies = () => currencyRepository.findSupportedCurrencies();
 
+/**
+ * Retrieves a cached exchange rate if available and not expired.
+ * @param {string} from - Source currency code
+ * @param {string} to - Target currency code
+ * @returns {Object|null} Cached rate data or null if not found or expired
+ */
 const getCachedRate = (from, to) => {
   const cacheKey = `${from}:${to}`;
   const cached = rateCache.get(cacheKey);
 
+  // Check if cache entry exists and is still within TTL
   if (!cached || Date.now() - cached.createdAt > CACHE_TTL_MS) {
     return null;
   }
 
+  // Return cached data with cached flag set to true
   return { ...cached.data, cached: true };
 };
 
+/**
+ * Stores an exchange rate in the cache with current timestamp.
+ * @param {string} from - Source currency code
+ * @param {string} to - Target currency code
+ * @param {Object} data - Rate data to cache
+ */
 const cacheRate = (from, to, data) => {
   rateCache.set(`${from}:${to}`, { data, createdAt: Date.now() });
 };
 
+/**
+ * Retrieves exchange rate from cache or external API.
+ * Uses fallback rates when API is unavailable.
+ * 
+ * @param {string} from - Source currency code
+ * @param {string} to - Target currency code
+ * @returns {Promise<Object>} Exchange rate information
+ * @throws {AppError} If rate cannot be obtained
+ */
 const getExchangeRate = async (from, to) => {
   // Same-currency conversion never needs a provider request.
   if (from === to) {
@@ -93,10 +124,12 @@ const getExchangeRate = async (from, to) => {
   if (cachedRate) {
     return cachedRate;
   }
+  
   try {
+    // Make API call to Frankfurter for latest exchange rates
     const response = await axios.get(`${FRANKFURTER_BASE_URL}/latest`, {
       params: { from, to },
-      timeout: 5000,
+      timeout: 5000, // 5-second timeout
     });
 
     const rate = response.data?.rates?.[to];
@@ -116,22 +149,31 @@ const getExchangeRate = async (from, to) => {
     cacheRate(from, to, exchangeRate);
     return exchangeRate;
   } catch (error) {
+    // Handle AppError instances (already formatted)
     if (error instanceof AppError) {
       recordCurrencyFailure(error.message, error.statusCode, { from, to }, error.code);
       throw error;
     }
+    
+    // Handle API rate limiting specifically
     if (error.response?.status === 429) {
       recordCurrencyFailure('Currency API rate limit reached', 429, { from, to }, 'RATE_LIMIT_EXCEEDED');
       throw new AppError('Currency conversion is busy. Please try again later.', 429, 'RATE_LIMIT_EXCEEDED');
     }
 
+    // Fallback to approximate rates when API is unavailable
     const fromUsdRate = fallbackUsdRates[from];
     const toUsdRate = fallbackUsdRates[to];
 
     if (fromUsdRate && toUsdRate) {
       const fallbackRate = Number((toUsdRate / fromUsdRate).toFixed(8));
       const failure = classifyExternalApiError(error);
-      recordCurrencyFailure('Currency provider unavailable; approximate fallback rate used', failure.statusCode, { from, to }, failure.errorCode);
+      recordCurrencyFailure(
+        'Currency provider unavailable; approximate fallback rate used',
+        failure.statusCode,
+        { from, to },
+        failure.errorCode
+      );
       return {
         available: true,
         base: from,
@@ -139,10 +181,11 @@ const getExchangeRate = async (from, to) => {
         rate: fallbackRate,
         date: new Date().toISOString().slice(0, 10),
         cached: false,
-        estimated: true,
+        estimated: true, // Flag to indicate this is an estimated rate
       };
     }
 
+    // No fallback available - throw standardized error
     const failure = classifyExternalApiError(error, {
       invalidApiKeyMessage: 'Currency API credentials are invalid.',
       networkMessage: 'Currency service could not be reached.',

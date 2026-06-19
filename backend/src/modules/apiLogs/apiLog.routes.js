@@ -12,6 +12,7 @@ const { listLogRules } = require('./apiLog.validation');
 const router = express.Router();
 
 // Route section connects URL patterns with validation, authentication, and controller actions.
+// Apply authentication and admin role restriction to all routes in this router
 router.use(protect, restrictTo('admin'));
 
 /**
@@ -72,7 +73,8 @@ router.use(protect, restrictTo('admin'));
  *       403:
  *         description: Admin role required
  */
-//  route wires  to validation, access checks, and controller logic.
+// GET / - Retrieves filtered and paginated API logs for administrative review
+// route wires endpoint to validation, access checks, and controller logic.
 router.get('/', listLogRules, validate, apiLogController.getLogs);
 
 /**
@@ -132,6 +134,9 @@ router.get('/', listLogRules, validate, apiLogController.getLogs);
  *       403:
  *         description: Admin role required
  */
-//  route wires  to validation, access checks, and controller logic.
+// GET /monitoring - Retrieves system health metrics and monitoring dashboards
+// Aggregates API performance statistics, error rates, and operational data
+// route wires endpoint to validation, access checks, and controller logic.
 router.get('/monitoring', listLogRules, validate, apiLogController.getMonitoring);
+
 module.exports = router;

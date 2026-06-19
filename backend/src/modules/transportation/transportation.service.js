@@ -9,30 +9,49 @@ const apiLogService = require('../apiLogs/apiLog.service');
 const { classifyExternalApiError } = require('../../utils/externalApiError');
 const transportationRepository = require('./transportation.repository');
 
+// Cache time-to-live in milliseconds
 const CACHE_TTL_MS = 10 * 60 * 1000;
+
+// Default limit for result sets
 const DEFAULT_LIMIT = 12;
+
+// Maximum concurrent airport queries
 const AIRPORT_QUERY_CONCURRENCY = 4;
+
+// Maximum airport search pairs
 const MAX_AIRPORT_SEARCH_PAIRS = 3;
+
+// Maximum live flight search pairs
 const MAX_LIVE_FLIGHT_SEARCH_PAIRS = 1;
+
+// Batch size for AI train estimates
 const TRAIN_ROW_AI_BATCH_SIZE = 8;
+
+// Track daily API usage count
 const dailyUsage = {
   date: '',
   count: 0,
 };
+
+// Track daily AI API usage count
 const aiDailyUsage = {
   date: '',
   count: 0,
 };
 
+// Create AirLabs HTTP client
 const airlabsClient = axios.create({
   baseURL: 'https://airlabs.co/api/v9',
   timeout: 8000,
 });
 
+// Create TransportAPI HTTP client
 const transportApiClient = axios.create({
   baseURL: 'https://transportapi.com/v3/uk',
   timeout: 9000,
 });
+
+// Generate fallback flight response
 const fallbackFlights = (message = 'Flight information temporarily unavailable') => ({
   available: false,
   message,
@@ -40,6 +59,8 @@ const fallbackFlights = (message = 'Flight information temporarily unavailable')
   schedules: [],
   liveFlights: [],
 });
+
+// Generate fallback train response
 const fallbackTrains = (message = 'Train information temporarily unavailable') => ({
   available: false,
   message,
@@ -47,37 +68,53 @@ const fallbackTrains = (message = 'Train information temporarily unavailable') =
   departures: [],
   stationMatches: [],
 });
+
+// Get today's date as string key
 const getTodayKey = () => new Date().toISOString().slice(0, 10);
+
+// Check and consume daily quota for AirLabs
 const consumeDailyQuota = () => {
   const today = getTodayKey();
   const dailyLimit = Math.max(Number(env.airlabsDailyLimit) || 100, 0);
+  
+  // Reset counter if new day
   if (dailyUsage.date !== today) {
     dailyUsage.date = today;
     dailyUsage.count = 0;
   }
 
+  // Check if daily limit exceeded
   if (dailyUsage.count >= dailyLimit) {
     return false;
   }
 
+  // Increment usage counter
   dailyUsage.count += 1;
   return true;
 };
+
+// Check and consume daily quota for Gemini
 const consumeGeminiQuota = () => {
   const today = getTodayKey();
   const dailyLimit = Math.max(Number(env.geminiDailyLimit) || 100, 0);
+  
+  // Reset counter if new day
   if (aiDailyUsage.date !== today) {
     aiDailyUsage.date = today;
     aiDailyUsage.count = 0;
   }
 
+  // Check if daily limit exceeded
   if (aiDailyUsage.count >= dailyLimit) {
     return false;
   }
 
+  // Increment usage counter
   aiDailyUsage.count += 1;
   return true;
 };
+
+// Record AirLabs API failure
 const recordAirlabsFailure = (endpoint, message, statusCode, metadata, errorCode) =>
   env.nodeEnv === 'test'
     ? Promise.resolve()
@@ -94,6 +131,8 @@ const recordAirlabsFailure = (endpoint, message, statusCode, metadata, errorCode
           metadata,
         })
         .catch((error) => logger.error(`Failed to record AirLabs API event: ${error.message}`));
+
+// Record TransportAPI failure
 const recordTransportApiFailure = (endpoint, message, statusCode, metadata, errorCode) =>
   env.nodeEnv === 'test'
     ? Promise.resolve()
@@ -110,7 +149,10 @@ const recordTransportApiFailure = (endpoint, message, statusCode, metadata, erro
           metadata,
         })
         .catch((error) => logger.error(`Failed to record TransportAPI event: ${error.message}`));
+
+// Classify AirLabs API errors
 const classifyAirlabsError = (error) => {
+  // Check for missing API key
   if (error.isMissingKey) {
     return {
       errorCode: 'INVALID_API_KEY',
@@ -119,6 +161,7 @@ const classifyAirlabsError = (error) => {
     };
   }
 
+  // Use generic error classifier
   return classifyExternalApiError(error, {
     invalidApiKeyMessage: 'Flight API key is missing, invalid, or unauthorized.',
     networkMessage: 'Flight service could not be reached.',
@@ -129,6 +172,8 @@ const classifyAirlabsError = (error) => {
     unavailableMessage: 'Flight information is temporarily unavailable.',
   });
 };
+
+// Classify Gemini API errors
 const classifyGeminiError = (error) => {
   return classifyExternalApiError(error, {
     invalidApiKeyMessage: 'AI price estimate API key is invalid or unauthorized.',
@@ -140,7 +185,10 @@ const classifyGeminiError = (error) => {
     unavailableMessage: 'AI price estimates are temporarily unavailable.',
   });
 };
+
+// Classify TransportAPI errors
 const classifyTransportApiError = (error) => {
+  // Check for missing API credentials
   if (error.isMissingKey) {
     return {
       errorCode: 'INVALID_API_KEY',
@@ -149,6 +197,7 @@ const classifyTransportApiError = (error) => {
     };
   }
 
+  // Use generic error classifier
   return classifyExternalApiError(error, {
     invalidApiKeyMessage: 'Train API key is missing, invalid, or unauthorized.',
     networkMessage: 'Train service could not be reached.',
@@ -157,17 +206,24 @@ const classifyTransportApiError = (error) => {
     unavailableMessage: 'Train information is temporarily unavailable.',
   });
 };
+
 // Normalize Text prepares incoming data for consistent storage.
 const normalizeText = (value) => String(value || '').trim();
+
 // Normalize Code prepares incoming data for consistent storage.
 const normalizeCode = (value) => normalizeText(value).toUpperCase();
+
+// Check if text contains search string
 const includesText = (value, search) => normalizeText(value).toLowerCase().includes(normalizeText(search).toLowerCase());
+
+// Extract response items from API response
 const getResponseItems = (response) => {
   const data = response?.data?.response;
   if (Array.isArray(data)) return data;
   if (data && typeof data === 'object') return Object.values(data);
   return [];
 };
+
 // Fetches data from the AirLabs API with quota tracking and error handling
 const getAirlabs = async (endpoint, params, metadata) => {
   // Check if the AirLabs API key is configured in the environment
@@ -210,7 +266,10 @@ const getAirlabs = async (endpoint, params, metadata) => {
     throw error;
   }
 };
+
+// Fetch data from TransportAPI
 const getTransportApi = async (endpoint, params, metadata) => {
+  // Validate TransportAPI credentials
   if (!env.transportApiAppId || !env.transportApiAppKey) {
     const error = new Error('Missing TransportAPI credentials');
     error.isMissingKey = true;
@@ -218,6 +277,7 @@ const getTransportApi = async (endpoint, params, metadata) => {
   }
 
   try {
+    // Make API request with credentials
     const response = await transportApiClient.get(endpoint, {
       params: {
         ...params,
@@ -226,18 +286,21 @@ const getTransportApi = async (endpoint, params, metadata) => {
       },
     });
 
+    // Check for API error response
     if (response.data?.error) {
       throw new Error(response.data.error.message || response.data.error);
     }
 
     return response;
   } catch (error) {
+    // Classify and log the error
     const { errorCode, message, statusCode } = classifyTransportApiError(error);
     recordTransportApiFailure(endpoint, message, statusCode, metadata, errorCode);
     throw error;
   }
 };
 
+// Normalize airport data structure
 const normalizeAirport = (airport = {}) => ({
   name: airport.name || airport.names?.en || 'Airport name unavailable',
   iata: airport.iata_code || '',
@@ -253,6 +316,7 @@ const normalizeAirport = (airport = {}) => ({
   isInternational: Boolean(airport.is_international),
 });
 
+// Normalize airline data structure
 const normalizeAirline = (airline = {}) => ({
   name: airline.name || 'Airline name unavailable',
   iata: airline.iata_code || '',
@@ -265,11 +329,14 @@ const normalizeAirline = (airline = {}) => ({
   isInternational: Boolean(airline.is_international),
 });
 
+// Normalize flight airline info with context
 const normalizeFlightAirline = (row = {}, context = {}) => {
+  // Use context airline if available
   if (context.airline) {
     return context.airline;
   }
 
+  // Extract airline name from various fields
   const airlineName = row.airline_name || row.airline?.name || row.airline_iata || row.airline_icao || 'Airline name unavailable';
 
   return {
@@ -279,27 +346,34 @@ const normalizeFlightAirline = (row = {}, context = {}) => {
   };
 };
 
+// Check if airport matches search name
 const airportMatchesName = (airport, airportName) =>
   !airportName || includesText(airport.name, airportName) || includesText(airport.city, airportName) || includesText(airport.iata_code, airportName);
 
+// Sort and rank airports by relevance
 const rankAirports = (airports, airportName) =>
   [...airports].sort((first, second) => {
+    // Prioritize major airports
     const firstMajorScore = first.is_major ? 0 : 1;
     const secondMajorScore = second.is_major ? 0 : 1;
 
     if (firstMajorScore !== secondMajorScore) return firstMajorScore - secondMajorScore;
     if (!airportName) return 0;
 
+    // Prioritize exact name matches
     const firstExact = normalizeText(first.name).toLowerCase() === normalizeText(airportName).toLowerCase() ? 0 : 1;
     const secondExact = normalizeText(second.name).toLowerCase() === normalizeText(airportName).toLowerCase() ? 0 : 1;
     return firstExact - secondExact;
   });
 
+// Resolve best airport for country
 const resolveAirport = async ({ countryCode, airportName, role }) => {
+  // Validate country code
   if (!normalizeText(countryCode)) {
     return null;
   }
 
+  // Fetch airports for country
   const response = await getAirlabs(
     '/airports',
     {
@@ -308,17 +382,22 @@ const resolveAirport = async ({ countryCode, airportName, role }) => {
     },
     { countryCode, airportName, role }
   );
+  
+  // Filter and rank candidates
   const candidates = getResponseItems(response).filter((airport) => airport.iata_code && airportMatchesName(airport, airportName));
   const selectedAirport = rankAirports(candidates, airportName)[0];
 
   return selectedAirport ? normalizeAirport(selectedAirport) : null;
 };
 
+// Resolve all country airports matching criteria
 const resolveCountryAirports = async ({ countryCode, airportName, role }) => {
+  // Validate country code
   if (!normalizeText(countryCode)) {
     return [];
   }
 
+  // Fetch airports for country
   const response = await getAirlabs(
     '/airports',
     {
@@ -327,19 +406,24 @@ const resolveCountryAirports = async ({ countryCode, airportName, role }) => {
     },
     { countryCode, airportName, role }
   );
+  
+  // Filter and rank candidates
   const candidates = getResponseItems(response).filter((airport) => airport.iata_code && airportMatchesName(airport, airportName));
 
   return rankAirports(candidates, airportName).map(normalizeAirport);
 };
 
+// Resolve airport by IATA or ICAO code
 const resolveAirportByCode = async ({ iata, icao }) => {
   const normalizedIata = normalizeCode(iata);
   const normalizedIcao = normalizeCode(icao);
 
+  // Validate inputs
   if (!normalizedIata && !normalizedIcao) {
     return null;
   }
 
+  // Fetch airport by code
   const response = await getAirlabs(
     '/airports',
     {
@@ -348,6 +432,8 @@ const resolveAirportByCode = async ({ iata, icao }) => {
     },
     { iata: normalizedIata, icao: normalizedIcao }
   );
+  
+  // Find matching airport
   const airports = getResponseItems(response);
   const airport =
     airports.find((item) => normalizeCode(item.iata_code) === normalizedIata || normalizeCode(item.icao_code) === normalizedIcao) ||
@@ -356,13 +442,16 @@ const resolveAirportByCode = async ({ iata, icao }) => {
   return airport ? normalizeAirport(airport) : null;
 };
 
+// Resolve airline by name
 const resolveAirline = async (airlineName) => {
   const normalizedAirlineName = normalizeText(airlineName);
 
+  // Validate input
   if (!normalizedAirlineName) {
     return null;
   }
 
+  // Fetch airlines by name
   const response = await getAirlabs(
     '/airlines',
     {
@@ -371,14 +460,18 @@ const resolveAirline = async (airlineName) => {
     },
     { airlineName: normalizedAirlineName }
   );
+  
+  // Find matching airline
   const candidates = getResponseItems(response).filter((airline) => includesText(airline.name, normalizedAirlineName) && airline.iata_code);
   const selectedAirline = candidates[0] || getResponseItems(response).find((airline) => airline.iata_code);
 
   return selectedAirline ? normalizeAirline(selectedAirline) : null;
 };
 
+// Extract date from flight time string
 const getFlightTimeDate = (value) => normalizeText(value).slice(0, 10);
 
+// Check if schedule matches departure date
 const matchesDepartureDate = (schedule, departureDate) => {
   if (!departureDate) return true;
 
@@ -388,12 +481,14 @@ const matchesDepartureDate = (schedule, departureDate) => {
   return localDate === departureDate || utcDate === departureDate;
 };
 
+// Add airport to lookup map
 const addAirportToLookup = (lookup, airport) => {
   if (!airport) return;
   if (airport.iata) lookup.set(normalizeCode(airport.iata), airport);
   if (airport.icao) lookup.set(normalizeCode(airport.icao), airport);
 };
 
+// Get airport from lookup or fallback
 const getAirportFromLookup = ({ lookup, iata, icao, fallbackName }) =>
   (lookup || new Map()).get(normalizeCode(iata)) ||
   (lookup || new Map()).get(normalizeCode(icao)) || {
@@ -404,10 +499,13 @@ const getAirportFromLookup = ({ lookup, iata, icao, fallbackName }) =>
     countryCode: '',
   };
 
+// Check if flight has landed
 const isLandedFlight = (flight = {}) => normalizeText(flight.status).toLowerCase() === 'landed';
 
+// Check if airport has a code
 const hasAirportCode = (airport) => Boolean(airport?.iata);
 
+// Generate unique key for flight row
 const rowKey = (row = {}) =>
   [
     row.flight_iata || row.flight_icao || row.flight_number || '',
@@ -417,14 +515,18 @@ const rowKey = (row = {}) =>
     row.dep_time || row.dep_time_utc || row.updated || '',
   ].join(':');
 
+// Get unique rows from array
 const uniqueRows = (rows) => [...new Map(rows.map((row) => [rowKey(row), row])).values()];
 
+// Sort schedules by departure time
 const sortSchedulesByDepartureTime = (schedules) =>
   [...schedules].sort((first, second) => normalizeText(first.dep_time).localeCompare(normalizeText(second.dep_time)));
 
+// Run tasks with concurrency limit
 const runLimited = async (items, limit, task) => {
   const results = [];
 
+  // Process items in batches
   for (let index = 0; index < items.length; index += limit) {
     const batch = items.slice(index, index + limit);
     const batchResults = await Promise.all(batch.map(task));
@@ -434,19 +536,23 @@ const runLimited = async (items, limit, task) => {
   return results;
 };
 
+// Build flight query parameters
 const buildFlightQueryParams = ({ departureAirport, arrivalAirport, airline }) => {
   const queryParams = {
     limit: DEFAULT_LIMIT,
   };
 
+  // Add departure airport if available
   if (departureAirport?.iata) {
     queryParams.dep_iata = departureAirport.iata;
   }
 
+  // Add arrival airport if available
   if (arrivalAirport?.iata) {
     queryParams.arr_iata = arrivalAirport.iata;
   }
 
+  // Add airline if available
   if (airline?.iata) {
     queryParams.airline_iata = airline.iata;
   }
@@ -454,6 +560,7 @@ const buildFlightQueryParams = ({ departureAirport, arrivalAirport, airline }) =
   return queryParams;
 };
 
+// Check if airport matches filter list
 const airportMatchesFilter = ({ airportCode, airports }) => {
   if (!airports.length) return true;
 
@@ -461,10 +568,12 @@ const airportMatchesFilter = ({ airportCode, airports }) => {
   return airports.some((airport) => normalizeCode(airport.iata) === normalizedAirportCode);
 };
 
+// Get airport search pairs
 const getAirportSearchPairs = ({ departureAirports, arrivalAirports, airline }) => {
   const departures = departureAirports.filter(hasAirportCode);
   const arrivals = arrivalAirports.filter(hasAirportCode);
 
+  // Generate search pairs based on available airports
   if (departures.length && arrivals.length) {
     const useDepartures = departures.length <= arrivals.length;
     return useDepartures
@@ -472,6 +581,7 @@ const getAirportSearchPairs = ({ departureAirports, arrivalAirports, airline }) 
       : arrivals.map((arrivalAirport) => ({ departureAirport: null, arrivalAirport, filterDepartures: departures }));
   }
 
+  // Handle single-side searches
   if (departures.length) {
     return departures.map((departureAirport) => ({ departureAirport, arrivalAirport: null }));
   }
@@ -480,16 +590,21 @@ const getAirportSearchPairs = ({ departureAirports, arrivalAirports, airline }) 
     return arrivals.map((arrivalAirport) => ({ departureAirport: null, arrivalAirport }));
   }
 
+  // Fallback to airline-only search
   return airline?.iata ? [{ departureAirport: null, arrivalAirport: null }] : [];
 };
 
+// Fetch flight rows for search
 const fetchFlightRowsForSearch = async ({ departureAirports, arrivalAirports, airline, departureDate, metadata }) => {
+  // Generate search pairs with limit
   const searchPairs = getAirportSearchPairs({ departureAirports, arrivalAirports, airline }).slice(0, MAX_AIRPORT_SEARCH_PAIRS);
 
+  // Return empty if no pairs found
   if (!searchPairs.length) {
     return { schedules: [], liveFlights: [] };
   }
 
+  // Fetch schedules for all pairs
   const scheduleResponses = await runLimited(searchPairs, AIRPORT_QUERY_CONCURRENCY, async (pair) => {
     const queryParams = buildFlightQueryParams({
       departureAirport: pair.departureAirport,
@@ -499,6 +614,7 @@ const fetchFlightRowsForSearch = async ({ departureAirports, arrivalAirports, ai
 
     const scheduleResponse = await getAirlabs('/schedules', queryParams, metadata);
 
+    // Filter schedules by airport filters
     return {
       pair,
       schedules: getResponseItems(scheduleResponse).filter(
@@ -509,9 +625,11 @@ const fetchFlightRowsForSearch = async ({ departureAirports, arrivalAirports, ai
     };
   });
 
+  // Combine and sort schedules
   const schedules = sortSchedulesByDepartureTime(uniqueRows(scheduleResponses.flatMap((response) => response.schedules)));
   let liveFlights = [];
 
+  // Fetch live flights if no schedules found and no date filter
   if (!departureDate && schedules.length < DEFAULT_LIMIT) {
     const liveSearchPairs = (
       scheduleResponses.filter((response) => !response.schedules.length).map((response) => response.pair).length
@@ -519,6 +637,7 @@ const fetchFlightRowsForSearch = async ({ departureAirports, arrivalAirports, ai
         : searchPairs
     ).slice(0, MAX_LIVE_FLIGHT_SEARCH_PAIRS);
 
+    // Fetch live flights
     const liveResponses = await runLimited(liveSearchPairs, AIRPORT_QUERY_CONCURRENCY, async (pair) => {
       const queryParams = buildFlightQueryParams({
         departureAirport: pair.departureAirport,
@@ -535,6 +654,7 @@ const fetchFlightRowsForSearch = async ({ departureAirports, arrivalAirports, ai
         metadata
       );
 
+      // Filter live flights by airport filters
       return getResponseItems(liveFlightResponse).filter(
         (flight) =>
           airportMatchesFilter({ airportCode: flight.dep_iata, airports: pair.filterDepartures || [] }) &&
@@ -551,13 +671,17 @@ const fetchFlightRowsForSearch = async ({ departureAirports, arrivalAirports, ai
   };
 };
 
+// Build airport lookup map from flights
 const buildAirportLookup = async ({ schedules, liveFlights, departureAirport, arrivalAirport, departureAirports = [], arrivalAirports = [] }) => {
   const lookup = new Map();
+  
+  // Add known airports to lookup
   addAirportToLookup(lookup, departureAirport);
   addAirportToLookup(lookup, arrivalAirport);
   departureAirports.forEach((airport) => addAirportToLookup(lookup, airport));
   arrivalAirports.forEach((airport) => addAirportToLookup(lookup, airport));
 
+  // Collect airport codes from flights
   const codePairLookup = new Map();
   [...schedules, ...liveFlights]
     .flatMap((flight) => [
@@ -574,6 +698,7 @@ const buildAirportLookup = async ({ schedules, liveFlights, departureAirport, ar
       }
     });
 
+  // Resolve airport details for missing codes
   const airports = await Promise.all(
     [...codePairLookup.values()].map((codes) =>
       resolveAirportByCode(codes).catch((error) => {
@@ -587,6 +712,7 @@ const buildAirportLookup = async ({ schedules, liveFlights, departureAirport, ar
   return lookup;
 };
 
+// Normalize live flight data
 const normalizeLiveFlight = (flight = {}, context = {}) => ({
   id: flight.hex || flight.flight_iata || flight.flight_icao || `${flight.airline_iata || 'flight'}-${flight.flight_number || ''}`,
   type: 'live',
@@ -622,6 +748,7 @@ const normalizeLiveFlight = (flight = {}, context = {}) => ({
   lastUpdated: flight.updated ? new Date(Number(flight.updated) * 1000).toISOString() : new Date().toISOString(),
 });
 
+// Normalize schedule data
 const normalizeSchedule = (schedule = {}, context = {}) => ({
   id: schedule.flight_iata || schedule.flight_icao || `${schedule.airline_iata || 'schedule'}-${schedule.flight_number || ''}`,
   type: 'schedule',
@@ -669,6 +796,7 @@ const normalizeSchedule = (schedule = {}, context = {}) => ({
   durationMinutes: schedule.duration ?? null,
 });
 
+// Sanitize flight for price prompt
 const sanitizeFlightForPricePrompt = (flight = {}) => ({
   id: flight.id,
   airline: flight.airline?.name || '',
@@ -683,9 +811,11 @@ const sanitizeFlightForPricePrompt = (flight = {}) => ({
   type: flight.type || '',
 });
 
+// Parse AI JSON response
 const parseAiJson = (response) => {
   const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
 
+  // Validate response
   if (!text) {
     throw new Error('AI price service returned an empty response');
   }
@@ -693,6 +823,7 @@ const parseAiJson = (response) => {
   return JSON.parse(text);
 };
 
+// Build price estimation prompt
 const buildPricePrompt = ({ flights, query }) => `
 Estimate one-way ticket prices for the supplied flight search results.
 Use broad public-market knowledge and route distance assumptions. Return estimates only, not live fares.
@@ -719,6 +850,7 @@ Return JSON with:
 }
 `;
 
+// Estimate fallback price range
 const estimateFallbackPriceRange = (flight = {}) => {
   const durationMinutes = Number(flight.durationMinutes);
   const estimatedDistance = Number.isFinite(durationMinutes) && durationMinutes > 0 ? durationMinutes * 12 : 900;
@@ -734,6 +866,7 @@ const estimateFallbackPriceRange = (flight = {}) => {
   };
 };
 
+// Attach fallback price estimates
 const attachFallbackPriceEstimates = (flights, note = 'AI price estimation is not configured.') =>
   flights.map((flight) => ({
     ...flight,
@@ -753,21 +886,26 @@ const attachFallbackPriceEstimates = (flights, note = 'AI price estimation is no
     })(),
   }));
 
+// Attach Gemini price estimates
 const attachGeminiPriceEstimates = async ({ flights, query }) => {
+  // Skip if no flights
   if (!flights.length) {
     return flights;
   }
 
+  // Skip if Gemini not configured
   if (!env.geminiApiKey) {
     return attachFallbackPriceEstimates(flights);
   }
 
+  // Check daily quota
   if (!consumeGeminiQuota()) {
     const error = new Error('Daily AI price estimate limit reached.');
     error.isDailyLimit = true;
     throw error;
   }
 
+  // Request AI price estimates
   const response = await axios.post(
     `https://generativelanguage.googleapis.com/v1beta/models/${env.geminiModel}:generateContent`,
     {
@@ -811,6 +949,8 @@ const attachGeminiPriceEstimates = async ({ flights, query }) => {
       timeout: 20000,
     }
   );
+  
+  // Parse and map responses
   const parsed = parseAiJson(response);
   const priceById = new Map(
     (parsed.prices || []).map((price) => [
@@ -826,9 +966,11 @@ const attachGeminiPriceEstimates = async ({ flights, query }) => {
     ])
   );
 
+  // Attach estimates to flights
   return flights.map((flight) => {
     const price = priceById.get(normalizeText(flight.id));
 
+    // Use fallback if no match found
     if (!price) {
       return {
         ...flight,
@@ -839,6 +981,7 @@ const attachGeminiPriceEstimates = async ({ flights, query }) => {
       };
     }
 
+    // Attach AI estimate
     return {
       ...flight,
       priceEstimate: {
@@ -849,10 +992,12 @@ const attachGeminiPriceEstimates = async ({ flights, query }) => {
   });
 };
 
+// Add price estimates to flights
 const addPriceEstimates = async ({ flights, query }) => {
   try {
     return await attachGeminiPriceEstimates({ flights, query });
   } catch (error) {
+    // Log error and fallback
     const { errorCode, message, statusCode } = classifyGeminiError(error);
     recordAirlabsFailure('flight-price-estimate', message, statusCode, {
       fromCountryCode: query.fromCountryCode,
@@ -885,12 +1030,14 @@ const getFlightsBySearch = async ({
     normalizedDepartureDate,
   ].join(':');
 
+  // Check cache
   const cached = await transportationRepository.findValidCache(cacheKey).catch(() => null);
   if (cached?.data) {
     return { ...cached.data, cached: true };
   }
 
   try {
+    // Resolve airports and airline
     const [departureAirports, arrivalAirports, airline] = await Promise.all([
       resolveCountryAirports({ countryCode: fromCountryCode, role: 'departure' }),
       resolveCountryAirports({ countryCode: toCountryCode, role: 'arrival' }),
@@ -899,6 +1046,7 @@ const getFlightsBySearch = async ({
     const departureAirport = departureAirports[0] || null;
     const arrivalAirport = arrivalAirports[0] || null;
 
+    // Validate results
     if (fromCountryCode && !departureAirports.length) {
       return fallbackFlights(`No departure airport found for ${fromCountryName || fromCountryCode}.`);
     }
@@ -911,6 +1059,7 @@ const getFlightsBySearch = async ({
       return fallbackFlights('No matching airline or airport filters were found.');
     }
 
+    // Fetch flight data
     const flightRows = await fetchFlightRowsForSearch({
       departureAirports,
       arrivalAirports,
@@ -918,11 +1067,15 @@ const getFlightsBySearch = async ({
       departureDate: normalizedDepartureDate,
       metadata: { fromCountryCode, toCountryCode, airlineName },
     });
+    
+    // Filter and limit results
     const rawSchedules = flightRows.schedules
       .filter((schedule) => matchesDepartureDate(schedule, normalizedDepartureDate))
       .filter((schedule) => !isLandedFlight(schedule))
       .slice(0, DEFAULT_LIMIT);
     const rawLiveFlights = flightRows.liveFlights.filter((flight) => !isLandedFlight(flight)).slice(0, DEFAULT_LIMIT);
+    
+    // Build airport lookup
     const airportLookup = await buildAirportLookup({
       schedules: rawSchedules,
       liveFlights: rawLiveFlights,
@@ -931,12 +1084,16 @@ const getFlightsBySearch = async ({
       departureAirports,
       arrivalAirports,
     });
+    
+    // Normalize results
     const context = {
       airline,
       airportLookup,
     };
     const schedules = rawSchedules.map((schedule) => normalizeSchedule(schedule, context));
     const liveFlights = rawLiveFlights.map((flight) => normalizeLiveFlight(flight, context));
+    
+    // Build query object
     const query = {
       airlineName: airline?.name || normalizeText(airlineName),
       fromCountryName,
@@ -949,10 +1106,14 @@ const getFlightsBySearch = async ({
       departureAirports,
       arrivalAirports,
     };
+    
+    // Add price estimates
     const items = await addPriceEstimates({
       flights: [...schedules, ...liveFlights].slice(0, DEFAULT_LIMIT),
       query,
     });
+    
+    // Build response data
     const data = {
       available: items.length > 0,
       message:
@@ -967,31 +1128,40 @@ const getFlightsBySearch = async ({
       lastUpdated: new Date().toISOString(),
     };
 
+    // Cache the results
     transportationRepository.upsertCache(cacheKey, data, new Date(Date.now() + CACHE_TTL_MS)).catch((error) => {
       logger.error(`Failed to cache flight search: ${error.message}`);
     });
 
     return data;
   } catch (error) {
+    // Handle errors and return fallback
     const { errorCode, message, statusCode } = classifyAirlabsError(error);
     recordAirlabsFailure('flight-search', message, statusCode, { fromCountryCode, toCountryCode, airlineName }, errorCode);
     return { ...fallbackFlights(message), errorCode };
   }
 };
 
+// Get time value from section
 const getTimeValue = (section = {}, key) => section?.[key]?.time || section?.[key] || '';
+
+// Get date value from section
 const getDateValue = (section = {}, key) => section?.[key]?.date || '';
 
+// Get first non-empty text
 const getNestedText = (...values) => values.map(normalizeText).find(Boolean) || '';
 
+// Get station date from value
 const getStationDate = (value, fallbackDate = '') => normalizeText(value).slice(0, 10) || normalizeText(fallbackDate);
 
+// Ensure value is an array
 const asArray = (value) => {
   if (Array.isArray(value)) return value;
   if (value && typeof value === 'object') return Object.values(value);
   return [];
 };
 
+// Normalize train station place
 const normalizeTrainStationPlace = (place = {}) => ({
   name: normalizeText(place.name),
   stationCode: normalizeCode(place.station_code || place.crs_code || place.code),
@@ -1002,11 +1172,14 @@ const normalizeTrainStationPlace = (place = {}) => ({
   longitude: place.longitude ?? null,
 });
 
+// Check if value looks like a CRS code
 const isLikelyCrsCode = (value) => /^[a-z]{3}$/i.test(normalizeText(value));
 
+// Resolve train station by query
 const resolveTrainStation = async (stationQuery) => {
   const normalizedQuery = normalizeText(stationQuery);
 
+  // Handle CRS code
   if (isLikelyCrsCode(normalizedQuery)) {
     return {
       stationCode: normalizeCode(normalizedQuery),
@@ -1015,6 +1188,7 @@ const resolveTrainStation = async (stationQuery) => {
     };
   }
 
+  // Search for station
   const response = await getTransportApi(
     '/places.json',
     {
@@ -1043,6 +1217,7 @@ const resolveTrainStation = async (stationQuery) => {
   };
 };
 
+// Extract actual journey RID
 const extractActualJourneyRid = (train = {}) => {
   const actualJourneyId =
     train.actual_journey?.id ||
@@ -1055,6 +1230,7 @@ const extractActualJourneyRid = (train = {}) => {
   return normalizeText(train.rid || train.service_rid || train.actual_rid || ridFromUrl);
 };
 
+// Extract service timetable metadata
 const extractServiceTimetableMeta = (train = {}) => {
   const serviceTimetableId = normalizeText(train.service_timetable?.id || train.serviceTimetableId);
   const matched = serviceTimetableId.match(/\/service\/([^/]+)\/([^/]+)\/timetable\.json/i);
@@ -1067,6 +1243,7 @@ const extractServiceTimetableMeta = (train = {}) => {
   };
 };
 
+// Normalize station departure
 const normalizeStationDeparture = (departure = {}, index = 0, context = {}) => {
   const serviceMeta = extractServiceTimetableMeta(departure);
   const actualRid = extractActualJourneyRid(departure);
@@ -1120,6 +1297,7 @@ const normalizeStationDeparture = (departure = {}, index = 0, context = {}) => {
   };
 };
 
+// Normalize coach data
 const normalizeCoach = (coach = {}, index = 0) => ({
   id: normalizeText(coach.id || coach.coach_id || coach.number || coach.coach_number || index + 1),
   number: normalizeText(coach.number || coach.coach_number || coach.coach),
@@ -1128,6 +1306,7 @@ const normalizeCoach = (coach = {}, index = 0) => ({
   loading: normalizeText(coach.loading || coach.loading_status),
 });
 
+// Normalize service stop
 const normalizeServiceStop = (stop = {}, index = 0, context = {}) => {
   const fallbackDate = context.date || '';
   const departureDate = getStationDate(stop.expected_departure_date || stop.aimed_departure_date || stop.date, fallbackDate);
@@ -1162,6 +1341,7 @@ const normalizeServiceStop = (stop = {}, index = 0, context = {}) => {
   };
 };
 
+// Normalize actual journey stop
 const normalizeActualJourneyStop = (journey = {}, index = 0) => {
   const station = journey.station || {};
 
@@ -1188,6 +1368,7 @@ const normalizeActualJourneyStop = (journey = {}, index = 0) => {
   };
 };
 
+// Normalize actual journey data
 const normalizeActualJourney = (data = {}) => {
   const service = data.service || data.member?.[0]?.service || data;
   const stops = service.stops || data.stops || data.actual || [];
@@ -1216,6 +1397,7 @@ const normalizeActualJourney = (data = {}) => {
   };
 };
 
+// Build train distance prompt
 const buildTrainDistancePrompt = ({ service, stops }) => `
 Estimate the rail route distance and one-way ticket price for this UK train service.
 Use general rail geography and public-market fare knowledge. Return estimates only, not live fares.
@@ -1271,6 +1453,7 @@ Return JSON with:
 }
 `;
 
+// Build train row estimate prompt
 const buildTrainRowEstimatePrompt = ({ trains }) => `
 Estimate rail route distance and one-way ticket price for each UK train service below.
 Use general rail geography and public-market fare knowledge. Return estimates only, not live fares.
@@ -1309,6 +1492,7 @@ Return JSON with:
 }
 `;
 
+// Build unavailable train distance estimate
 function buildUnavailableTrainDistanceEstimate(note = 'AI distance estimate unavailable.') {
   return {
     available: false,
@@ -1318,6 +1502,7 @@ function buildUnavailableTrainDistanceEstimate(note = 'AI distance estimate unav
   };
 }
 
+// Build unavailable train price estimate
 function buildUnavailableTrainPriceEstimate(note = 'AI price estimate unavailable.') {
   return {
     available: false,
@@ -1328,6 +1513,7 @@ function buildUnavailableTrainPriceEstimate(note = 'AI price estimate unavailabl
   };
 }
 
+// Get stop date time
 const getStopDateTime = (stop = {}, kind = 'departure') => {
   const date =
     kind === 'arrival'
@@ -1338,6 +1524,7 @@ const getStopDateTime = (stop = {}, kind = 'departure') => {
       ? stop.expectedArrivalTime || stop.actualArrivalTime || stop.aimedArrivalTime || stop.aimedPassTime
       : stop.expectedDepartureTime || stop.actualDepartureTime || stop.aimedDepartureTime || stop.aimedPassTime;
 
+  // Validate time format
   if (!date || !time || !/^\d{2}:\d{2}$/.test(time)) {
     return null;
   }
@@ -1346,10 +1533,12 @@ const getStopDateTime = (stop = {}, kind = 'departure') => {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 };
 
+// Get minutes between stops
 const getMinutesBetweenStops = (fromStop = {}, toStop = {}) => {
   const fromTime = getStopDateTime(fromStop, 'departure') || getStopDateTime(fromStop, 'arrival');
   const toTime = getStopDateTime(toStop, 'arrival') || getStopDateTime(toStop, 'departure');
 
+  // Return 0 if times unavailable
   if (!fromTime || !toTime) {
     return 0;
   }
@@ -1357,6 +1546,7 @@ const getMinutesBetweenStops = (fromStop = {}, toStop = {}) => {
   return Math.max(Math.round((toTime.getTime() - fromTime.getTime()) / 60000), 0);
 };
 
+// Estimate fallback train segments
 const estimateFallbackTrainSegments = (stops = [], totalKilometers = 0) => {
   const segmentCount = Math.max(stops.length - 1, 0);
   const timedSegments = stops.slice(1).map((stop, index) => getMinutesBetweenStops(stops[index], stop));
@@ -1389,6 +1579,7 @@ const estimateFallbackTrainSegments = (stops = [], totalKilometers = 0) => {
   });
 };
 
+// Build fallback train estimates
 const buildFallbackTrainEstimates = ({ stops = [], note = 'Route-based fallback estimate.' }) => {
   const segmentCount = Math.max(stops.length - 1, 1);
   const totalMinutes = getMinutesBetweenStops(stops[0], stops[stops.length - 1]);
@@ -1422,6 +1613,7 @@ const buildFallbackTrainEstimates = ({ stops = [], note = 'Route-based fallback 
   };
 };
 
+// Build train segment estimate
 const buildTrainSegmentEstimate = ({ fromStop, toStop, kilometers, priceMyr }) => {
   const normalizedKilometers = Math.max(Math.round(Number(kilometers) || 0), 1);
   const miles = Math.round(normalizedKilometers * 0.621371);
@@ -1449,7 +1641,9 @@ const buildTrainSegmentEstimate = ({ fromStop, toStop, kilometers, priceMyr }) =
   };
 };
 
+// Estimate train distance and price
 const estimateTrainDistance = async ({ service, stops }) => {
+  // Validate input
   if (!stops.length) {
     return {
       distanceEstimate: buildUnavailableTrainDistanceEstimate('No train stops were available for AI estimation.'),
@@ -1457,6 +1651,7 @@ const estimateTrainDistance = async ({ service, stops }) => {
     };
   }
 
+  // Skip if Gemini not configured
   if (!env.geminiApiKey) {
     return {
       distanceEstimate: buildUnavailableTrainDistanceEstimate('Gemini API key is not configured.'),
@@ -1465,12 +1660,14 @@ const estimateTrainDistance = async ({ service, stops }) => {
   }
 
   try {
+    // Check daily quota
     if (!consumeGeminiQuota()) {
       const error = new Error('Daily AI distance estimate limit reached.');
       error.isDailyLimit = true;
       throw error;
     }
 
+    // Request AI estimate
     const response = await axios.post(
       `https://generativelanguage.googleapis.com/v1beta/models/${env.geminiModel}:generateContent`,
       {
@@ -1534,6 +1731,8 @@ const estimateTrainDistance = async ({ service, stops }) => {
         timeout: 16000,
       }
     );
+    
+    // Parse response
     const parsed = parseAiJson(response);
     const distance = parsed.distance || {};
     const price = parsed.price || {};
@@ -1541,6 +1740,8 @@ const estimateTrainDistance = async ({ service, stops }) => {
     const miles = Math.max(Math.round(Number(distance.miles) || kilometers * 0.621371), 0);
     const priceMin = Math.max(Math.round(Number(price.min) || 0), 0);
     const priceMax = Math.max(Math.round(Number(price.max) || 0), priceMin);
+    
+    // Build AI segments
     const aiSegments = Array.isArray(distance.segments)
       ? distance.segments
           .slice(0, Math.max(stops.length - 1, 0))
@@ -1555,6 +1756,7 @@ const estimateTrainDistance = async ({ service, stops }) => {
           .filter(Boolean)
       : [];
 
+    // Validate results
     if (!kilometers && !miles) {
       return {
         distanceEstimate: buildUnavailableTrainDistanceEstimate('Gemini did not return a usable distance estimate.'),
@@ -1588,6 +1790,7 @@ const estimateTrainDistance = async ({ service, stops }) => {
           : buildUnavailableTrainPriceEstimate('Gemini did not return a usable price estimate.'),
     };
   } catch (error) {
+    // Log error and return fallback
     const { errorCode, message, statusCode } = classifyGeminiError(error);
     recordAirlabsFailure('train-distance-estimate', message, statusCode, {
       originName: service.originName,
@@ -1601,6 +1804,7 @@ const estimateTrainDistance = async ({ service, stops }) => {
   }
 };
 
+// Build train row AI estimate
 const buildTrainRowAiEstimate = (estimate = {}) => {
   const kilometers = Math.max(Math.round(Number(estimate.kilometers) || 0), 0);
   const miles = Math.max(Math.round(Number(estimate.miles) || kilometers * 0.621371), 0);
@@ -1638,6 +1842,7 @@ const buildTrainRowAiEstimate = (estimate = {}) => {
   };
 };
 
+// Get train estimate keys
 const getTrainEstimateKeys = (train = {}) =>
   [
     train.id,
@@ -1650,7 +1855,9 @@ const getTrainEstimateKeys = (train = {}) =>
     .map(normalizeText)
     .filter(Boolean);
 
+// Attach train row AI estimates
 const attachTrainRowAiEstimates = async (departures = []) => {
+  // Filter trains needing estimates
   const trainsNeedingEstimates = departures.filter(
     (train) =>
       (!train.priceEstimate?.available || !train.distanceEstimate?.available) &&
@@ -1658,13 +1865,16 @@ const attachTrainRowAiEstimates = async (departures = []) => {
       normalizeText(train.destinationName)
   );
 
+  // Skip if none or Gemini not configured
   if (!trainsNeedingEstimates.length || !env.geminiApiKey) {
     return departures;
   }
 
   try {
     const estimateById = new Map();
+    // Process in batches
     for (let index = 0; index < trainsNeedingEstimates.length; index += TRAIN_ROW_AI_BATCH_SIZE) {
+      // Check daily quota
       if (!consumeGeminiQuota()) {
         const error = new Error('Daily AI train estimate limit reached.');
         error.isDailyLimit = true;
@@ -1672,6 +1882,8 @@ const attachTrainRowAiEstimates = async (departures = []) => {
       }
 
       const batch = trainsNeedingEstimates.slice(index, index + TRAIN_ROW_AI_BATCH_SIZE);
+      
+      // Request AI estimates for batch
       const response = await axios.post(
         `https://generativelanguage.googleapis.com/v1beta/models/${env.geminiModel}:generateContent`,
         {
@@ -1716,6 +1928,8 @@ const attachTrainRowAiEstimates = async (departures = []) => {
           timeout: 22000,
         }
       );
+      
+      // Parse and store estimates
       const parsed = parseAiJson(response);
       (Array.isArray(parsed.estimates) ? parsed.estimates : []).forEach((estimate) => {
         const builtEstimate = buildTrainRowAiEstimate(estimate);
@@ -1726,6 +1940,7 @@ const attachTrainRowAiEstimates = async (departures = []) => {
       });
     }
 
+    // Attach estimates to departures
     return departures.map((train) => {
       const estimateKey = getTrainEstimateKeys(train).find((key) => estimateById.has(key));
       const estimate = estimateKey ? estimateById.get(estimateKey) : null;
@@ -1738,6 +1953,7 @@ const attachTrainRowAiEstimates = async (departures = []) => {
       };
     });
   } catch (error) {
+    // Log error and return original departures
     const { errorCode, message, statusCode } = classifyGeminiError(error);
     recordAirlabsFailure('train-row-estimate', message, statusCode, {
       count: trainsNeedingEstimates.length,
@@ -1746,6 +1962,7 @@ const attachTrainRowAiEstimates = async (departures = []) => {
   }
 };
 
+// Attach train segment estimates
 const attachTrainSegmentEstimates = (stops = [], distanceEstimate = {}) => {
   const segments = Array.isArray(distanceEstimate.segments) ? distanceEstimate.segments : [];
 
@@ -1765,6 +1982,7 @@ const attachTrainSegmentEstimates = (stops = [], distanceEstimate = {}) => {
   }));
 };
 
+// Filter train departures by date
 const filterTrainDeparturesByDate = (departures, { departureDate, arrivalDate }) =>
   departures.filter((departure) => {
     const matchesDepartureDate =
@@ -1774,12 +1992,16 @@ const filterTrainDeparturesByDate = (departures, { departureDate, arrivalDate })
     return matchesDepartureDate && matchesArrivalDate;
   });
 
+// Get station timetable endpoint
 const getStationTimetableEndpoint = ({ stationCode, departureDate }) =>
   departureDate
     ? `/train/station/${encodeURIComponent(stationCode)}/${encodeURIComponent(departureDate)}/00:00/timetable.json`
     : `/train/station_timetables/${encodeURIComponent(stationCode)}.json`;
+
+// Default train station query
 const DEFAULT_TRAIN_STATION_QUERY = 'London Euston';
 
+// Get destination stop from stops
 const getDestinationStop = (stops = [], destinationName = '') => {
   const normalizedDestinationName = normalizeText(destinationName).toLowerCase();
 
@@ -1790,7 +2012,9 @@ const getDestinationStop = (stops = [], destinationName = '') => {
   );
 };
 
+// Build train route estimate patch
 const buildTrainRouteEstimatePatch = async ({ train = {}, stops = [] }) => {
+  // Validate stops
   if (stops.length < 2) {
     return {
       distanceEstimate: buildUnavailableTrainDistanceEstimate('Not enough train stops were available for AI estimation.'),
@@ -1798,6 +2022,7 @@ const buildTrainRouteEstimatePatch = async ({ train = {}, stops = [] }) => {
     };
   }
 
+  // Estimate train distance
   return estimateTrainDistance({
     service: {
       operatorName: train.operatorName || train.operator,
@@ -1810,6 +2035,7 @@ const buildTrainRouteEstimatePatch = async ({ train = {}, stops = [] }) => {
   });
 };
 
+// Build train destination arrival fields
 const buildTrainDestinationArrivalFields = (destinationStop = {}, train = {}) => ({
   aimedArrivalTime: destinationStop.aimedArrivalTime || train.aimedArrivalTime,
   actualArrivalTime: destinationStop.actualArrivalTime || train.actualArrivalTime,
@@ -1819,17 +2045,20 @@ const buildTrainDestinationArrivalFields = (destinationStop = {}, train = {}) =>
   expectedArrivalDate: destinationStop.expectedArrivalDate || train.expectedArrivalDate,
 });
 
+// Get train destination arrival patch
 const getTrainDestinationArrivalPatch = async (train = {}, options = {}) => {
   const normalizedServiceIdentifier = normalizeText(train.serviceIdentifier || (train.trainUid ? `train_uid:${train.trainUid}` : ''));
   const normalizedServiceDate = normalizeText(train.serviceDate);
   const shouldEstimateRoute = options.estimateRoute !== false;
 
+  // Validate inputs
   if (!normalizedServiceIdentifier || !normalizedServiceDate) {
     return {};
   }
 
   let arrivalPatch = {};
 
+  // Try actual journey first if RID available
   if (train.actualRid) {
     try {
       const actualResponse = await getTransportApi(
@@ -1860,6 +2089,7 @@ const getTrainDestinationArrivalPatch = async (train = {}, options = {}) => {
     }
   }
 
+  // Fallback to service timetable
   try {
     const serviceResponse = await getTransportApi(
       `/train/service/${encodeURIComponent(normalizedServiceIdentifier)}/${encodeURIComponent(normalizedServiceDate)}/timetable.json`,
@@ -1888,6 +2118,7 @@ const getTrainDestinationArrivalPatch = async (train = {}, options = {}) => {
   }
 };
 
+// Enrich station departures with destination arrivals
 const enrichStationDeparturesWithDestinationArrivals = async (departures = []) => {
   const enrichedDepartures = await Promise.all(
     departures.map(async (departure) => ({
@@ -1910,6 +2141,7 @@ const getTrainStationTimetable = async ({ stationCode, stationQuery, departureDa
   const normalizedArrivalDate = normalizeText(arrivalDate);
 
   try {
+    // Resolve station
     const resolvedStation = await resolveTrainStation(normalizedStationQuery);
     const normalizedStationCode = resolvedStation.stationCode;
 
@@ -1917,6 +2149,7 @@ const getTrainStationTimetable = async ({ stationCode, stationQuery, departureDa
       return fallbackTrains(`No train station found for ${normalizedStationQuery}.`);
     }
 
+    // Fetch timetable
     const response = await getTransportApi(
       getStationTimetableEndpoint({ stationCode: normalizedStationCode, departureDate: normalizedDepartureDate }),
       {
@@ -1925,6 +2158,8 @@ const getTrainStationTimetable = async ({ stationCode, stationQuery, departureDa
       { stationQuery: normalizedStationQuery, stationCode: normalizedStationCode, departureDate, arrivalDate }
     );
     const data = response.data || {};
+    
+    // Normalize and filter departures
     const allDepartures = (data.departures?.all || []).map((departure, index) =>
       normalizeStationDeparture(departure, index, { date: data.date || normalizedDepartureDate })
     );
@@ -1932,7 +2167,11 @@ const getTrainStationTimetable = async ({ stationCode, stationQuery, departureDa
       departureDate: normalizedDepartureDate,
       arrivalDate: normalizedArrivalDate,
     });
+    
+    // Enrich with estimates
     const enrichedDepartures = await attachTrainRowAiEstimates(await enrichStationDeparturesWithDestinationArrivals(departures));
+    
+    // Build response
     const result = {
       available: enrichedDepartures.length > 0,
       message: enrichedDepartures.length > 0 ? 'Train station timetable loaded.' : 'No trains found for this station.',
@@ -1955,6 +2194,7 @@ const getTrainStationTimetable = async ({ stationCode, stationQuery, departureDa
 
     return result;
   } catch (error) {
+    // Handle errors and return fallback
     const { errorCode, message, statusCode } = classifyTransportApiError(error);
     recordTransportApiFailure('train-station-timetable', message, statusCode, {
       stationQuery: normalizedStationQuery,
@@ -1965,13 +2205,16 @@ const getTrainStationTimetable = async ({ stationCode, stationQuery, departureDa
   }
 };
 
+// Get train actual journey
 const getTrainActualJourney = async ({ actualRid }) => {
   const normalizedRid = normalizeText(actualRid);
 
+  // Validate input
   if (!normalizedRid) {
     return null;
   }
 
+  // Fetch actual journey
   const response = await getTransportApi(
     `/train/actual_journeys/${encodeURIComponent(normalizedRid)}.json`,
     {
@@ -1992,6 +2235,7 @@ const getTrainServiceTimetable = async ({ serviceIdentifier, trainUid, serviceDa
   const normalizedServiceIdentifier = normalizeText(serviceIdentifier || (trainUid ? `train_uid:${trainUid}` : ''));
   const normalizedServiceDate = normalizeText(serviceDate);
 
+  // Validate input
   if (!normalizedServiceIdentifier || !normalizedServiceDate) {
     return {
       available: false,
@@ -2001,6 +2245,7 @@ const getTrainServiceTimetable = async ({ serviceIdentifier, trainUid, serviceDa
   }
 
   try {
+    // Fetch service timetable and actual journey
     const [serviceResponse, performance] = await Promise.all([
       getTransportApi(
         `/train/service/${encodeURIComponent(normalizedServiceIdentifier)}/${encodeURIComponent(normalizedServiceDate)}/timetable.json`,
@@ -2012,10 +2257,14 @@ const getTrainServiceTimetable = async ({ serviceIdentifier, trainUid, serviceDa
         return null;
       }),
     ]);
+    
+    // Parse and normalize data
     const data = serviceResponse.data || {};
     const stops = (data.stops || []).map((stop, index) => normalizeServiceStop(stop, index, { date: data.date || normalizedServiceDate }));
     const performanceStops = performance?.stops || [];
     const visibleStops = performanceStops.length ? performanceStops : stops;
+    
+    // Build service summary
     const serviceSummary = {
       trainUid: normalizeText(data.train_uid || performance?.trainUid || normalizedServiceIdentifier.replace(/^train_uid:/i, '')),
       operatorName: normalizeText(data.operator_name || performance?.operatorName),
@@ -2023,10 +2272,14 @@ const getTrainServiceTimetable = async ({ serviceIdentifier, trainUid, serviceDa
       destinationName: normalizeText(data.destination_name || performance?.destinationName),
       date: normalizeText(data.date || performance?.date || normalizedServiceDate),
     };
+    
+    // Estimate distance and price
     const { distanceEstimate, priceEstimate } = await estimateTrainDistance({
       service: serviceSummary,
       stops: visibleStops,
     });
+    
+    // Attach segment estimates
     const stopsWithSegmentEstimates = attachTrainSegmentEstimates(stops.length ? stops : visibleStops, distanceEstimate);
     const performanceWithSegmentEstimates = performance
       ? {
@@ -2034,6 +2287,8 @@ const getTrainServiceTimetable = async ({ serviceIdentifier, trainUid, serviceDa
           stops: attachTrainSegmentEstimates(performanceStops, distanceEstimate),
         }
       : performance;
+    
+    // Build result
     const result = {
       available: visibleStops.length > 0,
       message: visibleStops.length > 0 ? 'Train service timetable loaded.' : 'No calling points found for this train.',
@@ -2066,6 +2321,7 @@ const getTrainServiceTimetable = async ({ serviceIdentifier, trainUid, serviceDa
 
     return result;
   } catch (error) {
+    // Handle errors and return fallback
     const { errorCode, message, statusCode } = classifyTransportApiError(error);
     recordTransportApiFailure('train-service-timetable', message, statusCode, {
       serviceIdentifier: normalizedServiceIdentifier,

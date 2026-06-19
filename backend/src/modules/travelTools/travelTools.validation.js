@@ -5,6 +5,7 @@
 const { body, param } = require('express-validator');
 const { priorityLevels } = require('./travelTools.constants');
 
+// MongoDB ObjectId validation rules
 const objectIdRule = param('id').isMongoId().withMessage('Invalid packing list id');
 const itemIdRule = param('itemId').isMongoId().withMessage('Invalid packing item id');
 const templateIdRule = param('templateId').isMongoId().withMessage('Invalid packing template id');
@@ -12,8 +13,14 @@ const documentTemplateIdRule = param('templateId').isMongoId().withMessage('Inva
 const documentIdRule = param('documentId').isMongoId().withMessage('Invalid travel document id');
 const fileIdRule = param('fileId').isMongoId().withMessage('Invalid travel document file id');
 const documentItemIdRule = param('itemId').isMongoId().withMessage('Invalid travel document item id');
+
+// Allowed document types
 const documentTypes = ['Passport', 'Visa', 'Insurance', 'Ticket', 'Booking', 'Custom'];
+
+// Allowed document item types
 const documentItemTypes = ['Passport', 'Visa', 'Insurance', 'Ticket', 'Booking', 'Transport', 'Health', 'Contact', 'Custom'];
+
+// Allowed MIME types for document uploads
 const documentMimeTypes = [
   'image/png',
   'image/jpeg',
@@ -25,6 +32,8 @@ const documentMimeTypes = [
   'application/vnd.ms-excel',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 ];
+
+// Factory function for packing item validation rules
 const itemRules = (path = '') => [
   body(`${path}name`).trim().isLength({ min: 1, max: 120 }).withMessage('Item name is required'),
   body(`${path}category`).optional().trim().isLength({ min: 1, max: 80 }).withMessage('Category must be 80 characters or fewer'),
@@ -33,6 +42,7 @@ const itemRules = (path = '') => [
   body(`${path}isPacked`).optional().isBoolean().withMessage('Packed status must be true or false'),
 ];
 
+// Validation rules for creating a packing list
 const createPackingListRules = [
   body('title').trim().isLength({ min: 1, max: 120 }).withMessage('Packing list title is required'),
   body('tripId').optional().isMongoId().withMessage('Invalid trip id'),
@@ -50,6 +60,7 @@ const createPackingListRules = [
   body('reminder.daysBeforeTrip').optional().isInt({ min: 0, max: 30 }),
 ];
 
+// Validation rules for updating a packing list
 const updatePackingListRules = [
   objectIdRule,
   body('title').optional().trim().isLength({ min: 1, max: 120 }),
@@ -68,11 +79,13 @@ const updatePackingListRules = [
   body('reminder.daysBeforeTrip').optional().isInt({ min: 0, max: 30 }),
 ];
 
+// Validation rules for adding an item
 const addItemRules = [
   objectIdRule,
   ...itemRules(),
 ];
 
+// Validation rules for updating an item
 const updateItemRules = [
   objectIdRule,
   itemIdRule,
@@ -83,6 +96,7 @@ const updateItemRules = [
   body('isPacked').optional().isBoolean().withMessage('Packed status must be true or false'),
 ];
 
+// Validation rules for duplicating a packing list
 const duplicatePackingListRules = [
   objectIdRule,
   body('title').optional().trim().isLength({ min: 1, max: 120 }),
@@ -92,12 +106,14 @@ const duplicatePackingListRules = [
   body('tripEndDate').optional().isISO8601(),
 ];
 
+// Validation rules for duplicating a travel document
 const duplicateTravelDocumentRules = [
   documentIdRule,
   body('name').optional().trim().isLength({ min: 1, max: 160 }).withMessage('Document name is required'),
   body('tripId').optional().isMongoId().withMessage('Invalid trip id'),
 ];
 
+// Validation rules for creating a template
 const createTemplateRules = [
   body('title').trim().isLength({ min: 1, max: 120 }).withMessage('Template title is required'),
   body('destination').optional().trim().isLength({ max: 120 }),
@@ -110,11 +126,13 @@ const createTemplateRules = [
   body('items.*.quantity').optional().isInt({ min: 1, max: 999 }),
 ];
 
+// Validation rules for updating a template
 const updateTemplateRules = [
   templateIdRule,
   ...createTemplateRules,
 ];
 
+// Validation rules for creating a travel document
 const createTravelDocumentRules = [
   body('name').trim().isLength({ min: 1, max: 160 }).withMessage('Document name is required'),
   body('type').optional().isIn(documentTypes).withMessage('Invalid document type'),
@@ -126,6 +144,7 @@ const createTravelDocumentRules = [
   body('items.*.uploadLabel').optional().trim().isLength({ max: 180 }),
 ];
 
+// Validation rules for updating a travel document
 const updateTravelDocumentRules = [
   documentIdRule,
   body('name').optional().trim().isLength({ min: 1, max: 160 }).withMessage('Document name is required'),
@@ -133,6 +152,7 @@ const updateTravelDocumentRules = [
   body('tripId').optional({ nullable: true }).isMongoId().withMessage('Invalid trip id'),
 ];
 
+// Validation rules for uploading files to a travel document
 const uploadTravelDocumentFilesRules = [
   documentIdRule,
   body('itemId').optional().isMongoId().withMessage('Invalid travel document item id'),
@@ -146,11 +166,13 @@ const uploadTravelDocumentFilesRules = [
     .withMessage('File content must be a supported base64 data URL'),
 ];
 
+// Validation rules for deleting a file from a travel document
 const deleteTravelDocumentFileRules = [
   documentIdRule,
   fileIdRule,
 ];
 
+// Validation rules for creating a document template
 const createDocumentTemplateRules = [
   body('name').trim().isLength({ min: 1, max: 120 }).withMessage('Template name is required'),
   body('documentType').optional().isIn(documentTypes).withMessage('Invalid document type'),
@@ -162,11 +184,13 @@ const createDocumentTemplateRules = [
   body('items.*.uploadLabel').optional().trim().isLength({ max: 180 }),
 ];
 
+// Validation rules for updating a document template
 const updateDocumentTemplateRules = [
   documentTemplateIdRule,
   ...createDocumentTemplateRules,
 ];
 
+// Validation rules for adding an item to a travel document
 const addTravelDocumentItemRules = [
   documentIdRule,
   body('name').trim().isLength({ min: 1, max: 140 }).withMessage('Document file name is required'),
@@ -174,10 +198,13 @@ const addTravelDocumentItemRules = [
   body('uploadLabel').optional().trim().isLength({ max: 180 }),
 ];
 
+// Validation rules for deleting an item from a travel document
 const deleteTravelDocumentItemRules = [
   documentIdRule,
   documentItemIdRule,
 ];
+
+// Export all validation rule sets
 module.exports = {
   addItemRules,
   addTravelDocumentItemRules,
