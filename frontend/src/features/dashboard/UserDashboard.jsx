@@ -3,6 +3,7 @@
  * Feature data comes from a dedicated hook, while each dashboard section renders through a focused component.
  */
 import DashboardOverview from './components/DashboardOverview';
+import DashboardDateRangeFilter from './components/DashboardDateRangeFilter';
 import DashboardPlaceLists from './components/DashboardPlaceLists';
 import DashboardReports from './components/DashboardReports';
 import DashboardStats from './components/DashboardStats';
@@ -16,6 +17,14 @@ function UserDashboard() {
   return (
     <section className="dashboard-page">
       <DashboardTopbar user={dashboard.user} />
+
+      <DashboardDateRangeFilter
+        dateRangeFilter={dashboard.dateRangeFilter}
+        hasDateRangeFilter={dashboard.hasDateRangeFilter}
+        onClear={dashboard.clearDateRangeFilter}
+        onDateChange={dashboard.setDateRangeFilter}
+      />
+
       <DashboardStats
         favoritesCount={dashboard.favoritesCount}
         totalVisitCount={dashboard.totalVisitCount}

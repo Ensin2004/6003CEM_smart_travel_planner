@@ -30,12 +30,49 @@ import {
 
 const chartColors = ['#0f9f89', '#2f6fed', '#f4a22c', '#9b6df3', '#0ea5b7', '#e05252'];
 
+const isRangeActive = ({ startDate, endDate }) => Boolean(startDate || endDate);
+
+const isDateInsideFilter = (dateValue, { startDate, endDate }) => {
+  if (!dateValue) return false;
+
+  const date = new Date(dateValue);
+  const start = startDate ? new Date(startDate) : null;
+  const end = endDate ? new Date(endDate) : null;
+  date.setHours(0, 0, 0, 0);
+  start?.setHours(0, 0, 0, 0);
+  end?.setHours(0, 0, 0, 0);
+
+  return (!start || date >= start) && (!end || date <= end);
+};
+
+const doesTripOverlapFilter = (trip, dateRangeFilter) => {
+  if (!isRangeActive(dateRangeFilter)) return true;
+
+  const tripStart = new Date(trip.startDate);
+  const tripEnd = new Date(trip.endDate);
+  const filterStart = dateRangeFilter.startDate ? new Date(dateRangeFilter.startDate) : null;
+  const filterEnd = dateRangeFilter.endDate ? new Date(dateRangeFilter.endDate) : null;
+  tripStart.setHours(0, 0, 0, 0);
+  tripEnd.setHours(0, 0, 0, 0);
+  filterStart?.setHours(0, 0, 0, 0);
+  filterEnd?.setHours(0, 0, 0, 0);
+
+  return (!filterEnd || tripStart <= filterEnd) && (!filterStart || tripEnd >= filterStart);
+};
+
+const getLatestVisitDate = (visits) =>
+  visits
+    .map((visit) => visit.visitedDate)
+    .filter(Boolean)
+    .sort((firstDate, secondDate) => new Date(secondDate) - new Date(firstDate))[0];
+
 export function useUserDashboard() {
   const { user } = useAuth();
   const [monthDate, setMonthDate] = useState(() => new Date());
   const [selectedDateKey, setSelectedDateKey] = useState(() => formatDateKey(new Date()));
   const [searchTerm, setSearchTerm] = useState('');
   const [visitedCategory, setVisitedCategory] = useState('all');
+  const [dateRangeFilter, setDateRangeFilter] = useState({ startDate: '', endDate: '' });
   const [openCategoryMenu, setOpenCategoryMenu] = useState('');
   const [activePlaceMenu, setActivePlaceMenu] = useState('');
   const [activeReport, setActiveReport] = useState('');
@@ -47,12 +84,55 @@ export function useUserDashboard() {
   const [tripStatus, setTripStatus] = useState('loading');
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState('');
+  const hasDateRangeFilter = isRangeActive(dateRangeFilter);
+
+  const updateDateRangeFilter = useCallback((field, value) => {
+    setDateRangeFilter((currentFilter) => {
+      const nextFilter = { ...currentFilter, [field]: value };
+
+      if (nextFilter.startDate && nextFilter.endDate && nextFilter.startDate > nextFilter.endDate) {
+        if (field === 'startDate') nextFilter.endDate = value;
+        else nextFilter.startDate = value;
+      }
+
+      return nextFilter;
+    });
+  }, []);
+
+  const clearDateRangeFilter = useCallback(() => {
+    setDateRangeFilter({ startDate: '', endDate: '' });
+  }, []);
+
+  const filteredTrips = useMemo(
+    () => trips.filter((trip) => doesTripOverlapFilter(trip, dateRangeFilter)),
+    [dateRangeFilter, trips]
+  );
+
+  const filteredVisitedPlaces = useMemo(() => {
+    if (!hasDateRangeFilter) return visitedPlaces;
+
+    return visitedPlaces
+      .map((place) => {
+        const filteredVisits = (place.visits || []).filter((visit) => isDateInsideFilter(visit.visitedDate, dateRangeFilter));
+        return {
+          ...place,
+          visits: filteredVisits,
+          latestVisitedDate: getLatestVisitDate(filteredVisits),
+        };
+      })
+      .filter((place) => place.visits.length);
+  }, [dateRangeFilter, hasDateRangeFilter, visitedPlaces]);
 
   const dayLookup = useMemo(
-    () => days.reduce((lookup, day) => ({ ...lookup, [day.date]: day.places || [] }), {}),
-    [days]
+    () => days.reduce((lookup, day) => {
+      if (hasDateRangeFilter && !isDateInsideFilter(day.date, dateRangeFilter)) return lookup;
+      return { ...lookup, [day.date]: day.places || [] };
+    }, {}),
+    [dateRangeFilter, days, hasDateRangeFilter]
   );
-  const visitedLookup = useMemo(() => buildVisitedLookup(visitedPlaces), [visitedPlaces]);
+
+  const visitedLookup = useMemo(() => buildVisitedLookup(filteredVisitedPlaces), [filteredVisitedPlaces]);
+
   const isDestinationVisited = useCallback((destination) => {
     const payload = getVisitedPlacePayload({
       item: destination,
@@ -66,21 +146,23 @@ export function useUserDashboard() {
     const destinationTitle = normalizeVisitText(destination.title || destination.name);
     const destinationAddress = normalizeVisitText(destination.address);
 
-    return visitedPlaces.some((place) => {
+    return filteredVisitedPlaces.some((place) => {
       const placeTitle = normalizeVisitText(place.title);
       const placeAddress = normalizeVisitText(place.address);
       return place.type === 'location' && placeTitle === destinationTitle && (!destinationAddress || placeAddress === destinationAddress);
     });
-  }, [visitedLookup, visitedPlaces]);
+  }, [filteredVisitedPlaces, visitedLookup]);
+
   const allTripDestinationRows = useMemo(() =>
-    trips.flatMap((trip) =>
+    filteredTrips.flatMap((trip) =>
       getTripDestinationPlaces(trip).map((destination) => ({
         ...destination,
         visited: isDestinationVisited(destination),
       }))
-    ), [isDestinationVisited, trips]);
+    ), [filteredTrips, isDestinationVisited]);
+
   const calendarTripRows = useMemo(() =>
-    trips.flatMap((trip) => {
+    filteredTrips.flatMap((trip) => {
       const destinations = getTripDestinationPlaces(trip);
       if (destinations.length) return destinations;
 
@@ -94,7 +176,8 @@ export function useUserDashboard() {
         tripId: trip._id,
         tripTitle: trip.title || 'Untitled trip',
       }];
-    }), [trips]);
+    }), [filteredTrips]);
+
   const tripDestinationLookup = useMemo(() => {
     const { start, end } = getMonthBounds(monthDate);
     return calendarTripRows.reduce((lookup, destination) => {
@@ -113,7 +196,9 @@ export function useUserDashboard() {
     }, {});
   }, [calendarTripRows, monthDate]);
   const calendarCells = useMemo(() => buildCalendarCells(monthDate, dayLookup, tripDestinationLookup), [dayLookup, monthDate, tripDestinationLookup]);
-  const tripGroups = useMemo(() => getTripStatusGroups(trips), [trips]);
+
+  const tripGroups = useMemo(() => getTripStatusGroups(filteredTrips), [filteredTrips]);
+
   const sortedUpcomingTrips = useMemo(
     () => [...tripGroups.active, ...tripGroups.upcoming].sort((firstTrip, secondTrip) => new Date(firstTrip.startDate) - new Date(secondTrip.startDate)),
     [tripGroups]
@@ -127,7 +212,8 @@ export function useUserDashboard() {
     [calendarTripRows, selectedDateKey]
   );
   const selectedVisits = dayLookup[selectedDateKey] || [];
-  const visitedPlaceRows = useMemo(() => visitedPlaces.map((place) => ({
+
+  const visitedPlaceRows = useMemo(() => filteredVisitedPlaces.map((place) => ({
     ...place,
     totalVisits: getVisitCount(place),
     datedVisits: getDatedVisitCount(place),
@@ -135,7 +221,8 @@ export function useUserDashboard() {
       .filter((visit) => !visit.visitedDate)
       .reduce((total, visit) => total + Number(visit.visitCount || 1), 0),
     latestVisitLabel: getLatestVisitLabel(place),
-  })), [visitedPlaces]);
+  })), [filteredVisitedPlaces]);
+
   const visitedCategories = useMemo(() => [
     'all',
     ...new Set(visitedPlaceRows.map((place) => getTypeLabel(place.type)).filter(Boolean)),
@@ -160,11 +247,18 @@ export function useUserDashboard() {
     () => allTripDestinationRows.filter((destination) => !destination.visited),
     [allTripDestinationRows]
   );
+
+  const filteredItineraryDestinationRows = useMemo(() => (
+    Object.values(tripItineraryDays)
+      .flat()
+      .filter((destination) => doesTripOverlapFilter(destination, dateRangeFilter))
+  ), [dateRangeFilter, tripItineraryDays]);
+
   const monthLabel = monthDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
-  const totalVisitCount = visitedPlaces.reduce((total, place) => total + getVisitCount(place), 0);
-  const uniquePlaceCount = visitedPlaces.length;
+  const totalVisitCount = filteredVisitedPlaces.reduce((total, place) => total + getVisitCount(place), 0);
+  const uniquePlaceCount = filteredVisitedPlaces.length;
   const placeToVisitCount = tripPlaceRows.length;
-  const tripsThisMonth = trips.filter((trip) => {
+  const tripsThisMonth = filteredTrips.filter((trip) => {
     const { start, end } = getMonthBounds(monthDate);
     return new Date(trip.startDate) <= end && new Date(trip.endDate) >= start;
   }).length;
@@ -185,7 +279,7 @@ export function useUserDashboard() {
     })),
   ], [placeRows, sortedUpcomingTrips]);
   const visitTypeRows = useMemo(() => {
-    const typeCounts = visitedPlaces.reduce((counts, place) => {
+    const typeCounts = filteredVisitedPlaces.reduce((counts, place) => {
       const type = getTypeLabel(place.type);
       return { ...counts, [type]: (counts[type] || 0) + getVisitCount(place) };
     }, {});
@@ -194,7 +288,8 @@ export function useUserDashboard() {
       .map(([label, value], index) => ({ label, value, color: chartColors[index % chartColors.length] }))
       .sort((firstRow, secondRow) => secondRow.value - firstRow.value)
       .slice(0, 4);
-  }, [visitedPlaces]);
+  }, [filteredVisitedPlaces]);
+
   const visitDonutSegments = useMemo(() => getDonutSegments(visitTypeRows), [visitTypeRows]);
   const visitedVsToVisitSegments = useMemo(() => getDonutSegments([
     { label: 'Visited', value: uniquePlaceCount, color: '#0f9f89' },
@@ -205,12 +300,11 @@ export function useUserDashboard() {
     : 0;
   const countryInsights = useMemo(() => {
     const visitedCountryRows = buildCountryRows([
-      ...visitedPlaces.map((place) => getPlaceCountry(place)),
+      ...filteredVisitedPlaces.map((place) => getPlaceCountry(place)),
       ...allTripDestinationRows.filter((destination) => destination.visited).map((destination) => destination.country),
     ]);
-    const itineraryDestinationRows = Object.values(tripItineraryDays).flat();
     const nextCountryRows = buildCountryRows(
-      [...allTripDestinationRows, ...itineraryDestinationRows]
+      [...allTripDestinationRows, ...filteredItineraryDestinationRows]
         .filter((destination) => !destination.visited)
         .sort((firstDestination, secondDestination) => new Date(firstDestination.startDate) - new Date(secondDestination.startDate))
         .map((destination) => destination.country || getPlaceCountry(destination))
@@ -230,15 +324,16 @@ export function useUserDashboard() {
       visitedCountryNames: visitedCountryRows.map((row) => row.label),
       nextCountryNames: nextCountryRows.map((row) => row.label),
     };
-  }, [allTripDestinationRows, tripItineraryDays, visitedPlaces]);
+  }, [allTripDestinationRows, filteredItineraryDestinationRows, filteredVisitedPlaces]);
+
   const monthlyTripCounts = useMemo(() => {
     const year = monthDate.getFullYear();
     return Array.from({ length: 12 }, (_, index) => {
       const monthStart = new Date(year, index, 1);
       const monthEnd = new Date(year, index + 1, 0);
-      return trips.filter((trip) => new Date(trip.startDate) <= monthEnd && new Date(trip.endDate) >= monthStart).length;
+      return filteredTrips.filter((trip) => new Date(trip.startDate) <= monthEnd && new Date(trip.endDate) >= monthStart).length;
     });
-  }, [monthDate, trips]);
+  }, [filteredTrips, monthDate]);
   const maxMonthlyTripCount = Math.max(...monthlyTripCounts, 1);
 
   useEffect(() => {
@@ -405,9 +500,12 @@ export function useUserDashboard() {
     activePlaceMenu,
     activeReport,
     calendarCells,
+    clearDateRangeFilter,
+    dateRangeFilter,
     error,
     favoritesCount: favorites.length,
     handleReportClick,
+    hasDateRangeFilter,
     countryInsights,
     handleVisitedPlaceAction,
     maxMonthlyTripCount,
@@ -425,6 +523,7 @@ export function useUserDashboard() {
     selectedDestinations,
     selectedVisits,
     setActivePlaceMenu,
+    setDateRangeFilter: updateDateRangeFilter,
     setOpenCategoryMenu,
     setSearchTerm,
     setSelectedDateKey,
