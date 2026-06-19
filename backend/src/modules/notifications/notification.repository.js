@@ -22,6 +22,25 @@ const findByUserId = (userId, sortDirection = 'desc') =>
   Notification.find({ userId, sentAt: { $exists: true } }).sort({ createdAt: sortDirection === 'asc' ? 1 : -1 });
 
 /**
+ * Finds a recently sent admin alert with the same grouping key.
+ * Used to prevent repeated operational emails for one ongoing incident.
+ *
+ * @param {Object} params - Lookup parameters
+ * @param {string} params.userId - Admin user ID
+ * @param {string} params.type - Notification type
+ * @param {string} params.alertKey - Stable alert grouping key
+ * @param {Date} params.since - Oldest createdAt date to consider recent
+ * @returns {Promise<Object|null>} Matching notification or null
+ */
+const findRecentAdminAlert = ({ userId, type, alertKey, since }) =>
+  Notification.findOne({
+    userId,
+    type,
+    'metadata.alertKey': alertKey,
+    createdAt: { $gte: since },
+  }).sort({ createdAt: -1 });
+
+/**
  * Counts unread notifications for a user.
  * Only counts notifications that have been sent.
  * 
@@ -95,6 +114,28 @@ const deletePendingPackingListReminder = (packingListId, userId) =>
 const deleteById = (id) => Notification.findByIdAndDelete(id);
 
 /**
+ * Records another matching admin alert without sending another notification/email.
+ *
+ * @param {string} id - Existing notification ID
+ * @param {Object} metadata - Latest repeated alert metadata
+ * @returns {Promise<Object|null>} Updated notification or null
+ */
+const recordAdminAlertDuplicate = (id, metadata = {}) =>
+  Notification.findByIdAndUpdate(
+    id,
+    {
+      $inc: { 'metadata.suppressedCount': 1 },
+      $set: {
+        'metadata.alertLastSeenAt': new Date(),
+        ...(metadata.apiLogId && { 'metadata.latestApiLogId': metadata.apiLogId }),
+        ...(metadata.requestId && { 'metadata.latestRequestId': metadata.requestId }),
+        ...(metadata.message && { 'metadata.latestMessage': metadata.message }),
+      },
+    },
+    { returnDocument: 'after' }
+  );
+
+/**
  * Saves an existing notification document.
  * @param {Object} notification - Notification document
  * @returns {Promise<Object>} Saved notification
@@ -107,9 +148,11 @@ module.exports = {
   deleteById,
   deletePendingByTripAndType,
   deletePendingPackingListReminder,
+  findRecentAdminAlert,
   findByUserId,
   findDueUnsent,
   markAllReadByUserId,
   markReadByIdAndUserId,
+  recordAdminAlertDuplicate,
   save,
 };

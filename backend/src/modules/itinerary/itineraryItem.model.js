@@ -62,6 +62,8 @@ const itineraryItemSchema = new mongoose.Schema(
     title: { type: String, required: true, trim: true, maxlength: 160 },          // Display name
     description: { type: String, trim: true, maxlength: 2000 },                  // Optional detailed notes
     location: { type: locationSchema, default: undefined },                      // Geographical data (optional)
+    imageUrl: { type: String, trim: true, maxlength: 2000 },                    // Primary place image cached at add/enrichment time
+    imageUrls: [{ type: String, trim: true, maxlength: 2000 }],                 // Additional place images cached to avoid repeated API calls
     scheduledDate: { type: Date },                                               // Which day this item occurs
     startTime: { type: String, trim: true },                                     // Optional start time (e.g., "14:00")
     endTime: { type: String, trim: true },                                       // Optional end time (e.g., "16:30")
