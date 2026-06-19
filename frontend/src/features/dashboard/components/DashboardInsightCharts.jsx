@@ -1,3 +1,5 @@
+const getPercent = (value, total) => (total ? Math.round((Number(value || 0) / total) * 100) : 0);
+
 function DonutChart({ rows }) {
   const total = rows.reduce((sum, row) => sum + Number(row.value || 0), 0);
   let offset = 25;
@@ -17,7 +19,9 @@ function DonutChart({ rows }) {
             stroke={row.color}
             strokeDasharray={`${length} ${100 - length}`}
             strokeDashoffset={offset}
-          />
+          >
+            <title>{`${row.label}: ${row.value} (${getPercent(row.value, total)}%)`}</title>
+          </circle>
         );
         offset -= length;
         return segment;
@@ -27,10 +31,12 @@ function DonutChart({ rows }) {
 }
 
 function Legend({ rows }) {
+  const total = rows.reduce((sum, row) => sum + Number(row.value || 0), 0);
+
   return (
     <div className="insight-legend">
       {rows.map((row) => (
-        <span key={row.label}>
+        <span key={row.label} title={`${row.label}: ${row.value} (${getPercent(row.value, total)}%)`}>
           <em style={{ background: row.color }} />
           {row.label}
           <strong>{row.value}</strong>
@@ -40,14 +46,17 @@ function Legend({ rows }) {
   );
 }
 
-function DashboardDonutCard({ detail, rows, title }) {
+function DashboardDonutCard({ detail, onViewReport, reportKey, rows, title }) {
   const total = rows.reduce((sum, row) => sum + Number(row.value || 0), 0);
 
   return (
     <article className="dashboard-card insight-card insight-donut-card">
       <div className="dashboard-card-heading">
         <h3>{title}</h3>
-        {detail ? <small>{detail}</small> : null}
+        <div>
+          {detail ? <small>{detail}</small> : null}
+          {reportKey && onViewReport ? <button type="button" onClick={() => onViewReport(reportKey)}>View Report</button> : null}
+        </div>
       </div>
       <div className="insight-donut-layout">
         <DonutChart rows={rows} />
@@ -58,18 +67,21 @@ function DashboardDonutCard({ detail, rows, title }) {
   );
 }
 
-function DashboardBarCard({ detail, labels, rows, title }) {
+function DashboardBarCard({ detail, labels, onViewReport, reportKey, rows, title }) {
   const maxValue = Math.max(...rows, 1);
 
   return (
     <article className="dashboard-card insight-card">
       <div className="dashboard-card-heading">
         <h3>{title}</h3>
-        {detail ? <small>{detail}</small> : null}
+        <div>
+          {detail ? <small>{detail}</small> : null}
+          {reportKey && onViewReport ? <button type="button" onClick={() => onViewReport(reportKey)}>View Report</button> : null}
+        </div>
       </div>
       <div className="insight-bar-chart">
         {rows.map((value, index) => (
-          <span key={labels[index]}>
+          <span key={labels[index]} title={`${labels[index]}: ${value}`}>
             <em style={{ height: `${value ? Math.max(8, (value / maxValue) * 100) : 3}%` }} />
             <small>{labels[index]}</small>
           </span>
@@ -79,18 +91,21 @@ function DashboardBarCard({ detail, labels, rows, title }) {
   );
 }
 
-function DashboardRankedBarCard({ detail, emptyText = 'No data yet.', rows, title }) {
+function DashboardRankedBarCard({ detail, emptyText = 'No data yet.', onViewReport, reportKey, rows, title }) {
   const maxValue = Math.max(...rows.map((row) => Number(row.value || 0)), 1);
 
   return (
     <article className="dashboard-card insight-card">
       <div className="dashboard-card-heading">
         <h3>{title}</h3>
-        {detail ? <small>{detail}</small> : null}
+        <div>
+          {detail ? <small>{detail}</small> : null}
+          {reportKey && onViewReport ? <button type="button" onClick={() => onViewReport(reportKey)}>View Report</button> : null}
+        </div>
       </div>
       <div className="insight-ranked-bars">
         {rows.length ? rows.map((row) => (
-          <div key={row.label}>
+          <div key={row.label} title={`${row.label}: ${row.value}`}>
             <span>{row.label}<strong>{row.value}</strong></span>
             <div><em style={{ width: `${(Number(row.value || 0) / maxValue) * 100}%`, background: row.color }} /></div>
           </div>
@@ -100,25 +115,31 @@ function DashboardRankedBarCard({ detail, emptyText = 'No data yet.', rows, titl
   );
 }
 
-function DashboardOverviewCharts({ chartData, monthlyTripCounts }) {
+function DashboardOverviewCharts({ chartData, monthlyTripCounts, onViewReport }) {
   const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
   return (
     <section className="dashboard-insight-grid compact">
       <DashboardDonutCard
         detail="Active, upcoming, and completed trips"
+        onViewReport={onViewReport}
+        reportKey="monthly"
         rows={chartData.tripStatusRows}
         title="Trip Status"
       />
       <DashboardBarCard
         detail="Trips by month in the selected year"
         labels={labels}
+        onViewReport={onViewReport}
+        reportKey="monthly"
         rows={monthlyTripCounts}
         title="Trip Timeline"
       />
       <DashboardBarCard
         detail="Visits logged by month"
         labels={labels}
+        onViewReport={onViewReport}
+        reportKey="categories"
         rows={chartData.monthlyVisitCounts}
         title="Visit Activity"
       />
@@ -126,26 +147,34 @@ function DashboardOverviewCharts({ chartData, monthlyTripCounts }) {
   );
 }
 
-function DashboardPlaceCharts({ chartData, visitTypeRows }) {
+function DashboardPlaceCharts({ chartData, onViewReport, visitTypeRows }) {
   return (
     <section className="dashboard-insight-grid">
       <DashboardDonutCard
         detail="Visited, planned, and saved place balance"
+        onViewReport={onViewReport}
+        reportKey="split"
         rows={chartData.planningRows}
         title="Place Portfolio"
       />
       <DashboardRankedBarCard
         detail="Most repeated visits"
+        onViewReport={onViewReport}
+        reportKey="categories"
         rows={chartData.topPlaceRows}
         title="Top Places"
       />
       <DashboardRankedBarCard
         detail="Where visited places come from"
+        onViewReport={onViewReport}
+        reportKey="categories"
         rows={chartData.placeSourceRows}
         title="Place Sources"
       />
       <DashboardRankedBarCard
         detail="Category count by visit volume"
+        onViewReport={onViewReport}
+        reportKey="categories"
         rows={visitTypeRows}
         title="Category Depth"
       />

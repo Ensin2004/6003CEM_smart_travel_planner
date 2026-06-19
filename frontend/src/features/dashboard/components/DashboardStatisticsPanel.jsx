@@ -25,7 +25,7 @@ function StatisticTile({ detail, icon: Icon, label, value }) {
 
 function ProgressRow({ label, value }) {
   return (
-    <div className="statistics-progress-row">
+    <div className="statistics-progress-row" title={`${label}: ${value}%`}>
       <span>{label}<strong>{value}%</strong></span>
       <div><em style={{ width: `${Math.min(100, Math.max(0, value))}%` }} /></div>
     </div>
@@ -35,6 +35,7 @@ function ProgressRow({ label, value }) {
 function DashboardStatisticsPanel({
   chartData,
   countryInsights,
+  onViewReport,
   monthlyTripCounts,
   userStatistics,
   visitTypeRows,
@@ -99,6 +100,7 @@ function DashboardStatisticsPanel({
         <article className="dashboard-card statistics-breakdown-card">
           <div className="dashboard-card-heading">
             <h3>Travel Health</h3>
+            <button type="button" onClick={() => onViewReport('split')}>View Report</button>
           </div>
           <ProgressRow label="Visited vs planned places" value={userStatistics.completionRate} />
           <ProgressRow label="Trip destination completion" value={userStatistics.tripDestinationProgress} />
@@ -109,6 +111,7 @@ function DashboardStatisticsPanel({
         <article className="dashboard-card statistics-breakdown-card">
           <div className="dashboard-card-heading">
             <h3>Category Mix</h3>
+            <button type="button" onClick={() => onViewReport('categories')}>View Report</button>
           </div>
           <div className="statistics-list">
             {visitTypeRows.length ? visitTypeRows.map((row) => (
@@ -124,11 +127,14 @@ function DashboardStatisticsPanel({
         <article className="dashboard-card statistics-breakdown-card">
           <div className="dashboard-card-heading">
             <h3>Trips by Month</h3>
-            <small>{userStatistics.busiestMonth.value ? `${userStatistics.busiestMonth.label} is busiest` : 'No trip activity yet'}</small>
+            <div>
+              <small>{userStatistics.busiestMonth.value ? `${userStatistics.busiestMonth.label} is busiest` : 'No trip activity yet'}</small>
+              <button type="button" onClick={() => onViewReport('monthly')}>View Report</button>
+            </div>
           </div>
           <div className="statistics-mini-bars">
             {monthlyTripCounts.map((count, index) => (
-              <span key={monthLabels[index]}>
+              <span key={monthLabels[index]} title={`${monthLabels[index]}: ${count} trip${count === 1 ? '' : 's'}`}>
                 <em style={{ height: `${count ? Math.max(12, (count / maxMonthlyCount) * 100) : 3}%` }} />
                 <small>{monthLabels[index]}</small>
               </span>
@@ -140,31 +146,43 @@ function DashboardStatisticsPanel({
       <div className="statistics-analytics-grid">
         <DashboardDonutCard
           detail="Trip lifecycle distribution"
+          onViewReport={onViewReport}
+          reportKey="monthly"
           rows={chartData.tripStatusRows}
           title="Trip Status Mix"
         />
         <DashboardDonutCard
           detail="Trips grouped by travel length"
+          onViewReport={onViewReport}
+          reportKey="monthly"
           rows={chartData.tripDurationRows}
           title="Duration Bands"
         />
         <DashboardDonutCard
           detail="Date quality of visit records"
+          onViewReport={onViewReport}
+          reportKey="categories"
           rows={chartData.visitDateRows}
           title="Visit Date Quality"
         />
         <DashboardRankedBarCard
           detail="Countries already visited or planned"
+          onViewReport={onViewReport}
+          reportKey="countries"
           rows={chartData.countryRows}
           title="Country Detail"
         />
         <DashboardRankedBarCard
           detail="Top repeat destinations"
+          onViewReport={onViewReport}
+          reportKey="categories"
           rows={chartData.topPlaceRows}
           title="Most Visited Places"
         />
         <DashboardRankedBarCard
           detail="Category performance by visit count"
+          onViewReport={onViewReport}
+          reportKey="categories"
           rows={visitTypeRows}
           title="Category Performance"
         />

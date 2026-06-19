@@ -309,6 +309,20 @@
   font-weight: 500;
 }
 
+.dashboard-card-heading > div:not(:first-child) {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 9px;
+}
+
+.dashboard-card-heading > div:not(:first-child) small {
+  color: #65758e;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .dashboard-card-heading a,
 .dashboard-card-heading button,
 .list-card-toolbar button,
@@ -993,6 +1007,13 @@
   color: #65758e;
   font-size: 12px;
   font-weight: 600;
+}
+
+.insight-card .dashboard-card-heading button,
+.statistics-breakdown-card .dashboard-card-heading button {
+  border: 0;
+  color: #0f9f89;
+  padding: 0;
 }
 
 .insight-donut-card {

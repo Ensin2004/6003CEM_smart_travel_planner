@@ -59,6 +59,7 @@ function UserDashboard() {
           />
           <DashboardOverviewCharts
             chartData={dashboard.dashboardChartData}
+            onViewReport={dashboard.handleReportClick}
             monthlyTripCounts={dashboard.monthlyTripCounts}
           />
           <DashboardReports
@@ -87,6 +88,7 @@ function UserDashboard() {
           <DashboardStatisticsPanel
             chartData={dashboard.dashboardChartData}
             countryInsights={dashboard.countryInsights}
+            onViewReport={dashboard.handleReportClick}
             monthlyTripCounts={dashboard.monthlyTripCounts}
             userStatistics={dashboard.userStatistics}
             visitTypeRows={dashboard.visitTypeRows}
@@ -116,6 +118,7 @@ function UserDashboard() {
         <>
           <DashboardPlaceCharts
             chartData={dashboard.dashboardChartData}
+            onViewReport={dashboard.handleReportClick}
             visitTypeRows={dashboard.visitTypeRows}
           />
           <DashboardPlaceLists
@@ -130,6 +133,24 @@ function UserDashboard() {
             setVisitedCategory={dashboard.setVisitedCategory}
             visitedCategories={dashboard.visitedCategories}
             visitedCategory={dashboard.visitedCategory}
+          />
+          <DashboardReports
+            activeReport={dashboard.activeReport}
+            countryInsights={dashboard.countryInsights}
+            handleReportClick={dashboard.handleReportClick}
+            maxMonthlyTripCount={dashboard.maxMonthlyTripCount}
+            monthDate={dashboard.monthDate}
+            monthlyTripCounts={dashboard.monthlyTripCounts}
+            placeRows={dashboard.placeRows}
+            placeToVisitCount={dashboard.placeToVisitCount}
+            totalVisitCount={dashboard.totalVisitCount}
+            tripGroups={dashboard.tripGroups}
+            tripPlaceRows={dashboard.tripPlaceRows}
+            uniquePlaceCount={dashboard.uniquePlaceCount}
+            visitDonutSegments={dashboard.visitDonutSegments}
+            visitedShare={dashboard.visitedShare}
+            visitedVsToVisitSegments={dashboard.visitedVsToVisitSegments}
+            visitTypeRows={dashboard.visitTypeRows}
           />
         </>
       ) : null}
