@@ -4,7 +4,7 @@
  */
 const express = require('express');
 const aiAssistantController = require('./aiAssistant.controller');
-const { chatRules, tripRecommendationRules } = require('./aiAssistant.validation');
+const { chatRules, tripRecommendationRules, weatherPlaceRankingRules } = require('./aiAssistant.validation');
 const { protect } = require('../../middleware/auth.middleware');
 const { thirdPartyApiRateLimit } = require('../../middleware/rateLimit.middleware');
 const validate = require('../../middleware/validate.middleware');
@@ -44,6 +44,15 @@ router.post(
   tripRecommendationRules,
   validate,
   aiAssistantController.getTripRecommendations
+);
+
+router.post(
+  '/weather-place-ranking',
+  protect,
+  thirdPartyApiRateLimit,
+  weatherPlaceRankingRules,
+  validate,
+  aiAssistantController.rankWeatherPlaces
 );
 
 module.exports = router;

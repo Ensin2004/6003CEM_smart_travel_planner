@@ -6,7 +6,7 @@
  * display, day management, place search, AI assistance, budget tracking,
  * weather integration, and map visualization.
  */
-import { useContext, useEffect, useMemo, useState } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Country, State } from 'country-state-city';
 import { toast } from 'react-toastify';
@@ -56,7 +56,7 @@ import {
   updateItineraryDay,
   updateItineraryItem,
 } from '../../api/itineraryApi';
-import { getTripAiRecommendations } from '../../api/aiAssistantApi';
+import { getTripAiRecommendations, getWeatherPlaceRanking } from '../../api/aiAssistantApi';
 import { searchAttractions, searchHotels, searchRestaurants, searchWeather } from '../../api/exploreApi';
 import { getTripSummary, updateTrip } from '../../api/tripApi';
 import {
@@ -177,6 +177,26 @@ const categoryTextSearchTerms = {
   attractions: ['attractions', 'things to do', 'museums', 'landmarks', 'parks'],
   hotels: ['hotels', 'places to stay', 'resorts', 'hostels', 'guest houses'],
   train: ['train stations', 'railway stations', 'bus stations', 'transport hubs', 'airports'],
+  shopping: ['shopping malls', 'shopping centres', 'markets', 'local shops'],
+};
+
+const weatherIdeaProfiles = {
+  rainy: {
+    label: 'Rain-friendly',
+    reason: 'AI-ranked for wet weather',
+  },
+  sunny: {
+    label: 'Sunny-day',
+    reason: 'AI-ranked for sunny weather',
+  },
+  cold: {
+    label: 'Cold-weather',
+    reason: 'AI-ranked for cold weather',
+  },
+  comfortable: {
+    label: 'Comfortable-weather',
+    reason: 'AI-ranked for today weather',
+  },
 };
 
 /**
@@ -203,6 +223,43 @@ const getUniquePlaces = (places = []) => {
   });
 
   return [...uniquePlaces.values()];
+};
+
+const getWeatherCandidateId = (place = {}, category = '', index = 0) =>
+  String(place.id || place.placeId || place.externalId || `${category}-${place.name || place.title}-${place.address || place.displayName || index}`)
+    .trim()
+    .slice(0, 160);
+
+const toWeatherCandidate = (place = {}, category = '', index = 0) => ({
+  id: getWeatherCandidateId(place, category, index),
+  name: String(place.name || place.title || place.displayName || 'Unnamed place').trim().slice(0, 180),
+  category: String(place.categoryId || place.category || category || '').trim().slice(0, 60),
+  address: String(place.address || place.displayName || '').trim().slice(0, 240),
+  summary: String(place.summary || place.description || place.type || '').trim().slice(0, 320),
+  rating: Number(place.rating) || undefined,
+  price: String(place.price || place.priceDetail?.display || '').trim().slice(0, 80),
+  hours: String(place.hours || place.hoursSummary || place.openState || '').trim().slice(0, 120),
+});
+
+const getWeatherIdeaProfile = (weatherGuidance, isEnabled) => {
+  if (!isEnabled || !weatherGuidance?.available) return null;
+  return weatherIdeaProfiles[weatherGuidance.mode] || weatherIdeaProfiles.comfortable;
+};
+
+const applyWeatherRanking = (places, category, profile) => {
+  if (!profile) return places;
+
+  return [...places]
+    .map((place) => ({
+      ...place,
+      weatherScore: Number(place.rating || 0) || 0,
+      weatherReason: profile.reason,
+      weatherProfileLabel: profile.label,
+    }))
+    .sort((firstPlace, secondPlace) =>
+      Number(secondPlace.weatherScore || 0) - Number(firstPlace.weatherScore || 0)
+      || Number(secondPlace.rating || 0) - Number(firstPlace.rating || 0)
+    );
 };
 
 /**
@@ -455,7 +512,7 @@ const getBrowserCurrentLocationCenter = () => new Promise((resolve) => {
  * Executes multiple queries and deduplicates results
  */
 const searchCategoryPlacesByText = async (category, locationQuery, options = {}) => {
-  const searchTerms = categoryTextSearchTerms[category] || [category];
+  const searchTerms = options.searchTerms || categoryTextSearchTerms[category] || [category];
   const trimmedLocation = String(locationQuery || '').trim();
 
   if (!trimmedLocation) return [];
@@ -637,6 +694,7 @@ function TripDetailsPage() {
   const [panelWidth, setPanelWidth] = useState(tripPanelMaxWidth);
   const [isAddingIdea, setIsAddingIdea] = useState(false);
   const [selectedIdeaSchedule, setSelectedIdeaSchedule] = useState({ startTime: '09:00', endTime: '10:00' });
+  const weatherRankingCacheRef = useRef(new Map());
   
   // Settings modal state
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -1023,6 +1081,99 @@ function TripDetailsPage() {
     ? `${Number(weather.windSpeed.max).toFixed(1)} ${weather.windSpeed.unit || 'km/h'} wind`
     : 'Wind unavailable';
   const WeatherModeIcon = weatherModeIcons[weatherGuidance?.mode] || CloudSun;
+  const activeWeatherIdeaProfile = getWeatherIdeaProfile(weatherGuidance, showWeatherHelp);
+  const weatherRecommendedCategories = activeWeatherIdeaProfile ? ideaCategories : [];
+  const addModeWeatherCategories = weatherRecommendedCategories
+    .filter((category) => itineraryGroups.some((group) => group.categoryId === category.id));
+
+  const rankIdeasForWeather = async (places, category, options = {}) => {
+    const profile = getWeatherIdeaProfile(weatherGuidance, showWeatherHelp);
+    const uniquePlaces = getUniquePlaces(places);
+
+    if (!profile || !weather?.available || !uniquePlaces.length) {
+      return uniquePlaces;
+    }
+
+    const placesWithCandidateIds = uniquePlaces.map((place, index) => ({
+      ...place,
+      weatherCandidateId: getWeatherCandidateId(place, category, index),
+    }));
+    const candidateIds = placesWithCandidateIds.map((place) => place.weatherCandidateId).join('|');
+    const cacheKey = JSON.stringify({
+      mode: weatherGuidance?.mode || '',
+      condition: weather?.condition || '',
+      date: activeDay?.date || '',
+      location: options.locationQuery || recommendationLocation || '',
+      category,
+      candidateIds,
+    });
+    const cachedRanking = weatherRankingCacheRef.current.get(cacheKey);
+
+    if (cachedRanking) return cachedRanking;
+
+    try {
+      const response = await getWeatherPlaceRanking({
+        weather: {
+          condition: weather.condition || '',
+          mode: weatherGuidance?.mode || '',
+          temperature: weatherTemperature,
+          precipitation: weatherRain,
+          wind: weatherWind,
+          travelTip: weather.travelTip || '',
+          placeTips: weatherGuidance?.placeTips || [],
+        },
+        trip: {
+          destination: trip?.destination || '',
+          country: trip?.country || '',
+        },
+        day: {
+          dayNumber: activeDay?.dayNumber,
+          location: getDayLocationQuery(activeDay, trip) || options.locationQuery || '',
+        },
+        category,
+        candidates: placesWithCandidateIds.map((place, index) => toWeatherCandidate({
+          ...place,
+          id: place.weatherCandidateId,
+        }, category, index)),
+      });
+      const ranking = response.data?.data?.ranking;
+
+      if (ranking?.available && Array.isArray(ranking.rankedPlaces) && ranking.rankedPlaces.length) {
+        const rankingMap = new Map(ranking.rankedPlaces.map((place, index) => [
+          place.id,
+          {
+            index,
+            score: Number(place.score) || 0,
+            reason: place.reason || ranking.summary || profile.reason,
+          },
+        ]));
+        const rankedPlaces = [...placesWithCandidateIds]
+          .map((place, index) => {
+            const rankedPlace = rankingMap.get(place.weatherCandidateId);
+            return {
+              ...place,
+              weatherScore: rankedPlace?.score ?? Number(place.rating || 0),
+              weatherReason: rankedPlace?.reason || profile.reason,
+              weatherProfileLabel: profile.label,
+              weatherRank: rankedPlace?.index ?? index + placesWithCandidateIds.length,
+            };
+          })
+          .sort((firstPlace, secondPlace) =>
+            Number(firstPlace.weatherRank || 0) - Number(secondPlace.weatherRank || 0)
+            || Number(secondPlace.weatherScore || 0) - Number(firstPlace.weatherScore || 0)
+          );
+
+        weatherRankingCacheRef.current.set(cacheKey, rankedPlaces);
+        return rankedPlaces;
+      }
+    } catch {
+      // Keep place search usable when AI quota/network is unavailable.
+    }
+
+    const fallbackRanking = applyWeatherRanking(placesWithCandidateIds, category, profile);
+    weatherRankingCacheRef.current.set(cacheKey, fallbackRanking);
+    return fallbackRanking;
+  };
 
   // Map and route computed values
   const activeDayMapCenter = activeDayNumber !== 'summary'
@@ -1171,11 +1322,15 @@ function TripDetailsPage() {
           limitPerTerm: 2,
           signal: controller.signal,
         }).catch(() => []);
-        const results = getUniquePlaces([...combinedResults, ...textResults]).slice(0, 3);
+        const results = (await rankIdeasForWeather(
+          getUniquePlaces([...combinedResults, ...textResults]),
+          group.categoryId,
+          { locationQuery: textLocationQuery }
+        )).slice(0, 3);
 
         const formattedIdeas = results.map((idea) => formatIdeaPlace({
             ...idea,
-            summary: idea.displayName || `${group.addLabel} near ${sourceLabel}`,
+            summary: idea.weatherReason || idea.displayName || `${group.addLabel} near ${sourceLabel}`,
           }, group.categoryId));
 
         return [
@@ -1209,7 +1364,7 @@ function TripDetailsPage() {
       isCancelled = true;
       controller.abort();
     };
-  }, [activeDay, activeDayNumber, activeTab, recommendationLocation, trip]);
+  }, [activeDay, activeDayNumber, activeTab, recommendationLocation, showWeatherHelp, trip, weather, weatherGuidance]);
 
   /**
    * Handles visited place changes by updating the visited places list
@@ -1517,13 +1672,15 @@ function TripDetailsPage() {
    * Loads place ideas based on category and search term
    * Queries multiple APIs and deduplicates results
    */
-  const loadIdeas = async (category = ideaCategory, searchTerm = ideaSearch) => {
+  const loadIdeas = async (category = '', searchTerm = ideaSearch) => {
     if (!trip) return;
     setIdeaStatus('loading');
-    setIdeaCategory(category);
     setSelectedIdea(null);
 
     try {
+      const weatherProfile = getWeatherIdeaProfile(weatherGuidance, showWeatherHelp && !searchTerm?.trim());
+      const activeCategory = category || ideaCategory;
+      setIdeaCategory(activeCategory);
       const ideaAnchorDay = activeDayNumber === 'summary' ? days[0] : activeDay;
       const explicitSearchTerm = searchTerm?.trim();
       let center = null;
@@ -1545,24 +1702,31 @@ function TripDetailsPage() {
       }
 
       const [exploreResults, providerResults, mapResults] = await Promise.all([
-        searchExploreCategoryPlaces(category, locationQuery, { limit: 12 }).catch(() => []),
-        searchProviderCategoryPlaces(category, center, locationQuery, { limit: 12 }).catch(() => []),
+        searchExploreCategoryPlaces(activeCategory, locationQuery, { limit: 12 }).catch(() => []),
+        searchProviderCategoryPlaces(activeCategory, center, locationQuery, { limit: 12 }).catch(() => []),
         center
-          ? searchOpenStreetMapCategoryPlaces(category, center, { limit: 12, radius: 0.35 }).catch(() => [])
+          ? searchOpenStreetMapCategoryPlaces(activeCategory, center, { limit: 12, radius: 0.35 }).catch(() => [])
           : Promise.resolve([]),
       ]);
       const combinedResults = getUniquePlaces([...exploreResults, ...providerResults, ...mapResults]);
       const textResults = combinedResults.length >= 6
         ? []
-        : await searchCategoryPlacesByText(category, locationQuery, {
+        : await searchCategoryPlacesByText(activeCategory, locationQuery, {
         limit: 12,
         limitPerTerm: 4,
       }).catch(() => []);
-      const results = getUniquePlaces([...combinedResults, ...textResults]).slice(0, 12);
+      const results = (weatherProfile
+        ? await rankIdeasForWeather(
+          getUniquePlaces([...combinedResults, ...textResults]),
+          activeCategory,
+          { locationQuery }
+        )
+        : getUniquePlaces([...combinedResults, ...textResults])
+      ).slice(0, 12);
       const formattedIdeas = results.map((idea) => formatIdeaPlace({
         ...idea,
-        summary: idea.displayName || `${category} near ${locationQuery}`,
-      }, category));
+        summary: idea.weatherReason || idea.displayName || `${activeCategory} near ${locationQuery}`,
+      }, activeCategory));
       const nextIdeas = await enrichIdeaPlacesWithDetails(formattedIdeas);
       setIdeas(nextIdeas);
       setSelectedIdea(null);
@@ -2166,6 +2330,28 @@ function TripDetailsPage() {
                       {(weatherGuidance?.placeTips || []).slice(0, 1).map((tip) => <span key={tip}>{tip}</span>)}
                     </div>
                   ) : null}
+                  {addModeWeatherCategories.length ? (
+                    <div className="trip-weather-shortcuts" aria-label="Weather-aware place categories">
+                      {addModeWeatherCategories.map((category) => {
+                        const CategoryIcon = category.icon;
+                        return (
+                          <button
+                            type="button"
+                            key={category.id}
+                            onClick={() => {
+                              if (addMode) {
+                                setAddMode(itineraryGroups.find((group) => group.categoryId === category.id) || addMode);
+                              }
+                              loadIdeas(category.id, '');
+                            }}
+                          >
+                            <CategoryIcon size={13} aria-hidden="true" />
+                            {category.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
                 </section>
               ) : null}
 
@@ -2206,6 +2392,7 @@ function TripDetailsPage() {
                           </div>
                         </div>
                         <div className="trip-idea-meta">
+                          {idea.weatherReason ? <span className="trip-weather-match"><WeatherModeIcon size={12} aria-hidden="true" />{idea.weatherReason}</span> : null}
                           <span><Star size={12} aria-hidden="true" />{idea.rating && idea.rating !== 'N/A' ? `${Number(idea.rating).toFixed(1)} rating` : 'No rating yet'}</span>
                           {idea.reviews ? <span>{Number(idea.reviews) ? `${Number(idea.reviews).toLocaleString()} reviews` : idea.reviews}</span> : null}
                           <span><Clock3 size={12} aria-hidden="true" />{idea.openState || idea.hours || 'Hours unavailable'}</span>
@@ -2892,6 +3079,41 @@ function TripDetailsPage() {
                 </button>
               </form>
 
+              {showWeatherHelp && weather?.available && activeWeatherIdeaProfile ? (
+                <section className="trip-weather-helper" aria-label="Weather-aware recommendations">
+                  <div className="trip-weather-helper-heading">
+                    <span><WeatherModeIcon size={16} aria-hidden="true" /></span>
+                    <div>
+                      <strong>{activeWeatherIdeaProfile.label} recommendations</strong>
+                      <small>{weatherGuidance?.placeTips?.[0] || weather.travelTip || 'Places are ranked for today weather.'}</small>
+                    </div>
+                    <button className="trip-weather-hide" type="button" onClick={() => setShowWeatherHelp(false)}>
+                      Default
+                    </button>
+                  </div>
+                  <div className="trip-weather-shortcuts" aria-label="Weather-aware place categories">
+                    {weatherRecommendedCategories.map((category) => {
+                      const CategoryIcon = category.icon;
+                      return (
+                        <button
+                          type="button"
+                          key={category.id}
+                          onClick={() => {
+                            if (ideaAddMode) {
+                              setIdeaAddMode(itineraryGroups.find((group) => group.categoryId === category.id) || null);
+                            }
+                            loadIdeas(category.id, '');
+                          }}
+                        >
+                          <CategoryIcon size={13} aria-hidden="true" />
+                          {category.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              ) : null}
+
               <div className="trip-idea-filters" aria-label="Idea categories">
                 {ideaCategories.map((category) => {
                   const CategoryIcon = category.icon;
@@ -2951,6 +3173,7 @@ function TripDetailsPage() {
                           </div>
                         </div>
                         <div className="trip-idea-meta">
+                          {idea.weatherReason ? <span className="trip-weather-match"><WeatherModeIcon size={12} aria-hidden="true" />{idea.weatherReason}</span> : null}
                           <span><Star size={12} aria-hidden="true" />{idea.rating && idea.rating !== 'N/A' ? `${Number(idea.rating).toFixed(1)} rating` : 'No rating yet'}</span>
                           {idea.reviews ? <span>{Number(idea.reviews) ? `${Number(idea.reviews).toLocaleString()} reviews` : idea.reviews}</span> : null}
                           <span><Clock3 size={12} aria-hidden="true" />{idea.openState || idea.hours || 'Hours unavailable'}</span>

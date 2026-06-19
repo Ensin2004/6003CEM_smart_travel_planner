@@ -1574,6 +1574,12 @@
   font-weight: 650;
 }
 
+.trip-weather-match {
+  border-color: #bae6fd;
+  background: #f0f9ff;
+  color: #0369a1;
+}
+
 /**
  * Compact variant of weather helper with reduced spacing
  */

@@ -13,6 +13,10 @@ const dailyUsage = {
   date: '', // Current tracking date (YYYY-MM-DD)
   count: 0, // Number of requests made today
 };
+const geminiDailyUsage = {
+  date: '',
+  count: 0,
+};
 
 /**
  * Gets today's date in YYYY-MM-DD format for daily quota tracking.
@@ -43,6 +47,23 @@ const consumeDailyQuota = () => {
 
   // Increment counter and allow the request
   dailyUsage.count += 1;
+  return true;
+};
+
+const consumeGeminiDailyQuota = () => {
+  const today = getTodayKey();
+  const dailyLimit = Math.max(Number(env.geminiDailyLimit) || 100, 0);
+
+  if (geminiDailyUsage.date !== today) {
+    geminiDailyUsage.date = today;
+    geminiDailyUsage.count = 0;
+  }
+
+  if (geminiDailyUsage.count >= dailyLimit) {
+    return false;
+  }
+
+  geminiDailyUsage.count += 1;
   return true;
 };
 
@@ -88,6 +109,18 @@ const classifyGroqError = (error) => {
       : 'Groq chat is busy right now. Please try again later.',
     timeoutMessage: 'Groq chat took too long. Please try again.',
     unavailableMessage: 'Groq chat is temporarily unavailable.',
+  });
+};
+
+const classifyGeminiError = (error) => {
+  return classifyExternalApiError(error, {
+    invalidApiKeyMessage: 'Gemini API key is invalid or unauthorized.',
+    networkMessage: 'Gemini ranking could not be reached. Please try again.',
+    rateLimitMessage: error.isDailyLimit
+      ? 'Daily Gemini ranking limit reached. Please try again tomorrow.'
+      : 'Gemini ranking is busy right now. Please try again later.',
+    timeoutMessage: 'Gemini ranking took too long. Please try again.',
+    unavailableMessage: 'Gemini ranking is temporarily unavailable.',
   });
 };
 
@@ -165,6 +198,56 @@ const normalizeTripRecommendations = (result = {}) => ({
   lastUpdated: new Date().toISOString(),
 });
 
+const normalizeWeatherPlaceRanking = (result = {}, candidates = []) => {
+  const candidateIds = new Set(candidates.map((candidate) => candidate.id));
+  const rankedPlaces = (Array.isArray(result.rankedPlaces) ? result.rankedPlaces : [])
+    .map((place) => ({
+      id: String(place.id || '').trim(),
+      score: Math.max(0, Math.min(100, Number(place.score) || 0)),
+      reason: String(place.reason || '').trim().slice(0, 180),
+    }))
+    .filter((place) => candidateIds.has(place.id));
+  const usedIds = new Set(rankedPlaces.map((place) => place.id));
+
+  candidates.forEach((candidate) => {
+    if (!usedIds.has(candidate.id)) {
+      rankedPlaces.push({
+        id: candidate.id,
+        score: Number(candidate.rating || 0) * 10,
+        reason: '',
+      });
+    }
+  });
+
+  return {
+    available: true,
+    provider: result.provider || 'groq',
+    summary: String(result.summary || 'Ranked by AI for the day weather.').trim().slice(0, 220),
+    rankedPlaces,
+    lastUpdated: new Date().toISOString(),
+  };
+};
+
+const weatherRankingSchema = {
+  type: 'object',
+  properties: {
+    summary: { type: 'string' },
+    rankedPlaces: {
+      type: 'array',
+      items: {
+        type: 'object',
+        properties: {
+          id: { type: 'string' },
+          score: { type: 'number' },
+          reason: { type: 'string' },
+        },
+        required: ['id', 'score', 'reason'],
+      },
+    },
+  },
+  required: ['summary', 'rankedPlaces'],
+};
+
 /**
  * Builds the system prompt for trip recommendation requests.
  * Includes comprehensive trip context, planned places, and conversation history.
@@ -198,6 +281,149 @@ Conversation history:
 ${history.map((message) => `${message.role}: ${message.text}`).join('\n') || 'No previous messages'}
 User request: ${prompt}
 `;
+
+const buildWeatherPlaceRankingPrompt = ({ weather, trip, day, category, candidates }) => `
+You are Triply's weather-aware travel planner.
+Rank only the candidate places provided by ID. Do not add new places and do not change IDs.
+Prefer places that fit the weather, day context, travel comfort, opening/hours clues, and practical shelter or outdoor suitability.
+Return JSON only with this exact shape:
+{
+  "summary": "One concise explanation of the recommendation logic",
+  "rankedPlaces": [
+    {
+      "id": "candidate id exactly as provided",
+      "score": 0,
+      "reason": "Short user-facing reason this place fits the weather"
+    }
+  ]
+}
+Return every candidate once, ordered from best to least suitable. Score must be 0 to 100.
+
+Weather:
+${JSON.stringify(weather || {})}
+Trip:
+${JSON.stringify(trip || {})}
+Day:
+${JSON.stringify(day || {})}
+Requested category: ${category || 'any'}
+Candidates:
+${JSON.stringify(candidates)}
+`;
+
+const parseGeminiJson = (response) => {
+  const text = response.data?.candidates?.[0]?.content?.parts?.[0]?.text;
+  if (!text) {
+    throw new Error('Gemini returned an empty response');
+  }
+
+  return JSON.parse(text);
+};
+
+const buildUnavailableWeatherRanking = (summary, errorCode, provider = '') => ({
+  available: false,
+  provider,
+  summary,
+  errorCode,
+  rankedPlaces: [],
+  lastUpdated: new Date().toISOString(),
+});
+
+const requestGroqWeatherRanking = async ({ weather, trip, day, category, candidates }) => {
+  if (!env.groqApiKey || env.nodeEnv === 'test') {
+    return buildUnavailableWeatherRanking('Groq weather ranking is not configured yet.', 'INVALID_API_KEY', 'groq');
+  }
+
+  if (!consumeDailyQuota()) {
+    return buildUnavailableWeatherRanking('Daily Groq AI limit reached. Trying Gemini instead.', 'RATE_LIMIT_EXCEEDED', 'groq');
+  }
+
+  try {
+    const response = await axios.post(
+      'https://api.groq.com/openai/v1/chat/completions',
+      {
+        model: env.groqModel,
+        messages: [
+          {
+            role: 'user',
+            content: buildWeatherPlaceRankingPrompt({
+              weather,
+              trip,
+              day,
+              category,
+              candidates,
+            }),
+          },
+        ],
+        temperature: 0.2,
+        max_completion_tokens: 1800,
+        response_format: { type: 'json_object' },
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${env.groqApiKey}`,
+        },
+        timeout: 25000,
+      }
+    );
+
+    return normalizeWeatherPlaceRanking({ ...extractJson(response), provider: 'groq' }, candidates);
+  } catch (error) {
+    const { errorCode, message, statusCode } = classifyGroqError(error);
+    recordAiChatFailure(message, statusCode, { page: 'trip-details', category, provider: 'groq' }, errorCode);
+    return buildUnavailableWeatherRanking(message, errorCode, 'groq');
+  }
+};
+
+const requestGeminiWeatherRanking = async ({ weather, trip, day, category, candidates }) => {
+  if (!env.geminiApiKey || env.nodeEnv === 'test') {
+    return buildUnavailableWeatherRanking('Gemini weather ranking is not configured yet.', 'INVALID_API_KEY', 'gemini');
+  }
+
+  if (!consumeGeminiDailyQuota()) {
+    return buildUnavailableWeatherRanking('Daily Gemini AI limit reached.', 'RATE_LIMIT_EXCEEDED', 'gemini');
+  }
+
+  try {
+    const response = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/${env.geminiModel}:generateContent`,
+      {
+        contents: [
+          {
+            parts: [{
+              text: buildWeatherPlaceRankingPrompt({
+                weather,
+                trip,
+                day,
+                category,
+                candidates,
+              }),
+            }],
+          },
+        ],
+        generationConfig: {
+          temperature: 0.2,
+          maxOutputTokens: 1800,
+          responseMimeType: 'application/json',
+          responseJsonSchema: weatherRankingSchema,
+        },
+      },
+      {
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': env.geminiApiKey,
+        },
+        timeout: 25000,
+      }
+    );
+
+    return normalizeWeatherPlaceRanking({ ...parseGeminiJson(response), provider: 'gemini' }, candidates);
+  } catch (error) {
+    const { errorCode, message, statusCode } = classifyGeminiError(error);
+    recordAiChatFailure(message, statusCode, { page: 'trip-details', category, provider: 'gemini' }, errorCode);
+    return buildUnavailableWeatherRanking(message, errorCode, 'gemini');
+  }
+};
 
 /**
  * Sends a page-aware user prompt to the configured Groq chat model.
@@ -339,4 +565,50 @@ const getTripRecommendations = async ({ prompt, trip, plannedPlaces, history = [
   }
 };
 
-module.exports = { chat, getTripRecommendations };
+const rankWeatherPlaces = async ({ weather, trip, day, category, candidates = [] }) => {
+  const safeCandidates = candidates
+    .slice(0, 40)
+    .map((candidate) => ({
+      id: String(candidate.id || '').trim(),
+      name: String(candidate.name || '').trim(),
+      category: String(candidate.category || category || '').trim(),
+      address: String(candidate.address || '').trim(),
+      summary: String(candidate.summary || '').trim(),
+      rating: Number(candidate.rating) || undefined,
+      price: String(candidate.price || '').trim(),
+      hours: String(candidate.hours || '').trim(),
+    }))
+    .filter((candidate) => candidate.id && candidate.name);
+
+  if (!safeCandidates.length) {
+    return buildUnavailableWeatherRanking('No places were available to rank.', 'NO_CANDIDATES');
+  }
+
+  const groqRanking = await requestGroqWeatherRanking({
+    weather,
+    trip,
+    day,
+    category,
+    candidates: safeCandidates,
+  });
+
+  if (groqRanking.available) return groqRanking;
+
+  const geminiRanking = await requestGeminiWeatherRanking({
+    weather,
+    trip,
+    day,
+    category,
+    candidates: safeCandidates,
+  });
+
+  return geminiRanking.available
+    ? geminiRanking
+    : {
+      ...geminiRanking,
+      summary: `${groqRanking.summary} ${geminiRanking.summary}`.trim(),
+      errorCode: geminiRanking.errorCode || groqRanking.errorCode,
+    };
+};
+
+module.exports = { chat, getTripRecommendations, rankWeatherPlaces };

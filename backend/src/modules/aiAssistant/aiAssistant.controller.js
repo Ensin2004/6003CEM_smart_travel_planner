@@ -43,4 +43,16 @@ const getTripRecommendations = catchAsync(async (req, res) => {
   sendSuccess(res, 200, { recommendations });
 });
 
-module.exports = { chat, getTripRecommendations };
+const rankWeatherPlaces = catchAsync(async (req, res) => {
+  const ranking = await aiAssistantService.rankWeatherPlaces({
+    weather: req.body.weather || {},
+    trip: req.body.trip || {},
+    day: req.body.day || {},
+    category: req.body.category || '',
+    candidates: req.body.candidates || [],
+  });
+
+  sendSuccess(res, 200, { ranking });
+});
+
+module.exports = { chat, getTripRecommendations, rankWeatherPlaces };

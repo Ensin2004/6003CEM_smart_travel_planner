@@ -12,6 +12,44 @@ const ApiLog = require('./apiLog.model');
 const create = (data) => ApiLog.create(data);
 
 /**
+ * Finds a recent repeated operational log by grouping key.
+ * @param {Object} params - Lookup parameters
+ * @param {string} params.logKey - Stable repeated-event grouping key
+ * @param {Date} params.since - Oldest last occurrence to consider recent
+ * @returns {Promise<Object|null>} Matching log document or null
+ */
+const findRecentRepeatedEvent = ({ logKey, since }) =>
+  ApiLog.findOne({
+    logKey,
+    lastOccurredAt: { $gte: since },
+  }).sort({ lastOccurredAt: -1 });
+
+/**
+ * Updates an existing repeated operational log with the latest occurrence.
+ * @param {string} id - Existing API log ID
+ * @param {Object} data - Latest occurrence data
+ * @returns {Promise<Object|null>} Updated log document
+ */
+const recordRepeatedEvent = (id, data = {}) =>
+  ApiLog.findByIdAndUpdate(
+    id,
+    {
+      $inc: { occurrenceCount: 1 },
+      $set: {
+        lastOccurredAt: data.lastOccurredAt || new Date(),
+        requestId: data.requestId,
+        message: data.message,
+        severity: data.severity,
+        status: data.status,
+        statusCode: data.statusCode,
+        ...(data.userId && { userId: data.userId }),
+        ...(data.metadata && { metadata: data.metadata }),
+      },
+    },
+    { returnDocument: 'after' }
+  );
+
+/**
  * Retrieves the most recent logs with a configurable limit.
  * @param {number} limit - Maximum number of logs to return (default: 50)
  * @returns {Promise<Array>} Array of log documents (plain JavaScript objects)
@@ -31,7 +69,7 @@ const findRecent = (limit = 50) => ApiLog.find().sort({ createdAt: -1 }).limit(l
 const findMany = ({ filter, limit, page }) =>
   ApiLog.find(filter)
     .populate('userId', 'name email role') // Populate user reference with selected fields
-    .sort({ createdAt: -1 }) // Newest logs first
+    .sort({ lastOccurredAt: -1, createdAt: -1 }) // Newest represented event first
     .skip((page - 1) * limit) // Offset for pagination
     .limit(limit)
     .lean();
@@ -42,6 +80,27 @@ const findMany = ({ filter, limit, page }) =>
  * @returns {Promise<number>} Document count
  */
 const countMany = (filter) => ApiLog.countDocuments(filter);
+
+/**
+ * Sums represented occurrences for logs matching a filter.
+ * Existing older rows without occurrenceCount count as one occurrence.
+ *
+ * @param {Object} filter - MongoDB filter conditions
+ * @returns {Promise<number>} Total represented occurrence count
+ */
+const sumOccurrences = async (filter) => {
+  const [result] = await ApiLog.aggregate([
+    { $match: filter },
+    {
+      $group: {
+        _id: null,
+        count: { $sum: { $ifNull: ['$occurrenceCount', 1] } },
+      },
+    },
+  ]);
+
+  return result?.count || 0;
+};
 
 /**
  * Counts failed API events (status 'fail' or 'error').
@@ -62,7 +121,29 @@ const countByStatus = (status) => ApiLog.countDocuments({ status });
  * @param {Date} since - Earliest creation date to include
  * @returns {Promise<number>} Count of matching logs
  */
-const countSince = (filter, since) => ApiLog.countDocuments({ ...filter, createdAt: { $gte: since } });
+const countSince = (filter, since) =>
+  ApiLog.countDocuments({
+    ...filter,
+    $or: [
+      { lastOccurredAt: { $gte: since } },
+      { lastOccurredAt: { $exists: false }, createdAt: { $gte: since } },
+    ],
+  });
+
+/**
+ * Sums represented occurrences for logs since a date.
+ * @param {Object} filter - MongoDB filter conditions
+ * @param {Date} since - Earliest creation date to include
+ * @returns {Promise<number>} Total represented occurrence count
+ */
+const sumOccurrencesSince = (filter, since) =>
+  sumOccurrences({
+    ...filter,
+    $or: [
+      { lastOccurredAt: { $gte: since } },
+      { lastOccurredAt: { $exists: false }, createdAt: { $gte: since } },
+    ],
+  });
 
 /**
  * Aggregates log counts grouped by category.
@@ -72,7 +153,7 @@ const countSince = (filter, since) => ApiLog.countDocuments({ ...filter, created
 const aggregateCategoryCounts = (filter) =>
   ApiLog.aggregate([
     { $match: filter },
-    { $group: { _id: '$category', count: { $sum: 1 } } },
+    { $group: { _id: '$category', count: { $sum: { $ifNull: ['$occurrenceCount', 1] } } } },
     { $sort: { count: -1 } },
   ]);
 
@@ -84,7 +165,7 @@ const aggregateCategoryCounts = (filter) =>
 const aggregateStatusCounts = (filter) =>
   ApiLog.aggregate([
     { $match: filter },
-    { $group: { _id: '$status', count: { $sum: 1 } } },
+    { $group: { _id: '$status', count: { $sum: { $ifNull: ['$occurrenceCount', 1] } } } },
     { $sort: { count: -1 } },
   ]);
 
@@ -96,7 +177,7 @@ const aggregateStatusCounts = (filter) =>
 const aggregateSeverityCounts = (filter) =>
   ApiLog.aggregate([
     { $match: filter },
-    { $group: { _id: '$severity', count: { $sum: 1 } } },
+    { $group: { _id: '$severity', count: { $sum: { $ifNull: ['$occurrenceCount', 1] } } } },
     { $sort: { count: -1 } },
   ]);
 
@@ -113,14 +194,22 @@ const aggregateDailyCounts = (filter, days = 7) => {
   since.setHours(0, 0, 0, 0); // Set to start of day for consistent grouping
 
   return ApiLog.aggregate([
-    { $match: { ...filter, createdAt: { ...(filter.createdAt || {}), $gte: since } } },
+    {
+      $match: {
+        ...filter,
+        $or: [
+          { lastOccurredAt: { $gte: since } },
+          { lastOccurredAt: { $exists: false }, createdAt: { ...(filter.createdAt || {}), $gte: since } },
+        ],
+      },
+    },
     {
       $group: {
         _id: {
-          date: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt' } },
+          date: { $dateToString: { format: '%Y-%m-%d', date: { $ifNull: ['$lastOccurredAt', '$createdAt'] } } },
           status: '$status',
         },
-        count: { $sum: 1 },
+        count: { $sum: { $ifNull: ['$occurrenceCount', 1] } },
       },
     },
     { $sort: { '_id.date': 1 } }, // Sort chronologically
@@ -146,12 +235,12 @@ const aggregateUserIssueSummary = () =>
     {
       $group: {
         _id: '$userId',
-        totalIssues: { $sum: 1 },
+        totalIssues: { $sum: { $ifNull: ['$occurrenceCount', 1] } },
         // Count issues by category using conditional aggregation
-        loginIssues: { $sum: { $cond: [{ $eq: ['$category', 'auth'] }, 1, 0] } },
-        apiIssues: { $sum: { $cond: [{ $eq: ['$category', 'api'] }, 1, 0] } },
-        systemIssues: { $sum: { $cond: [{ $eq: ['$category', 'system'] }, 1, 0] } },
-        rateLimitIssues: { $sum: { $cond: [{ $eq: ['$category', 'rate-limit'] }, 1, 0] } },
+        loginIssues: { $sum: { $cond: [{ $eq: ['$category', 'auth'] }, { $ifNull: ['$occurrenceCount', 1] }, 0] } },
+        apiIssues: { $sum: { $cond: [{ $eq: ['$category', 'api'] }, { $ifNull: ['$occurrenceCount', 1] }, 0] } },
+        systemIssues: { $sum: { $cond: [{ $eq: ['$category', 'system'] }, { $ifNull: ['$occurrenceCount', 1] }, 0] } },
+        rateLimitIssues: { $sum: { $cond: [{ $eq: ['$category', 'rate-limit'] }, { $ifNull: ['$occurrenceCount', 1] }, 0] } },
         // Capture the most recent issue details
         latestIssueAt: { $first: '$createdAt' },
         latestIssueMessage: { $first: '$message' },
@@ -169,9 +258,13 @@ module.exports = {
   countFailures,
   countByStatus,
   countSince,
+  findRecentRepeatedEvent,
   aggregateCategoryCounts,
   aggregateStatusCounts,
   aggregateSeverityCounts,
   aggregateDailyCounts,
   aggregateUserIssueSummary,
+  recordRepeatedEvent,
+  sumOccurrences,
+  sumOccurrencesSince,
 };
