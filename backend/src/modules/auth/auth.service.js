@@ -1,7 +1,6 @@
 /**
  * Contains authentication rules for registration, login, refresh, logout, and email verification.
- * This service also handles account lockouts and audit logging so controllers only coordinate
- * request and response data.
+ * This service also handles account lockouts and audit logging so controllers only coordinate request and response data.
  */
 const AppError = require('../../utils/AppError');
 const crypto = require('crypto');
