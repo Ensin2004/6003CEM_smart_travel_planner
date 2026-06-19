@@ -66,6 +66,15 @@ const getLatestVisitDate = (visits) =>
     .filter(Boolean)
     .sort((firstDate, secondDate) => new Date(secondDate) - new Date(firstDate))[0];
 
+const getTripDurationDays = (trip) => {
+  if (!trip.startDate || !trip.endDate) return 0;
+  const start = new Date(trip.startDate);
+  const end = new Date(trip.endDate);
+  start.setHours(0, 0, 0, 0);
+  end.setHours(0, 0, 0, 0);
+  return Math.max(1, Math.round((end - start) / 86400000) + 1);
+};
+
 export function useUserDashboard() {
   const { user } = useAuth();
   const [monthDate, setMonthDate] = useState(() => new Date());
@@ -335,6 +344,71 @@ export function useUserDashboard() {
     });
   }, [filteredTrips, monthDate]);
   const maxMonthlyTripCount = Math.max(...monthlyTripCounts, 1);
+  const userStatistics = useMemo(() => {
+    const tripDurations = filteredTrips.map((trip) => ({
+      trip,
+      days: getTripDurationDays(trip),
+    }));
+    const totalTripDays = tripDurations.reduce((total, row) => total + row.days, 0);
+    const longestTrip = tripDurations.reduce((longest, row) => (row.days > longest.days ? row : longest), { trip: null, days: 0 });
+    const mostVisitedPlace = visitedPlaceRows.reduce(
+      (topPlace, place) => (Number(place.totalVisits || 0) > Number(topPlace?.totalVisits || 0) ? place : topPlace),
+      null
+    );
+    const totalDatedVisits = visitedPlaceRows.reduce((total, place) => total + Number(place.datedVisits || 0), 0);
+    const totalUndatedVisits = visitedPlaceRows.reduce((total, place) => total + Number(place.undatedVisits || 0), 0);
+    const tripDestinationCount = allTripDestinationRows.length;
+    const visitedTripDestinationCount = allTripDestinationRows.filter((destination) => destination.visited).length;
+    const busiestMonthIndex = monthlyTripCounts.reduce(
+      (topIndex, count, index) => (count > monthlyTripCounts[topIndex] ? index : topIndex),
+      0
+    );
+    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+    return {
+      averageTripDays: filteredTrips.length ? (totalTripDays / filteredTrips.length).toFixed(1) : '0',
+      averageVisitsPerPlace: uniquePlaceCount ? (totalVisitCount / uniquePlaceCount).toFixed(1) : '0',
+      busiestMonth: {
+        label: monthNames[busiestMonthIndex],
+        value: monthlyTripCounts[busiestMonthIndex] || 0,
+      },
+      completionRate: uniquePlaceCount + placeToVisitCount
+        ? Math.round((uniquePlaceCount / (uniquePlaceCount + placeToVisitCount)) * 100)
+        : 0,
+      countryTotal: (countryInsights?.visitedCountryCount || 0) + (countryInsights?.nextCountryCount || 0),
+      datedVisitShare: totalVisitCount ? Math.round((totalDatedVisits / totalVisitCount) * 100) : 0,
+      longestTrip: {
+        days: longestTrip.days,
+        title: longestTrip.trip?.title || longestTrip.trip?.destination || 'No trips yet',
+      },
+      mostVisitedPlace: {
+        title: mostVisitedPlace?.title || 'No visits yet',
+        visits: mostVisitedPlace?.totalVisits || 0,
+      },
+      savedPlaceShare: uniquePlaceCount ? Math.round((favorites.length / uniquePlaceCount) * 100) : 0,
+      topCategory: {
+        label: visitTypeRows[0]?.label || 'No category yet',
+        value: visitTypeRows[0]?.value || 0,
+      },
+      totalDatedVisits,
+      totalTripDays,
+      totalUndatedVisits,
+      tripDestinationCount,
+      tripDestinationProgress: tripDestinationCount ? Math.round((visitedTripDestinationCount / tripDestinationCount) * 100) : 0,
+      visitedTripDestinationCount,
+    };
+  }, [
+    allTripDestinationRows,
+    countryInsights,
+    favorites.length,
+    filteredTrips,
+    monthlyTripCounts,
+    placeToVisitCount,
+    totalVisitCount,
+    uniquePlaceCount,
+    visitTypeRows,
+    visitedPlaceRows,
+  ]);
 
   useEffect(() => {
     const { start, end } = getMonthBounds(monthDate);
@@ -535,6 +609,7 @@ export function useUserDashboard() {
     tripsThisMonth,
     tripStatus,
     upcomingTrips,
+    userStatistics,
     uniquePlaceCount,
     user,
     visitDonutSegments,
