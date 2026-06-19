@@ -8,6 +8,7 @@ import { getComparisonRecommendation } from '../../api/comparisonApi';
 import useCompare from '../../hooks/useCompare';
 import './CompareTray.css';
 
+// Defines the comparison fields and their display labels
 const fields = [
   ['category', 'Category'],
   ['hours', 'Working hour'],
@@ -17,6 +18,7 @@ const fields = [
   ['address', 'Location'],
 ];
 
+// Formats field values for display in the comparison table
 const formatValue = (field, item) => {
   if (field === 'rating') return item.rating ? `${Number(item.rating).toFixed(1)} / 5` : 'No rating';
   if (field === 'reviewCount') return item.reviewCount ? Number(item.reviewCount).toLocaleString() : 'No reviews';
@@ -30,17 +32,20 @@ function CompareTray() {
   const [status, setStatus] = useState('idle');
   const [error, setError] = useState('');
 
+  // Hides the tray when no items are selected for comparison
   if (!compare || compare.items.length === 0) {
     return null;
   }
 
   const canCompare = compare.items.length >= 2;
 
+  // Opens the comparison modal and clears any previous errors
   const handleOpen = () => {
     setIsOpen(true);
     setError('');
   };
 
+  // Requests AI-powered recommendation for the best option
   const handleRecommend = async () => {
     if (!canCompare) {
       setError('Select at least two places first.');
@@ -65,6 +70,7 @@ function CompareTray() {
 
   return (
     <>
+      {/* Bottom tray showing selected items with remove controls */}
       <aside className="compare-tray" aria-label="Selected places for comparison">
         <div className="compare-tray-summary">
           <GitCompareArrows size={18} aria-hidden="true" />
@@ -94,6 +100,7 @@ function CompareTray() {
         </div>
       </aside>
 
+      {/* Modal overlay for detailed comparison view */}
       {isOpen && (
         <div className="compare-modal-backdrop" role="presentation">
           <section className="compare-modal" role="dialog" aria-modal="true" aria-labelledby="compare-modal-title">
@@ -107,6 +114,7 @@ function CompareTray() {
               </button>
             </div>
 
+            {/* Comparison table showing features side by side */}
             <div className="compare-table-wrap">
               <table className="compare-table">
                 <thead>
@@ -130,6 +138,7 @@ function CompareTray() {
               </table>
             </div>
 
+            {/* AI recommendation panel */}
             <div className="compare-ai-panel">
               <div>
                 <Sparkles size={18} aria-hidden="true" />

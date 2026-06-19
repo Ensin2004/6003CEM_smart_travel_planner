@@ -7,10 +7,16 @@ import useCompare from '../../hooks/useCompare';
 import './CompareButton.css';
 
 function CompareButton({ item, label = 'Compare', compact = false, className = '' }) {
+  // Accesses the compare context to manage comparison state
   const compare = useCompare();
+  
+  // Determines whether the current item is already in the comparison basket
   const selected = compare?.isSelected(item);
+  
+  // Selects the appropriate icon based on selection state and compact mode
   const Icon = selected ? Check : compact ? Plus : GitCompareArrows;
 
+  // Handles click event by adding item to comparison if not already selected
   const handleClick = (event) => {
     event.stopPropagation();
     if (!selected) {

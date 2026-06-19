@@ -6,6 +6,10 @@ import { Country } from 'country-state-city';
 import { getPlaceImageSrc } from '../../utils/placeImageProxy';
 import landingHeroImage from '../../assets/landing-hero.png';
 
+/**
+ * Format a date object into YYYY-MM-DD string key
+ * Used for consistent date identification across the application
+ */
 export const formatDateKey = (date) => {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -13,11 +17,19 @@ export const formatDateKey = (date) => {
   return `${year}-${month}-${day}`;
 };
 
+/**
+ * Parse a YYYY-MM-DD date key back into a Date object
+ * Inverse operation of formatDateKey
+ */
 export const parseDateKey = (dateKey) => {
   const [year, month, day] = String(dateKey || '').split('-').map(Number);
   return new Date(year, month - 1, day);
 };
 
+/**
+ * Get the first and last day of the month for a given date
+ * Returns start and end Date objects for month boundaries
+ */
 export const getMonthBounds = (monthDate) => {
   const start = new Date(monthDate.getFullYear(), monthDate.getMonth(), 1);
   const end = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
@@ -25,6 +37,10 @@ export const getMonthBounds = (monthDate) => {
   return { start, end };
 };
 
+/**
+ * Check if a date key falls within a given date range
+ * Compares normalized dates with time set to midnight
+ */
 export const isDateWithinRange = (dateKey, startDate, endDate) => {
   if (!dateKey || !startDate || !endDate) return false;
   const selected = parseDateKey(dateKey);
@@ -36,16 +52,23 @@ export const isDateWithinRange = (dateKey, startDate, endDate) => {
   return selected >= start && selected <= end;
 };
 
+/**
+ * Build a complete calendar grid for a given month
+ * Includes cells from previous/next months to fill the grid
+ * Integrates lookup data for places and trips on each date
+ */
 export const buildCalendarCells = (monthDate, dayLookup, tripLookup) => {
   const { start, end } = getMonthBounds(monthDate);
   const previousMonthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth(), 0).getDate();
   const cells = [];
 
+  // Add days from previous month to fill first week
   for (let index = 0; index < start.getDay(); index += 1) {
     const day = previousMonthEnd - start.getDay() + index + 1;
     cells.push({ key: `previous-${day}`, day, outsideMonth: true });
   }
 
+  // Add days of the current month
   for (let day = 1; day <= end.getDate(); day += 1) {
     const date = new Date(monthDate.getFullYear(), monthDate.getMonth(), day);
     const dateKey = formatDateKey(date);
@@ -58,6 +81,7 @@ export const buildCalendarCells = (monthDate, dayLookup, tripLookup) => {
     });
   }
 
+  // Add days from next month to complete the grid (6 rows)
   const trailingDays = 42 - cells.length;
   for (let index = 1; index <= trailingDays; index += 1) {
     cells.push({ key: `next-${index}`, day: index, outsideMonth: true });
@@ -66,29 +90,63 @@ export const buildCalendarCells = (monthDate, dayLookup, tripLookup) => {
   return cells;
 };
 
+/**
+ * Calculate total visit count from all visits of a place
+ * Sums visitCount values, defaulting to 1 if not specified
+ */
 export const getVisitCount = (place) => (place.visits || []).reduce((total, visit) => total + Number(visit.visitCount || 1), 0);
 
+/**
+ * Calculate total visits that have a specific visited date
+ * Excludes visits without a date
+ */
 export const getDatedVisitCount = (place) =>
   (place.visits || [])
     .filter((visit) => visit.visitedDate)
     .reduce((total, visit) => total + Number(visit.visitCount || 1), 0);
 
+/**
+ * Get formatted label for the latest visit date
+ * Returns formatted date or fallback message
+ */
 export const getLatestVisitLabel = (place) => {
   const latestDate = place.latestVisitedDate || (place.visits || []).find((visit) => visit.visitedDate)?.visitedDate;
   return latestDate ? new Date(latestDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'No date saved';
 };
 
+/**
+ * Format a type identifier into a readable label
+ * Replaces hyphens with spaces for display
+ */
 export const getTypeLabel = (type) => String(type || 'place').replace(/-/g, ' ');
 
+/**
+ * Format date to short display format (Mon DD)
+ */
 export const formatShortDate = (date) => (date ? new Date(date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : 'No date');
 
+/**
+ * Format date key to long display format (Month DD, YYYY)
+ */
 export const formatLongDate = (dateKey) =>
   parseDateKey(dateKey).toLocaleDateString(undefined, { month: 'long', day: 'numeric', year: 'numeric' });
 
+/**
+ * Format a date range for display
+ * Combines start and end dates into a single range string
+ */
 export const formatDateRange = (startDate, endDate) => `${formatShortDate(startDate)} - ${formatShortDate(endDate)}`;
 
+/**
+ * Normalize text for comparison purposes
+ * Converts to lowercase, trims, and collapses whitespace
+ */
 export const normalizeVisitText = (value) => String(value || '').trim().toLowerCase().replace(/\s+/g, ' ');
 
+/**
+ * Extract country from the end of a comma-separated address string
+ * Returns the last non-empty part of the address
+ */
 export const getCountryFromText = (value) => {
   const parts = String(value || '')
     .split(',')
@@ -98,7 +156,13 @@ export const getCountryFromText = (value) => {
   return parts[parts.length - 1] || '';
 };
 
+// Build a set of all known country names for validation
 const knownCountryNames = new Set(Country.getAllCountries().map((country) => country.name.toLowerCase()));
+
+/**
+ * Normalize a country name to standard capitalization
+ * Matches against known country list or formats properly
+ */
 const normalizeCountryName = (value) => {
   const name = String(value || '').trim();
   if (!name) return '';
@@ -112,6 +176,10 @@ const normalizeCountryName = (value) => {
     .join(' ');
 };
 
+/**
+ * Extract the country from a place object
+ * Checks multiple possible fields and fallbacks to address parsing
+ */
 export const getPlaceCountry = (place = {}) => {
   const explicitCountry = place.country || place.location?.country || place.destinationCountry;
   if (explicitCountry) return normalizeCountryName(explicitCountry);
@@ -123,6 +191,10 @@ export const getPlaceCountry = (place = {}) => {
   return knownCountryNames.has(name.toLowerCase()) ? normalizeCountryName(name) : '';
 };
 
+/**
+ * Build country rows with counts from a list of country names
+ * Groups by country and sorts by count descending
+ */
 export const buildCountryRows = (countries = []) => {
   const counts = countries.map(normalizeCountryName).filter(Boolean).reduce((lookup, country) => ({
     ...lookup,
@@ -134,6 +206,9 @@ export const buildCountryRows = (countries = []) => {
     .sort((firstCountry, secondCountry) => secondCountry.value - firstCountry.value || firstCountry.label.localeCompare(secondCountry.label));
 };
 
+/**
+ * Get a time-appropriate greeting based on current hour
+ */
 export const getGreeting = () => {
   const hour = new Date().getHours();
   if (hour < 12) return 'Good morning';
@@ -141,8 +216,17 @@ export const getGreeting = () => {
   return 'Good evening';
 };
 
+/**
+ * Get the display name for a user from various possible fields
+ * Falls back to email prefix or generic traveler
+ */
 export const getDisplayName = (user) => user?.name || user?.fullName || user?.username || user?.email?.split('@')[0] || 'Traveler';
 
+/**
+ * Extract destination places from a trip object
+ * Handles both segmented trips and simple destination fields
+ * Filters out "not added yet" placeholders
+ */
 export const getTripDestinationPlaces = (trip = {}) => {
   if (trip.destinationSegments?.length) {
     return trip.destinationSegments
@@ -181,6 +265,10 @@ export const getTripDestinationPlaces = (trip = {}) => {
     : [];
 };
 
+/**
+ * Group trips by status relative to today's date
+ * Returns active, upcoming, and past trip groups
+ */
 export const getTripStatusGroups = (trips = []) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -198,6 +286,10 @@ export const getTripStatusGroups = (trips = []) => {
   );
 };
 
+/**
+ * Generate donut chart segments from data items
+ * Calculates dasharray values for SVG circle segments
+ */
 export const getDonutSegments = (items) => {
   const total = items.reduce((sum, item) => sum + item.value, 0);
   let offset = 25;
@@ -210,6 +302,10 @@ export const getDonutSegments = (items) => {
   });
 };
 
+/**
+ * Generate CSS background image style for a place
+ * Uses place image or falls back to hero image with gradient overlay
+ */
 export const getPlaceImageStyle = (place = {}) => {
   const normalizedPlace = typeof place === 'string' ? { title: place } : place;
   const imageUrl = getPlaceImageSrc(
@@ -224,6 +320,10 @@ export const getPlaceImageStyle = (place = {}) => {
   };
 };
 
+/**
+ * Defer a state update to the next microtask
+ * Prevents React state updates during render
+ */
 export const deferStateUpdate = (callback) => {
   Promise.resolve().then(callback);
 };

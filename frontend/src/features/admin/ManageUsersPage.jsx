@@ -23,18 +23,22 @@ import useNotifications from '../../hooks/useNotifications';
 import { getApiErrorMessage } from '../../utils/apiError';
 import './ManageUsersPage.css';
 
+// Role filter options for the dropdown selector
 const roleOptions = [
   { value: '', label: 'All roles' },
   { value: 'user', label: 'Travellers' },
   { value: 'admin', label: 'Admins' },
 ];
 
+// Status filter options for the dropdown selector
 const statusOptions = [
   { value: '', label: 'All statuses' },
   { value: 'active', label: 'Active' },
   { value: 'disabled', label: 'Disabled' },
 ];
+
 // Format Date converts raw values into readable display text.
+// Transforms ISO date strings into medium-format local dates
 const formatDate = (value) => {
   if (!value) return 'Unknown';
 
@@ -42,6 +46,8 @@ const formatDate = (value) => {
     dateStyle: 'medium',
   }).format(new Date(value));
 };
+
+// Formats dates with both date and time for activity logs
 const formatDateTime = (value) => {
   if (!value) return 'Unknown';
 
@@ -50,17 +56,26 @@ const formatDateTime = (value) => {
     timeStyle: 'short',
   }).format(new Date(value));
 };
+
+// Retrieves user-friendly error messages from API responses
 const getErrorMessage = (error) =>
   getApiErrorMessage(error, 'Unable to load user accounts.');
+
 // Format Category Label converts raw values into readable display text.
+// Transforms hyphen-separated category values into capitalized display text
 const formatCategoryLabel = (category = 'none') =>
   category
     .split('-')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
+
 // ManageUsersPage renders the main screen and handles nearby interactions.
+// Main component for user management with filtering, removal, and activity viewing
 function ManageUsersPage() {
+  // Hook for subscribing to real-time user creation notifications
   const { subscribeToAdminUserCreated } = useNotifications();
+
+  // State management for user list, summary statistics, and UI controls
   const [users, setUsers] = useState([]);
   const [summary, setSummary] = useState({
     total: 0,
@@ -85,6 +100,7 @@ function ManageUsersPage() {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
+  // Fetches user accounts from the API and updates component state
   const fetchUsers = useCallback(async ({ showSuccess = false, showLoading = true } = {}) => {
     if (showLoading) setIsLoading(true);
     setError('');
@@ -103,6 +119,8 @@ function ManageUsersPage() {
       if (showLoading) setIsLoading(false);
     }
   }, []);
+
+  // Triggers initial user load when the component mounts
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       fetchUsers();
@@ -110,11 +128,15 @@ function ManageUsersPage() {
     // Cleanup prevents state updates after component unmount.
     return () => window.clearTimeout(timeoutId);
   }, [fetchUsers]);
+
+  // Subscribes to real-time user creation events for automatic list updates
   useEffect(() => {
     return subscribeToAdminUserCreated(() => {
       fetchUsers({ showLoading: false });
     });
   }, [fetchUsers, subscribeToAdminUserCreated]);
+
+  // Filters users based on search query, role, and status selections
   const filteredUsers = useMemo(() => {
     const normalizedQuery = filters.query.trim().toLowerCase();
 
@@ -131,8 +153,13 @@ function ManageUsersPage() {
     });
   }, [filters, users]);
 
+  // Determines if any filters are currently active
   const hasActiveFilters = Object.values(filters).some(Boolean);
+
+  // Counts users that can be removed (non-admin accounts)
   const removableUsers = users.filter((user) => user.role !== 'admin').length;
+
+  // Chart data for user issue statistics
   const issueChartItems = [
     { label: 'Login', value: summary.loginIssues || 0, className: 'login' },
     { label: 'API', value: summary.apiIssues || 0, className: 'api' },
@@ -140,15 +167,21 @@ function ManageUsersPage() {
     { label: 'Rate limit', value: summary.rateLimitIssues || 0, className: 'rate' },
   ];
   const issueMax = Math.max(...issueChartItems.map((item) => item.value), 1);
+
+  // Chart data for user status distribution
   const statusChartItems = [
     { label: 'Active', value: summary.active || 0, className: 'active' },
     { label: 'Disabled', value: summary.disabled || 0, className: 'disabled' },
   ];
   const statusMax = Math.max(...statusChartItems.map((item) => item.value), 1);
+
+  // Handles filter input changes and updates filter state
   const handleFilterChange = (event) => {
     const { name, value } = event.target;
     setFilters((current) => ({ ...current, [name]: value }));
   };
+
+  // Resets all filters to their default empty values
   const clearFilters = () => {
     setFilters({
       query: '',
@@ -156,9 +189,13 @@ function ManageUsersPage() {
       status: '',
     });
   };
+
+  // Closes the remove confirmation dialog without action
   const closeRemoveDialog = () => {
     if (!isRemoving) setSelectedUser(null);
   };
+
+  // Opens the activity dialog and fetches user activity logs
   const openActivityDialog = async (user) => {
     setActivityUser(user);
     setActivityLogs([]);
@@ -176,9 +213,13 @@ function ManageUsersPage() {
       setIsActivityLoading(false);
     }
   };
+
+  // Closes the activity dialog
   const closeActivityDialog = () => {
     if (!isActivityLoading) setActivityUser(null);
   };
+
+  // Confirms and executes user account removal
   const confirmRemoveUser = async () => {
     if (!selectedUser) return;
 
@@ -204,8 +245,11 @@ function ManageUsersPage() {
       setIsRemoving(false);
     }
   };
+
+  // Renders the complete user management interface
   return (
     <section className="manage-users-page" aria-labelledby="manage-users-title">
+      {/* Hero section with title, metadata, and quick actions */}
       <div className="manage-users-hero">
         <div>
           <p className="eyebrow">Admin moderation</p>
@@ -239,9 +283,11 @@ function ManageUsersPage() {
         </div>
       </div>
 
+      {/* Status message display area */}
       {error && <p className="form-error manage-users-status">{error}</p>}
       {successMessage && <p className="form-success manage-users-status">{successMessage}</p>}
 
+      {/* Primary metrics cards showing user statistics */}
       <div className="manage-users-metrics" aria-label="User account summary">
         <article className="manage-users-metric-total">
           <span className="manage-users-metric-icon"><UsersRound size={22} aria-hidden="true" /></span>
@@ -273,6 +319,7 @@ function ManageUsersPage() {
         </article>
       </div>
 
+      {/* Insights section with charts for issues and status distribution */}
       <div className="manage-users-insights">
         <section className="manage-users-chart-panel" aria-labelledby="user-issues-chart-title">
           <div className="manage-users-panel-heading">
@@ -312,6 +359,7 @@ function ManageUsersPage() {
         </section>
       </div>
 
+      {/* Filter controls for searching and filtering user list */}
       <div className="manage-users-filters">
         <div className="manage-users-section-title">
           <div>
@@ -360,6 +408,7 @@ function ManageUsersPage() {
         </label>
       </div>
 
+      {/* User table displaying filtered user accounts */}
       <div className="manage-users-table-wrap">
         <div className="manage-users-table-header">
           <div>
@@ -452,6 +501,7 @@ function ManageUsersPage() {
         )}
       </div>
 
+      {/* Remove user confirmation dialog */}
       {selectedUser && (
         <div className="manage-users-dialog-backdrop" role="presentation" onMouseDown={closeRemoveDialog}>
           <div
@@ -484,6 +534,7 @@ function ManageUsersPage() {
         </div>
       )}
 
+      {/* User activity dialog showing detailed activity logs */}
       {activityUser && (
         <div className="manage-users-dialog-backdrop" role="presentation" onMouseDown={closeActivityDialog}>
           <div
@@ -550,5 +601,5 @@ function ManageUsersPage() {
   );
 }
 
-// Default export registers the primary  value.
+// Default export registers the primary value.
 export default ManageUsersPage;

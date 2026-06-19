@@ -48,7 +48,20 @@ import { useTravelToolsPage } from './hooks/useTravelToolsPage';
 import { getCategoryIcon, getErrorMessage, mapTemplateForEdit } from './travelTools.utils';
 import './TravelToolsPage.css';
 
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+
+/**
+ * Available document item types for categorizing travel documents.
+ * These represent the common categories of travel-related documents.
+ */
 const documentItemTypes = ['Passport', 'Visa', 'Insurance', 'Ticket', 'Booking', 'Transport', 'Health', 'Contact', 'Custom'];
+
+/**
+ * Accepted MIME types for travel document file uploads.
+ * Restricts uploads to common document and image formats.
+ */
 const acceptedTravelDocumentTypes = [
   'image/png',
   'image/jpeg',
@@ -60,9 +73,33 @@ const acceptedTravelDocumentTypes = [
   'application/vnd.ms-excel',
   'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
 ];
+
+/**
+ * Accepted file extensions for travel document uploads.
+ * Used as a fallback when MIME type detection is unavailable.
+ */
 const acceptedTravelDocumentExtensions = ['.png', '.jpg', '.jpeg', '.pdf', '.doc', '.docx', '.ppt', '.pptx', '.xls', '.xlsx'];
+
+/**
+ * Combined accepted file input string for the HTML file input accept attribute.
+ * Contains both MIME types and file extensions for broad browser compatibility.
+ */
 const acceptedTravelDocumentInput = [...acceptedTravelDocumentTypes, ...acceptedTravelDocumentExtensions].join(',');
-// TravelToolsPageFrame renders the main screen and handles nearby interactions.
+
+// ============================================================================
+// COMPONENT: TravelToolsPageFrame
+// ============================================================================
+
+/**
+ * Renders the main container frame for travel tools sections.
+ * Provides consistent layout structure and accessibility attributes.
+ * 
+ * @param {Object} props - Component properties
+ * @param {string} props.labelledBy - ID of the element that labels this section
+ * @param {ReactNode} props.children - Content to render inside the frame
+ * @param {string} props.className - Additional CSS classes
+ * @returns {JSX.Element} Section container
+ */
 function TravelToolsPageFrame({ labelledBy, children, className = '' }) {
   return (
     <section className={`travel-tools-page ${className}`.trim()} aria-labelledby={labelledBy}>
@@ -70,30 +107,81 @@ function TravelToolsPageFrame({ labelledBy, children, className = '' }) {
     </section>
   );
 }
+
+// ============================================================================
+// UTILITY FUNCTIONS
+// ============================================================================
+
+/**
+ * Constructs a display label for a trip option in select dropdowns.
+ * Combines title and destination when they differ for clarity.
+ * 
+ * @param {Object} trip - Trip object containing title and destination
+ * @returns {string} Formatted trip label
+ */
 const getTripOptionLabel = (trip) => {
   const title = trip.title || trip.destination || 'Untitled trip';
   return trip.destination && trip.destination !== title ? `${title} - ${trip.destination}` : title;
 };
+
+/**
+ * Renders a tooltip anchor with help icon and hidden tooltip text.
+ * Provides accessible help text for form fields.
+ * 
+ * @param {string} text - Tooltip text to display
+ * @returns {JSX.Element} Help icon with tooltip
+ */
 const renderTip = (text) => (
   <span className="travel-tools-tip-anchor" tabIndex="0" aria-label={text}>
     <CircleHelp size={15} aria-hidden="true" />
     <span className="travel-tools-create-tip" role="tooltip">{text}</span>
   </span>
 );
+
+/**
+ * Returns a truncated list of template items for display in template cards.
+ * Shows up to 5 items and appends an ellipsis indicator if more exist.
+ * 
+ * @param {Array} items - Array of template items
+ * @returns {Array} Visible subset of items
+ */
 const getVisibleTemplateItems = (items = []) => {
   const visibleItems = items.slice(0, 5);
   return items.length > visibleItems.length ? [...visibleItems, { name: '...' }] : visibleItems;
 };
+
+/**
+ * Extracts the file extension from a filename in lowercase.
+ * 
+ * @param {string} fileName - Name of the file
+ * @returns {string} File extension with leading dot, or empty string
+ */
 const getFileExtension = (fileName = '') => {
   const dotIndex = fileName.lastIndexOf('.');
   return dotIndex >= 0 ? fileName.slice(dotIndex).toLowerCase() : '';
 };
+
+/**
+ * Determines the preview type for a travel document file.
+ * Classifies files as image, PDF, or office document based on extension or MIME type.
+ * 
+ * @param {Object} file - File object with name and type properties
+ * @returns {string} Preview type: 'image', 'pdf', or 'office'
+ */
 const getTravelDocumentPreviewType = (file) => {
   const extension = getFileExtension(file.name);
   if (['.png', '.jpg', '.jpeg'].includes(extension) || ['image/png', 'image/jpeg'].includes(file.type)) return 'image';
   if (extension === '.pdf' || file.type === 'application/pdf') return 'pdf';
   return 'office';
 };
+
+/**
+ * Determines the MIME type of a file based on its extension.
+ * Used when the file object does not provide a type property.
+ * 
+ * @param {Object} file - File object with name property
+ * @returns {string} MIME type or empty string if unknown
+ */
 const getTravelDocumentMimeType = (file) => {
   if (file.type) return file.type;
   const extension = getFileExtension(file.name);
@@ -111,10 +199,25 @@ const getTravelDocumentMimeType = (file) => {
   };
   return mimeTypesByExtension[extension] || '';
 };
+
+/**
+ * Validates whether a file is accepted for travel document uploads.
+ * Checks against both MIME types and file extensions.
+ * 
+ * @param {Object} file - File object with name and type
+ * @returns {boolean} True if the file type is accepted
+ */
 const isAcceptedTravelDocumentFile = (file) => {
   const extension = getFileExtension(file.name);
   return acceptedTravelDocumentTypes.includes(file.type) || acceptedTravelDocumentExtensions.includes(extension);
 };
+
+/**
+ * Reads a file and returns its contents as a base64-encoded data URL.
+ * 
+ * @param {Object} file - File object to read
+ * @returns {Promise<string>} Data URL of the file contents
+ */
 const readFileAsDataUrl = (file) =>
   new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -122,7 +225,18 @@ const readFileAsDataUrl = (file) =>
     reader.onerror = () => reject(new Error('Unable to read selected file.'));
     reader.readAsDataURL(file);
   });
-// Normalize Travel Document For Ui prepares incoming data for consistent storage.
+
+// ============================================================================
+// DATA NORMALIZATION
+// ============================================================================
+
+/**
+ * Normalizes a travel document object from API response to UI-compatible format.
+ * Standardizes ID fields, document type, items, and file structures.
+ * 
+ * @param {Object} document - Raw document data from API
+ * @returns {Object} Normalized document object with consistent field names
+ */
 const normalizeTravelDocumentForUi = (document) => ({
   ...document,
   id: document._id || document.id,
@@ -158,6 +272,14 @@ const normalizeTravelDocumentForUi = (document) => ({
   })),
 });
 
+// ============================================================================
+// HOOK: useCloseTravelToolsMenusOnOutsideClick
+// ============================================================================
+
+/**
+ * Closes open dropdown menus when clicking outside them.
+ * Attaches a pointerdown event listener to the document.
+ */
 const closeOpenTravelToolsMenus = (exceptMenu = null) => {
   document
     .querySelectorAll('.travel-tools-item-actions-menu[open], .travel-tools-actions-menu[open]')
@@ -180,19 +302,35 @@ const useCloseTravelToolsMenusOnOutsideClick = () => {
   }, []);
 };
 
-// PackingListTools renders the main screen and handles nearby interactions.
+// ============================================================================
+// COMPONENT: PackingListTools
+// ============================================================================
+
+/**
+ * Main component for managing packing lists.
+ * Handles creation, editing, deletion, and organization of packing lists.
+ * Integrates with templates, trip linking, and item tracking.
+ * 
+ * @returns {JSX.Element} Packing list management interface
+ */
 function PackingListTools() {
+  // Close dropdown menus when clicking outside
   useCloseTravelToolsMenusOnOutsideClick();
 
+  // Get initial parameters from URL
   const [searchParams] = useSearchParams();
   const initialRecordId = searchParams.get('recordId') || '';
   const initialTripId = searchParams.get('tripId') || '';
+
+  // Local state for UI control
   const [packingListSearch, setPackingListSearch] = useState('');
   const [packingView, setPackingView] = useState(initialRecordId ? 'all' : 'create');
   const [previousPackingView, setPreviousPackingView] = useState('create');
   const [openPackingTemplateMenuId, setOpenPackingTemplateMenuId] = useState('');
   const [packingTemplateEditStep, setPackingTemplateEditStep] = useState('details');
   const [packingTemplateBaseline, setPackingTemplateBaseline] = useState('');
+
+  // Custom hook for packing list state management
   const {
     categoryOptions,
     closeItemModal,
@@ -262,16 +400,37 @@ function PackingListTools() {
     initialTripId,
   });
 
+  // ========================================================================
+  // Computed Values
+  // ========================================================================
+
+  /**
+   * Filters trips to only those with 'active' status.
+   * Active trips are available for linking to packing lists.
+   */
   const activeTrips = useMemo(
     () => trips.filter((trip) => trip.status === 'active'),
     [trips]
   );
+
+  /**
+   * Finds the trip linked to the selected packing list.
+   */
   const linkedTrip = selectedList?.tripId
     ? trips.find((trip) => String(trip._id) === String(selectedList.tripId))
     : null;
+
+  /**
+   * Formats the name of the linked trip for display.
+   */
   const linkedTripName = selectedList?.tripId
     ? (linkedTrip ? getTripOptionLabel(linkedTrip) : selectedList.destination || 'Linked trip unavailable')
     : 'Not linked';
+
+  /**
+   * Determines whether the packing list details have been modified.
+   * Used to enable/disable the save button in the edit form.
+   */
   const isPackingDetailsDirty = Boolean(
     selectedList
       && (
@@ -279,17 +438,36 @@ function PackingListTools() {
         || String(listTripDraft || '') !== String(selectedList.tripId || '')
       )
   );
+
+  /**
+   * Checks if a trip is already linked to another packing list.
+   * Prevents multiple lists from linking to the same trip.
+   * 
+   * @param {string} tripId - ID of the trip to check
+   * @param {string} excludedListId - ID of the current list to exclude from check
+   * @returns {boolean} True if the trip is linked to another list
+   */
   const isTripLinkedToOtherPackingList = (tripId, excludedListId = '') =>
     packingLists.some(
       (list) =>
         String(list.tripId || '') === String(tripId) &&
         (!excludedListId || String(list._id) !== String(excludedListId))
     );
+
+  /**
+   * Filters packing lists based on the search input.
+   * Searches across both title and destination fields.
+   */
   const filteredPackingLists = packingLists.filter((list) => {
     const normalizedSearch = packingListSearch.toLowerCase().trim();
     if (!normalizedSearch) return true;
     return [list.title, list.destination].some((value) => value?.toLowerCase().includes(normalizedSearch));
   });
+
+  /**
+   * Orders templates with standard templates first, followed by custom templates.
+   * Custom templates are user-created, standard templates are system-provided.
+   */
   const orderedPackingTemplates = useMemo(
     () => [
       ...templates.filter((template) => template.source !== 'custom'),
@@ -297,6 +475,17 @@ function PackingListTools() {
     ],
     [templates]
   );
+
+  // ========================================================================
+  // Template Edit Handlers
+  // ========================================================================
+
+  /**
+   * Opens the template editor for a selected template.
+   * Stores the baseline state for dirty checking.
+   * 
+   * @param {Object} template - Template object to edit
+   */
   const handleOpenPackingTemplateEdit = (template) => {
     setPreviousPackingView(packingView);
     setPackingView('all');
@@ -305,17 +494,41 @@ function PackingListTools() {
     setPackingTemplateBaseline(JSON.stringify(mapTemplateForEdit(template)));
     handleTemplateWorkspaceSelect(template);
   };
+
+  /**
+   * Closes the template editor and returns to the previous view.
+   */
   const handleClosePackingTemplateEdit = () => {
     setSelectedTemplateId('');
     setPackingTemplateEditStep('details');
     setPackingTemplateBaseline('');
     setPackingView(previousPackingView);
   };
+
+  /**
+   * Checks if the template edit form has been modified from its baseline.
+   */
   const isPackingTemplateDirty = JSON.stringify(templateEditForm) !== packingTemplateBaseline;
+
+  /**
+   * Updates a field in the template edit form.
+   * 
+   * @param {string} field - Field name to update
+   * @param {any} value - New value
+   */
   const handlePackingTemplateFieldChange = (field, value) => {
     setTemplateEditError('');
     setTemplateEditForm((current) => ({ ...current, [field]: value }));
   };
+
+  /**
+   * Updates a specific item within the template edit form.
+   * Handles quantity conversion to number type.
+   * 
+   * @param {number} itemIndex - Index of the item to update
+   * @param {string} field - Field name to update
+   * @param {any} value - New value
+   */
   const handlePackingTemplateItemChange = (itemIndex, field, value) => {
     setTemplateEditError('');
     setTemplateEditForm((current) => ({
@@ -327,6 +540,10 @@ function PackingListTools() {
       )),
     }));
   };
+
+  /**
+   * Adds a new empty item to the template edit form.
+   */
   const handleAddPackingTemplateItem = () => {
     setTemplateEditForm((current) => ({
       ...current,
@@ -336,12 +553,23 @@ function PackingListTools() {
       ],
     }));
   };
+
+  /**
+   * Removes an item from the template edit form by index.
+   * 
+   * @param {number} itemIndex - Index of the item to remove
+   */
   const handleRemovePackingTemplateItem = (itemIndex) => {
     setTemplateEditForm((current) => ({
       ...current,
       items: current.items.filter((_, index) => index !== itemIndex),
     }));
   };
+
+  /**
+   * Saves the edited template after validation.
+   * Checks that all items have names before saving.
+   */
   const handleSavePackingTemplateEdit = async () => {
     if (!isPackingTemplateDirty) return;
     const incompleteItemIndex = templateEditForm.items.findIndex((item) => !item.name.trim());
@@ -354,8 +582,13 @@ function PackingListTools() {
     if (didSave) handleClosePackingTemplateEdit();
   };
 
+  // ========================================================================
+  // Render
+  // ========================================================================
+
   return (
     <TravelToolsPageFrame labelledBy="packing-title" className="travel-tools-enhanced-page packing-redesign">
+      {/* Header Section */}
       <header className="document-command-header">
         <div className="document-command-title">
           <span className="document-command-icon" aria-hidden="true">
@@ -380,6 +613,7 @@ function PackingListTools() {
         </div>
       </header>
 
+      {/* Category Options Datalist */}
       <datalist id="packing-category-options">
         {categoryOptions.map((category) => (
           <option key={category} value={category}>
@@ -388,6 +622,7 @@ function PackingListTools() {
         ))}
       </datalist>
 
+      {/* Create Packing List Panel */}
       {packingView === 'create' && (
       <form className="travel-tools-create-panel packing-create-panel document-create-deck" onSubmit={handleCreateList}>
         <div className="travel-tools-panel-heading">
@@ -478,6 +713,7 @@ function PackingListTools() {
           </button>
         </div>
 
+        {/* Template Library - Shown when template mode is selected */}
         {createMode === 'template' && (
           <div className="document-template-library">
             <div className="document-template-picker" aria-label="Packing list templates">
@@ -548,8 +784,10 @@ function PackingListTools() {
       </form>
       )}
 
+      {/* All Packing Lists View */}
       {packingView === 'all' && (
       <div className="travel-tools-layout packing-dashboard-layout document-workbench">
+        {/* Sidebar: List of packing lists */}
         <aside className="travel-tools-list-panel packing-side-panel">
           <div className="travel-tools-side-section packing-list-side-section">
             <div className="travel-tools-panel-heading">
@@ -613,7 +851,9 @@ function PackingListTools() {
 
         </aside>
 
+        {/* Main Content Area */}
         <div className="travel-tools-main">
+          {/* Template Workspace - Shows when editing a template */}
           {selectedTemplate ? (
             <div className="travel-tools-modal-backdrop packing-template-edit-backdrop" role="presentation">
             <section className="travel-tools-modal packing-workspace-detail template-workspace-detail packing-template-popup" role="dialog" aria-modal="true" aria-labelledby="packing-template-edit-title">
@@ -630,6 +870,7 @@ function PackingListTools() {
                 </button>
               </div>
 
+              {/* Status Messages */}
               {(templateEditError || (statusScope === 'template' && error)) && (
                 <div className="document-template-modal-status" aria-live="polite">
                   {templateEditError && <p className="form-error travel-tools-status">{templateEditError}</p>}
@@ -637,6 +878,7 @@ function PackingListTools() {
                 </div>
               )}
 
+              {/* Template Details Step */}
               {packingTemplateEditStep === 'details' ? (
                 <div className="document-template-step document-template-details-step">
                   <label>
@@ -677,6 +919,7 @@ function PackingListTools() {
                   </label>
                 </div>
               ) : (
+                /* Template Items Step */
                 <div className="document-template-step document-template-items-step">
                   <div className="document-template-items-heading">
                     <div>
@@ -733,6 +976,7 @@ function PackingListTools() {
                 </div>
               )}
 
+              {/* Step Navigation Actions */}
               <div className="document-template-step-actions">
                 <button className="secondary-action" type="button" onClick={handleClosePackingTemplateEdit}>Cancel</button>
                 {packingTemplateEditStep === 'details' ? (
@@ -761,6 +1005,7 @@ function PackingListTools() {
             </section>
             </div>
           ) : selectedList ? (
+            /* Packing List Detail View */
             <section className="travel-tools-detail packing-workspace-detail">
               <div className="travel-tools-detail-header">
                 <div>
@@ -801,6 +1046,7 @@ function PackingListTools() {
                 </details>
               </div>
 
+              {/* Status Messages */}
               {(statusScope === 'packing' && (error || successMessage)) && (
                 <div className="document-workspace-status" aria-live="polite">
                   {error && <p className="form-error travel-tools-status">{error}</p>}
@@ -809,6 +1055,7 @@ function PackingListTools() {
               )}
 
               <div className="packing-workspace-controls">
+                {/* Reminder Settings */}
                 <div className="packing-reminder">
                   <span>
                     <Bell size={17} aria-hidden="true" />
@@ -836,6 +1083,7 @@ function PackingListTools() {
                   </label>
                 </div>
 
+                {/* Filters and Add Item */}
                 <div className="travel-tools-filters packing-item-filters">
                   <span className="travel-tools-search-field">
                     <Search size={16} aria-hidden="true" />
@@ -862,6 +1110,7 @@ function PackingListTools() {
                   </button>
                 </div>
 
+                {/* Packing Items List */}
                 {filteredItems.length === 0 ? (
                   <div className="packing-items-empty">
                     <span aria-hidden="true">
@@ -931,6 +1180,7 @@ function PackingListTools() {
 
             </section>
           ) : (
+            /* Empty State - No packing list selected */
             <section className="travel-tools-detail travel-tools-empty-detail packing-empty-detail">
               <span className="packing-empty-illustration" aria-hidden="true">
                 <ListChecks size={64} />
@@ -945,6 +1195,7 @@ function PackingListTools() {
       </div>
       )}
 
+      {/* Edit Packing List Modal */}
       {isEditingListTitle && selectedList && (
         <div className="travel-tools-modal-backdrop packing-edit-backdrop" role="presentation">
           <form className="travel-tools-modal packing-details-edit-modal" onSubmit={handleSaveListTitle} aria-labelledby="packing-details-edit-title">
@@ -996,6 +1247,7 @@ function PackingListTools() {
         </div>
       )}
 
+      {/* Add/Edit Item Modal */}
       {itemModalMode && (
         <div className="travel-tools-modal-backdrop" role="presentation">
           <form className="travel-tools-modal" onSubmit={handleSaveItem} aria-labelledby="packing-item-modal-title">
@@ -1037,6 +1289,7 @@ function PackingListTools() {
         </div>
       )}
 
+      {/* Save as Template Modal */}
       {isTemplateModalOpen && (
         <div className="travel-tools-modal-backdrop" role="presentation">
           <form className="travel-tools-modal" onSubmit={handleSaveCurrentListAsTemplate} aria-labelledby="packing-template-modal-title">
@@ -1079,6 +1332,7 @@ function PackingListTools() {
         </div>
       )}
 
+      {/* Confirmation Dialog */}
       {confirmAction && (
         <div className="travel-tools-modal-backdrop" role="presentation">
           <div className="travel-tools-modal travel-tools-confirm" role="dialog" aria-modal="true" aria-labelledby="travel-tools-confirm-title">
@@ -1099,6 +1353,7 @@ function PackingListTools() {
         </div>
       )}
 
+      {/* Loading Overlay */}
       {isSaving && (
         <div className="travel-tools-busy-overlay" role="status" aria-live="polite">
           <span className="travel-tools-spinner" aria-hidden="true" />
@@ -1109,44 +1364,79 @@ function PackingListTools() {
   );
 }
 
+// ============================================================================
+// COMPONENT: TravelDocumentTools
+// ============================================================================
+
+/**
+ * Main component for managing travel document lists.
+ * Handles document creation, file uploads, template management, and organization.
+ * 
+ * @returns {JSX.Element} Travel document management interface
+ */
 function TravelDocumentTools() {
+  // Close dropdown menus when clicking outside
   useCloseTravelToolsMenusOnOutsideClick();
 
+  // Get initial parameters from URL
   const [searchParams] = useSearchParams();
   const initialRecordId = searchParams.get('recordId') || '';
   const initialTripId = searchParams.get('tripId') || '';
+
+  // ========================================================================
+  // State Declarations
+  // ========================================================================
+
+  // Data state
   const [documents, setDocuments] = useState([]);
   const [documentTemplates, setDocumentTemplates] = useState([]);
+  const [trips, setTrips] = useState([]);
+
+  // UI state
   const [documentView, setDocumentView] = useState(initialRecordId ? 'all' : 'create');
   const [previousDocumentView, setPreviousDocumentView] = useState('create');
   const [selectedDocumentId, setSelectedDocumentId] = useState('');
-  const [trips, setTrips] = useState([]);
+  const [previousDocumentId, setPreviousDocumentId] = useState('');
   const [filters, setFilters] = useState({ search: '' });
   const [documentItemFilters, setDocumentItemFilters] = useState({ search: '', type: '' });
   const [createMode, setCreateMode] = useState('manual');
+  const [expandedFile, setExpandedFile] = useState(null);
+  const [isEditingDocumentName, setIsEditingDocumentName] = useState(false);
+  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
+  const [isDocumentItemModalOpen, setIsDocumentItemModalOpen] = useState(false);
+  const [openTemplateMenuId, setOpenTemplateMenuId] = useState('');
+
+  // Form state
   const [createForm, setCreateForm] = useState({ name: '', tripId: '', templateKey: '' });
   const [itemForm, setItemForm] = useState({ name: '', documentType: 'Passport', uploadLabel: '' });
   const [templateSaveForm, setTemplateSaveForm] = useState({ name: '', description: '' });
-  const [templateSaveError, setTemplateSaveError] = useState('');
-  const [documentCreateError, setDocumentCreateError] = useState('');
-  const [formError, setFormError] = useState('');
-  const [successMessage, setSuccessMessage] = useState('');
-  const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
-  const [confirmAction, setConfirmAction] = useState(null);
-  const [isTemplateModalOpen, setIsTemplateModalOpen] = useState(false);
-  const [isDocumentItemModalOpen, setIsDocumentItemModalOpen] = useState(false);
-  const [expandedFile, setExpandedFile] = useState(null);
-  const [isEditingDocumentName, setIsEditingDocumentName] = useState(false);
   const [documentNameDraft, setDocumentNameDraft] = useState('');
   const [documentTripDraft, setDocumentTripDraft] = useState('');
-  const [openTemplateMenuId, setOpenTemplateMenuId] = useState('');
+
+  // Template edit state
   const [editingDocumentTemplate, setEditingDocumentTemplate] = useState(null);
   const [templateEditDraft, setTemplateEditDraft] = useState({ name: '', description: '', items: [] });
   const [templateEditBaseline, setTemplateEditBaseline] = useState('');
-  const [previousDocumentId, setPreviousDocumentId] = useState('');
   const [templateEditStep, setTemplateEditStep] = useState('details');
 
+  // Status state
+  const [documentCreateError, setDocumentCreateError] = useState('');
+  const [formError, setFormError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [templateSaveError, setTemplateSaveError] = useState('');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null);
+
+  // ========================================================================
+  // Effects
+  // ========================================================================
+
+  /**
+   * Loads initial data on component mount.
+   * Fetches documents, templates, and trips from the API.
+   * Selects the appropriate document based on URL parameters.
+   */
   useEffect(() => {
     let isMounted = true;
 
@@ -1189,20 +1479,48 @@ function TravelDocumentTools() {
     };
   }, [initialRecordId, initialTripId]);
 
+  // ========================================================================
+  // Computed Values
+  // ========================================================================
+
+  /**
+   * Returns the currently selected document or the first document in the list.
+   */
   const selectedDocument = useMemo(
     () => documents.find((document) => document.id === selectedDocumentId) || documents[0],
     [documents, selectedDocumentId]
   );
+
+  /**
+   * Filters trips to only those with 'active' status.
+   */
   const activeTrips = useMemo(
     () => trips.filter((trip) => trip.status === 'active'),
     [trips]
   );
+
+  /**
+   * Finds the trip linked to the selected document.
+   */
   const selectedDocumentTrip = selectedDocument?.tripId
     ? trips.find((trip) => String(trip._id) === String(selectedDocument.tripId))
     : null;
+
+  /**
+   * Formats the name of the linked trip for display.
+   */
   const selectedDocumentTripName = selectedDocument?.tripId
     ? (selectedDocumentTrip ? getTripOptionLabel(selectedDocumentTrip) : 'Linked trip unavailable')
     : 'Not linked';
+
+  /**
+   * Checks if a trip is already linked to another document list.
+   * Prevents multiple document lists from linking to the same trip.
+   * 
+   * @param {string} tripId - ID of the trip to check
+   * @param {string} excludedDocumentId - ID of the current document to exclude from check
+   * @returns {boolean} True if the trip is linked to another document
+   */
   const isTripLinkedToOtherDocument = (tripId, excludedDocumentId = '') =>
     documents.some(
       (document) =>
@@ -1210,10 +1528,17 @@ function TravelDocumentTools() {
         (!excludedDocumentId || String(document.id) !== String(excludedDocumentId))
     );
 
+  /**
+   * Filters documents based on the search input.
+   */
   const filteredDocuments = documents.filter((document) => {
     const matchesSearch = document.name.toLowerCase().includes(filters.search.toLowerCase().trim());
     return matchesSearch;
   });
+
+  /**
+   * Filters document items based on search and type filters.
+   */
   const filteredDocumentItems = (selectedDocument?.items || []).filter((item) => {
     const normalizedSearch = documentItemFilters.search.toLowerCase().trim();
     const matchesSearch =
@@ -1222,6 +1547,10 @@ function TravelDocumentTools() {
     const matchesType = !documentItemFilters.type || item.documentType === documentItemFilters.type;
     return matchesSearch && matchesType;
   });
+
+  /**
+   * Orders templates with standard templates first, followed by custom templates.
+   */
   const orderedDocumentTemplates = useMemo(
     () => [
       ...documentTemplates.filter((template) => template.source !== 'custom'),
@@ -1229,7 +1558,16 @@ function TravelDocumentTools() {
     ],
     [documentTemplates]
   );
+
+  /**
+   * Checks if the template edit form has been modified from its baseline.
+   */
   const isEditingTemplateDirty = JSON.stringify(templateEditDraft) !== templateEditBaseline;
+
+  /**
+   * Determines whether the document details have been modified.
+   * Used to enable/disable the save button in the edit form.
+   */
   const isDocumentDetailsDirty = Boolean(
     selectedDocument &&
     (
@@ -1238,11 +1576,28 @@ function TravelDocumentTools() {
     )
   );
 
+  // ========================================================================
+  // Helper Functions
+  // ========================================================================
+
+  /**
+   * Checks if a document with the given name already exists.
+   * Normalizes whitespace for comparison.
+   * 
+   * @param {string} name - Document name to check
+   * @returns {boolean} True if a duplicate exists
+   */
   const hasDuplicateDocumentName = (name) => {
     const normalizedName = name.trim().replace(/\s+/g, ' ').toLowerCase();
     return documents.some((document) => document.name.trim().replace(/\s+/g, ' ').toLowerCase() === normalizedName);
   };
 
+  /**
+   * Generates a unique duplicate document name by appending "copy" and a number.
+   * 
+   * @param {string} name - Original document name
+   * @returns {string} Unique duplicate name
+   */
   const getDuplicateDocumentName = (name) => {
     const baseName = `${name} copy`;
     let candidateName = baseName;
@@ -1256,6 +1611,13 @@ function TravelDocumentTools() {
     return candidateName;
   };
 
+  /**
+   * Replaces a document in the state with an updated version.
+   * Normalizes the updated document before storing.
+   * 
+   * @param {Object} updatedDocument - Updated document data
+   * @returns {Object} Normalized document object
+   */
   const replaceDocument = (updatedDocument) => {
     const normalizedDocument = normalizeTravelDocumentForUi(updatedDocument);
     setDocuments((current) =>
@@ -1264,6 +1626,16 @@ function TravelDocumentTools() {
     return normalizedDocument;
   };
 
+  // ========================================================================
+  // Event Handlers
+  // ========================================================================
+
+  /**
+   * Handles creation of a new travel document.
+   * Validates input and calls the API to create the document.
+   * 
+   * @param {Event} event - Form submission event
+   */
   const handleCreateDocument = async (event) => {
     event.preventDefault();
 
@@ -1301,6 +1673,13 @@ function TravelDocumentTools() {
     }
   };
 
+  /**
+   * Handles file upload for a document or a specific document item.
+   * Validates file types, reads files, and uploads to the server.
+   * 
+   * @param {Event} event - File input change event
+   * @param {string} itemId - ID of the document item (optional)
+   */
   const handleFileUpload = async (event, itemId = '') => {
     const uploadedFiles = Array.from(event.target.files || []);
     if (!selectedDocument || uploadedFiles.length === 0) return;
@@ -1346,6 +1725,11 @@ function TravelDocumentTools() {
     }
   };
 
+  /**
+   * Handles removal of a file from a travel document.
+   * 
+   * @param {string} fileId - ID of the file to remove
+   */
   const handleRemoveFile = async (fileId) => {
     if (!selectedDocument) return;
     if (expandedFile?.id === fileId) setExpandedFile(null);
@@ -1364,6 +1748,11 @@ function TravelDocumentTools() {
     }
   };
 
+  /**
+   * Handles adding a new item to a travel document.
+   * 
+   * @param {Event} event - Form submission event
+   */
   const handleAddDocumentItem = async (event) => {
     event.preventDefault();
     if (!selectedDocument) return;
@@ -1394,6 +1783,9 @@ function TravelDocumentTools() {
     }
   };
 
+  /**
+   * Opens the document item modal and resets the form.
+   */
   const handleOpenDocumentItemModal = () => {
     setItemForm({ name: '', documentType: 'Passport', uploadLabel: '' });
     setFormError('');
@@ -1401,12 +1793,18 @@ function TravelDocumentTools() {
     setIsDocumentItemModalOpen(true);
   };
 
+  /**
+   * Closes the document item modal.
+   */
   const handleCloseDocumentItemModal = () => {
     setIsDocumentItemModalOpen(false);
     setItemForm({ name: '', documentType: 'Passport', uploadLabel: '' });
     setFormError('');
   };
 
+  /**
+   * Opens the document name edit form with current values.
+   */
   const handleStartDocumentNameEdit = () => {
     if (!selectedDocument) return;
     setDocumentNameDraft(selectedDocument.name);
@@ -1416,12 +1814,20 @@ function TravelDocumentTools() {
     setSuccessMessage('');
   };
 
+  /**
+   * Closes the document name edit form without saving.
+   */
   const handleCancelDocumentNameEdit = () => {
     setIsEditingDocumentName(false);
     setDocumentNameDraft('');
     setDocumentTripDraft('');
   };
 
+  /**
+   * Saves the updated document name and trip link.
+   * 
+   * @param {Event} event - Form submission event
+   */
   const handleSaveDocumentName = async (event) => {
     event.preventDefault();
     if (!selectedDocument || !isDocumentDetailsDirty) return;
@@ -1460,6 +1866,16 @@ function TravelDocumentTools() {
     }
   };
 
+  // ========================================================================
+  // Template Edit Functions
+  // ========================================================================
+
+  /**
+   * Maps a template object to the edit form structure.
+   * 
+   * @param {Object} template - Template object
+   * @returns {Object} Form-ready template data
+   */
   const mapTemplateForWorkspaceEdit = (template) => ({
     name: template.name || template.title || '',
     description: template.description || '',
@@ -1471,6 +1887,12 @@ function TravelDocumentTools() {
     })),
   });
 
+  /**
+   * Opens the template editor for a selected template.
+   * Stores the baseline state for dirty checking.
+   * 
+   * @param {Object} template - Template object to edit
+   */
   const handleStartDocumentTemplateEdit = (template) => {
     const draft = mapTemplateForWorkspaceEdit(template);
     setPreviousDocumentView(documentView);
@@ -1485,6 +1907,9 @@ function TravelDocumentTools() {
     setSuccessMessage('');
   };
 
+  /**
+   * Closes the template editor and returns to the previous view.
+   */
   const handleBackFromDocumentTemplateEdit = () => {
     setEditingDocumentTemplate(null);
     setTemplateEditDraft({ name: '', description: '', items: [] });
@@ -1495,6 +1920,13 @@ function TravelDocumentTools() {
     setDocumentView(previousDocumentView);
   };
 
+  /**
+   * Updates a specific item within the template edit draft.
+   * 
+   * @param {number} itemIndex - Index of the item to update
+   * @param {string} field - Field name to update
+   * @param {any} value - New value
+   */
   const handleTemplateDraftItemChange = (itemIndex, field, value) => {
     setTemplateEditDraft((current) => ({
       ...current,
@@ -1502,6 +1934,9 @@ function TravelDocumentTools() {
     }));
   };
 
+  /**
+   * Adds a new empty item to the template edit draft.
+   */
   const handleAddTemplateDraftItem = () => {
     setTemplateEditDraft((current) => ({
       ...current,
@@ -1512,6 +1947,11 @@ function TravelDocumentTools() {
     }));
   };
 
+  /**
+   * Removes an item from the template edit draft by index.
+   * 
+   * @param {number} itemIndex - Index of the item to remove
+   */
   const handleRemoveTemplateDraftItem = (itemIndex) => {
     setTemplateEditDraft((current) => ({
       ...current,
@@ -1519,6 +1959,10 @@ function TravelDocumentTools() {
     }));
   };
 
+  /**
+   * Saves the edited template after validation.
+   * Checks that all items have names and at least one item exists.
+   */
   const handleSaveDocumentTemplateEdit = async () => {
     if (!editingDocumentTemplate || !isEditingTemplateDirty) return;
 
@@ -1577,6 +2021,10 @@ function TravelDocumentTools() {
     }
   };
 
+  /**
+   * Opens the modal for saving a document as a template.
+   * Pre-fills the form with the current document details.
+   */
   const handleOpenSaveDocumentTemplate = () => {
     if (!selectedDocument) return;
     setTemplateSaveForm({
@@ -1591,6 +2039,11 @@ function TravelDocumentTools() {
     setIsTemplateModalOpen(true);
   };
 
+  /**
+   * Saves the current document as a custom template.
+   * 
+   * @param {Event} event - Form submission event
+   */
   const handleSaveDocumentTemplate = async (event) => {
     event.preventDefault();
     if (!selectedDocument) return;
@@ -1627,6 +2080,14 @@ function TravelDocumentTools() {
     }
   };
 
+  // ========================================================================
+  // Confirmation Action Handler
+  // ========================================================================
+
+  /**
+   * Executes the confirmed action from the confirmation dialog.
+   * Handles duplicate, delete, and delete-item actions.
+   */
   const runConfirmedAction = async () => {
     if (!confirmAction) return;
     const confirmedAction = confirmAction;
@@ -1683,6 +2144,13 @@ function TravelDocumentTools() {
     }
   };
 
+  // ========================================================================
+  // Confirmation Dialog Content
+  // ========================================================================
+
+  /**
+   * Determines the title for the confirmation dialog based on action type.
+   */
   const confirmTitle =
     confirmAction?.type === 'duplicate-document'
       ? 'Duplicate travel document?'
@@ -1692,6 +2160,9 @@ function TravelDocumentTools() {
           ? 'Delete document template?'
         : 'Delete travel document?';
 
+  /**
+   * Determines the message for the confirmation dialog based on action type.
+   */
   const confirmMessage =
     confirmAction?.type === 'duplicate-document'
       ? `Create a copy of "${confirmAction.document.name}" with the same uploaded files.`
@@ -1701,6 +2172,18 @@ function TravelDocumentTools() {
           ? `Delete "${confirmAction?.template?.name || confirmAction?.template?.title}" from saved custom templates.`
         : `Delete "${confirmAction?.document?.name}" and all of its uploaded files.`;
 
+  // ========================================================================
+  // File Preview Renderer
+  // ========================================================================
+
+  /**
+   * Renders a preview for a file based on its type.
+   * Supports images, PDFs, and office documents.
+   * 
+   * @param {Object} file - File object with preview type and URL
+   * @param {boolean} isExpanded - Whether the preview is expanded
+   * @returns {JSX.Element} Preview element
+   */
   const renderFilePreview = (file, isExpanded = false) => {
     if (file.previewType === 'image') {
       return <img src={file.url} alt={file.name} />;
@@ -1721,8 +2204,13 @@ function TravelDocumentTools() {
     );
   };
 
+  // ========================================================================
+  // Render
+  // ========================================================================
+
   return (
     <TravelToolsPageFrame labelledBy="travel-document-title" className="travel-tools-enhanced-page travel-documents-redesign">
+      {/* Header Section */}
       <header className="document-command-header">
         <div className="document-command-title">
           <span className="document-command-icon" aria-hidden="true">
@@ -1747,6 +2235,7 @@ function TravelDocumentTools() {
         </div>
       </header>
 
+      {/* Create Document Panel */}
       {documentView === 'create' && (
       <form className="travel-tools-create-panel packing-create-panel document-create-deck" onSubmit={handleCreateDocument}>
         <div className="travel-tools-panel-heading">
@@ -1832,6 +2321,7 @@ function TravelDocumentTools() {
           </button>
         </div>
 
+        {/* Template Library - Shown when template mode is selected */}
         {createMode === 'template' && (
           <div className="document-template-library">
             <div className="document-template-picker" aria-label="Document list templates">
@@ -1901,8 +2391,10 @@ function TravelDocumentTools() {
       </form>
       )}
 
+      {/* All Documents View */}
       {documentView === 'all' && (
       <div className="travel-tools-layout packing-dashboard-layout document-workbench">
+        {/* Sidebar: List of documents */}
         <aside className="travel-tools-list-panel packing-side-panel">
           <div className="travel-tools-side-section packing-list-side-section">
             <div className="travel-tools-panel-heading">
@@ -1958,7 +2450,9 @@ function TravelDocumentTools() {
 
         </aside>
 
+        {/* Main Content Area */}
         <div className="travel-tools-main">
+          {/* Template Editor - Shows when editing a template */}
           {editingDocumentTemplate ? (
             <div className="travel-tools-modal-backdrop document-template-edit-backdrop" role="presentation">
             <section className="travel-tools-modal travel-document-template-workspace" role="dialog" aria-modal="true" aria-labelledby="document-template-edit-title">
@@ -1981,6 +2475,7 @@ function TravelDocumentTools() {
                 </div>
               )}
 
+              {/* Template Details Step */}
               {templateEditStep === 'details' ? (
                 <div className="document-template-step document-template-details-step">
                   <label>
@@ -2027,6 +2522,7 @@ function TravelDocumentTools() {
                   </label>
                 </div>
               ) : (
+                /* Template Items Step */
                 <div className="document-template-step document-template-items-step">
                   <div className="document-template-items-heading">
                     <div>
@@ -2081,6 +2577,7 @@ function TravelDocumentTools() {
                 </div>
               )}
 
+              {/* Step Navigation Actions */}
               <div className="document-template-step-actions">
                 <button className="secondary-action" type="button" onClick={handleBackFromDocumentTemplateEdit}>Cancel</button>
                 {templateEditStep === 'details' ? (
@@ -2109,6 +2606,7 @@ function TravelDocumentTools() {
             </section>
             </div>
           ) : selectedDocument ? (
+            /* Document Detail View */
             <section className="travel-tools-detail packing-workspace-detail">
               <div className="travel-tools-detail-header">
                 <div>
@@ -2163,6 +2661,7 @@ function TravelDocumentTools() {
               )}
 
               <div className="packing-workspace-controls document-workspace-controls">
+                {/* Filters and Add Item */}
                 <div className="travel-tools-filters travel-document-item-filters">
                   <span className="travel-tools-search-field">
                     <Search size={16} aria-hidden="true" />
@@ -2188,6 +2687,7 @@ function TravelDocumentTools() {
                   </button>
                 </div>
 
+                {/* Document Items List */}
                 {filteredDocumentItems.length === 0 ? (
                   <p className="settings-empty document-items-empty">
                     {selectedDocument.items.length === 0
@@ -2250,6 +2750,7 @@ function TravelDocumentTools() {
 
             </section>
           ) : (
+            /* Empty State - No document selected */
             <section className="travel-tools-detail travel-tools-empty-detail">
               <FileText size={34} aria-hidden="true" />
               <h3>Create your first travel document</h3>
@@ -2262,6 +2763,7 @@ function TravelDocumentTools() {
       </div>
       )}
 
+      {/* Edit Document Name Modal */}
       {isEditingDocumentName && selectedDocument && (
         <div className="travel-tools-modal-backdrop document-edit-backdrop" role="presentation">
           <form className="travel-tools-modal document-details-edit-modal" onSubmit={handleSaveDocumentName} aria-labelledby="document-details-edit-title">
@@ -2316,6 +2818,7 @@ function TravelDocumentTools() {
         </div>
       )}
 
+      {/* File Preview Modal */}
       {expandedFile && (
         <div className="travel-tools-modal-backdrop" role="presentation">
           <div className="travel-tools-modal travel-document-preview-modal" role="dialog" aria-modal="true" aria-labelledby="travel-document-preview-title">
@@ -2339,6 +2842,7 @@ function TravelDocumentTools() {
         </div>
       )}
 
+      {/* Add Document Item Modal */}
       {isDocumentItemModalOpen && (
         <div className="travel-tools-modal-backdrop" role="presentation">
           <form className="travel-tools-modal" onSubmit={handleAddDocumentItem} aria-labelledby="document-item-modal-title">
@@ -2393,6 +2897,7 @@ function TravelDocumentTools() {
         </div>
       )}
 
+      {/* Save as Template Modal */}
       {isTemplateModalOpen && (
         <div className="travel-tools-modal-backdrop" role="presentation">
           <form className="travel-tools-modal" onSubmit={handleSaveDocumentTemplate} aria-labelledby="document-template-modal-title">
@@ -2436,6 +2941,7 @@ function TravelDocumentTools() {
         </div>
       )}
 
+      {/* Confirmation Dialog */}
       {confirmAction && (
         <div className="travel-tools-modal-backdrop" role="presentation">
           <div className="travel-tools-modal travel-tools-confirm" role="dialog" aria-modal="true" aria-labelledby="document-confirm-title">
@@ -2456,6 +2962,7 @@ function TravelDocumentTools() {
         </div>
       )}
 
+      {/* Loading Overlay */}
       {isSaving && (
         <div className="travel-tools-busy-overlay" role="status" aria-live="polite">
           <span className="travel-tools-spinner" aria-hidden="true" />
@@ -2467,10 +2974,21 @@ function TravelDocumentTools() {
   );
 }
 
+// ============================================================================
+// COMPONENT: TravelToolsPage
+// ============================================================================
+
+/**
+ * Main entry component for travel tools.
+ * Routes to either packing list or document management based on mode prop.
+ * 
+ * @param {Object} props - Component properties
+ * @param {string} props.mode - Display mode: 'packing' or 'documents'
+ * @returns {JSX.Element} The appropriate travel tools component
+ */
 function TravelToolsPage({ mode = 'packing' }) {
   if (mode === 'documents') return <TravelDocumentTools />;
   return <PackingListTools />;
 }
 
 export default TravelToolsPage;
-

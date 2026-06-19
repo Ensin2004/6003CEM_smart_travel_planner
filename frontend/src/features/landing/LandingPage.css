@@ -2,11 +2,24 @@
  * Landing styles.
  * Layout, spacing, and interaction rules support the matching React view.
  */
+
+/* ============================================================
+ * BASE LAYOUT
+ * ============================================================ */
+
 .landing-page {
   min-height: 100vh;
   background: var(--surface);
 }
 
+/* ============================================================
+ * KEYFRAME ANIMATIONS
+ * ============================================================ */
+
+/**
+ * Fade-up animation: Elements rise from below with increasing opacity.
+ * Used for hero content, preview cards, and navigation.
+ */
 @keyframes fadeUp {
   from {
     opacity: 0;
@@ -18,6 +31,10 @@
   }
 }
 
+/**
+ * Progress fill animation: Animates the width of the progress bar
+ * from 18% to 72% to simulate loading completion.
+ */
 @keyframes progressFill {
   from {
     width: 18%;
@@ -27,6 +44,10 @@
   }
 }
 
+/**
+ * Auth panel entrance animation: Used for authentication-related
+ * UI elements that slide up with a fade effect.
+ */
 @keyframes authPanelIn {
   from {
     opacity: 0;
@@ -38,6 +59,10 @@
   }
 }
 
+/**
+ * Auth showcase entrance animation: Elements scale up slightly
+ * from 98.5% to 100% with a fade effect.
+ */
 @keyframes authShowcaseIn {
   from {
     opacity: 0;
@@ -48,16 +73,30 @@
     transform: scale(1);
   }
 }
+
+/* ============================================================
+ * SCROLL REVEAL ANIMATIONS
+ * ============================================================ */
+
+/**
+ * Base reveal-on-scroll class: Elements start invisible and positioned down.
+ * The .is-visible class triggers the transition to visible state.
+ */
 .reveal-on-scroll {
   opacity: 0;
   transform: translateY(28px);
   transition: opacity 0.7s ease, transform 0.7s ease;
 }
+
 .reveal-on-scroll.is-visible {
   opacity: 1;
   transform: translateY(0);
 }
 
+/**
+ * Child item reveal: Individual cards within sections also animate
+ * with staggered delays for a cascading entrance effect.
+ */
 .reveal-on-scroll .highlight-card,
 .reveal-on-scroll .feature-tile,
 .reveal-on-scroll .timeline-step,
@@ -77,6 +116,10 @@
   transform: translateY(0);
 }
 
+/**
+ * Staggered delays for child elements: Each subsequent element
+ * appears slightly later for a polished sequential reveal.
+ */
 .reveal-on-scroll.is-visible article:nth-child(2) {
   transition-delay: 0.08s;
 }
@@ -97,6 +140,14 @@
   transition-delay: 0.4s;
 }
 
+/* ============================================================
+ * HERO SECTION
+ * ============================================================ */
+
+/**
+ * Hero container: Full viewport height with background image overlay.
+ * Uses grid layout for content positioning with isolation context.
+ */
 .landing-hero {
   min-height: 92vh;
   display: grid;
@@ -108,6 +159,10 @@
   isolation: isolate;
 }
 
+/**
+ * Hero overlay: Semi-transparent gradient overlay ensures text readability
+ * against the background image while maintaining visual depth.
+ */
 .landing-hero::before {
   content: "";
   position: absolute;
@@ -118,6 +173,10 @@
     linear-gradient(180deg, rgba(16, 42, 67, 0.04), rgba(15, 118, 110, 0.16));
 }
 
+/**
+ * Shared flex layout: Used across multiple components for consistent
+ * alignment patterns.
+ */
 .landing-nav,
 .nav-actions,
 .nav-links,
@@ -130,6 +189,14 @@
   align-items: center;
 }
 
+/* ============================================================
+ * TOP NAVIGATION
+ * ============================================================ */
+
+/**
+ * Fixed navigation bar: Positioned at the top with glassmorphism effect.
+ * Animates in on page load with fade-up animation.
+ */
 .landing-nav {
   justify-content: space-between;
   gap: 20px;
@@ -150,6 +217,10 @@
   animation: fadeUp 0.55s ease both;
 }
 
+/**
+ * Brand mark: Logo and text combination used across navigation and footer.
+ * Uses consistent spacing and typography.
+ */
 .brand-mark,
 .auth-brand {
   gap: 10px;
@@ -157,6 +228,9 @@
   color: var(--navy);
 }
 
+/**
+ * Logo image: Consistent sizing with proper aspect ratio preservation.
+ */
 .brand-logo {
   width: auto;
   height: 42px;
@@ -168,11 +242,19 @@
   box-shadow: none;
 }
 
+/**
+ * Navigation actions container: Groups login/signup buttons
+ * with consistent spacing and typography.
+ */
 .nav-actions {
   gap: 12px;
   font-weight: var(--font-weight-medium);
 }
 
+/**
+ * Navigation links container: Horizontal list of section links
+ * with hover effects and proper spacing.
+ */
 .nav-links {
   gap: 8px;
   padding: 6px;
@@ -201,6 +283,14 @@
   color: var(--teal);
 }
 
+/* ============================================================
+ * BUTTONS AND ACTIONS
+ * ============================================================ */
+
+/**
+ * Button base styles: Shared properties for all call-to-action buttons
+ * including minimum height, border radius, and flex alignment.
+ */
 .nav-button,
 .primary-action,
 .secondary-action,
@@ -214,12 +304,23 @@
   border: 1px solid transparent;
 }
 
+/**
+ * Navigation button: Primary color background with white text.
+ */
 .nav-button {
   padding: 0 18px;
   background: var(--color-primary);
   color: #ffffff;
 }
 
+/* ============================================================
+ * HERO LAYOUT
+ * ============================================================ */
+
+/**
+ * Hero grid: Two-column layout with content on the left and preview card on the right.
+ * Responsive with min-width constraints for the preview card.
+ */
 .hero-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(340px, 440px);
@@ -229,6 +330,10 @@
   margin: 0 auto;
 }
 
+/**
+ * Hero content: Left column with headline, description, and CTA buttons.
+ * Uses fade-up animation with slight delay for entrance.
+ */
 .hero-content {
   align-self: center;
   width: min(680px, 100%);
@@ -236,6 +341,9 @@
   animation: fadeUp 0.7s ease 0.08s both;
 }
 
+/**
+ * Eyebrow label: Small uppercase text above headings for section context.
+ */
 .eyebrow {
   margin: 0 0 14px;
   color: var(--teal);
@@ -244,6 +352,9 @@
   text-transform: uppercase;
 }
 
+/**
+ * Hero heading: Large responsive typography with tight line height.
+ */
 .hero-content h1 {
   margin: 0;
   max-width: 720px;
@@ -253,6 +364,9 @@
   color: var(--navy);
 }
 
+/**
+ * Hero description: Subdued text with generous line height for readability.
+ */
 .hero-copy {
   max-width: 560px;
   margin: 24px 0 0;
@@ -261,6 +375,9 @@
   line-height: var(--line-height-relaxed);
 }
 
+/**
+ * Hero metrics grid: Three-column stat display with glassmorphism cards.
+ */
 .hero-metrics {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 140px));
@@ -294,12 +411,18 @@
   font-weight: var(--font-weight-semibold);
 }
 
+/**
+ * Hero actions: Horizontal button group with flexible wrapping.
+ */
 .hero-actions {
   gap: 12px;
   flex-wrap: wrap;
   margin-top: 34px;
 }
 
+/**
+ * Action buttons: Primary and secondary variants with distinct styling.
+ */
 .primary-action,
 .secondary-action {
   padding: 0 24px;
@@ -317,6 +440,9 @@
   border-color: rgba(16, 42, 67, 0.18);
 }
 
+/**
+ * Button hover states: Interactive feedback for all primary actions.
+ */
 .primary-action:hover,
 .nav-button:hover {
   background: var(--color-primary-hover);
@@ -328,6 +454,14 @@
   color: var(--color-primary-hover);
 }
 
+/* ============================================================
+ * HERO PREVIEW CARD
+ * ============================================================ */
+
+/**
+ * Preview card: Glassmorphism card showing sample trip overview.
+ * Positioned in the right column with subtle entrance animation.
+ */
 .hero-preview {
   align-self: center;
   padding: 18px;
@@ -339,6 +473,10 @@
   animation: fadeUp 0.7s ease 0.18s both;
 }
 
+/**
+ * Preview layout helpers: Flex containers for header, destination,
+ * and progress sections.
+ */
 .preview-header,
 .preview-destination,
 .preview-progress > div {
@@ -348,6 +486,9 @@
   gap: 14px;
 }
 
+/**
+ * Preview header: Window-style controls with title text.
+ */
 .preview-header {
   padding-bottom: 14px;
   color: var(--muted);
@@ -359,6 +500,9 @@
   gap: 6px;
 }
 
+/**
+ * Preview dots: Window control buttons with macOS-like colors.
+ */
 .preview-dot {
   width: 9px;
   height: 9px;
@@ -378,6 +522,9 @@
   background: var(--color-primary);
 }
 
+/**
+ * Preview destination: Dark gradient card showing trip name and status.
+ */
 .preview-destination {
   padding: 20px;
   border-radius: 8px;
@@ -413,6 +560,9 @@
   font-weight: var(--font-weight-medium);
 }
 
+/**
+ * Preview grid: Two-column grid of stats (weather, budget, destinations, itinerary).
+ */
 .preview-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -446,6 +596,9 @@
   font-size: 17px;
 }
 
+/**
+ * Preview progress bar: Animated progress indicator showing planning completion.
+ */
 .preview-progress {
   display: grid;
   gap: 10px;
@@ -473,6 +626,14 @@
   animation: progressFill 1s ease 0.35s both;
 }
 
+/* ============================================================
+ * HIGHLIGHTS STRIP
+ * ============================================================ */
+
+/**
+ * Landing strip: Three-card horizontal layout showcasing platform highlights.
+ * Positioned directly below the hero section.
+ */
 .landing-strip {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -484,6 +645,10 @@
   border-top: 1px solid var(--line);
 }
 
+/**
+ * Highlight card: Individual highlight with icon, heading, and description.
+ * Features hover effects with lift and scale transforms.
+ */
 .highlight-card {
   position: relative;
   background: var(--surface);
@@ -496,6 +661,10 @@
   transition: transform 0.24s ease, box-shadow 0.24s ease, border-color 0.24s ease;
 }
 
+/**
+ * Icon styling: Shared icon container for cards across multiple sections.
+ * Uses primary color soft background with consistent sizing.
+ */
 .highlight-card svg,
 .feature-tile svg,
 .security-list svg,
@@ -511,6 +680,9 @@
   margin-bottom: 16px;
 }
 
+/**
+ * Card hover effects: Elevation and border color change for interactive feedback.
+ */
 .highlight-card:hover,
 .feature-tile:hover,
 .timeline-step:hover {
@@ -533,6 +705,14 @@
   line-height: 1.65;
 }
 
+/* ============================================================
+ * LANDING SECTIONS (Shared Styles)
+ * ============================================================ */
+
+/**
+ * Section container: Consistent padding with scroll margin for anchor navigation.
+ * Uses isolation context for layering effects.
+ */
 .landing-section {
   position: relative;
   overflow: hidden;
@@ -541,6 +721,10 @@
   isolation: isolate;
 }
 
+/**
+ * Section pseudo-elements: Decorative borders and backgrounds
+ * for visual depth and section separation.
+ */
 .landing-section::before {
   content: "";
   position: absolute;
@@ -559,6 +743,14 @@
   pointer-events: none;
 }
 
+/* ============================================================
+ * SECTION HEADINGS
+ * ============================================================ */
+
+/**
+ * Section heading: Centered heading block with decorative underline.
+ * Used across multiple sections with variants.
+ */
 .section-heading {
   position: relative;
   max-width: 760px;
@@ -567,6 +759,9 @@
   padding: 0 16px;
 }
 
+/**
+ * Heading underline: Accent bar below the heading for visual separation.
+ */
 .section-heading::after {
   content: "";
   display: block;
@@ -577,6 +772,9 @@
   background: var(--color-primary);
 }
 
+/**
+ * Left-aligned heading variant: Used in showcase sections for asymmetrical layouts.
+ */
 .section-heading-left {
   max-width: none;
   margin-inline: 0;
@@ -588,6 +786,10 @@
   margin-left: 0;
 }
 
+/**
+ * Section kicker: Small badge-like label above the main heading.
+ * Used for section categorization with icon support.
+ */
 .section-kicker {
   display: inline-flex;
   align-items: center;
@@ -612,6 +814,9 @@
   color: var(--color-primary);
 }
 
+/**
+ * Dark variant: For use on dark backgrounds with inverted colors.
+ */
 .section-kicker-dark {
   border-color: rgba(255, 255, 255, 0.24);
   background: rgba(255, 255, 255, 0.12);
@@ -622,6 +827,9 @@
   color: #99f6e4;
 }
 
+/**
+ * Section points: Keyword tags below the heading for quick scanning.
+ */
 .section-points {
   display: flex;
   flex-wrap: wrap;
@@ -648,6 +856,9 @@
   justify-content: flex-start;
 }
 
+/**
+ * Dark variant for points: Used on dark section backgrounds.
+ */
 .section-points-dark span {
   border-color: rgba(255, 255, 255, 0.22);
   background: rgba(255, 255, 255, 0.1);
@@ -680,6 +891,14 @@
   margin-left: 0;
 }
 
+/* ============================================================
+ * SECTION SHOWCASES
+ * ============================================================ */
+
+/**
+ * Section showcase: Two-column layout combining heading with visual content.
+ * Used in features, workflow, and travellers sections.
+ */
 .section-showcase {
   display: grid;
   grid-template-columns: minmax(0, 0.95fr) minmax(320px, 0.7fr);
@@ -689,10 +908,16 @@
   margin: 0 auto 46px;
 }
 
+/**
+ * Workflow showcase: Reversed column order for visual variety.
+ */
 .section-showcase-workflow {
   grid-template-columns: minmax(320px, 0.7fr) minmax(0, 0.95fr);
 }
 
+/**
+ * Visual containers: Glassmorphism cards used for decorative visual elements.
+ */
 .section-visual,
 .workflow-map,
 .traveller-visual,
@@ -704,6 +929,14 @@
   backdrop-filter: blur(18px);
 }
 
+/* ============================================================
+ * FEATURES VISUAL
+ * ============================================================ */
+
+/**
+ * Feature visual: Mockup interface showing trip card and details.
+ * Used in the features section showcase.
+ */
 .feature-visual {
   display: grid;
   gap: 14px;
@@ -796,6 +1029,14 @@
   color: var(--color-primary);
 }
 
+/* ============================================================
+ * WORKFLOW MAP
+ * ============================================================ */
+
+/**
+ * Workflow map: Visual representation of the three-step process
+ * with map pin markers and connecting routes.
+ */
 .workflow-map {
   position: relative;
   min-height: 290px;
@@ -812,6 +1053,10 @@
   background: rgba(255, 255, 255, 0.68);
 }
 
+/**
+ * Map pins: Circular markers with icons positioned absolutely on the map.
+ * Each pin represents a workflow step.
+ */
 .map-pin {
   position: absolute;
   z-index: 1;
@@ -840,6 +1085,9 @@
   top: 30%;
 }
 
+/**
+ * Map routes: Connecting lines between pins representing the workflow flow.
+ */
 .map-route {
   position: absolute;
   z-index: 1;
@@ -860,6 +1108,14 @@
   transform: rotate(-24deg);
 }
 
+/* ============================================================
+ * SECURITY SUMMARY
+ * ============================================================ */
+
+/**
+ * Security summary: Dark gradient card highlighting the security value proposition.
+ * Used in the safety section.
+ */
 .security-summary {
   display: flex;
   align-items: center;
@@ -885,6 +1141,14 @@
   color: #ccfbf1;
 }
 
+/* ============================================================
+ * TRAVELLER VISUAL
+ * ============================================================ */
+
+/**
+ * Traveller visual: Dark-themed card showing planning support categories.
+ * Used in the travellers section showcase.
+ */
 .traveller-visual {
   justify-self: end;
   width: min(360px, 100%);
@@ -924,6 +1188,13 @@
   font-size: 13px;
 }
 
+/* ============================================================
+ * FEATURES SECTION
+ * ============================================================ */
+
+/**
+ * Feature section: Background with subtle pattern and radial gradient overlay.
+ */
 .feature-section {
   background:
     linear-gradient(90deg, rgba(255, 255, 255, 0.94) 0%, rgba(255, 255, 255, 0.88) 48%, rgba(236, 253, 245, 0.8) 100%),
@@ -937,6 +1208,10 @@
     radial-gradient(circle at 86% 8%, rgba(245, 158, 11, 0.12), transparent 26%);
 }
 
+/**
+ * Feature grid: Three-column grid of feature tiles.
+ * Each tile represents a core platform capability.
+ */
 .feature-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -945,6 +1220,9 @@
   margin: 42px auto 0;
 }
 
+/**
+ * Feature tile: Individual feature card with icon, heading, and description.
+ */
 .feature-tile,
 .security-list article,
 .timeline-step {
@@ -978,6 +1256,13 @@
   line-height: 1.65;
 }
 
+/* ============================================================
+ * WORKFLOW SECTION
+ * ============================================================ */
+
+/**
+ * Workflow section: Background with subtle gradient and pattern.
+ */
 .workflow-section {
   background:
     linear-gradient(135deg, rgba(248, 250, 252, 0.96), rgba(236, 253, 245, 0.94)),
@@ -991,6 +1276,9 @@
     radial-gradient(circle at 78% 80%, rgba(15, 118, 110, 0.12), transparent 30%);
 }
 
+/**
+ * Timeline: Three-column grid of workflow steps with step numbers.
+ */
 .timeline {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1020,6 +1308,14 @@
   margin-bottom: 14px;
 }
 
+/* ============================================================
+ * SAFETY SECTION
+ * ============================================================ */
+
+/**
+ * Split section: Two-column layout with heading on the left
+ * and security items on the right.
+ */
 .split-section {
   display: grid;
   grid-template-columns: minmax(0, 440px) minmax(0, 560px);
@@ -1037,6 +1333,9 @@
     radial-gradient(circle at 90% 84%, rgba(245, 158, 11, 0.1), transparent 24%);
 }
 
+/**
+ * Security list: Vertical stack of security feature cards.
+ */
 .security-list {
   display: grid;
   gap: 12px;
@@ -1063,6 +1362,14 @@
   transform: translateY(-10px) scale(1.03);
 }
 
+/* ============================================================
+ * TRAVELLERS SECTION
+ * ============================================================ */
+
+/**
+ * Stack section: Dark navy/teal gradient background with white text.
+ * Represents the traveller personas section.
+ */
 .stack-section {
   background:
     linear-gradient(135deg, rgba(16, 42, 67, 0.96), rgba(15, 118, 110, 0.88)),
@@ -1093,6 +1400,9 @@
   background: #99f6e4;
 }
 
+/**
+ * Stack row: Four-column grid of traveller type cards.
+ */
 .stack-row {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1101,6 +1411,10 @@
   margin: 34px auto 0;
 }
 
+/**
+ * Traveller pill: Glassmorphism card representing a traveller persona.
+ * Features translucent background with hover effects.
+ */
 .traveller-pill {
   border: 1px solid rgba(255, 255, 255, 0.22);
   border-radius: 8px;
@@ -1137,6 +1451,13 @@
   line-height: 1.6;
 }
 
+/* ============================================================
+ * FOOTER
+ * ============================================================ */
+
+/**
+ * Landing footer: Dark section with brand information and navigation links.
+ */
 .landing-footer {
   display: flex;
   justify-content: space-between;
@@ -1158,6 +1479,14 @@
   font-weight: var(--font-weight-medium);
 }
 
+/* ============================================================
+ * ACCESSIBILITY: REDUCED MOTION
+ * ============================================================ */
+
+/**
+ * Reduced motion preference: Disables all animations and transitions
+ * for users who prefer reduced motion for accessibility.
+ */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -1169,6 +1498,10 @@
   }
 }
 
+/* ============================================================
+ * FOOTER BRAND VARIANT
+ * ============================================================ */
+
 .footer-brand {
   color: #ffffff;
 }
@@ -1176,4 +1509,3 @@
 .footer-brand span {
   background: var(--teal);
 }
-

@@ -1,6 +1,16 @@
 /**
  * Trips styles.
  * Layout, spacing, and interaction rules support the matching React view.
+ * 
+ * This stylesheet defines the visual presentation for the trip details page,
+ * including the main layout grid, panel system, AI assistant interface,
+ * itinerary display, budget overview, and responsive adaptations.
+ */
+
+/**
+ * Main page container that establishes the primary layout structure
+ * Uses grid with auto top row and flexible content area
+ * Negative margin compensates for parent container padding to create edge-to-edge layout
  */
 .trip-details-page {
   display: grid;
@@ -13,6 +23,11 @@
   background: #eef3f8;
   text-align: left;
 }
+
+/**
+ * Top navigation bar containing trip title, metadata, and action buttons
+ * Uses flexbox for horizontal alignment with proper spacing
+ */
 .trip-details-topbar {
   display: flex;
   align-items: center;
@@ -24,6 +39,11 @@
     #ffffff;
   padding: 6px 16px;
 }
+
+/**
+ * Title row container that groups back link and trip heading
+ * Uses flexbox with minimum width constraints to prevent overflow
+ */
 .trip-details-title-row {
   display: flex;
   align-items: center;
@@ -33,6 +53,11 @@
 .trip-details-title-row > div {
   min-width: 0;
 }
+
+/**
+ * Back navigation link styled as a button with icon and text
+ * Uses border, background, and teal color for visual hierarchy
+ */
 .trip-back-link {
   display: inline-flex;
   align-items: center;
@@ -47,6 +72,10 @@
   font-size: 13px;
   font-weight: 700;
 }
+
+/**
+ * Trip title typography with specific font weight and spacing
+ */
 .trip-details-topbar h2 {
   margin: 0 0 2px;
   color: #0f172a;
@@ -54,6 +83,11 @@
   font-weight: 650;
   letter-spacing: 0;
 }
+
+/**
+ * Trip metadata display with flex wrapping for responsive layout
+ * Includes date range and status badge elements
+ */
 .trip-details-topbar p {
   display: flex;
   flex-wrap: wrap;
@@ -70,6 +104,11 @@
   color: #0f766e;
   padding: 3px 7px;
 }
+
+/**
+ * Budget display component with icon and numeric value
+ * Uses border, background, and flex layout for compact presentation
+ */
 .trip-details-budget {
   display: inline-flex;
   align-items: center;
@@ -92,11 +131,20 @@
   font-size: 14px;
   font-weight: 650;
 }
+
+/**
+ * Container for top bar action buttons including settings and other controls
+ */
 .trip-details-topbar-actions {
   display: flex;
   align-items: center;
   gap: 10px;
 }
+
+/**
+ * Settings toggle button with icon and text
+ * Uses border, background, and consistent padding for interaction
+ */
 .trip-settings-button {
   display: inline-flex;
   align-items: center;
@@ -110,6 +158,11 @@
   font-size: 13px;
   font-weight: 650;
 }
+
+/**
+ * Settings overlay backdrop that covers the entire viewport
+ * Fixed positioning with high z-index for modal layering
+ */
 .trip-settings-overlay {
   position: fixed;
   inset: 0;
@@ -118,6 +171,11 @@
   justify-content: flex-end;
   background: rgba(15, 23, 42, 0.28);
 }
+
+/**
+ * Settings drawer panel that slides in from the right
+ * Uses grid layout for structured form content with auto and flexible rows
+ */
 .trip-settings-drawer {
   display: grid;
   grid-template-rows: auto repeat(4, auto) minmax(0, 1fr);
@@ -129,6 +187,11 @@
   background: #ffffff;
   box-shadow: -20px 0 44px rgba(16, 42, 67, 0.18);
 }
+
+/**
+ * Header section within settings drawer and checklist modal
+ * Shared styling for consistent header appearance across modals
+ */
 .trip-settings-drawer > header,
 .trip-checklist-modal header {
   display: flex;
@@ -138,12 +201,20 @@
   border-bottom: 1px solid #e2e8f0;
   padding: 18px;
 }
+
+/**
+ * Settings header label text styling with uppercase transformation
+ */
 .trip-settings-drawer header span {
   color: #64748b;
   font-size: 12px;
   font-weight: 650;
   text-transform: uppercase;
 }
+
+/**
+ * Heading elements within settings and checklist with consistent margins
+ */
 .trip-settings-drawer h3,
 .trip-settings-drawer h4,
 .trip-checklist-modal h3 {
@@ -158,6 +229,11 @@
   font-size: 14px;
   font-weight: 650;
 }
+
+/**
+ * Close button styling for modal headers
+ * Uses grid centering with circular border and background
+ */
 .trip-settings-drawer header button,
 .trip-checklist-modal header button {
   display: grid;
@@ -169,16 +245,29 @@
   background: #ffffff;
   color: #0f172a;
 }
+
+/**
+ * Settings section container with grid layout and bottom border separation
+ * Provides consistent spacing for form groups
+ */
 .trip-settings-section {
   display: grid;
   gap: 12px;
   border-bottom: 1px solid #e2e8f0;
   padding: 16px 18px;
 }
+
+/**
+ * Checkbox group container with stacked vertical layout
+ */
 .trip-settings-checks {
   display: grid;
   gap: 9px;
 }
+
+/**
+ * Label styling for checkbox items with flex alignment and consistent font weight
+ */
 .trip-settings-checks label,
 .trip-checklist-items label {
   display: flex;
@@ -188,16 +277,28 @@
   font-size: 14px;
   font-weight: 600;
 }
+
+/**
+ * Checkbox input styling with accent color for consistent theming
+ */
 .trip-settings-checks input,
 .trip-checklist-items input {
   width: 16px;
   height: 16px;
   accent-color: #0f766e;
 }
+
+/**
+ * Settings row with two-column grid layout for label and action pairing
+ */
 .trip-settings-row {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
 }
+
+/**
+ * Helper text and message styling with muted color and specific font size
+ */
 .trip-settings-row p,
 .trip-settings-message {
   margin: 4px 0 0;
@@ -205,6 +306,10 @@
   font-size: 12px;
   font-weight: 600;
 }
+
+/**
+ * Action button within settings rows with teal theming and consistent sizing
+ */
 .trip-settings-row button,
 .trip-checklist-items button {
   display: inline-flex;
@@ -220,6 +325,11 @@
   font-size: 13px;
   font-weight: 650;
 }
+
+/**
+ * Budget input field with currency symbol prefix and input area
+ * Uses two-column grid with border and background
+ */
 .trip-settings-budget-input {
   display: grid;
   grid-template-columns: 62px minmax(0, 1fr);
@@ -244,6 +354,11 @@
   padding: 0 10px;
   font: inherit;
 }
+
+/**
+ * Message banner for settings validation or informational display
+ * Uses orange color scheme for attention-grabbing presentation
+ */
 .trip-settings-message {
   margin: 12px 18px;
   border: 1px solid #fed7aa;
@@ -252,6 +367,11 @@
   color: #9a3412;
   padding: 9px 10px;
 }
+
+/**
+ * Main content shell that contains left panel, resizer, and map area
+ * Uses three-column grid with dynamic left panel width via CSS custom property
+ */
 .trip-details-shell {
   display: grid;
   grid-template-columns: var(--trip-left-panel-width, 460px) 8px minmax(0, 1fr);
@@ -259,9 +379,18 @@
   overflow: hidden;
 }
 
+/**
+ * Shell variant that includes AI assistant panel on the far left
+ * Adds an extra column for the assistant interface
+ */
 .trip-details-shell.has-ai-assistant {
   grid-template-columns: minmax(280px, 340px) var(--trip-left-panel-width, 460px) 8px minmax(0, 1fr);
 }
+
+/**
+ * Left panel containing itinerary, tabs, and day selectors
+ * Uses grid layout with auto rows for header, tabs, content, and footer
+ */
 .trip-details-panel {
   position: relative;
   display: grid;
@@ -271,6 +400,11 @@
   border-right: 1px solid #dbe3ed;
   background: #ffffff;
 }
+
+/**
+ * Resizer handle between left panel and map area
+ * Provides visual cue for column resizing interaction
+ */
 .trip-panel-resizer {
   position: relative;
   z-index: 5;
@@ -278,6 +412,10 @@
   background: #e8eef5;
 }
 
+/**
+ * Resizer handle decorative dot element centered vertically
+ * Uses pseudo-element for visual representation
+ */
 .trip-panel-resizer::before {
   content: "";
   position: absolute;
@@ -290,12 +428,19 @@
   transform: translate(-50%, -50%);
 }
 
+/**
+ * Resizer hover and focus states for improved user feedback
+ */
 .trip-panel-resizer:hover,
 .trip-panel-resizer:focus-visible {
   background: #dbeafe;
   outline: none;
 }
 
+/**
+ * Tab navigation container within the details panel
+ * Uses flex with bottom border separation
+ */
 .trip-details-tabs {
   display: flex;
   gap: 18px;
@@ -303,10 +448,12 @@
   padding: 14px 18px 0;
 }
 
+/**
+ * Map toolbar with left-aligned flex content
+ */
 .trip-route-map-toolbar {
   justify-content: flex-start;
 }
-
 .trip-route-map-toolbar span {
   display: inline-flex;
   align-items: center;
@@ -316,6 +463,10 @@
   font-weight: 700;
 }
 
+/**
+ * Individual tab button styling with active state indicator
+ * Uses pseudo-element for active underline effect
+ */
 .trip-details-tabs button {
   position: relative;
   min-height: 38px;
@@ -326,11 +477,9 @@
   font-size: 14px;
   font-weight: 600;
 }
-
 .trip-details-tabs button.active {
   color: #0f172a;
 }
-
 .trip-details-tabs button.active::after {
   content: "";
   position: absolute;
@@ -342,6 +491,9 @@
   background: #0f172a;
 }
 
+/**
+ * Day tabs container with horizontal scrolling and background
+ */
 .trip-day-tabs {
   position: relative;
   display: flex;
@@ -351,11 +503,17 @@
   overflow: visible;
 }
 
+/**
+ * Day selector wrapper for positioning the day dropdown menu
+ */
 .trip-day-selector {
   position: relative;
   width: 100%;
 }
 
+/**
+ * Quick list of day tabs with horizontal overflow handling
+ */
 .trip-day-quick-list {
   display: flex;
   max-width: 100%;
@@ -363,6 +521,10 @@
   gap: 8px;
   overflow: visible;
 }
+
+/**
+ * Settings form field with label and input grouping
+ */
 .trip-settings-field {
   display: grid;
   gap: 6px;
@@ -382,11 +544,19 @@
   padding: 0 10px;
   font: inherit;
 }
+
+/**
+ * Date input grid with two equal columns for start and end dates
+ */
 .trip-settings-date-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
+
+/**
+ * Information banner with blue color scheme for tips and notes
+ */
 .trip-settings-info {
   display: flex;
   align-items: flex-start;
@@ -407,6 +577,11 @@
   font-size: 12px;
   line-height: 1.45;
 }
+
+/**
+ * Save button with teal background and white text
+ * Includes disabled state with reduced opacity
+ */
 .trip-settings-save {
   min-height: 38px;
   border: 0;
@@ -420,18 +595,25 @@
   cursor: wait;
   opacity: 0.65;
 }
+
+/**
+ * Inline error message with red color and bold font weight
+ */
 .trip-settings-inline-error {
   color: #b91c1c;
   font-weight: 650;
 }
 
+/**
+ * Container for individual day tab with relative positioning
+ * Used to position route button overlay
+ */
 .trip-day-tab-group {
   position: relative;
   display: flex;
   flex: 0 1 160px;
   min-width: 126px;
 }
-
 .trip-day-tab-group .trip-day-tab-button {
   flex: 1 1 auto;
   min-width: 0;
@@ -439,6 +621,10 @@
   padding-right: 38px;
 }
 
+/**
+ * Route button positioned absolutely within day tab group
+ * Provides quick access to route visualization for that day
+ */
 .trip-day-route-button {
   position: absolute;
   top: 5px;
@@ -452,20 +638,22 @@
   background: #f8fafc;
   color: #2563eb;
 }
-
 .trip-day-route-button:hover,
 .trip-day-route-button.active {
   border-color: #2563eb;
   background: #dbeafe;
   color: #1d4ed8;
 }
-
 .trip-day-tab-button.active + .trip-day-route-button {
   border-color: rgba(255, 255, 255, 0.28);
   background: rgba(255, 255, 255, 0.14);
   color: #ffffff;
 }
 
+/**
+ * Day tab button with constrained sizing and text truncation
+ * Uses grid for stacked label and subtitle layout
+ */
 .trip-day-tab-button,
 .trip-day-more {
   display: grid;
@@ -482,12 +670,10 @@
   font-weight: 600;
   text-align: left;
 }
-
 .trip-day-tab-button span,
 .trip-day-tab-button small {
   min-width: 0;
 }
-
 .trip-day-tab-button small {
   overflow: hidden;
   color: #64748b;
@@ -497,28 +683,37 @@
   white-space: nowrap;
 }
 
+/**
+ * Active state for day tabs with dark background and white text
+ */
 .trip-day-tab-button.active,
 .trip-day-more.active {
   border-color: #0f172a;
   background: #0f172a;
   color: #ffffff;
 }
-
 .trip-day-tab-button.active small {
   color: #cbd5e1;
 }
 
+/**
+ * More button for accessing additional day options
+ * Uses two-column grid with icon alignment
+ */
 .trip-day-more {
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   flex-basis: 88px;
   min-width: 78px;
 }
-
 .trip-day-more svg {
   color: currentColor;
 }
 
+/**
+ * Dropdown menu for day selection with absolute positioning
+ * Appears below the day tabs with shadow and background
+ */
 .trip-day-menu {
   position: absolute;
   top: calc(100% + 8px);
@@ -535,6 +730,10 @@
   box-shadow: 0 20px 42px rgba(16, 42, 67, 0.18);
 }
 
+/**
+ * Menu item button with hover and active states
+ * Uses grid for stacked content layout
+ */
 .trip-day-menu button {
   display: grid;
   gap: 2px;
@@ -547,7 +746,6 @@
   padding: 7px 9px;
   text-align: left;
 }
-
 .trip-day-menu button small {
   overflow: hidden;
   color: #64748b;
@@ -556,11 +754,9 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .trip-day-menu button:hover {
   background: #f8fafc;
 }
-
 .trip-day-menu button.active {
   border-color: #0f172a;
   background: #0f172a;
@@ -570,16 +766,17 @@
   color: #cbd5e1;
 }
 
+/**
+ * Menu row with two-column layout for day item and route action
+ */
 .trip-day-menu-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 38px;
   gap: 4px;
 }
-
 .trip-day-menu-row > button:first-child {
   min-width: 0;
 }
-
 .trip-day-menu .trip-day-menu-route {
   display: grid;
   width: 38px;
@@ -588,12 +785,14 @@
   color: #2563eb;
   padding: 0;
 }
-
 .trip-day-menu .trip-day-menu-route.active {
   background: #dbeafe;
   color: #1d4ed8;
 }
 
+/**
+ * Itinerary workspace container with scrolling and padding
+ */
 .trip-itinerary-workspace {
   display: grid;
   gap: 10px;
@@ -601,6 +800,10 @@
   padding: 12px 14px 14px;
 }
 
+/**
+ * Ideas workspace with three-row grid layout for search, filters, and results
+ * Supports add context variant with additional row
+ */
 .trip-ideas-workspace {
   grid-row: 2 / 4;
   display: grid;
@@ -610,11 +813,14 @@
   overflow: hidden;
   padding: 12px 14px 14px;
 }
-
 .trip-ideas-workspace.has-add-context {
   grid-template-rows: auto auto auto minmax(0, 1fr);
 }
 
+/**
+ * Add context bar for providing location context to ideas
+ * Uses blue color scheme for informational display
+ */
 .trip-ideas-add-context {
   display: flex;
   align-items: center;
@@ -626,23 +832,19 @@
   color: #1d4ed8;
   padding: 9px 10px;
 }
-
 .trip-ideas-add-context div {
   display: grid;
   gap: 2px;
 }
-
 .trip-ideas-add-context span {
   font-size: 10px;
   font-weight: 750;
   text-transform: uppercase;
 }
-
 .trip-ideas-add-context strong {
   color: #0f172a;
   font-size: 13px;
 }
-
 .trip-ideas-add-context button {
   display: grid;
   width: 30px;
@@ -654,12 +856,19 @@
   color: #2563eb;
 }
 
+/**
+ * Idea list container with vertical scrolling
+ */
 .trip-ideas-workspace .trip-idea-list {
   min-height: 0;
   overflow-y: auto;
   padding-right: 2px;
 }
 
+/**
+ * Day editor and idea card with consistent styling
+ * Uses border, background gradient, and subtle shadow
+ */
 .trip-day-editor,
 .trip-idea-card {
   display: grid;
@@ -673,6 +882,10 @@
   box-shadow: 0 8px 22px rgba(16, 42, 67, 0.045);
 }
 
+/**
+ * Itinerary group with custom accent color variable
+ * Uses two-column grid for content and action alignment
+ */
 .trip-itinerary-group {
   --group-accent: #0f766e;
   display: grid;
@@ -685,32 +898,35 @@
   padding: 14px 2px;
 }
 
+/**
+ * Color variants for different itinerary groups using nth-child
+ * Each group receives a unique accent color for visual distinction
+ */
 .trip-itinerary-group:nth-child(1) {
   --group-accent: #b45309;
 }
-
 .trip-itinerary-group:nth-child(2) {
   --group-accent: #0369a1;
 }
-
 .trip-itinerary-group:nth-child(3) {
   --group-accent: #5b21b6;
 }
-
 .trip-itinerary-group:nth-child(4) {
   --group-accent: #047857;
 }
-
 .trip-itinerary-group:last-child {
   border-bottom: 0;
 }
 
+/**
+ * Budget overview with two-column responsive grid
+ * Contains multiple card types with different visual treatments
+ */
 .trip-budget-overview {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
 }
-
 .trip-budget-overview > div {
   display: grid;
   min-height: 142px;
@@ -723,18 +939,20 @@
   padding: 13px;
   box-shadow: 0 3px 10px rgba(16, 42, 67, 0.035);
 }
-
 .trip-budget-overview > div:nth-child(2) {
   border-color: #dbe3ed;
   background: #ffffff;
 }
-
 .trip-budget-overview > div:nth-child(3) {
   background:
     linear-gradient(135deg, rgba(255, 247, 237, 0.9), rgba(255, 255, 255, 0.94)),
     #ffffff;
 }
 
+/**
+ * Budget card danger state with red border and background
+ * Used for overspending or critical budget alerts
+ */
 .trip-budget-overview > .trip-budget-card.is-danger {
   border-color: #fecaca;
   background:
@@ -742,17 +960,23 @@
     #ffffff;
 }
 
+/**
+ * Budget card warning state with orange border and background
+ * Used for near-limit or cautionary budget situations
+ */
 .trip-budget-overview > .trip-budget-card.is-warning {
   border-color: #fed7aa;
   background:
     linear-gradient(135deg, rgba(255, 247, 237, 0.96), rgba(255, 255, 255, 0.94)),
     #ffffff;
 }
-
 .trip-budget-overview > .trip-budget-card.is-success {
   border-color: #dbe3ed;
 }
 
+/**
+ * Typography for budget labels and metadata
+ */
 .trip-budget-overview span,
 .trip-budget-overview small {
   color: #64748b;
@@ -761,12 +985,18 @@
   line-height: 1.35;
 }
 
+/**
+ * Weather budget card spanning full width with reduced height
+ */
 .trip-budget-overview > .trip-weather-budget-card {
   grid-column: 1 / -1;
   min-height: 78px;
   gap: 4px;
 }
 
+/**
+ * Strong emphasis within budget cards with specific font size
+ */
 .trip-budget-overview strong {
   color: #0f172a;
   font-size: 13px;
@@ -774,6 +1004,9 @@
   line-height: 1.3;
 }
 
+/**
+ * Progress bar for budget visualization
+ */
 .trip-budget-bar {
   display: block;
   height: 5px;
@@ -782,6 +1015,9 @@
   background: #dbeafe;
 }
 
+/**
+ * Card heading with icon, title, and action layout
+ */
 .trip-budget-card-heading {
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr) auto;
@@ -789,18 +1025,19 @@
   gap: 8px;
   min-width: 0;
 }
-
 .trip-budget-card-heading > div {
   display: grid;
   gap: 1px;
   min-width: 0;
 }
-
 .trip-budget-card-heading > div > strong {
   font-size: 12px;
   font-weight: 700;
 }
 
+/**
+ * Icon container within budget cards with colored background
+ */
 .trip-budget-card-icon {
   display: grid;
   width: 28px;
@@ -810,36 +1047,38 @@
   background: #f0fdf4;
   color: #047857 !important;
 }
-
 .trip-allocation-card .trip-budget-card-icon {
   background: #eff6ff;
   color: #1d4ed8 !important;
 }
 
+/**
+ * Primary value display with two-column layout for amount and controls
+ */
 .trip-budget-primary-value {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(120px, 0.8fr);
   align-items: end;
   gap: 12px;
 }
-
 .trip-budget-primary-value > div {
   display: flex;
   align-items: baseline;
   gap: 5px;
 }
-
 .trip-budget-primary-value > div > strong {
   font-size: 18px;
   font-weight: 700;
 }
 
+/**
+ * Budget input field with currency symbol and numeric input
+ */
 .trip-budget-input {
   display: grid;
   gap: 4px;
   min-width: 0;
 }
-
 .trip-budget-input > div {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -851,7 +1090,6 @@
   background: #ffffff;
   padding: 0 8px;
 }
-
 .trip-budget-input input {
   width: 100%;
   min-width: 0;
@@ -863,29 +1101,36 @@
   font-weight: 600;
   outline: none;
 }
-
 .trip-budget-input small {
   color: #475569;
   font-weight: 650;
 }
 
+/**
+ * Allocation percentage with blue color and large font
+ */
 .trip-allocation-percent {
   color: #1d4ed8 !important;
   font-size: 16px !important;
   font-weight: 700 !important;
 }
 
+/**
+ * Allocation summary with flex layout for amount display
+ */
 .trip-allocation-summary {
   display: flex;
   align-items: baseline;
   gap: 5px;
 }
-
 .trip-allocation-summary strong {
   font-size: 18px;
   font-weight: 700;
 }
 
+/**
+ * Budget card footer with flex layout for status and controls
+ */
 .trip-budget-card-footer {
   display: flex;
   align-items: center;
@@ -893,31 +1138,34 @@
   gap: 8px;
   min-width: 0;
 }
-
 .trip-budget-card-footer > strong {
   flex: 0 0 auto;
   font-size: 11px;
   font-weight: 750;
 }
 
+/**
+ * Weather stat display with icon and text alignment
+ */
 .trip-weather-stat {
   display: flex;
   align-items: center;
   gap: 7px;
   min-width: 0;
 }
-
 .trip-weather-stat svg {
   flex: 0 0 auto;
   color: #0284c7;
 }
-
 .trip-weather-stat strong {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+/**
+ * Budget status indicator with inline display and color variants
+ */
 .trip-budget-status {
   display: inline-flex;
   width: auto;
@@ -934,22 +1182,22 @@
   text-align: center;
   white-space: normal;
 }
-
 .trip-budget-card.is-success .trip-budget-status {
   background: transparent;
   color: #047857;
 }
-
 .trip-budget-card.is-warning .trip-budget-status {
   background: transparent;
   color: #c2410c;
 }
-
 .trip-budget-card.is-danger .trip-budget-status {
   background: transparent;
   color: #b91c1c;
 }
 
+/**
+ * Budget summary card spanning full width with grid layout
+ */
 .trip-budget-overview > .trip-budget-summary-card {
   grid-column: 1 / -1;
   display: grid;
@@ -960,6 +1208,9 @@
   padding: 14px;
 }
 
+/**
+ * Summary row with label and value aligned
+ */
 .trip-budget-summary-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -967,29 +1218,32 @@
   gap: 10px 16px;
   min-width: 0;
 }
-
 .trip-budget-summary-row > div:first-child {
   display: grid;
   gap: 1px;
 }
-
 .trip-budget-summary-row > div:first-child strong {
   font-size: 12px;
   font-weight: 700;
 }
 
+/**
+ * Summary value with inline-flex for number and label
+ */
 .trip-budget-summary-value {
   display: inline-flex;
   align-items: baseline;
   gap: 5px;
   white-space: nowrap;
 }
-
 .trip-budget-summary-value strong {
   font-size: 16px;
   font-weight: 700;
 }
 
+/**
+ * Budget input within summary card with constrained width
+ */
 .trip-budget-summary-card .trip-budget-input {
   display: grid;
   grid-template-columns: auto minmax(90px, 120px);
@@ -997,25 +1251,23 @@
   justify-self: start;
   gap: 8px;
 }
-
 .trip-budget-summary-card .trip-budget-input > div {
   min-height: 32px;
 }
-
 .trip-budget-summary-card .trip-budget-status {
   max-width: none;
   justify-self: end;
 }
-
 .trip-budget-summary-card .trip-budget-bar {
   height: 4px;
 }
-
 .trip-budget-summary-card .trip-allocation-card {
   border-top: 1px solid #eef2f7;
   padding-top: 12px;
 }
 
+/**
+ * Remaining budget display with flex alignment */
 .trip-budget-remaining {
   display: flex;
   grid-column: 1 / -1;
@@ -1024,17 +1276,22 @@
   gap: 6px;
   white-space: nowrap;
 }
-
 .trip-budget-remaining strong {
   font-size: 12px;
   font-weight: 650;
 }
 
+/**
+ * Budget overview responsive layout override for mobile
+ */
 .trip-budget-overview {
   grid-template-columns: 1fr;
   gap: 10px;
 }
 
+/**
+ * Statistic card with left border accent and gradient background
+ */
 .trip-budget-overview > .trip-statistic-card {
   position: relative;
   display: grid;
@@ -1049,13 +1306,11 @@
   padding: 13px 14px;
   box-shadow: 0 5px 16px rgba(15, 23, 42, 0.05);
 }
-
 .trip-budget-overview > .trip-allocation-card {
   border-color: #dbeafe;
   border-left-color: #3b82f6;
   background: linear-gradient(100deg, #f6f9ff 0%, #ffffff 52%);
 }
-
 .trip-budget-overview > .trip-weather-budget-card {
   min-height: 0;
   gap: 8px;
@@ -1064,23 +1319,23 @@
   background: linear-gradient(100deg, #fffaf2 0%, #ffffff 52%);
 }
 
+/**
+ * Statistic card header with icon, title, and metadata
+ */
 .trip-statistic-card-header {
   display: grid;
   grid-template-columns: 30px minmax(0, 1fr) auto;
   align-items: center;
   gap: 9px;
 }
-
 .trip-statistic-card-header > div {
   display: grid;
   gap: 1px;
 }
-
 .trip-statistic-card-header > div > strong {
   font-size: 12px;
   font-weight: 700;
 }
-
 .trip-statistic-card-icon {
   display: grid;
   width: 30px;
@@ -1090,62 +1345,63 @@
   background: #dff7ee;
   color: #047857 !important;
 }
-
 .trip-allocation-card .trip-statistic-card-icon {
   background: #e6efff;
   color: #2563eb !important;
 }
-
 .trip-weather-budget-card .trip-statistic-card-icon {
   background: #fff1d6;
   color: #d97706 !important;
 }
 
+/**
+ * Main content area of statistic card with flex layout
+ */
 .trip-statistic-card-main {
   display: flex;
   align-items: end;
   justify-content: space-between;
   gap: 16px;
 }
-
 .trip-statistic-card .trip-budget-input {
   display: grid;
   grid-template-columns: auto minmax(90px, 120px);
   align-items: center;
   gap: 8px;
 }
-
 .trip-statistic-card .trip-budget-status {
   max-width: none;
   justify-self: end;
 }
-
 .trip-statistic-card .trip-budget-remaining {
   grid-column: auto;
   justify-content: flex-end;
 }
-
 .trip-statistic-card .trip-budget-bar {
   height: 4px;
 }
-
 .trip-statistic-card .trip-weather-stat strong {
   font-size: 16px;
   font-weight: 700;
 }
 
+/**
+ * Weather stat text with orange color and specific font
+ */
 .trip-weather-stat span {
   color: #92400e;
   font-size: 12px;
   font-weight: 650;
 }
 
+/**
+ * Weather metrics container with flex wrap for multiple data points
+ */
 .trip-weather-metrics {
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
 }
-
 .trip-weather-metrics span,
 .trip-weather-loading {
   display: inline-flex;
@@ -1155,25 +1411,28 @@
   font-size: 11px;
   font-weight: 600;
 }
-
 .trip-weather-metrics span {
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.78);
   padding: 5px 8px;
 }
-
 .trip-weather-metrics svg {
   color: #d97706;
 }
 
+/**
+ * Panel footer with white background and assistant bar spacing
+ */
 .trip-panel-footer {
   background: #ffffff;
 }
-
 .trip-panel-footer .trip-assistant-bar {
   margin-top: 12px;
 }
 
+/**
+ * Weather toggle control with checkbox and label
+ */
 .trip-weather-toggle {
   display: flex;
   align-items: center;
@@ -1188,31 +1447,33 @@
   font-size: 13px;
   font-weight: 650;
 }
-
 .trip-weather-toggle input {
   width: 16px;
   height: 16px;
   accent-color: #0f766e;
 }
-
 .trip-weather-toggle svg {
   color: #64748b;
 }
 
+/**
+ * Notes panel with grid layout for note entries
+ */
 .trip-day-notes-panel {
   display: grid;
   gap: 8px;
 }
-
 .trip-day-notes-panel .trip-day-note {
   display: grid;
   gap: 8px;
 }
-
 .trip-day-notes-panel textarea {
   min-height: 72px;
 }
 
+/**
+ * Weather advice and helper containers with blue theme
+ */
 .trip-weather-advice,
 .trip-weather-helper {
   display: grid;
@@ -1225,7 +1486,6 @@
   padding: 8px 10px;
   box-shadow: 0 8px 22px rgba(16, 42, 67, 0.045);
 }
-
 .trip-weather-advice > div {
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr);
@@ -1233,13 +1493,15 @@
   align-items: center;
 }
 
+/**
+ * Weather helper heading with icon and title
+ */
 .trip-weather-helper-heading {
   display: grid;
   grid-template-columns: 32px minmax(0, 1fr) auto;
   gap: 10px;
   align-items: center;
 }
-
 .trip-weather-advice > div > span,
 .trip-weather-helper-heading > span {
   display: grid;
@@ -1250,7 +1512,6 @@
   background: #e0f2fe;
   color: #0369a1;
 }
-
 .trip-weather-advice h3,
 .trip-weather-helper strong {
   margin: 0;
@@ -1258,7 +1519,6 @@
   font-size: 13px;
   font-weight: 650;
 }
-
 .trip-weather-advice p,
 .trip-weather-helper small {
   margin: 1px 0 0;
@@ -1267,6 +1527,9 @@
   line-height: 1.3;
 }
 
+/**
+ * Weather advice list and tip list with consistent styling
+ */
 .trip-weather-advice ul,
 .trip-weather-tip-list {
   display: grid;
@@ -1274,7 +1537,6 @@
   margin: 0;
   padding: 0;
 }
-
 .trip-weather-advice li,
 .trip-weather-tip-list span {
   display: block;
@@ -1286,17 +1548,18 @@
   font-weight: 600;
   line-height: 1.25;
 }
-
 .trip-weather-advice li {
   list-style: none;
 }
 
+/**
+ * Weather shortcuts buttons with icon and label
+ */
 .trip-weather-shortcuts {
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
 }
-
 .trip-weather-shortcuts button {
   display: inline-flex;
   align-items: center;
@@ -1311,16 +1574,21 @@
   font-weight: 650;
 }
 
+/**
+ * Compact variant of weather helper with reduced spacing
+ */
 .trip-weather-helper.is-compact {
   gap: 8px;
   padding: 9px 10px;
 }
-
 .trip-weather-helper.is-compact .trip-weather-helper-heading > span {
   width: 28px;
   height: 28px;
 }
 
+/**
+ * Hide button for weather section with consistent styling
+ */
 .trip-weather-hide {
   min-height: 28px;
   border: 1px solid #cbd5e1;
@@ -1332,36 +1600,38 @@
   font-weight: 650;
 }
 
+/**
+ * Budget bar with gradient fill based on status
+ * Success, warning, and danger variants with different colors
+ */
 .trip-budget-bar em {
   display: block;
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, #2563eb, #38bdf8);
 }
-
 .trip-budget-card .trip-budget-bar {
   background: #dcfce7;
 }
-
 .trip-budget-card .trip-budget-bar em {
   background: linear-gradient(90deg, #059669, #34d399);
 }
-
 .trip-budget-card.is-warning .trip-budget-bar {
   background: #ffedd5;
 }
-
 .trip-budget-card.is-warning .trip-budget-bar em {
   background: linear-gradient(90deg, #ea580c, #fb923c);
 }
-
 .trip-budget-card.is-danger .trip-budget-bar {
   background: #fee2e2;
 }
-
 .trip-budget-card.is-danger .trip-budget-bar em {
   background: linear-gradient(90deg, #dc2626, #f87171);
 }
+
+/**
+ * Route summary card with border, background, and shadow
+ */
 .trip-route-summary {
   display: grid;
   gap: 10px;
@@ -1372,6 +1642,9 @@
   box-shadow: 0 8px 22px rgba(16, 42, 67, 0.045);
 }
 
+/**
+ * Day detail header with flex layout and border separation
+ */
 .trip-day-detail-header {
   display: flex;
   align-items: start;
@@ -1380,7 +1653,6 @@
   border-bottom: 1px solid #dbe3ed;
   padding: 0 0 10px;
 }
-
 .trip-day-detail-header h3 {
   margin: 0;
   color: #0f172a;
@@ -1388,7 +1660,6 @@
   font-weight: 700;
   letter-spacing: 0;
 }
-
 .trip-day-detail-header p {
   margin: 3px 0 0;
   color: #64748b;
@@ -1396,6 +1667,9 @@
   font-weight: 600;
 }
 
+/**
+ * Day header action buttons with grid centering
+ */
 .trip-day-detail-header button,
 .trip-group-collapse {
   display: grid;
@@ -1407,7 +1681,6 @@
   background: transparent;
   color: #0f172a;
 }
-
 .trip-day-detail-header .trip-day-header-route {
   display: inline-flex;
   width: auto;
@@ -1423,7 +1696,6 @@
   font-size: 12px;
   font-weight: 700;
 }
-
 .trip-day-detail-header .trip-day-header-route:hover,
 .trip-day-detail-header .trip-day-header-route.active {
   border-color: #2563eb;
@@ -1431,13 +1703,15 @@
   color: #ffffff;
 }
 
+/**
+ * Location row with flex layout and action buttons
+ */
 .trip-day-location-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
-
 .trip-day-location-row > div {
   display: inline-flex;
   min-width: 0;
@@ -1445,7 +1719,6 @@
   gap: 10px;
   color: #0f172a;
 }
-
 .trip-day-location-row strong {
   overflow: hidden;
   font-size: 14px;
@@ -1454,7 +1727,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .trip-day-location-row button {
   display: inline-flex;
   flex: 0 0 auto;
@@ -1471,6 +1743,9 @@
   font-weight: 560;
 }
 
+/**
+ * Location edit form with border and padding
+ */
 .trip-day-location-edit {
   display: grid;
   gap: 6px;
@@ -1479,14 +1754,12 @@
   background: #ffffff;
   padding: 10px;
 }
-
 .trip-day-location-edit span,
 .trip-day-location-edit small {
   color: #64748b;
   font-size: 12px;
   font-weight: 600;
 }
-
 .trip-day-location-edit input,
 .trip-day-title-input {
   width: 100%;
@@ -1499,12 +1772,14 @@
   font: inherit;
 }
 
+/**
+ * Location suggestions with flex wrap for multiple options
+ */
 .trip-location-suggestions {
   display: flex;
   flex-wrap: wrap;
   gap: 7px;
 }
-
 .trip-location-suggestions button {
   display: inline-flex;
   max-width: 100%;
@@ -1519,12 +1794,15 @@
   line-height: 1.2;
   text-align: left;
 }
-
 .trip-location-suggestions button:hover {
   border-color: rgba(15, 118, 110, 0.32);
   background: #f0fdfa;
   color: #0f766e;
 }
+
+/**
+ * Route summary heading with icon alignment
+ */
 .trip-route-summary-heading {
   display: flex;
   align-items: center;
@@ -1537,11 +1815,14 @@
   font-size: 14px;
   font-weight: 650;
 }
+
+/**
+ * Route summary list with stacked items
+ */
 .trip-route-summary-list {
   display: grid;
   gap: 7px;
 }
-
 .trip-route-country-summary {
   display: grid;
   gap: 5px;
@@ -1550,20 +1831,17 @@
   background: #f8fafc;
   padding: 9px 10px;
 }
-
 .trip-route-country-summary strong {
   color: #0f172a;
   font-size: 13px;
   font-weight: 700;
 }
-
 .trip-route-country-summary span {
   color: #64748b;
   font-size: 12px;
   font-weight: 560;
   line-height: 1.35;
 }
-
 .trip-route-summary-list span {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -1592,6 +1870,10 @@
   font-size: 12px;
   line-height: 1.45;
 }
+
+/**
+ * Summary tab with auto rows for content stacking
+ */
 .trip-summary-tab {
   display: grid;
   grid-auto-rows: max-content;
@@ -1599,6 +1881,10 @@
   align-content: start;
   gap: 8px;
 }
+
+/**
+ * Summary hero, metrics, and card containers with consistent styling
+ */
 .trip-summary-hero,
 .trip-summary-metrics,
 .trip-summary-grid > .trip-summary-card {
@@ -1607,6 +1893,10 @@
   background: #ffffff;
   box-shadow: 0 8px 22px rgba(16, 42, 67, 0.045);
 }
+
+/**
+ * Hero section with flex layout for trip overview
+ */
 .trip-summary-hero {
   display: flex;
   align-items: center;
@@ -1646,6 +1936,10 @@
   padding: 6px 9px;
   font-size: 12px;
 }
+
+/**
+ * Metrics grid with two columns and border separators
+ */
 .trip-summary-metrics {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1678,6 +1972,10 @@
   font-size: 13px;
   font-weight: 700;
 }
+
+/**
+ * Summary grid with two-column responsive layout
+ */
 .trip-summary-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1723,6 +2021,10 @@
   margin-top: 2px;
   font-size: 11px;
 }
+
+/**
+ * Progress row with label and bar visualization
+ */
 .trip-summary-progress-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -1767,6 +2069,10 @@
 .trip-summary-progress-row.documents > span i {
   background: linear-gradient(90deg, #2563eb, #60a5fa);
 }
+
+/**
+ * Budget total display with large font for amount
+ */
 .trip-summary-budget-total {
   display: grid;
   gap: 4px;
@@ -1792,25 +2098,34 @@
 .trip-summary-budget-bar b {
   color: #2563eb;
 }
+
+/**
+ * Responsive adjustments for summary grid on small screens
+ */
 @media (max-width: 520px) {
   .trip-summary-grid {
     grid-template-columns: 1fr;
   }
 }
 
+/**
+ * Day heading with flex layout and grid sections
+ */
 .trip-day-heading {
   display: flex;
   align-items: start;
   justify-content: space-between;
   gap: 12px;
 }
-
 .trip-day-heading > div {
   display: grid;
   gap: 5px;
   min-width: 0;
 }
 
+/**
+ * Form inputs and textareas with consistent styling
+ */
 .trip-day-heading input,
 .trip-day-note input,
 .trip-day-note textarea,
@@ -1825,6 +2140,9 @@
   font-size: 14px;
 }
 
+/**
+ * Time and control grids with two-column layout
+ */
 .trip-item-time-grid,
 .trip-place-time-grid,
 .trip-item-controls {
@@ -1832,14 +2150,12 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 8px;
 }
-
 .trip-item-time-grid label,
 .trip-place-time-grid label,
 .trip-item-controls label {
   display: grid;
   gap: 5px;
 }
-
 .trip-item-time-grid span,
 .trip-place-time-grid span,
 .trip-item-controls span {
@@ -1847,7 +2163,6 @@
   font-size: 11px;
   font-weight: 650;
 }
-
 .trip-item-time-grid input,
 .trip-place-time-grid input,
 .trip-item-controls input {
@@ -1862,13 +2177,15 @@
   font-size: 12px;
 }
 
+/**
+ * Day heading input with specific font weight and padding
+ */
 .trip-day-heading > div input {
   min-height: 38px;
   color: #0f172a;
   padding: 0 10px;
   font-weight: 600;
 }
-
 .trip-day-heading label {
   display: grid;
   grid-template-columns: 16px 94px;
@@ -1876,17 +2193,18 @@
   align-items: center;
   color: #0f766e;
 }
-
 .trip-day-heading label input {
   min-height: 36px;
   padding: 0 9px;
 }
 
+/**
+ * Day note container with label and textarea
+ */
 .trip-day-note {
   display: grid;
   gap: 7px;
 }
-
 .trip-day-note span {
   display: inline-flex;
   align-items: center;
@@ -1895,7 +2213,6 @@
   font-size: 13px;
   font-weight: 600;
 }
-
 .trip-day-note textarea,
 .trip-day-note input,
 .trip-itinerary-item textarea {
@@ -1915,17 +2232,18 @@
   font-weight: 600;
 }
 
+/**
+ * Add item form with input and button side by side
+ */
 .trip-add-item {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
 }
-
 .trip-add-item input {
   min-height: 40px;
   padding: 0 11px;
 }
-
 .trip-add-item button {
   display: inline-flex;
   align-items: center;
@@ -1941,6 +2259,9 @@
   font-weight: 600;
 }
 
+/**
+ * Itinerary groups container with stacked layout
+ */
 .trip-itinerary-groups {
   display: grid;
   gap: 8px;
@@ -1949,7 +2270,6 @@
   padding: 0;
   box-shadow: none;
 }
-
 .trip-itinerary-group {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto 34px;
@@ -1963,6 +2283,9 @@
   min-width: 0;
 }
 
+/**
+ * Group heading with icon and title layout
+ */
 .trip-group-heading {
   display: grid;
   grid-template-columns: 32px minmax(0, 1fr);
@@ -1970,7 +2293,6 @@
   align-items: center;
   min-width: 0;
 }
-
 .trip-group-heading > span {
   display: grid;
   width: 32px;
@@ -1981,25 +2303,25 @@
   color: var(--group-accent);
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--group-accent), transparent 84%);
 }
-
 .trip-group-heading h3,
 .trip-group-heading small {
   display: block;
   margin: 0;
 }
-
 .trip-group-heading h3 {
   color: #1d4ed8;
   font-size: 15px;
   font-weight: 750;
 }
-
 .trip-group-heading small {
   color: #64748b;
   font-size: 12px;
   font-weight: 500;
 }
 
+/**
+ * Group add button with blue background and white text
+ */
 .trip-group-add {
   display: inline-flex;
   align-items: center;
@@ -2014,21 +2336,21 @@
   font-size: 12px;
   font-weight: 700;
 }
-
 .trip-group-collapse {
   color: #0f172a;
 }
-
 .trip-group-add svg {
   color: currentColor;
 }
-
 .trip-group-add:hover {
   border-color: #1d4ed8;
   background: #1d4ed8;
   color: #ffffff;
 }
 
+/**
+ * Saved heading within group with border and spacing
+ */
 .trip-group-saved-heading {
   order: 1;
   display: flex;
@@ -2039,7 +2361,6 @@
   border-top: 1px solid #e2e8f0;
   padding-top: 11px;
 }
-
 .trip-group-saved-heading span {
   color: #0f172a;
   font-size: 12px;
@@ -2047,13 +2368,15 @@
   text-transform: uppercase;
   letter-spacing: 0.045em;
 }
-
 .trip-group-saved-heading small {
   color: #64748b;
   font-size: 11px;
   font-weight: 600;
 }
 
+/**
+ * Empty state for group with dashed border
+ */
 .trip-group-empty {
   order: 2;
   grid-column: 1 / -1;
@@ -2066,6 +2389,9 @@
   line-height: 1.45;
 }
 
+/**
+ * Group ideas container with blue theme
+ */
 .trip-group-ideas {
   order: 3;
   display: grid;
@@ -2076,12 +2402,10 @@
   background: #f8fbff;
   padding: 10px;
 }
-
 .trip-group-ideas-heading {
   display: grid;
   gap: 2px;
 }
-
 .trip-group-ideas-heading span {
   display: inline-flex;
   align-items: center;
@@ -2090,18 +2414,15 @@
   font-size: 12px;
   font-weight: 750;
 }
-
 .trip-group-ideas-heading small {
   color: #64748b;
   font-size: 11px;
   font-weight: 560;
 }
-
 .trip-group-idea-list {
   display: grid;
   gap: 7px;
 }
-
 .trip-group-idea {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -2112,7 +2433,6 @@
   background: #f8fafc;
   padding: 8px 9px;
 }
-
 .trip-group-idea strong,
 .trip-group-idea small {
   display: block;
@@ -2121,20 +2441,17 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .trip-group-idea strong {
   color: #0f172a;
   font-size: 12px;
   font-weight: 650;
 }
-
 .trip-group-idea small,
 .trip-group-idea-message {
   color: #64748b;
   font-size: 11px;
   font-weight: 560;
 }
-
 .trip-group-idea button {
   display: inline-flex;
   align-items: center;
@@ -2149,12 +2466,14 @@
   font-size: 12px;
   font-weight: 650;
 }
-
 .trip-group-idea button:disabled {
   cursor: not-allowed;
   opacity: 0.58;
 }
 
+/**
+ * Itinerary item with grid layout and border separation
+ */
 .trip-itinerary-item {
   order: 2;
   position: relative;
@@ -2167,19 +2486,24 @@
   padding: 9px 0;
 }
 
+/**
+ * Main card content with thumbnail and copy layout
+ */
 .trip-item-card-main {
   display: grid;
   grid-template-columns: 64px minmax(0, 1fr);
   gap: 9px;
   cursor: pointer;
 }
-
 .trip-item-card-main:focus-visible,
 .trip-item-card-main:hover {
   outline: 2px solid rgba(37, 99, 235, 0.22);
   outline-offset: 4px;
 }
 
+/**
+ * Thumbnail container with image and fallback
+ */
 .trip-itinerary-thumb {
   display: grid;
   width: 64px;
@@ -2190,19 +2514,20 @@
   background: #f0fdfa;
   color: #0f766e;
 }
-
 .trip-itinerary-thumb img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
-
 .trip-item-card-copy {
   display: grid;
   gap: 4px;
   min-width: 0;
 }
 
+/**
+ * Title row with flex layout and action buttons
+ */
 .trip-item-title-row {
   display: flex;
   align-items: flex-start;
@@ -2211,7 +2536,6 @@
   min-width: 0;
   color: #0f172a;
 }
-
 .trip-item-title-row strong {
   flex: 1 1 auto;
   overflow: hidden;
@@ -2220,14 +2544,12 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .trip-item-header-actions {
   display: inline-flex;
   flex: 0 0 auto;
   align-items: center;
   gap: 6px;
 }
-
 .trip-item-header-actions .visited-place-button {
   min-height: 30px;
   border-color: #bfdbfe;
@@ -2238,18 +2560,15 @@
   font-size: 11px;
   font-weight: 700;
 }
-
 .trip-item-header-actions .visited-place-button:hover {
   border-color: #2563eb;
   background: #dbeafe;
 }
-
 .trip-item-header-actions .visited-place-button.is-visited {
   border-color: #86efac;
   background: #ecfdf5;
   color: #047857;
 }
-
 .trip-item-title-row .trip-item-remove {
   display: inline-flex;
   width: 30px;
@@ -2262,6 +2581,9 @@
   color: #b42318;
 }
 
+/**
+ * Card copy paragraph with line clamping for long text
+ */
 .trip-item-card-copy p {
   display: -webkit-box;
   margin: 0;
@@ -2272,18 +2594,15 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
-
 .trip-item-card-copy p svg {
   margin-right: 4px;
   vertical-align: -2px;
 }
-
 .trip-item-mini-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
 }
-
 .trip-item-mini-meta span {
   display: inline-flex;
   align-items: center;
@@ -2296,11 +2615,13 @@
   font-weight: 600;
 }
 
+/**
+ * Strong and small elements within itinerary with consistent weight
+ */
 .trip-itinerary-item strong,
 .trip-idea-result strong {
   font-weight: 600;
 }
-
 .trip-itinerary-item small {
   display: inline-flex;
   align-items: center;
@@ -2309,20 +2630,21 @@
   font-size: 12px;
 }
 
+/**
+ * Cost display with grid layout and input fields
+ */
 .trip-item-cost {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 92px auto;
   gap: 8px;
   align-items: center;
 }
-
 .trip-item-controls {
   grid-template-columns: repeat(3, minmax(92px, 1fr));
   border-radius: 6px;
   background: #f8fafc;
   padding: 7px;
 }
-
 .trip-item-cost span,
 .trip-item-cost small {
   display: inline-flex;
@@ -2332,7 +2654,6 @@
   font-size: 12px;
   font-weight: 500;
 }
-
 .trip-item-cost input {
   width: 100%;
   min-height: 32px;
@@ -2345,6 +2666,9 @@
   font-size: 13px;
 }
 
+/**
+ * Idea search and filters with flex layout
+ */
 .trip-idea-search,
 .trip-idea-filters,
 .trip-details-map-toolbar {
@@ -2353,6 +2677,9 @@
   gap: 7px;
 }
 
+/**
+ * Add search panel with grid layout for search interface
+ */
 .trip-add-search-panel {
   grid-row: 1 / -1;
   display: grid;
@@ -2362,7 +2689,6 @@
   overflow: hidden;
   padding: 14px;
 }
-
 .trip-add-search-header {
   display: flex;
   align-items: center;
@@ -2370,7 +2696,6 @@
   border-bottom: 1px solid #e2e8f0;
   padding-bottom: 12px;
 }
-
 .trip-add-search-header button {
   display: grid;
   width: 34px;
@@ -2382,25 +2707,25 @@
   background: #ffffff;
   color: #0f172a;
 }
-
 .trip-add-search-header div {
   display: grid;
   gap: 2px;
   min-width: 0;
 }
-
 .trip-add-search-header span {
   color: #64748b;
   font-size: 12px;
   font-weight: 500;
 }
-
 .trip-add-search-header strong {
   color: #0f172a;
   font-size: 17px;
   font-weight: 650;
 }
 
+/**
+ * Empty state for add panel with dashed border and centered content
+ */
 .trip-add-empty {
   display: grid;
   justify-items: center;
@@ -2412,28 +2737,27 @@
   padding: 28px 18px;
   text-align: center;
 }
-
 .trip-add-empty svg {
   color: #94a3b8;
 }
-
 .trip-add-empty h3,
 .trip-add-empty p {
   margin: 0;
 }
-
 .trip-add-empty h3 {
   color: #0f172a;
   font-size: 15px;
   font-weight: 700;
 }
-
 .trip-add-empty p {
   max-width: 320px;
   font-size: 12px;
   line-height: 1.45;
 }
 
+/**
+ * Idea search input with icon and border
+ */
 .trip-idea-search {
   flex-wrap: nowrap;
   border: 1px solid #dbe3ed;
@@ -2441,7 +2765,6 @@
   background: #ffffff;
   padding: 6px;
 }
-
 .trip-idea-search input {
   flex: 1 1 auto;
   min-width: 0;
@@ -2452,7 +2775,6 @@
   font: inherit;
   font-size: 13px;
 }
-
 .trip-idea-search button {
   display: grid;
   width: 34px;
@@ -2464,6 +2786,9 @@
   color: #ffffff;
 }
 
+/**
+ * Filter buttons with active state for category selection
+ */
 .trip-idea-filters {
   overflow-x: hidden;
   border: 1px solid #dbe3ed;
@@ -2471,7 +2796,6 @@
   background: #f8fafc;
   padding: 8px;
 }
-
 .trip-idea-filters button,
 .trip-details-map-toolbar button {
   display: inline-flex;
@@ -2487,13 +2811,15 @@
   font-size: 13px;
   font-weight: 600;
 }
-
 .trip-idea-filters button.active {
   border-color: rgba(15, 118, 110, 0.32);
   background: #f0fdfa;
   color: #0f766e;
 }
 
+/**
+ * Idea list with border and overflow handling
+ */
 .trip-idea-list {
   display: grid;
   gap: 0;
@@ -2502,13 +2828,15 @@
   overflow: hidden;
   background: #ffffff;
 }
-
 .trip-add-search-panel .trip-idea-list {
   min-height: 0;
   overflow-y: auto;
   padding-right: 2px;
 }
 
+/**
+ * Individual idea result with hover and active states
+ */
 .trip-idea-result {
   position: relative;
   display: grid;
@@ -2522,26 +2850,26 @@
   text-align: left;
   transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
 }
-
 .trip-idea-result:hover {
   border-color: #edf2f7;
   box-shadow: 0 10px 24px rgba(37, 99, 235, 0.1);
   transform: none;
 }
-
 .trip-idea-result.is-active {
   border-left: 3px solid #2563eb;
   background: #eff6ff;
   box-shadow: none;
 }
 
+/**
+ * Idea card main layout with thumbnail and content
+ */
 .trip-idea-card-main {
   display: grid;
   grid-template-columns: 64px minmax(0, 1fr);
   gap: 8px;
   align-items: center;
 }
-
 .trip-idea-thumb {
   display: grid;
   width: 64px;
@@ -2552,19 +2880,16 @@
   background: #f0fdfa;
   color: #0f766e;
 }
-
 .trip-idea-thumb img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
-
 .trip-idea-card-main > div {
   display: grid;
   gap: 4px;
   min-width: 0;
 }
-
 .trip-idea-type {
   width: fit-content;
   border-radius: 999px;
@@ -2575,7 +2900,6 @@
   font-weight: 600;
   text-transform: capitalize;
 }
-
 .trip-idea-result strong {
   overflow: hidden;
   color: #0f172a;
@@ -2583,7 +2907,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .trip-idea-result p {
   margin: 0;
   color: #64748b;
@@ -2594,13 +2917,11 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
 }
-
 .trip-idea-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 5px;
 }
-
 .trip-idea-meta span {
   display: inline-flex;
   align-items: center;
@@ -2613,6 +2934,9 @@
   font-weight: 600;
 }
 
+/**
+ * Assistant bar with rounded pill shape and hover effect
+ */
 .trip-assistant-bar {
   display: flex;
   align-items: center;
@@ -2629,12 +2953,14 @@
   cursor: pointer;
   text-align: left;
 }
-
 .trip-assistant-bar:hover {
   border-color: rgba(15, 118, 110, 0.32);
   color: #0f766e;
 }
 
+/**
+ * AI assistant panel with three-row grid layout
+ */
 .trip-ai-assistant {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
@@ -2643,7 +2969,6 @@
   border-right: 1px solid #dbe3ed;
   background: #f8fafc;
 }
-
 .trip-ai-assistant-header {
   display: flex;
   align-items: center;
@@ -2653,12 +2978,10 @@
   background: #ffffff;
   padding: 14px;
 }
-
 .trip-ai-assistant-header > div {
   display: grid;
   gap: 3px;
 }
-
 .trip-ai-assistant-header span {
   display: inline-flex;
   align-items: center;
@@ -2668,12 +2991,10 @@
   font-weight: 700;
   text-transform: uppercase;
 }
-
 .trip-ai-assistant-header strong {
   color: #0f172a;
   font-size: 17px;
 }
-
 .trip-ai-assistant-header button {
   display: grid;
   width: 32px;
@@ -2685,6 +3006,9 @@
   color: #64748b;
 }
 
+/**
+ * Conversation container with scrolling and padding
+ */
 .trip-ai-conversation {
   display: grid;
   align-content: start;
@@ -2693,6 +3017,9 @@
   padding: 14px;
 }
 
+/**
+ * Welcome message with centered content and spacing
+ */
 .trip-ai-welcome {
   display: grid;
   justify-items: center;
@@ -2702,48 +3029,43 @@
   padding: 30px 16px;
   text-align: center;
 }
-
 .trip-ai-welcome svg {
   color: #0f766e;
 }
-
 .trip-ai-welcome strong {
   color: #0f172a;
   font-size: 14px;
 }
-
 .trip-ai-welcome p {
   margin: 0;
   font-size: 12px;
   line-height: 1.5;
 }
 
+/**
+ * Message bubble with role-based alignment and styling
+ */
 .trip-ai-message {
   display: grid;
   gap: 5px;
   max-width: 92%;
 }
-
 .trip-ai-message.is-user {
   justify-self: end;
 }
-
 .trip-ai-message.is-assistant {
   justify-self: start;
   width: 100%;
 }
-
 .trip-ai-message small {
   color: #64748b;
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
 }
-
 .trip-ai-message.is-user small {
   text-align: right;
 }
-
 .trip-ai-message > p,
 .trip-ai-error {
   margin: 0;
@@ -2753,13 +3075,11 @@
   line-height: 1.5;
   white-space: pre-wrap;
 }
-
 .trip-ai-message.is-user > p {
   border-bottom-right-radius: 2px;
   background: #0f766e;
   color: #ffffff;
 }
-
 .trip-ai-message.is-assistant > p {
   border: 1px solid rgba(15, 118, 110, 0.15);
   border-bottom-left-radius: 2px;
@@ -2767,6 +3087,9 @@
   color: #334155;
 }
 
+/**
+ * Typing indicator with animated dots
+ */
 .trip-ai-typing {
   display: flex;
   align-items: center;
@@ -2777,7 +3100,6 @@
   background: #ffffff;
   padding: 12px 14px;
 }
-
 .trip-ai-typing span {
   width: 6px;
   height: 6px;
@@ -2785,26 +3107,29 @@
   background: #0f766e;
   animation: trip-ai-dot-wave 1s ease-in-out infinite;
 }
-
 .trip-ai-typing span:nth-child(2) {
   animation-delay: 0.14s;
 }
-
 .trip-ai-typing span:nth-child(3) {
   animation-delay: 0.28s;
 }
 
+/**
+ * Error message with red border and background
+ */
 .trip-ai-error {
   border: 1px solid #fecaca;
   background: #fef2f2;
   color: #b91c1c;
 }
 
+/**
+ * Place list within AI messages with card-based layout
+ */
 .trip-ai-place-list {
   display: grid;
   gap: 9px;
 }
-
 .trip-ai-place-card {
   display: grid;
   grid-template-columns: 84px minmax(0, 1fr);
@@ -2816,13 +3141,11 @@
   padding: 8px;
   text-align: left;
 }
-
 .trip-ai-place-card:hover,
 .trip-ai-place-card.is-active {
   border-color: rgba(15, 118, 110, 0.35);
   background: #f0fdfa;
 }
-
 .trip-ai-place-image {
   display: grid;
   width: 84px;
@@ -2833,26 +3156,22 @@
   background: #e2e8f0;
   color: #0f766e;
 }
-
 .trip-ai-place-image img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
-
 .trip-ai-place-copy {
   display: grid;
   gap: 3px;
   min-width: 0;
 }
-
 .trip-ai-place-copy small {
   color: #0f766e;
   font-size: 10px;
   font-weight: 700;
   text-transform: uppercase;
 }
-
 .trip-ai-place-copy strong {
   overflow: hidden;
   color: #0f172a;
@@ -2860,7 +3179,6 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .trip-ai-place-copy > span {
   display: -webkit-box;
   overflow: hidden;
@@ -2870,7 +3188,6 @@
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
 }
-
 .trip-ai-place-copy em {
   display: inline-flex;
   align-items: center;
@@ -2881,6 +3198,9 @@
   font-weight: 650;
 }
 
+/**
+ * Prompt form with input and send button
+ */
 .trip-ai-prompt-form {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -2889,7 +3209,6 @@
   background: #ffffff;
   padding: 10px;
 }
-
 .trip-ai-prompt-form input {
   width: 100%;
   min-height: 40px;
@@ -2899,7 +3218,6 @@
   font: inherit;
   font-size: 12px;
 }
-
 .trip-ai-prompt-form button {
   align-self: end;
   display: grid;
@@ -2911,12 +3229,14 @@
   background: #0f766e;
   color: #ffffff;
 }
-
 .trip-ai-prompt-form button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
 }
 
+/**
+ * Keyframe animation for typing indicator dots
+ */
 @keyframes trip-ai-dot-wave {
   0%,
   60%,
@@ -2924,13 +3244,15 @@
     opacity: 0.35;
     transform: translateY(0);
   }
-
   30% {
     opacity: 1;
     transform: translateY(-4px);
   }
 }
 
+/**
+ * Map area with grid layout and relative positioning
+ */
 .trip-details-map-area {
   position: relative;
   display: grid;
@@ -2940,6 +3262,10 @@
   overflow: hidden;
 }
 
+/**
+ * Place detail panel with absolute positioning
+ * Slides in from the right with shadow
+ */
 .trip-place-detail-panel {
   position: absolute;
   top: 0;
@@ -2955,7 +3281,6 @@
   background: #ffffff;
   box-shadow: -18px 0 42px rgba(16, 42, 67, 0.18);
 }
-
 .trip-place-detail-close {
   position: absolute;
   top: 8px;
@@ -2970,7 +3295,6 @@
   background: rgba(255, 255, 255, 0.92);
   color: #0f172a;
 }
-
 .trip-place-detail-image {
   width: 100%;
   height: 148px;
@@ -2978,19 +3302,16 @@
   background: #e0f2fe;
   object-fit: cover;
 }
-
 .trip-place-detail-empty {
   display: grid;
   place-items: center;
   color: #0f766e;
 }
-
 .trip-place-detail-body {
   display: block;
   overflow-y: auto;
   padding: 12px 14px;
 }
-
 .trip-place-detail-body h3 {
   margin: 8px 0 7px;
   color: #0f172a;
@@ -2998,7 +3319,6 @@
   font-weight: 650;
   line-height: 1.25;
 }
-
 .trip-place-detail-body p,
 .trip-place-facts dd,
 .trip-place-loading {
@@ -3007,26 +3327,22 @@
   font-size: 12px;
   line-height: 1.45;
 }
-
 .trip-place-loading,
 .trip-place-rating {
   display: inline-flex;
   align-items: center;
   gap: 7px;
 }
-
 .trip-place-rating {
   flex-wrap: wrap;
   color: #f97316;
   margin: 0 0 8px;
 }
-
 .trip-place-rating strong {
   color: #0f172a;
   font-size: 13px;
   font-weight: 650;
 }
-
 .trip-place-rating span {
   border-radius: 999px;
   background: #fff7ed;
@@ -3036,13 +3352,15 @@
   font-weight: 600;
 }
 
+/**
+ * Facts section with definition list layout
+ */
 .trip-place-facts {
   display: grid;
   gap: 0;
   margin: 10px 0 0;
   border-top: 1px solid #e2e8f0;
 }
-
 .trip-place-facts div {
   display: grid;
   grid-template-columns: 88px minmax(0, 1fr);
@@ -3050,7 +3368,6 @@
   border-bottom: 1px solid #eef2f7;
   padding: 10px 0;
 }
-
 .trip-place-facts dt {
   display: inline-flex;
   align-items: center;
@@ -3060,12 +3377,14 @@
   font-weight: 650;
 }
 
+/**
+ * Place actions with buttons and warnings
+ */
 .trip-place-actions {
   border-top: 1px solid #e2e8f0;
   background: #ffffff;
   padding: 10px 12px;
 }
-
 .trip-opening-warning {
   display: flex;
   align-items: flex-start;
@@ -3080,7 +3399,6 @@
   font-weight: 600;
   line-height: 1.35;
 }
-
 .trip-place-actions > button {
   display: inline-flex;
   width: 100%;
@@ -3095,12 +3413,10 @@
   font-size: 13px;
   font-weight: 650;
 }
-
 .trip-place-actions > button:disabled {
   cursor: not-allowed;
   background: #94a3b8;
 }
-
 .trip-place-actions small {
   display: block;
   margin-top: 6px;
@@ -3109,6 +3425,9 @@
   text-align: center;
 }
 
+/**
+ * Map toolbar with z-index and backdrop blur
+ */
 .trip-details-map-toolbar {
   position: relative;
   z-index: 2;
@@ -3116,12 +3435,15 @@
   background: rgba(255, 255, 255, 0.92);
   padding: 12px 18px;
 }
-
 .trip-details-map {
   height: 100%;
   min-height: 0;
 }
 
+/**
+ * Route modes selector with absolute positioning and grid layout
+ * Appears as floating toolbar over the map
+ */
 .trip-day-route-modes {
   position: absolute;
   top: 62px;
@@ -3138,7 +3460,6 @@
   box-shadow: 0 14px 34px rgba(15, 23, 42, 0.16);
   backdrop-filter: blur(10px);
 }
-
 .trip-day-route-modes button {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
@@ -3152,28 +3473,28 @@
   padding: 7px 9px;
   text-align: left;
 }
-
 .trip-day-route-modes button.active {
   border-color: #2563eb;
   background: #eff6ff;
   color: #1d4ed8;
 }
-
 .trip-day-route-modes button:disabled {
   cursor: wait;
   opacity: 0.68;
 }
-
 .trip-day-route-modes span {
   font-size: 11px;
   font-weight: 650;
 }
-
 .trip-day-route-modes strong {
   grid-column: 1 / -1;
   font-size: 12px;
 }
 
+/**
+ * Route panel with absolute positioning and grid layout
+ * Shows route details and order list
+ */
 .trip-day-route-panel {
   position: absolute;
   top: 0;
@@ -3188,7 +3509,6 @@
   background: rgba(255, 255, 255, 0.97);
   box-shadow: -18px 0 42px rgba(16, 42, 67, 0.18);
 }
-
 .trip-day-route-panel > header {
   display: flex;
   align-items: center;
@@ -3197,12 +3517,10 @@
   border-bottom: 1px solid #e2e8f0;
   padding: 15px;
 }
-
 .trip-day-route-panel header div {
   display: grid;
   gap: 3px;
 }
-
 .trip-day-route-panel header span {
   display: inline-flex;
   align-items: center;
@@ -3212,13 +3530,11 @@
   font-weight: 750;
   text-transform: uppercase;
 }
-
 .trip-day-route-panel h3 {
   margin: 0;
   color: #0f172a;
   font-size: 17px;
 }
-
 .trip-day-route-panel header button {
   display: grid;
   width: 32px;
@@ -3229,7 +3545,6 @@
   background: #ffffff;
   color: #64748b;
 }
-
 .trip-day-route-summary {
   display: flex;
   align-items: center;
@@ -3243,6 +3558,9 @@
   font-size: 12px;
 }
 
+/**
+ * Route order list with numbered items and hover states
+ */
 .trip-day-route-order {
   display: grid;
   align-content: start;
@@ -3252,7 +3570,6 @@
   padding: 12px 14px;
   list-style: none;
 }
-
 .trip-day-route-order li {
   display: grid;
   grid-template-columns: 30px minmax(0, 1fr);
@@ -3264,14 +3581,12 @@
   padding: 9px;
   cursor: pointer;
 }
-
 .trip-day-route-order li:hover,
 .trip-day-route-order li:focus-visible {
   border-color: #2563eb;
   background: #eff6ff;
   outline: none;
 }
-
 .trip-day-route-order li > span {
   display: grid;
   width: 28px;
@@ -3283,7 +3598,6 @@
   font-size: 11px;
   font-weight: 750;
 }
-
 .trip-day-route-order strong,
 .trip-day-route-order small {
   display: block;
@@ -3291,18 +3605,19 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .trip-day-route-order strong {
   color: #0f172a;
   font-size: 12px;
 }
-
 .trip-day-route-order small {
   margin-top: 3px;
   color: #64748b;
   font-size: 10px;
 }
 
+/**
+ * Route state and note containers with status colors
+ */
 .trip-day-route-state,
 .trip-day-route-note {
   margin: 14px;
@@ -3313,18 +3628,19 @@
   font-size: 12px;
   line-height: 1.45;
 }
-
 .trip-day-route-state {
   display: flex;
   align-items: center;
   gap: 7px;
 }
-
 .trip-day-route-state.is-error {
   background: #fef2f2;
   color: #b91c1c;
 }
 
+/**
+ * Checklist modal with centered backdrop and scrollable content
+ */
 .trip-checklist-modal-backdrop {
   position: fixed;
   inset: 0;
@@ -3362,133 +3678,119 @@
   background: #ffffff;
 }
 
+/**
+ * Spinner animation for loading states
+ */
 .trip-details-spin {
   animation: trip-details-spin 0.8s linear infinite;
 }
-
 @keyframes trip-details-spin {
   to {
     transform: rotate(360deg);
   }
 }
 
+/**
+ * Responsive adjustments for medium screens (up to 980px)
+ * Converts grid to single column with stack layout
+ */
 @media (max-width: 980px) {
   .trip-details-page {
     margin: -24px;
   }
-
   .trip-details-shell {
     grid-template-columns: 1fr;
     overflow-y: auto;
   }
-
   .trip-details-shell.has-ai-assistant {
     grid-template-columns: 1fr;
   }
-
   .trip-ai-assistant {
     min-height: 520px;
     border-right: 0;
     border-bottom: 1px solid #dbe3ed;
   }
-
   .trip-panel-resizer {
     display: none;
   }
-
   .trip-details-panel {
     min-height: 620px;
     border-right: 0;
   }
-
   .trip-details-map-area {
     min-height: 520px;
   }
-
   .trip-day-route-modes {
     right: 18px;
     grid-template-columns: repeat(5, minmax(70px, 1fr));
   }
-
   .trip-budget-overview {
     grid-template-columns: 1fr;
   }
-
   .trip-budget-primary-value {
     grid-template-columns: 1fr;
   }
-
   .trip-statistic-card-main {
     align-items: stretch;
     flex-direction: column;
   }
-
   .trip-statistic-card .trip-budget-input {
     grid-template-columns: auto minmax(0, 1fr);
   }
-
   .trip-statistic-card .trip-budget-remaining {
     justify-content: space-between;
   }
-
   .trip-budget-card-footer {
     align-items: flex-start;
     flex-direction: column;
   }
-
   .trip-budget-status {
     max-width: 100%;
   }
 }
 
+/**
+ * Responsive adjustments for small screens (up to 640px)
+ * Further simplifies layout with column stacking
+ */
 @media (max-width: 640px) {
   .trip-details-page {
     margin: -18px;
   }
-
   .trip-details-topbar {
     align-items: stretch;
     flex-direction: column;
   }
-
   .trip-details-topbar-actions {
     align-items: stretch;
     flex-direction: column;
   }
-
   .trip-day-heading,
   .trip-add-item,
   .trip-item-cost {
     grid-template-columns: 1fr;
     flex-direction: column;
   }
-
   .trip-day-location-row,
   .trip-itinerary-group {
     grid-template-columns: 1fr;
   }
-
   .trip-day-location-row {
     align-items: stretch;
   }
-
   .trip-item-title-row {
     flex-wrap: wrap;
   }
-
   .trip-item-title-row strong {
     flex-basis: 100%;
   }
-
   .trip-item-controls {
     grid-template-columns: 1fr;
   }
-
   .trip-group-add,
   .trip-group-collapse {
     justify-self: start;
   }
-
   .trip-day-route-modes {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }

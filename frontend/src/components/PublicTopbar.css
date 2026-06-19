@@ -2,6 +2,8 @@
  * Public Topbar styles.
  * Layout, spacing, and interaction rules support the matching React view.
  */
+
+/* Flex containers for consistent alignment across navigation elements */
 .landing-nav,
 .nav-actions,
 .nav-links,
@@ -13,6 +15,8 @@
   display: flex;
   align-items: center;
 }
+
+/* Main landing navigation bar with fixed positioning and glass-morphism effect */
 .landing-nav {
   justify-content: space-between;
   gap: 20px;
@@ -33,12 +37,15 @@
   animation: fadeUp 0.55s ease both;
 }
 
+/* Brand and authentication brand styling with consistent spacing */
 .brand-mark,
 .auth-brand {
   gap: 10px;
   font-weight: var(--font-weight-semibold);
   color: var(--navy);
 }
+
+/* Logo image styling with fixed dimensions and no background */
 .brand-logo {
   width: auto;
   height: 42px;
@@ -49,10 +56,14 @@
   background: transparent;
   box-shadow: none;
 }
+
+/* Navigation actions container for authentication buttons */
 .nav-actions {
   gap: 12px;
   font-weight: var(--font-weight-medium);
 }
+
+/* Navigation links container with transparent background and rounded corners */
 .nav-links {
   gap: 8px;
   padding: 6px;
@@ -63,6 +74,8 @@
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
 }
+
+/* Individual navigation link styling with icon alignment */
 .nav-links a {
   display: inline-flex;
   align-items: center;
@@ -70,14 +83,19 @@
   border-radius: 6px;
   padding: 8px 10px;
 }
+
+/* Navigation link icons with primary color */
 .nav-links svg {
   color: var(--color-primary);
 }
+
+/* Hover state for navigation links with teal background and color */
 .nav-links a:hover {
   background: rgba(20, 184, 166, 0.1);
   color: var(--teal);
 }
 
+/* Shared button styles for navigation and action buttons */
 .nav-button,
 .primary-action,
 .secondary-action,
@@ -90,9 +108,10 @@
   font-weight: var(--font-weight-semibold);
   border: 1px solid transparent;
 }
+
+/* Primary navigation button with solid primary color background */
 .nav-button {
   padding: 0 18px;
   background: var(--color-primary);
   color: #ffffff;
 }
-

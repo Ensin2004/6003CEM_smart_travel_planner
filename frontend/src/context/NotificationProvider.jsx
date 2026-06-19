@@ -34,6 +34,7 @@ const adminNotificationTypes = new Set([
   'admin-error-log',
   'admin-login-lock',
 ]);
+const emptyNotifications = [];
 
 export function NotificationProvider({ children }) {
   const location = useLocation();
@@ -90,13 +91,16 @@ export function NotificationProvider({ children }) {
 
   useEffect(() => {
     if (!isAuthenticated) {
-      setNotifications([]);
-      setUnreadCount(0);
       return;
     }
 
-    refreshNotifications(sortOrder).catch(() => {});
-  }, [isAuthenticated, refreshNotifications, sortOrder]);
+    getNotifications(sortOrder)
+      .then((response) => {
+        setNotifications(response.data.data.notifications || []);
+        setUnreadCount(response.data.data.unreadCount || 0);
+      })
+      .catch(() => {});
+  }, [isAuthenticated, sortOrder]);
 
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
@@ -150,11 +154,13 @@ export function NotificationProvider({ children }) {
     };
   }, [isAuthenticated, location.pathname, sortOrder, user]);
 
+  const visibleNotifications = isAuthenticated ? notifications : emptyNotifications;
+  const visibleUnreadCount = isAuthenticated ? unreadCount : 0;
   const value = useMemo(
     () => ({
       markAllAsRead,
       markAsRead,
-      notifications,
+      notifications: visibleNotifications,
       refreshNotifications,
       setSortOrder,
       sortOrder,
@@ -162,19 +168,19 @@ export function NotificationProvider({ children }) {
       subscribeToCategories,
       subscribeToFeedback,
       subscribeToSettingsContent,
-      unreadCount,
+      unreadCount: visibleUnreadCount,
     }),
     [
       markAllAsRead,
       markAsRead,
-      notifications,
       refreshNotifications,
       sortOrder,
       subscribeToAdminUserCreated,
       subscribeToCategories,
       subscribeToFeedback,
       subscribeToSettingsContent,
-      unreadCount,
+      visibleNotifications,
+      visibleUnreadCount,
     ]
   );
 

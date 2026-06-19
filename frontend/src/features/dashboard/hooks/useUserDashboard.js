@@ -28,31 +28,46 @@ import {
   normalizeVisitText,
 } from '../dashboard.utils';
 
+// Predefined color palette for chart segments
 const chartColors = ['#0f9f89', '#2f6fed', '#f4a22c', '#9b6df3', '#0ea5b7', '#e05252'];
 
 export function useUserDashboard() {
+  // Authentication hook for current user
   const { user } = useAuth();
+  
+  // State for month navigation and date selection
   const [monthDate, setMonthDate] = useState(() => new Date());
   const [selectedDateKey, setSelectedDateKey] = useState(() => formatDateKey(new Date()));
+  
+  // Filter and UI interaction states
   const [searchTerm, setSearchTerm] = useState('');
   const [visitedCategory, setVisitedCategory] = useState('all');
   const [openCategoryMenu, setOpenCategoryMenu] = useState('');
   const [activePlaceMenu, setActivePlaceMenu] = useState('');
   const [activeReport, setActiveReport] = useState('');
+  
+  // Data states for dashboard content
   const [days, setDays] = useState([]);
   const [visitedPlaces, setVisitedPlaces] = useState([]);
   const [favorites, setFavorites] = useState([]);
   const [trips, setTrips] = useState([]);
   const [tripItineraryDays, setTripItineraryDays] = useState({});
+  
+  // Status and error states for async operations
   const [tripStatus, setTripStatus] = useState('loading');
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState('');
 
+  // Build lookup for visited places by key
   const dayLookup = useMemo(
     () => days.reduce((lookup, day) => ({ ...lookup, [day.date]: day.places || [] }), {}),
     [days]
   );
+  
+  // Build lookup for visited places by place key
   const visitedLookup = useMemo(() => buildVisitedLookup(visitedPlaces), [visitedPlaces]);
+  
+  // Check if a destination has been visited
   const isDestinationVisited = useCallback((destination) => {
     const payload = getVisitedPlacePayload({
       item: destination,
@@ -72,6 +87,8 @@ export function useUserDashboard() {
       return place.type === 'location' && placeTitle === destinationTitle && (!destinationAddress || placeAddress === destinationAddress);
     });
   }, [visitedLookup, visitedPlaces]);
+  
+  // Flatten all trip destinations with visited status
   const allTripDestinationRows = useMemo(() =>
     trips.flatMap((trip) =>
       getTripDestinationPlaces(trip).map((destination) => ({
@@ -79,6 +96,8 @@ export function useUserDashboard() {
         visited: isDestinationVisited(destination),
       }))
     ), [isDestinationVisited, trips]);
+  
+  // Prepare calendar trip rows with fallback for trips without destinations
   const calendarTripRows = useMemo(() =>
     trips.flatMap((trip) => {
       const destinations = getTripDestinationPlaces(trip);
@@ -95,6 +114,8 @@ export function useUserDashboard() {
         tripTitle: trip.title || 'Untitled trip',
       }];
     }), [trips]);
+  
+  // Build lookup of destinations by date for calendar display
   const tripDestinationLookup = useMemo(() => {
     const { start, end } = getMonthBounds(monthDate);
     return calendarTripRows.reduce((lookup, destination) => {
@@ -112,21 +133,33 @@ export function useUserDashboard() {
       return lookup;
     }, {});
   }, [calendarTripRows, monthDate]);
+  
+  // Generate calendar cells for the current month
   const calendarCells = useMemo(() => buildCalendarCells(monthDate, dayLookup, tripDestinationLookup), [dayLookup, monthDate, tripDestinationLookup]);
+  
+  // Group trips by status (active, upcoming, past)
   const tripGroups = useMemo(() => getTripStatusGroups(trips), [trips]);
+  
+  // Sort and filter upcoming trips for display
   const sortedUpcomingTrips = useMemo(
     () => [...tripGroups.active, ...tripGroups.upcoming].sort((firstTrip, secondTrip) => new Date(firstTrip.startDate) - new Date(secondTrip.startDate)),
     [tripGroups]
   );
+  
+  // Get top 3 upcoming trips with destinations
   const upcomingTrips = useMemo(
     () => sortedUpcomingTrips.filter((trip) => getTripDestinationPlaces(trip).length > 0).slice(0, 3),
     [sortedUpcomingTrips]
   );
+  
+  // Get destinations and visits for the selected date
   const selectedDestinations = useMemo(
     () => calendarTripRows.filter((destination) => isDateWithinRange(selectedDateKey, destination.startDate, destination.endDate)),
     [calendarTripRows, selectedDateKey]
   );
   const selectedVisits = dayLookup[selectedDateKey] || [];
+  
+  // Enrich visited places with computed properties
   const visitedPlaceRows = useMemo(() => visitedPlaces.map((place) => ({
     ...place,
     totalVisits: getVisitCount(place),
@@ -136,10 +169,14 @@ export function useUserDashboard() {
       .reduce((total, visit) => total + Number(visit.visitCount || 1), 0),
     latestVisitLabel: getLatestVisitLabel(place),
   })), [visitedPlaces]);
+  
+  // Generate unique category list from visited places
   const visitedCategories = useMemo(() => [
     'all',
     ...new Set(visitedPlaceRows.map((place) => getTypeLabel(place.type)).filter(Boolean)),
   ], [visitedPlaceRows]);
+  
+  // Filter and search visited places based on category and search term
   const placeRows = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
     const rows = visitedCategory === 'all'
@@ -156,10 +193,14 @@ export function useUserDashboard() {
         .includes(normalizedSearch)
     );
   }, [searchTerm, visitedCategory, visitedPlaceRows]);
+  
+  // Get unvisited trip destinations
   const tripPlaceRows = useMemo(
     () => allTripDestinationRows.filter((destination) => !destination.visited),
     [allTripDestinationRows]
   );
+  
+  // Derived summary statistics
   const monthLabel = monthDate.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
   const totalVisitCount = visitedPlaces.reduce((total, place) => total + getVisitCount(place), 0);
   const uniquePlaceCount = visitedPlaces.length;
@@ -168,6 +209,8 @@ export function useUserDashboard() {
     const { start, end } = getMonthBounds(monthDate);
     return new Date(trip.startDate) <= end && new Date(trip.endDate) >= start;
   }).length;
+  
+  // Build recent activity feed
   const recentActivity = useMemo(() => [
     ...placeRows.slice(0, 2).map((place) => ({
       id: `visited-${place._id || place.placeKey}`,
@@ -184,6 +227,8 @@ export function useUserDashboard() {
       meta: formatDateRange(trip.startDate, trip.endDate),
     })),
   ], [placeRows, sortedUpcomingTrips]);
+  
+  // Aggregate visit counts by type category
   const visitTypeRows = useMemo(() => {
     const typeCounts = visitedPlaces.reduce((counts, place) => {
       const type = getTypeLabel(place.type);
@@ -195,14 +240,22 @@ export function useUserDashboard() {
       .sort((firstRow, secondRow) => secondRow.value - firstRow.value)
       .slice(0, 4);
   }, [visitedPlaces]);
+  
+  // Generate donut chart segments for visit types
   const visitDonutSegments = useMemo(() => getDonutSegments(visitTypeRows), [visitTypeRows]);
+  
+  // Generate segments for visited vs to-visit comparison
   const visitedVsToVisitSegments = useMemo(() => getDonutSegments([
     { label: 'Visited', value: uniquePlaceCount, color: '#0f9f89' },
     { label: 'To Visit', value: placeToVisitCount, color: '#9b6df3' },
   ]), [placeToVisitCount, uniquePlaceCount]);
+  
+  // Calculate percentage of visited places
   const visitedShare = uniquePlaceCount + placeToVisitCount
     ? Math.round((uniquePlaceCount / (uniquePlaceCount + placeToVisitCount)) * 100)
     : 0;
+  
+  // Generate country-level insights from places and destinations
   const countryInsights = useMemo(() => {
     const visitedCountryRows = buildCountryRows([
       ...visitedPlaces.map((place) => getPlaceCountry(place)),
@@ -231,6 +284,8 @@ export function useUserDashboard() {
       nextCountryNames: nextCountryRows.map((row) => row.label),
     };
   }, [allTripDestinationRows, tripItineraryDays, visitedPlaces]);
+  
+  // Calculate monthly trip counts for the year
   const monthlyTripCounts = useMemo(() => {
     const year = monthDate.getFullYear();
     return Array.from({ length: 12 }, (_, index) => {
@@ -241,6 +296,7 @@ export function useUserDashboard() {
   }, [monthDate, trips]);
   const maxMonthlyTripCount = Math.max(...monthlyTripCounts, 1);
 
+  // Fetch visited calendar data when month changes
   useEffect(() => {
     const { start, end } = getMonthBounds(monthDate);
     let isActive = true;
@@ -270,6 +326,7 @@ export function useUserDashboard() {
     };
   }, [monthDate]);
 
+  // Fetch favorites data
   useEffect(() => {
     let isActive = true;
 
@@ -286,6 +343,7 @@ export function useUserDashboard() {
     };
   }, []);
 
+  // Fetch trip itineraries for all trips
   useEffect(() => {
     let isActive = true;
 
@@ -331,6 +389,7 @@ export function useUserDashboard() {
     };
   }, [trips]);
 
+  // Fetch visited places with image enrichment
   useEffect(() => {
     let isActive = true;
 
@@ -358,6 +417,7 @@ export function useUserDashboard() {
     };
   }, []);
 
+  // Fetch all trips data
   useEffect(() => {
     let isActive = true;
 
@@ -381,6 +441,7 @@ export function useUserDashboard() {
     };
   }, []);
 
+  // Month navigation functions
   const moveMonth = (direction) => {
     setMonthDate((currentDate) => {
       const nextMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + direction, 1);
@@ -388,19 +449,27 @@ export function useUserDashboard() {
       return nextMonth;
     });
   };
+  
+  // Reset to today's date
   const selectToday = () => {
     const today = new Date();
     setMonthDate(new Date(today.getFullYear(), today.getMonth(), 1));
     setSelectedDateKey(formatDateKey(today));
   };
+  
+  // Toggle report modal visibility
   const handleReportClick = (report) => {
     setActiveReport((currentReport) => (currentReport === report ? '' : report));
   };
+  
+  // Handle place action - filter by place title and type
   const handleVisitedPlaceAction = (place) => {
     setSearchTerm(place.title);
     setVisitedCategory(getTypeLabel(place.type));
     setActivePlaceMenu('');
   };
+  
+  // Return all state values and handlers for consumption by components
   return {
     activePlaceMenu,
     activeReport,

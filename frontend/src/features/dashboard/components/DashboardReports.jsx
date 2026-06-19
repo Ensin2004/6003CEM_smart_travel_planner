@@ -4,12 +4,19 @@
  */
 import { useMemo, useState } from 'react';
 
+// Helper function to format type labels by replacing hyphens with spaces
 const getTypeLabel = (type) => String(type || 'place').replace(/-/g, ' ');
 
+/**
+ * DonutChart - Renders a circular chart with segmented data
+ * Used for visualizing proportional data distributions
+ */
 function DonutChart({ segments }) {
   return (
     <svg viewBox="0 0 42 42" aria-hidden="true">
+      {/* Background track circle */}
       <circle className="donut-track" cx="21" cy="21" r="15.9" />
+      {/* Segments rendered as stroke dashes on the circle */}
       {segments.map((segment) => (
         <circle
           className="donut-segment"
@@ -26,6 +33,10 @@ function DonutChart({ segments }) {
   );
 }
 
+/**
+ * DetailList - Renders a list of items within a report modal
+ * Displays rows with titles, metadata, and optional details
+ */
 function DetailList({ emptyText, rows }) {
   return rows.length ? (
     <div className="report-modal-list">
@@ -40,13 +51,21 @@ function DetailList({ emptyText, rows }) {
   ) : <p className="dashboard-muted">{emptyText}</p>;
 }
 
+/**
+ * ReportModal - Modal dialog displaying detailed report information
+ * Includes filterable statistics and filtered list of items
+ */
 function ReportModal({ report, onClose }) {
+  // State for active filter selection within the modal
   const [activeFilter, setActiveFilter] = useState(report?.stats?.[0]?.filter || 'all');
+  
+  // Memoized filtered rows to optimize performance on filter changes
   const filteredRows = useMemo(() => {
     if (!report || activeFilter === 'all') return report?.rows || [];
     return (report.rows || []).filter((row) => row.filter === activeFilter);
   }, [activeFilter, report]);
 
+  // Early return if no report data is available
   if (!report) return null;
 
   return (
@@ -59,6 +78,7 @@ function ReportModal({ report, onClose }) {
           </div>
           <button type="button" onClick={onClose}>Close</button>
         </header>
+        {/* Statistics filter buttons */}
         <div className="report-modal-summary">
           {report.stats.map((stat) => (
             <button
@@ -72,6 +92,7 @@ function ReportModal({ report, onClose }) {
             </button>
           ))}
         </div>
+        {/* Detail list with filtered rows */}
         <DetailList emptyText={report.emptyText} rows={filteredRows} />
       </section>
     </div>
@@ -96,17 +117,24 @@ function DashboardReports({
   visitedVsToVisitSegments,
   visitTypeRows,
 }) {
+  // Extract visited and future country data from insights
   const visitedCountries = countryInsights?.visitedCountries || [];
   const nextCountries = countryInsights?.nextCountries || [];
+  
+  // Combine visited and future countries into a single array with status flags
   const combinedCountryRows = [
     ...visitedCountries.map((row) => ({ ...row, status: 'Visited', filter: 'visited' })),
     ...nextCountries.map((row) => ({ ...row, status: 'To visit', filter: 'to-visit' })),
   ];
+  
+  // Generate color-coded segments for country donut chart
   const countrySegments = combinedCountryRows.map((row, index) => ({
     ...row,
     label: `${row.status}: ${row.label}`,
     color: row.filter === 'visited' ? '#0f9f89' : ['#2f6fed', '#9b6df3', '#f4a22c'][index % 3],
   }));
+  
+  // Configuration for different report types with their data and structure
   const reportConfigs = {
     countries: {
       eyebrow: 'Country report',
@@ -199,11 +227,14 @@ function DashboardReports({
       emptyText: 'No trip activity yet.',
     },
   };
+  
+  // Get the configuration for the currently active report
   const activeReportConfig = reportConfigs[activeReport];
 
   return (
     <>
       <section className="dashboard-report-grid" aria-label="Dashboard reports">
+        {/* Country Progress Report Card */}
         <article className="dashboard-card report-card country-report">
           <div className="dashboard-card-heading">
             <h3>Country Progress</h3>
@@ -229,6 +260,7 @@ function DashboardReports({
           </div>
         </article>
 
+        {/* Visit Categories Report Card */}
         <article className="dashboard-card report-card">
           <div className="dashboard-card-heading">
             <h3>Visit Categories</h3>
@@ -245,6 +277,7 @@ function DashboardReports({
           </div>
         </article>
 
+        {/* Visited vs To Visit Report Card */}
         <article className="dashboard-card report-card">
           <div className="dashboard-card-heading">
             <h3>Visited vs To Visit</h3>
@@ -260,6 +293,7 @@ function DashboardReports({
           </div>
         </article>
 
+        {/* Monthly Activity Report Card with bar chart */}
         <article className="dashboard-card report-card monthly-report">
           <div className="dashboard-card-heading">
             <h3>Monthly Activity</h3>
@@ -275,6 +309,7 @@ function DashboardReports({
           </div>
         </article>
       </section>
+      {/* Render the report modal when a report is active */}
       <ReportModal report={activeReportConfig} onClose={() => handleReportClick(activeReport)} />
     </>
   );

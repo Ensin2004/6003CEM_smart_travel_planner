@@ -2,6 +2,15 @@
  * Language Helper styles.
  * Layout, spacing, and interaction rules support the matching React view.
  */
+
+/* ============================================================
+ * PAGE CONTAINER
+ * ============================================================ */
+
+/**
+ * Primary page container: Grid layout with consistent gap and padding.
+ * Inherits color and font from design system variables.
+ */
 .language-helper-page {
   display: grid;
   gap: 18px;
@@ -11,6 +20,14 @@
   font-family: var(--font-sans);
 }
 
+/* ============================================================
+ * CARD COMPONENTS (Shared Base)
+ * ============================================================ */
+
+/**
+ * Shared card styles: Consistent border, border-radius, background,
+ * and subtle shadow for all major content containers.
+ */
 .language-helper-hero,
 .language-helper-panel,
 .language-helper-suggestions,
@@ -20,6 +37,15 @@
   background: #ffffff;
   box-shadow: 0 8px 20px rgba(16, 42, 67, 0.04);
 }
+
+/* ============================================================
+ * HERO SECTION
+ * ============================================================ */
+
+/**
+ * Hero card: Primary header area with gradient background and grid pattern overlay.
+ * Uses flex layout with stretch alignment for content distribution.
+ */
 .language-helper-hero {
   position: relative;
   display: flex;
@@ -30,6 +56,11 @@
   padding: 28px;
   background: var(--gradient-bright-surface);
 }
+
+/**
+ * Hero background grid: Decorative pattern overlay with diagonal grid lines.
+ * Uses mask-image to create a fade effect on the right side.
+ */
 .language-helper-hero::before {
   content: "";
   position: absolute;
@@ -41,11 +72,19 @@
   mask-image: linear-gradient(90deg, rgba(0, 0, 0, 0.38), transparent 78%);
   pointer-events: none;
 }
+
+/**
+ * Hero content z-index: Ensures all direct children appear above the background pattern.
+ */
 .language-helper-hero > * {
   position: relative;
   z-index: 1;
 }
 
+/**
+ * Hero typography: Shared text styles for labels and headings.
+ * Uses uppercase with teal color for smaller labels.
+ */
 .language-helper-hero .eyebrow,
 .language-helper-section-heading span,
 .language-helper-text-card > span,
@@ -56,6 +95,10 @@
   letter-spacing: 0;
   text-transform: uppercase;
 }
+
+/**
+ * Hero heading: Large navy heading with tight spacing.
+ */
 .language-helper-hero h2 {
   margin: 0 0 8px;
   color: var(--navy);
@@ -63,17 +106,26 @@
   font-weight: 600;
   letter-spacing: 0;
 }
+
+/**
+ * Hero description: Subdued text with generous line height and max-width constraint.
+ */
 .language-helper-hero p:not(.eyebrow) {
   max-width: 720px;
   color: var(--muted);
   line-height: 1.65;
 }
+
+/**
+ * Hero meta tags: Horizontal row of label chips showing supported features.
+ */
 .language-helper-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   margin-top: 18px;
 }
+
 .language-helper-meta span {
   display: inline-flex;
   align-items: center;
@@ -88,6 +140,15 @@
   font-weight: 650;
   box-shadow: 0 5px 12px rgba(16, 42, 67, 0.035);
 }
+
+/* ============================================================
+ * LIVE CARD (Hero Sidebar)
+ * ============================================================ */
+
+/**
+ * Live card: Compact display showing current language or active translation state.
+ * Features gradient background with subtle shadow and border.
+ */
 .language-helper-live-card {
   display: grid;
   align-content: center;
@@ -102,6 +163,7 @@
     #ffffff;
   box-shadow: 0 8px 18px rgba(15, 118, 110, 0.065);
 }
+
 .language-helper-live-card span {
   color: var(--teal);
   font-size: 12px;
@@ -109,6 +171,9 @@
   text-transform: uppercase;
 }
 
+/**
+ * Live card value: Large prominent text with ellipsis for overflow handling.
+ */
 .language-helper-live-card strong {
   min-width: 0;
   overflow: hidden;
@@ -125,6 +190,14 @@
   font-weight: 500;
 }
 
+/* ============================================================
+ * MAIN GRID LAYOUT
+ * ============================================================ */
+
+/**
+ * Grid container: Two-column layout with flexible main area and fixed-width sidebar.
+ * Used for the translation workspace and history sections.
+ */
 .language-helper-grid {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(300px, 0.34fr);
@@ -132,6 +205,14 @@
   align-items: start;
 }
 
+/* ============================================================
+ * PANEL CONTAINERS
+ * ============================================================ */
+
+/**
+ * Shared panel styles: Grid layout with consistent padding and gap.
+ * Different backgrounds distinguish between primary and secondary content.
+ */
 .language-helper-panel,
 .language-helper-suggestions,
 .language-helper-history {
@@ -152,6 +233,14 @@
     #ffffff;
 }
 
+/* ============================================================
+ * TOOLBAR (Language Selection Controls)
+ * ============================================================ */
+
+/**
+ * Toolbar grid: Three-column layout for source language, swap button, and target language.
+ * Aligns items at the end for consistent height alignment.
+ */
 .language-helper-toolbar {
   display: grid;
   grid-template-columns: minmax(180px, 1fr) auto minmax(180px, 1fr);
@@ -165,6 +254,10 @@
   min-width: 0;
 }
 
+/**
+ * Form control styles: Select dropdowns and textareas with consistent
+ * borders, padding, and focus states.
+ */
 .language-helper-toolbar select,
 .language-helper-text-card textarea {
   width: 100%;
@@ -177,6 +270,10 @@
   outline: none;
 }
 
+/**
+ * Select dropdown: Custom appearance with arrow indicator using CSS gradients.
+ * Removes native arrow and provides custom styling.
+ */
 .language-helper-toolbar select {
   min-height: 44px;
   padding: 0 44px 0 12px;
@@ -193,12 +290,23 @@
   background-repeat: no-repeat;
 }
 
+/**
+ * Focus states: Teal border highlight with subtle glow effect.
+ */
 .language-helper-toolbar select:focus,
 .language-helper-text-card textarea:focus {
   border-color: var(--teal);
   box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.16);
 }
 
+/* ============================================================
+ * SWAP BUTTON
+ * ============================================================ */
+
+/**
+ * Swap button: Circular button for exchanging source and target languages.
+ * Square container with centered icon and hover effects.
+ */
 .language-helper-swap {
   display: grid;
   width: 44px;
@@ -221,12 +329,22 @@
   background: linear-gradient(135deg, rgba(240, 253, 250, 0.95), rgba(239, 246, 255, 0.92));
 }
 
+/* ============================================================
+ * WORKSPACE (Translation Text Areas)
+ * ============================================================ */
+
+/**
+ * Workspace grid: Two equal columns for source and target text cards.
+ */
 .language-helper-workspace {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
 }
 
+/**
+ * Text card: Container for each translation text area with label and textarea.
+ */
 .language-helper-text-card {
   display: grid;
   gap: 10px;
@@ -245,6 +363,9 @@
   line-height: 1.55;
 }
 
+/**
+ * Character count: Small label at bottom-right of text cards.
+ */
 .language-helper-text-card small {
   justify-self: end;
   color: var(--muted);
@@ -252,6 +373,14 @@
   font-weight: 500;
 }
 
+/* ============================================================
+ * LISTENING STATUS INDICATOR
+ * ============================================================ */
+
+/**
+ * Listening status bar: Red-themed notification when speech recognition is active.
+ * Features a pulsing dot animation for live feedback.
+ */
 .language-helper-listening-status {
   display: flex;
   align-items: center;
@@ -265,6 +394,9 @@
   line-height: 1.45;
 }
 
+/**
+ * Pulsing dot: Animated indicator for active listening state.
+ */
 .language-helper-listening-status i {
   width: 10px;
   height: 10px;
@@ -284,6 +416,14 @@
   font-size: 13px;
 }
 
+/* ============================================================
+ * OUTPUT DISPLAY
+ * ============================================================ */
+
+/**
+ * Output paragraph: Display area for translated text with large,
+ * bold font for readability.
+ */
 .language-helper-output p {
   min-height: 178px;
   margin: 0;
@@ -294,12 +434,22 @@
   line-height: 1.65;
 }
 
+/**
+ * Empty state: Lighter text for placeholder content.
+ */
 .language-helper-output .language-helper-empty {
   color: #718096;
   font-size: 15px;
   font-weight: 400;
 }
 
+/* ============================================================
+ * ACTION BUTTONS
+ * ============================================================ */
+
+/**
+ * Actions container: Flex row of action buttons with consistent spacing.
+ */
 .language-helper-actions {
   display: flex;
   flex-wrap: wrap;
@@ -316,6 +466,10 @@
   padding: 0 16px;
 }
 
+/**
+ * Record button listening state: Red styling when actively recording.
+ * Includes hover state for visual feedback.
+ */
 .language-helper-actions .language-helper-record.is-listening {
   border-color: #dc2626;
   background: #dc2626;
@@ -328,6 +482,13 @@
   background: #b91c1c;
 }
 
+/* ============================================================
+ * LISTENING PULSE ANIMATION
+ * ============================================================ */
+
+/**
+ * Pulse animation: Creates a radiating ring effect around the listening dot.
+ */
 @keyframes language-helper-listening-pulse {
   70% {
     box-shadow: 0 0 0 7px rgba(220, 38, 38, 0);
@@ -338,10 +499,21 @@
   }
 }
 
+/* ============================================================
+ * STATUS MESSAGE
+ * ============================================================ */
+
 .language-helper-status {
   margin: 0;
 }
 
+/* ============================================================
+ * SECTION HEADINGS
+ * ============================================================ */
+
+/**
+ * Section heading: Grid layout with small label above main heading.
+ */
 .language-helper-section-heading {
   display: grid;
   gap: 4px;
@@ -354,6 +526,14 @@
   font-weight: 600;
 }
 
+/* ============================================================
+ * SUGGESTION CHIPS
+ * ============================================================ */
+
+/**
+ * Chip grid: Responsive grid of suggested phrases or translations.
+ * Auto-fits columns with minimum width of 210px.
+ */
 .language-helper-chip-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
@@ -382,6 +562,14 @@
   color: var(--teal);
 }
 
+/* ============================================================
+ * HISTORY SECTION
+ * ============================================================ */
+
+/**
+ * History search: Grid with search input and filter button.
+ * Uses relative positioning for search icon.
+ */
 .language-helper-history-search {
   position: relative;
   display: grid;
@@ -389,6 +577,9 @@
   gap: 8px;
 }
 
+/**
+ * Search icon: Positioned absolutely within the input field.
+ */
 .language-helper-history-search svg {
   position: absolute;
   top: 50%;
@@ -427,6 +618,13 @@
   font-weight: 600;
 }
 
+/* ============================================================
+ * HISTORY LIST
+ * ============================================================ */
+
+/**
+ * History list container: Scrollable list with scrollbar gutter for consistent spacing.
+ */
 .language-helper-history-list {
   display: grid;
   gap: 10px;
@@ -436,6 +634,10 @@
   scrollbar-gutter: stable;
 }
 
+/**
+ * History item: Grid layout with content on left and delete button on right.
+ * Card-style appearance with hover effects.
+ */
 .language-helper-history-list article {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
@@ -447,6 +649,10 @@
   box-shadow: 0 5px 12px rgba(15, 23, 42, 0.03);
 }
 
+/**
+ * History item content: Clickable area displaying translation details.
+ * Uses text truncation with line clamping for overflow handling.
+ */
 .language-helper-history-list article > button:first-child {
   display: grid;
   gap: 6px;
@@ -467,6 +673,9 @@
   font-weight: 600;
 }
 
+/**
+ * Text clamping: Limits text to specified lines with ellipsis.
+ */
 .language-helper-history-list article > button:first-child strong,
 .language-helper-history-list article > button:first-child small {
   display: -webkit-box;
@@ -489,6 +698,9 @@
   -webkit-line-clamp: 3;
 }
 
+/**
+ * Delete button: Small square button with danger color for removal actions.
+ */
 .language-helper-history-delete {
   display: grid;
   width: 34px;
@@ -501,6 +713,13 @@
   color: var(--color-danger);
 }
 
+/* ============================================================
+ * HISTORY PAGINATION
+ * ============================================================ */
+
+/**
+ * Pagination controls: Flex layout with page info and navigation buttons.
+ */
 .language-helper-history-pages {
   display: flex;
   align-items: center;
@@ -515,6 +734,13 @@
   font-weight: 600;
 }
 
+/* ============================================================
+ * RESPONSIVE BREAKPOINTS
+ * ============================================================ */
+
+/**
+ * Tablet breakpoint: Collapses multi-column layouts into single column.
+ */
 @media (max-width: 860px) {
   .language-helper-hero,
   .language-helper-grid,
@@ -535,9 +761,11 @@
   .language-helper-swap {
     justify-self: center;
   }
-
 }
 
+/**
+ * Mobile breakpoint: Reduces padding on cards and makes buttons full-width.
+ */
 @media (max-width: 560px) {
   .language-helper-hero,
   .language-helper-panel,

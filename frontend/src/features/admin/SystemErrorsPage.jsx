@@ -22,6 +22,7 @@ import { getLoggingMonitoring } from '../../api/adminLogApi';
 import { getApiErrorMessage } from '../../utils/apiError';
 import './SystemErrorsPage.css';
 
+// Status filter options for event outcomes
 const statusOptions = [
   { value: '', label: 'All statuses' },
   { value: 'success', label: 'Success' },
@@ -29,6 +30,7 @@ const statusOptions = [
   { value: 'error', label: 'Error' },
 ];
 
+// Category filter options for event sources
 const categoryOptions = [
   { value: '', label: 'All categories' },
   { value: 'api', label: 'API' },
@@ -37,6 +39,7 @@ const categoryOptions = [
   { value: 'rate-limit', label: 'Rate limit' },
 ];
 
+// Severity filter options for event impact levels
 const severityOptions = [
   { value: '', label: 'All severities' },
   { value: 'info', label: 'Info' },
@@ -44,7 +47,9 @@ const severityOptions = [
   { value: 'error', label: 'Error' },
   { value: 'critical', label: 'Critical' },
 ];
+
 // Format Date Time converts raw values into readable display text.
+// Transforms ISO date strings into formatted date and time strings
 const formatDateTime = (value) => {
   if (!value) return 'Unknown time';
 
@@ -53,22 +58,33 @@ const formatDateTime = (value) => {
     timeStyle: 'short',
   }).format(new Date(value));
 };
+
+// Retrieves user-friendly error messages from API responses
 const getErrorMessage = (error) =>
   getApiErrorMessage(error, 'Unable to load logging and monitoring data.');
+
+// Extracts the actor label from a log entry
 const getActorLabel = (log) => log.actor?.email || log.attemptedEmail || 'System';
+
+// Extracts metadata about the actor from a log entry
 const getActorMeta = (log) => {
   if (log.actor?.role) return log.actor.role;
   if (log.attemptedEmail) return 'masked attempted email';
   return 'service event';
 };
+
 // Format Category Label converts raw values into readable display text.
+// Transforms hyphen-separated category values into capitalized display text
 const formatCategoryLabel = (category = 'api') =>
   category
     .split('-')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
+
 // SystemErrorsPage renders the main screen and handles nearby interactions.
+// Main component for monitoring system activity and investigating errors
 function SystemErrorsPage() {
+  // State management for filters, monitoring data, and UI controls
   const [filters, setFilters] = useState({
     status: '',
     category: '',
@@ -85,6 +101,8 @@ function SystemErrorsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+
+  // Builds query parameters from active filter values
   const params = useMemo(
     () =>
       Object.entries(filters).reduce((activeFilters, [key, value]) => {
@@ -94,6 +112,7 @@ function SystemErrorsPage() {
     [filters]
   );
 
+  // Fetches monitoring data from the API with current filter parameters
   const fetchMonitoring = useCallback(async ({ showSuccess = false } = {}) => {
     setIsLoading(true);
     setError('');
@@ -111,6 +130,8 @@ function SystemErrorsPage() {
       setIsLoading(false);
     }
   }, [params]);
+
+  // Triggers initial data fetch when the component mounts
   useEffect(() => {
     const timeoutId = window.setTimeout(() => {
       fetchMonitoring();
@@ -119,6 +140,7 @@ function SystemErrorsPage() {
     return () => window.clearTimeout(timeoutId);
   }, [fetchMonitoring]);
 
+  // Extracts summary data and logs from the monitoring response
   const summary = monitoring?.summary || {};
   const logs = monitoring?.logs || [];
   const hasActiveFilters = Object.values(filters).some(Boolean);
@@ -128,10 +150,14 @@ function SystemErrorsPage() {
   const categoryMaxCount = Math.max(...categoryCounts.map((item) => item.count), 1);
   const dailyMaxCount = Math.max(...dailyCounts.map((item) => item.success + item.fail + item.error), 1);
   const latestEventLabel = logs[0]?.createdAt ? formatDateTime(logs[0].createdAt) : 'No events yet';
+
+  // Handles filter input changes and updates filter state
   const handleFilterChange = (event) => {
     const { name, value } = event.target;
     setFilters((current) => ({ ...current, [name]: value }));
   };
+
+  // Resets all filters to their default empty values
   const clearFilters = () => {
     setFilters({
       status: '',
@@ -144,13 +170,16 @@ function SystemErrorsPage() {
       to: '',
     });
   };
+
+  // Renders the complete system monitoring interface
   return (
     <section className="logging-page" aria-labelledby="logging-title">
+      {/* Hero section with title, health status, and quick actions */}
       <div className="logging-hero">
         <div>
           <p className="eyebrow">Admin monitoring</p>
           <h2 id="logging-title">System Activity & Issues</h2>
-          <p>Check the system’s health, find failed activity, and inspect technical details when an issue needs attention.</p>
+          <p>Check the system's health, find failed activity, and inspect technical details when an issue needs attention.</p>
           <div className="logging-hero-meta" aria-label="Monitoring status">
             <span className={`logging-health logging-health-${health}`}>
               {health === 'healthy' ? <ShieldCheck size={16} /> : <ShieldAlert size={16} />}
@@ -179,9 +208,11 @@ function SystemErrorsPage() {
         </div>
       </div>
 
+      {/* Status message display area */}
       {error && <p className="form-error logging-status">{error}</p>}
       {successMessage && <p className="form-success logging-status">{successMessage}</p>}
 
+      {/* Primary metrics cards showing monitoring statistics */}
       <div className="monitoring-metrics" aria-label="Monitoring summary">
         <article className="monitoring-metric-total">
           <span className="monitoring-metric-icon"><Activity size={22} aria-hidden="true" /></span>
@@ -217,6 +248,7 @@ function SystemErrorsPage() {
         </article>
       </div>
 
+      {/* Guide section explaining how to interpret the monitoring data */}
       <section className="logging-guide" aria-labelledby="monitoring-guide-title">
         <div className="logging-guide-heading">
           <Info size={20} aria-hidden="true" />
@@ -232,6 +264,7 @@ function SystemErrorsPage() {
         </div>
       </section>
 
+      {/* Charts section showing trends and category breakdowns */}
       <div className="logging-overview">
         <section className="logging-chart-panel" aria-labelledby="trend-chart-title">
           <div className="logging-panel-heading">
@@ -284,9 +317,9 @@ function SystemErrorsPage() {
             </div>
           )}
         </section>
-
       </div>
 
+      {/* Filter section with basic and advanced search options */}
       <div className="logging-filters">
         <div className="logging-section-title">
           <div>
@@ -362,6 +395,8 @@ function SystemErrorsPage() {
           Advanced search
           <ChevronDown size={17} aria-hidden="true" />
         </button>
+
+        {/* Advanced filters section - collapsible */}
         {isAdvancedFiltersOpen && (
           <div className="logging-advanced-filters">
             <label>
@@ -389,6 +424,7 @@ function SystemErrorsPage() {
         )}
       </div>
 
+      {/* Table displaying the filtered event logs */}
       <div className="logging-table-wrap">
         <div className="logging-table-header">
           <div>
@@ -451,6 +487,7 @@ function SystemErrorsPage() {
         )}
       </div>
 
+      {/* Event details dialog showing complete log information */}
       {selectedLog && (
         <div className="logging-dialog-backdrop" role="presentation" onMouseDown={() => setSelectedLog(null)}>
           <div className="logging-dialog" role="dialog" aria-modal="true" aria-labelledby="event-detail-title" onMouseDown={(event) => event.stopPropagation()}>
@@ -481,5 +518,5 @@ function SystemErrorsPage() {
   );
 }
 
-// Default export registers the primary  value.
+// Default export registers the primary value.
 export default SystemErrorsPage;

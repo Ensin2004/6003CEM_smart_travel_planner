@@ -26,8 +26,12 @@ import useAuth from '../../hooks/useAuth';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { getPlaceImageSrc } from '../../utils/placeImageProxy';
 import './TravelGuidePage.css';
+
+// Helper function to extract a user-friendly error message from API errors
 const getErrorMessage = (error) =>
   getApiErrorMessage(error, 'Unable to load travel guides right now.');
+
+// Helper function to generate a status message for country guide loading
 const getCountryLoadStatus = (countryGuide) => {
   const shown = countryGuide.items?.length || 0;
   const total = countryGuide.pagination?.total ?? shown;
@@ -38,6 +42,7 @@ const getCountryLoadStatus = (countryGuide) => {
     : `${total} ${countryLabel} loaded.`;
 };
 
+// Region filter configuration for overseas country browsing
 const regionFilters = {
   All: '',
   Asia: 'Asia',
@@ -49,6 +54,8 @@ const regionFilters = {
   Antarctica: 'Antarctica',
   Other: 'Other',
 };
+
+// Fallback travel images when no specific images are available
 const fallbackTravelImages = [
   'https://images.unsplash.com/photo-1500530855697-b586d89ba3ee?auto=format&fit=crop&w=900&q=80',
   'https://images.unsplash.com/photo-1469474968028-56623f02e42e?auto=format&fit=crop&w=900&q=80',
@@ -57,26 +64,33 @@ const fallbackTravelImages = [
   'https://images.unsplash.com/photo-1488646953014-85cb44e25828?auto=format&fit=crop&w=900&q=80',
   'https://images.unsplash.com/photo-1527631746610-bca00a040d60?auto=format&fit=crop&w=900&q=80',
 ];
+
+// Selects a deterministic fallback image based on a name string hash
 const getFallbackTravelImage = (name = '') => {
   const imageIndex = [...name].reduce((total, character) => total + character.charCodeAt(0), 0)
     % fallbackTravelImages.length;
-
   return fallbackTravelImages[imageIndex];
 };
+
 // DestinationCard renders the main screen and handles nearby interactions.
 function DestinationCard({ destination, onOpen, visitedRecord, onVisitedChange }) {
+  // Memoized image candidates with fallback handling
   const imageCandidates = useMemo(
     () => [...new Set([destination.imageUrl, ...(destination.imageUrls || []), getFallbackTravelImage(destination.name)].filter(Boolean))],
     [destination.imageUrl, destination.imageUrls, destination.name]
   );
   const [failedImageCount, setFailedImageCount] = useState(0);
   const imageUrl = imageCandidates[Math.min(failedImageCount, imageCandidates.length - 1)];
+  
+  // Prepare visited place payload for tracking
   const visitedPayload = getVisitedPlacePayload({
     item: destination,
     type: 'location',
     source: 'travel-guide',
     defaultDate: new Date().toISOString().slice(0, 10),
   });
+  
+  // Prepare compare item data
   const compareItem = {
     ...destination,
     source: 'travel-guide',
@@ -99,12 +113,15 @@ function DestinationCard({ destination, onOpen, visitedRecord, onVisitedChange }
         }
       }}
     >
+      {/* Visited watermark overlay */}
       {visitedRecord ? (
         <span className="visited-place-watermark">
           <CheckCircle2 size={13} aria-hidden="true" />
           Visited
         </span>
       ) : null}
+      
+      {/* Destination image with error handling */}
       {imageUrl && (
         <img
           src={getPlaceImageSrc(imageUrl)}
@@ -113,9 +130,13 @@ function DestinationCard({ destination, onOpen, visitedRecord, onVisitedChange }
           onError={() => setFailedImageCount((count) => Math.min(count + 1, imageCandidates.length))}
         />
       )}
+      
+      {/* Destination metadata display */}
       <span>{destination.type || 'Destination'}</span>
       <strong>{destination.name}</strong>
       {destination.region && <small>{destination.region}</small>}
+      
+      {/* Visited place control and compare button */}
       <VisitedPlaceControl
         compact
         payload={visitedPayload}
@@ -126,12 +147,15 @@ function DestinationCard({ destination, onOpen, visitedRecord, onVisitedChange }
     </article>
   );
 }
+
 // TravelGuidePage renders the main screen and handles nearby interactions.
 function TravelGuidePage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const userCountry = user?.country || 'Malaysia';
   const userCountryCode = user?.countryCode || '';
+  
+  // State management for guide mode, filters, and data
   const [guideMode, setGuideMode] = useState('domestic');
   const [selectedOverseasCountry, setSelectedOverseasCountry] = useState(null);
   const [activeRegion, setActiveRegion] = useState('All');
@@ -146,6 +170,8 @@ function TravelGuidePage() {
 
   const currentCountry = userCountry;
   const isCountryDirectory = guideMode === 'overseas' && !selectedOverseasCountry;
+  
+  // Filter destinations based on search term
   const filteredDestinations = useMemo(() => {
     const normalizedSearch = searchTerm.trim().toLowerCase();
     if (!normalizedSearch) {
@@ -160,8 +186,11 @@ function TravelGuidePage() {
       .includes(normalizedSearch)
     );
   }, [destinations, searchTerm]);
+  
+  // Build lookup for visited places
   const visitedLookup = useMemo(() => buildVisitedLookup(visitedPlaces), [visitedPlaces]);
 
+  // Debounce search term to reduce API calls
   useEffect(() => {
     const timerId = window.setTimeout(() => {
       setDebouncedSearchTerm(searchTerm.trim());
@@ -170,6 +199,7 @@ function TravelGuidePage() {
     return () => window.clearTimeout(timerId);
   }, [searchTerm]);
 
+  // Get visited record for a specific destination
   const getDestinationVisitedRecord = (destination) => {
     const payload = getVisitedPlacePayload({
       item: destination,
@@ -180,6 +210,7 @@ function TravelGuidePage() {
     return visitedLookup[payload.placeKey];
   };
 
+  // Handle visited place changes
   const handleVisitedChange = (visitedPlace) => {
     if (!visitedPlace?.placeKey) return;
     setVisitedPlaces((currentPlaces) => {
@@ -188,6 +219,7 @@ function TravelGuidePage() {
     });
   };
 
+  // Effect hook for loading visited places data
   useEffect(() => {
     let isActive = true;
 
@@ -204,6 +236,8 @@ function TravelGuidePage() {
       isActive = false;
     };
   }, []);
+  
+  // Primary effect hook for loading destinations or countries
   useEffect(() => {
     let isActive = true;
     const loadDestinations = async () => {
@@ -211,6 +245,7 @@ function TravelGuidePage() {
       setError('');
       setStatus('');
 
+      // Country directory mode (overseas country list)
       if (isCountryDirectory) {
         try {
           const response = await getTravelGuideCountries({
@@ -243,6 +278,8 @@ function TravelGuidePage() {
         }
         return;
       }
+      
+      // Destination mode (domestic or selected overseas country)
       try {
         const response = await getTravelGuideDestinations({
           mode: 'domestic',
@@ -253,7 +290,6 @@ function TravelGuidePage() {
           search: debouncedSearchTerm,
         });
         const guide = response.data.data.guide;
-
 
         if (!isActive) return;
 
@@ -289,9 +325,13 @@ function TravelGuidePage() {
     userCountry,
     userCountryCode,
   ]);
+  
+  // Load more destinations for pagination
   const loadMoreDestinations = () => {
     changePage(Math.min(pagination.page + 1, pagination.totalPages), { append: true });
   };
+  
+  // Handle guide mode change
   const handleModeChange = (nextMode) => {
     setGuideMode(nextMode);
     setSelectedOverseasCountry(null);
@@ -299,7 +339,10 @@ function TravelGuidePage() {
     setDestinations([]);
     setPagination({ page: 1, totalPages: 1, hasMore: false });
   };
+  
+  // Open a destination or select an overseas country
   const openDestination = (destination) => {
+    // If in country directory mode and selecting a country, set the selected country
     if (isCountryDirectory && destination.type === 'Country') {
       setSelectedOverseasCountry(destination);
       setSearchTerm('');
@@ -308,6 +351,7 @@ function TravelGuidePage() {
       return;
     }
 
+    // Navigate to the destination detail page with query parameters
     const params = new URLSearchParams({
       destination: destination.name,
       country: destination.country || selectedOverseasCountry?.name || (guideMode === 'domestic' ? currentCountry : destination.name),
@@ -323,6 +367,8 @@ function TravelGuidePage() {
 
     navigate(`/travel-guide/destination?${params.toString()}`);
   };
+  
+  // Change page with optional append mode
   const changePage = async (nextPage, { append = false } = {}) => {
     if (nextPage < 1 || nextPage > pagination.totalPages || nextPage === pagination.page) {
       return;
@@ -331,6 +377,7 @@ function TravelGuidePage() {
     setIsLoading(true);
     setError('');
 
+    // Country directory pagination
     if (isCountryDirectory) {
       try {
         const response = await getTravelGuideCountries({
@@ -362,6 +409,8 @@ function TravelGuidePage() {
       }
       return;
     }
+    
+    // Destination pagination
     try {
       const response = await getTravelGuideDestinations({
         mode: 'domestic',
@@ -391,8 +440,10 @@ function TravelGuidePage() {
       setIsLoading(false);
     }
   };
+
   return (
     <section className="travel-guide-page">
+      {/* Hero section with page introduction */}
       <div className="travel-guide-hero">
         <div>
           <span className="travel-guide-eyebrow">
@@ -412,7 +463,9 @@ function TravelGuidePage() {
         </div>
       </div>
 
+      {/* Toolbar with mode tabs, region filters, and search */}
       <div className="travel-guide-toolbar">
+        {/* Guide type tabs */}
         <div className="travel-guide-tabs" role="tablist" aria-label="Guide type">
           <button
             className={guideMode === 'domestic' ? 'active' : ''}
@@ -436,6 +489,7 @@ function TravelGuidePage() {
           </button>
         </div>
 
+        {/* Region filter tabs for overseas country directory */}
         {isCountryDirectory && (
           <div className="travel-guide-region-tabs" aria-label="Overseas region filters">
             {Object.keys(regionFilters).map((region) => (
@@ -455,6 +509,7 @@ function TravelGuidePage() {
           </div>
         )}
 
+        {/* Search bar and mode indicator */}
         <div className="travel-guide-search-band">
           <label className="travel-guide-search">
             <span className="sr-only">Search guide destinations</span>
@@ -473,13 +528,17 @@ function TravelGuidePage() {
         </div>
       </div>
 
+      {/* Destinations grid section */}
       <section className="travel-guide-destinations">
+        {/* Back button for overseas country drill-down */}
         {selectedOverseasCountry && (
           <button className="travel-guide-back-link" type="button" onClick={() => setSelectedOverseasCountry(null)}>
             <ArrowLeft size={16} aria-hidden="true" />
             Back to overseas countries
           </button>
         )}
+        
+        {/* Section heading with current mode and count */}
         <div className="travel-guide-section-heading">
           <div>
             <span>
@@ -502,9 +561,11 @@ function TravelGuidePage() {
           </small>
         </div>
 
+        {/* Status and error messages */}
         {error && <p className="form-error travel-guide-status">{error}</p>}
         {status && !error && <p className="form-success travel-guide-status">{status}</p>}
 
+        {/* Conditional rendering based on loading state and data availability */}
         {isLoading ? (
           <div className="travel-guide-empty">
             <LoaderCircle className="travel-guide-spin" size={30} aria-hidden="true" />
@@ -513,6 +574,7 @@ function TravelGuidePage() {
           </div>
         ) : filteredDestinations.length ? (
           <>
+            {/* Destination grid */}
             <div className="travel-guide-grid" aria-label="Travel guide destinations">
               {filteredDestinations.map((destination) => (
                 <DestinationCard
@@ -524,27 +586,32 @@ function TravelGuidePage() {
                 />
               ))}
             </div>
-          {pagination.totalPages > 1 && (
-            <div className="travel-guide-pagination" aria-label="Destination pages">
-              <button type="button" onClick={() => changePage(pagination.page - 1)} disabled={pagination.page <= 1 || isLoading}>
-                <ChevronLeft size={16} aria-hidden="true" />
-                Previous
+            
+            {/* Pagination controls */}
+            {pagination.totalPages > 1 && (
+              <div className="travel-guide-pagination" aria-label="Destination pages">
+                <button type="button" onClick={() => changePage(pagination.page - 1)} disabled={pagination.page <= 1 || isLoading}>
+                  <ChevronLeft size={16} aria-hidden="true" />
+                  Previous
+                </button>
+                <span>Page {pagination.page} of {pagination.totalPages}</span>
+                <button type="button" onClick={() => changePage(pagination.page + 1)} disabled={pagination.page >= pagination.totalPages || isLoading}>
+                  Next
+                  <ChevronRight size={16} aria-hidden="true" />
+                </button>
+              </div>
+            )}
+            
+            {/* View more button for infinite scroll-like behavior */}
+            {pagination.hasMore && (
+              <button className="travel-guide-view-more" type="button" onClick={loadMoreDestinations} disabled={isLoading}>
+                {isLoading ? <LoaderCircle className="travel-guide-spin" size={16} aria-hidden="true" /> : <Search size={16} aria-hidden="true" />}
+                {isLoading ? 'Loading...' : 'View more'}
               </button>
-              <span>Page {pagination.page} of {pagination.totalPages}</span>
-              <button type="button" onClick={() => changePage(pagination.page + 1)} disabled={pagination.page >= pagination.totalPages || isLoading}>
-                Next
-                <ChevronRight size={16} aria-hidden="true" />
-              </button>
-            </div>
-          )}
-          {pagination.hasMore && (
-            <button className="travel-guide-view-more" type="button" onClick={loadMoreDestinations} disabled={isLoading}>
-              {isLoading ? <LoaderCircle className="travel-guide-spin" size={16} aria-hidden="true" /> : <Search size={16} aria-hidden="true" />}
-              {isLoading ? 'Loading...' : 'View more'}
-            </button>
-          )}
+            )}
           </>
         ) : (
+          // Empty state
           <div className="travel-guide-empty">
             <Compass size={30} aria-hidden="true" />
             <h3>No destinations loaded</h3>
@@ -556,5 +623,5 @@ function TravelGuidePage() {
   );
 }
 
-// Default export registers the primary  value.
+// Default export registers the primary value.
 export default TravelGuidePage;

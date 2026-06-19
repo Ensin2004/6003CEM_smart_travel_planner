@@ -1,9 +1,11 @@
+/* Main container for the notifications page with grid layout and left-aligned text */
 .notifications-page {
   display: grid;
   gap: 16px;
   text-align: left;
 }
 
+/* Shared flex alignment for multiple notification components */
 .notifications-hero,
 .notifications-header,
 .notifications-actions,
@@ -14,6 +16,7 @@
   align-items: center;
 }
 
+/* Hero section with gradient background, border, and decorative line */
 .notifications-hero {
   position: relative;
   display: grid;
@@ -30,6 +33,7 @@
   box-shadow: 0 18px 42px rgba(16, 42, 67, 0.08);
 }
 
+/* Decorative line at the bottom of the hero section */
 .notifications-hero::after {
   position: absolute;
   right: 22px;
@@ -41,16 +45,19 @@
   content: '';
 }
 
+/* Ensures children appear above the decorative pseudo-element */
 .notifications-hero > * {
   position: relative;
   z-index: 1;
 }
 
+/* Header section with flex alignment for controls */
 .notifications-header {
   justify-content: flex-end;
   gap: 16px;
 }
 
+/* Kicker badge for the notification category label */
 .notifications-kicker {
   display: inline-flex;
   align-items: center;
@@ -65,6 +72,7 @@
   line-height: 1.4;
 }
 
+/* Main heading with navy color and custom font weight */
 .notifications-header h1 {
   margin: 10px 0 8px;
   max-width: 760px;
@@ -75,6 +83,7 @@
   letter-spacing: 0;
 }
 
+/* Hero description text with muted color */
 .notifications-hero p {
   max-width: 720px;
   margin: 0;
@@ -83,12 +92,14 @@
   line-height: 1.6;
 }
 
+/* Card container for summary statistics with two columns */
 .notifications-hero-cards {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
+/* Individual summary cards with glassmorphism style */
 .notifications-hero-cards span {
   display: grid;
   gap: 7px;
@@ -102,10 +113,12 @@
   line-height: 1.6;
 }
 
+/* Icon color in summary cards */
 .notifications-hero-cards svg {
   color: var(--teal);
 }
 
+/* Bold numbers in summary cards */
 .notifications-hero-cards strong {
   overflow: hidden;
   color: var(--navy);
@@ -116,10 +129,12 @@
   white-space: nowrap;
 }
 
+/* Actions container with gap between controls */
 .notifications-actions {
   gap: 10px;
 }
 
+/* Select dropdowns and read button share common styling */
 .notifications-actions select,
 .notifications-read-button {
   min-height: 38px;
@@ -130,10 +145,12 @@
   font: inherit;
 }
 
+/* Select dropdown padding */
 .notifications-actions select {
   padding: 0 12px;
 }
 
+/* Mark all read button with flex layout and custom color */
 .notifications-read-button {
   display: inline-flex;
   align-items: center;
@@ -143,16 +160,19 @@
   font-weight: 650;
 }
 
+/* Disabled state for the mark all read button */
 .notifications-read-button:disabled {
   opacity: 0.55;
   cursor: not-allowed;
 }
 
+/* Notification list container with gap spacing */
 .notifications-list {
   display: grid;
   gap: 10px;
 }
 
+/* Individual notification row with flex layout */
 .notification-row {
   gap: 14px;
   padding: 16px;
@@ -161,6 +181,7 @@
   background: #ffffff;
 }
 
+/* Unread notifications are clickable with hover effect */
 .notification-row.is-unread {
   cursor: pointer;
 }
@@ -170,12 +191,14 @@
   background: #fbfffd;
 }
 
+/* Read notifications have reduced opacity and different background */
 .notification-row.is-read {
   background: #f8fafc;
   color: #64748b;
   opacity: 0.72;
 }
 
+/* Icon container with teal background */
 .notification-row-icon {
   display: grid;
   width: 40px;
@@ -187,11 +210,13 @@
   color: var(--teal);
 }
 
+/* Body section that fills remaining space */
 .notification-row-body {
   flex: 1;
   min-width: 0;
 }
 
+/* Actions column with grid layout and end alignment */
 .notification-row-actions {
   flex: 0 0 auto;
   display: grid;
@@ -199,17 +224,20 @@
   gap: 5px;
 }
 
+/* Title row with flex and gap */
 .notification-row-title {
   justify-content: space-between;
   gap: 12px;
 }
 
+/* Notification title with navy color */
 .notification-row h2 {
   margin: 0;
   color: var(--navy);
   font-size: 16px;
 }
 
+/* Timestamp styling with muted color */
 .notification-row-actions time {
   flex: 0 0 auto;
   color: var(--muted);
@@ -217,6 +245,7 @@
   white-space: nowrap;
 }
 
+/* Status badge with different colors for read/unread */
 .notification-status {
   font-size: 12px;
   font-weight: 800;
@@ -230,12 +259,14 @@
   color: #64748b;
 }
 
+/* Notification message paragraph with muted color */
 .notification-row p {
   margin: 6px 0 0;
   color: #52616f;
   line-height: 1.5;
 }
 
+/* Error context container for admin notifications */
 .notification-error-context {
   display: flex;
   flex-wrap: wrap;
@@ -243,6 +274,7 @@
   margin-top: 9px;
 }
 
+/* Error code and request ID styling with red theme */
 .notification-error-context code,
 .notification-error-context span {
   max-width: 100%;
@@ -257,6 +289,7 @@
   white-space: nowrap;
 }
 
+/* Empty state container with centered content */
 .notifications-empty {
   display: grid;
   justify-items: center;
@@ -268,12 +301,15 @@
   text-align: center;
 }
 
+/* Reset margins for empty state headings and paragraphs */
 .notifications-empty h2,
 .notifications-empty p {
   margin: 0;
 }
 
+/* Responsive styles for tablet and mobile screens (700px and below) */
 @media (max-width: 700px) {
+  /* Convert flex containers to column layout for better mobile display */
   .notifications-hero,
   .notifications-header,
   .notification-row,
@@ -290,19 +326,23 @@
     flex-direction: column;
   }
 
+  /* Additional gap for stacked actions */
   .notification-row-actions {
     gap: 8px;
   }
 
+  /* Hero becomes flex column on mobile */
   .notifications-hero {
     display: flex;
     padding: 22px;
   }
 
+  /* Summary cards take full width */
   .notifications-hero-cards {
     width: 100%;
   }
 
+  /* Actions wrap and take full width */
   .notifications-actions {
     width: 100%;
     flex-wrap: wrap;

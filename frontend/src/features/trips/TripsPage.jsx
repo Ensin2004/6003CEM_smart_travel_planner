@@ -36,17 +36,46 @@ import CurrencyContext from '../../context/currencyContext';
 import { buildTripFavoritePayload } from '../../utils/favoriteUtils';
 import './TripsPage.css';
 
+// ============================================================
+// CONSTANTS AND INITIAL VALUES
+// ============================================================
+
+/**
+ * Current date formatted as YYYY-MM-DD for default date inputs.
+ * Used as the default start date for new trips.
+ */
 const today = new Date().toISOString().slice(0, 10);
+
+/**
+ * Tomorrow's date formatted as YYYY-MM-DD for default end date.
+ * Ensures new trips have a minimum duration of one day.
+ */
 const tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+
+/**
+ * Default places shown in the trip preview when no destinations have been added.
+ * Provides a visual example of how the map preview functions.
+ */
 const defaultPreviewPlaces = [
   { city: 'Penang', country: 'Malaysia' },
   { city: 'Singapore', country: 'Singapore' },
 ];
+
+/**
+ * Available filter options for the trip dashboard.
+ * Allows users to view trips by status or favorites.
+ */
 const tripFilters = ['All Trips', 'Active', 'Upcoming', 'Past', 'Favorites'];
 
-// Date helpers keep exact-date and flexible-date planning consistent before the payload is built.
+// ============================================================
+// DATE UTILITY FUNCTIONS
+// ============================================================
 
-// Flexible trip planning starts from upcoming months instead of exact departure dates.
+/**
+ * Generates an array of month options for the next 12 months.
+ * Each option contains a value (YYYY-MM) and a display label.
+ * Used for flexible date planning where exact dates are not required.
+ */
 const getMonthOptions = () => Array.from({ length: 12 }, (_, index) => {
   const date = new Date();
   date.setDate(1);
@@ -59,7 +88,11 @@ const getMonthOptions = () => Array.from({ length: 12 }, (_, index) => {
   };
 });
 
-// The flexible range uses the first day of the selected month and expands by the selected day count.
+/**
+ * Calculates a date range from a selected month and number of days.
+ * The range starts on the first day of the selected month.
+ * Used for flexible trip planning when exact dates are not specified.
+ */
 const getFlexibleDateRange = (monthValue, days) => {
   const [year, month] = String(monthValue || today.slice(0, 7)).split('-').map(Number);
   const start = new Date(year, month - 1, 1);
@@ -72,7 +105,15 @@ const getFlexibleDateRange = (monthValue, days) => {
   };
 };
 
-// New segments inherit the current trip date range so multi-city planning starts with useful defaults.
+// ============================================================
+// TRIP SEGMENT HELPERS
+// ============================================================
+
+/**
+ * Creates an empty trip segment with default date values.
+ * New segments inherit the current trip date range for consistency.
+ * Each segment represents a destination within the overall trip.
+ */
 const createEmptySegment = (order = 1, startDate = today, endDate = tomorrow) => ({
   city: '',
   country: '',
@@ -82,19 +123,48 @@ const createEmptySegment = (order = 1, startDate = today, endDate = tomorrow) =>
   order,
 });
 
-// API and display helpers keep response parsing and date labels outside the component body.
+// ============================================================
+// API RESPONSE NORMALIZATION
+// ============================================================
+
+/**
+ * Extracts the trips array from various API response structures.
+ * Provides a consistent data format regardless of API changes.
+ */
 const normalizeTripList = (response) => response.data?.data?.trips || [];
 
+// ============================================================
+// DATE FORMATTING HELPERS
+// ============================================================
+
+/**
+ * Formats a date range into a human-readable string.
+ * Returns a fallback message when dates are not available.
+ */
 const formatDateRange = (startDate, endDate) => {
   if (!startDate || !endDate) return 'Dates not set';
   return `${new Date(startDate).toLocaleDateString()} - ${new Date(endDate).toLocaleDateString()}`;
 };
 
+/**
+ * Calculates the total number of days between two dates.
+ * Returns at least 1 day to ensure valid duration.
+ */
 const getDurationDays = (startDate, endDate) => {
   if (!startDate || !endDate) return 0;
   const diff = new Date(endDate).getTime() - new Date(startDate).getTime();
   return Math.max(1, Math.ceil(diff / 86400000) + 1);
 };
+
+// ============================================================
+// TRIP STATUS CALCULATIONS
+// ============================================================
+
+/**
+ * Determines the current status of a trip based on its dates.
+ * Returns 'Draft', 'Past', 'Upcoming', or 'Active'.
+ * Considers itinerary data for more accurate destination presence.
+ */
 const getTripStatus = (trip, itineraryDays = []) => {
   if (!trip.destinationSegments?.length && trip.destination === 'Not added yet' && !getItineraryDestinationPlaces(itineraryDays).length) return 'Draft';
 
@@ -106,6 +176,12 @@ const getTripStatus = (trip, itineraryDays = []) => {
   if (start > todayDate) return 'Upcoming';
   return 'Active';
 };
+
+/**
+ * Calculates progress metrics for a trip based on its status.
+ * Returns a label and percentage for display in the UI.
+ * Draft trips show 0%, upcoming show 20%, active show 60%, past show 100%.
+ */
 const getTripProgress = (trip, itineraryDays = []) => {
   const status = getTripStatus(trip, itineraryDays);
   if (status === 'Draft') return { label: '0% planned', percent: 0 };
@@ -114,7 +190,21 @@ const getTripProgress = (trip, itineraryDays = []) => {
   return { label: '60% planned', percent: 60 };
 };
 
+// ============================================================
+// DESTINATION EXTRACTION HELPERS
+// ============================================================
+
+/**
+ * Extracts a display name from a trip segment.
+ * Returns city if available, otherwise falls back to country.
+ */
 const getSegmentDestinationName = (segment = {}) => (segment.city || segment.country || '').trim();
+
+/**
+ * Extracts unique destination places from itinerary days.
+ * Removes duplicates based on city/country combination.
+ * Returns an array of place objects with city, country, address, and coordinates.
+ */
 const getItineraryDestinationPlaces = (days = []) => {
   const places = days
     .filter((day) => day.location?.name || day.location?.country)
@@ -128,6 +218,12 @@ const getItineraryDestinationPlaces = (days = []) => {
 
   return [...new Map(places.map((place) => [[place.city, place.country].filter(Boolean).join('|'), place])).values()];
 };
+
+/**
+ * Generates a display label for a trip's destination.
+ * Prefers itinerary places, falls back to trip-level destination fields.
+ * Joins multiple destinations with a bullet separator.
+ */
 const getTripDestinationLabel = (trip, itineraryDays = []) => {
   const itineraryPlaces = getItineraryDestinationPlaces(itineraryDays);
   if (itineraryPlaces.length) {
@@ -137,7 +233,15 @@ const getTripDestinationLabel = (trip, itineraryDays = []) => {
   return [trip.destination, trip.country].filter(Boolean).join(', ') || 'Not decided';
 };
 
-// Trip comparison items use trip-level details when place-level details are not available.
+// ============================================================
+// TRIP COMPARISON DATA BUILDER
+// ============================================================
+
+/**
+ * Constructs a comparison object for a trip.
+ * Used by the CompareButton component to display trip data in comparison mode.
+ * Falls back to trip-level details when place-level details are unavailable.
+ */
 const getTripCompareItem = (trip, itineraryDays = []) => ({
   id: trip._id,
   name: trip.title || trip.destination,
@@ -150,33 +254,133 @@ const getTripCompareItem = (trip, itineraryDays = []) => ({
   address: getTripDestinationLabel(trip, itineraryDays),
 });
 
-// The component owns the full create-trip workflow, from draft form state to final navigation.
+// ============================================================
+// MAIN COMPONENT
+// ============================================================
+
+/**
+ * The TripsPage component owns the full create-trip workflow.
+ * Manages form state, trip list, favorites, and navigation.
+ * Handles both manual trip creation and viewing of existing trips.
+ */
 function TripsPage() {
+  // ============================================================
+  // HOOKS AND CONTEXT
+  // ============================================================
+
   const navigate = useNavigate();
   const currency = useContext(CurrencyContext);
   const activeCurrencyCode = currency?.activeCurrency?.code || currency?.selectedCurrency || 'MYR';
 
-  // Screen state is grouped around the create form, trip list, country selectors, and save feedback.
-  // Country and state options are kept separate because selecting a country refreshes only one dropdown.
-  // View state controls whether the page shows the create form or the saved-trip directory.
+  // ============================================================
+  // UI STATE MANAGEMENT
+  // ============================================================
+
+  /**
+   * Controls which view is displayed: 'create' for the trip creation form,
+   * or 'my-trips' for the trip dashboard listing.
+   */
   const [activeView, setActiveView] = useState('create');
+
+  /**
+   * Current filter applied to the trip list.
+   * Options: 'All Trips', 'Active', 'Upcoming', 'Past', 'Favorites'.
+   */
   const [tripFilter, setTripFilter] = useState('All Trips');
+
+  /**
+   * Sort order for the trip list.
+   * 'recent' sorts by update date, 'startDate' sorts by trip start date.
+   */
   const [tripSort, setTripSort] = useState('recent');
+
+  /**
+   * Complete list of trips loaded from the API.
+   * Updates when trips are created or deleted.
+   */
   const [trips, setTrips] = useState([]);
+
+  /**
+   * Cache of itinerary days for each trip.
+   * Keyed by trip ID, contains the days array from the itinerary API.
+   */
   const [tripItineraryDays, setTripItineraryDays] = useState({});
+
+  /**
+   * List of user's favorite trips and locations.
+   * Used to display favorite status on trip cards.
+   */
   const [favorites, setFavorites] = useState([]);
+
+  /**
+   * Status of the trip loading operation.
+   * 'loading', 'success', or 'error' states.
+   */
   const [status, setStatus] = useState('loading');
+
+  /**
+   * General error or status message displayed to the user.
+   * Used for API errors and operation feedback.
+   */
   const [message, setMessage] = useState('');
+
+  /**
+   * Message specifically for favorite operations.
+   * Separate from general message to avoid conflicts.
+   */
   const [favoriteMessage, setFavoriteMessage] = useState('');
+
+  /**
+   * ID of the trip currently being added to or removed from favorites.
+   * Used to disable the favorite button during the operation.
+   */
   const [savingFavoriteTripId, setSavingFavoriteTripId] = useState('');
+
+  /**
+   * Search query for filtering trips in the dashboard view.
+   * Searches across trip title, destination, and location labels.
+   */
   const [searchQuery, setSearchQuery] = useState('');
+
+  /**
+   * Error message specific to the trip creation form.
+   * Displayed near the submit button for validation feedback.
+   */
   const [formError, setFormError] = useState('');
+
+  /**
+   * Indicates whether a trip creation request is in progress.
+   * Disables the submit button during API calls.
+   */
   const [isSaving, setIsSaving] = useState(false);
+
+  /**
+   * ID of the trip whose context menu is currently open.
+   * Controls which trip shows the dropdown menu.
+   */
   const [openTripMenuId, setOpenTripMenuId] = useState('');
+
+  /**
+   * Trip selected for deletion confirmation.
+   * Opens the delete confirmation dialog when set.
+   */
   const [tripToDelete, setTripToDelete] = useState(null);
+
+  /**
+   * Indicates whether a trip deletion request is in progress.
+   * Disables delete dialog buttons during the operation.
+   */
   const [isDeletingTrip, setIsDeletingTrip] = useState(false);
 
-  // Form state mirrors the backend trip payload closely so submission needs minimal remapping.
+  // ============================================================
+  // TRIP FORM STATE
+  // ============================================================
+
+  /**
+   * Form state that mirrors the backend trip payload structure.
+   * Allows direct submission with minimal data transformation.
+   * Includes title, dates, budget, and destination segments.
+   */
   const [form, setForm] = useState({
     title: '',
     startDate: today,
@@ -188,7 +392,15 @@ function TripsPage() {
     destinationSegments: [createEmptySegment()],
   });
 
-  // Initial trip loading populates the recent trip list and search results.
+  // ============================================================
+  // SIDE EFFECTS - DATA LOADING
+  // ============================================================
+
+  /**
+   * Loads the initial list of trips when the component mounts.
+   * Sets status to 'success' on completion or 'error' on failure.
+   * Cleanup function prevents state updates after unmounting.
+   */
   useEffect(() => {
     let isMounted = true;
 
@@ -204,12 +416,15 @@ function TripsPage() {
         setMessage(error.response?.data?.message || 'Unable to load trips.');
       });
 
-    // Cleanup prevents state updates after the user navigates away.
     return () => {
       isMounted = false;
     };
   }, []);
 
+  /**
+   * Adds a click listener to close the open trip menu when clicking outside.
+   * Cleans up the listener when the menu closes or component unmounts.
+   */
   useEffect(() => {
     if (!openTripMenuId) return undefined;
 
@@ -220,6 +435,11 @@ function TripsPage() {
     return () => document.removeEventListener('mousedown', closeOpenTripMenu);
   }, [openTripMenuId]);
 
+  /**
+   * Loads itinerary data for all trips in the list.
+   * Fetches in parallel using Promise.allSettled for resilience.
+   * Caches results in tripItineraryDays state keyed by trip ID.
+   */
   useEffect(() => {
     let isMounted = true;
 
@@ -249,7 +469,35 @@ function TripsPage() {
     };
   }, [trips]);
 
-  // Trip favourites are identified by their trip external id so saved place coordinates cannot collide with trip cards.
+  /**
+   * Loads the user's favorite items when the component mounts.
+   * Falls back to an empty array if the API call fails.
+   */
+  useEffect(() => {
+    let isMounted = true;
+
+    getFavorites()
+      .then((response) => {
+        if (isMounted) setFavorites(response.data?.data?.favorites || []);
+      })
+      .catch(() => {
+        if (isMounted) setFavorites([]);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  // ============================================================
+  // FAVORITE TRIP COMPUTATIONS
+  // ============================================================
+
+  /**
+   * Filters favorites to only include trip-related items.
+   * Trip favorites are identified by 'location' type and 'trips' source.
+   * External IDs starting with 'trip-' indicate trip-specific favorites.
+   */
   const tripFavorites = useMemo(
     () => favorites.filter((favorite) => (
       favorite.type === 'location'
@@ -258,14 +506,38 @@ function TripsPage() {
     )),
     [favorites]
   );
+
+  /**
+   * Creates a lookup map for trip favorites by external ID.
+   * Enables O(1) lookups when checking if a trip is favorited.
+   */
   const tripFavoriteLookup = useMemo(
     () => Object.fromEntries(tripFavorites.map((favorite) => [favorite.externalId, favorite])),
     [tripFavorites]
   );
+
+  // ============================================================
+  // TRIP COUNT STATISTICS
+  // ============================================================
+
+  /**
+   * Calculates counts of trips by status.
+   * Used for the status summary badges in the dashboard header.
+   */
   const tripStatusCounts = trips.reduce((counts, trip) => {
     const statusName = getTripStatus(trip, tripItineraryDays[trip._id] || []).toLowerCase();
     return { ...counts, [statusName]: (counts[statusName] || 0) + 1 };
   }, { active: 0, upcoming: 0, past: 0, draft: 0 });
+
+  // ============================================================
+  // FILTERED AND SORTED TRIP LIST
+  // ============================================================
+
+  /**
+   * Filters trips based on search query and selected filter.
+   * Applies sorting based on the selected sort option.
+   * Returns a memoized array that updates when dependencies change.
+   */
   const filteredDashboardTrips = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
     const filteredTrips = trips.filter((trip) => {
@@ -286,35 +558,60 @@ function TripsPage() {
     });
   }, [searchQuery, tripFavoriteLookup, tripFilter, tripItineraryDays, tripSort, trips]);
 
+  // ============================================================
+  // TRIP PREVIEW VALUES
+  // ============================================================
+
+  /**
+   * Extracts segments that have destination names for the preview.
+   * Filters out empty segments from the trip preview display.
+   */
   const previewSegments = form.destinationSegments.filter((segment) => getSegmentDestinationName(segment));
+
+  /**
+   * Calculates the total budget from the form amount.
+   * Parses the string value to a number for display and validation.
+   */
   const totalBudget = Number(form.budgetAmount || 0);
-  // Preview values are recalculated from the draft form so the summary stays accurate while typing.
+
+  /**
+   * Memoized list of month options for the flexible date picker.
+   * Provides a stable reference for the date selection dropdown.
+   */
   const flexibleMonthOptions = useMemo(() => getMonthOptions(), []);
+
+  /**
+   * Calculates the displayed date range based on the selected date mode.
+   * For flexible mode, generates a range from the month and window days.
+   * For exact mode, uses the directly selected start and end dates.
+   */
   const displayedDateRange = form.dateMode === 'flexible'
     ? getFlexibleDateRange(form.flexibleMonth, form.flexibleWindowDays)
     : { startDate: form.startDate, endDate: form.endDate };
+
+  /**
+   * Calculates the total duration in days for the displayed date range.
+   * Used for the duration display in the trip preview.
+   */
   const durationDays = getDurationDays(displayedDateRange.startDate, displayedDateRange.endDate);
 
-  useEffect(() => {
-    let isMounted = true;
+  // ============================================================
+  // FAVORITE HANDLERS
+  // ============================================================
 
-    getFavorites()
-      .then((response) => {
-        if (isMounted) setFavorites(response.data?.data?.favorites || []);
-      })
-      .catch(() => {
-        if (isMounted) setFavorites([]);
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
+  /**
+   * Retrieves the favorite record for a specific trip.
+   * Returns undefined if the trip is not favorited.
+   */
   const getTripFavoriteRecord = (trip) => {
     return tripFavoriteLookup[`trip-${trip._id}`];
   };
 
+  /**
+   * Toggles the favorite status of a trip.
+   * Adds or removes the trip from favorites based on current state.
+   * Disables the button during the operation to prevent duplicate requests.
+   */
   const handleTripFavoriteToggle = async (event, trip) => {
     event.preventDefault();
     event.stopPropagation();
@@ -349,6 +646,15 @@ function TripsPage() {
     }
   };
 
+  // ============================================================
+  // TRIP DELETION HANDLER
+  // ============================================================
+
+  /**
+   * Deletes a trip after confirmation from the user.
+   * Removes the trip from the trips list and any associated favorites.
+   * Shows feedback messages for success or failure.
+   */
   const handleDeleteTrip = async () => {
     if (!tripToDelete?._id || isDeletingTrip) return;
 
@@ -368,13 +674,29 @@ function TripsPage() {
     }
   };
 
-  // Simple field updates clear the previous validation error so fresh input gets a clean attempt.
+  // ============================================================
+  // FORM FIELD HANDLERS
+  // ============================================================
+
+  /**
+   * Updates a single form field with the provided value.
+   * Clears any previous validation errors on change.
+   * Provides a consistent interface for all form field updates.
+   */
   const updateField = (field, value) => {
     setFormError('');
     setForm((current) => ({ ...current, [field]: value }));
   };
 
-  // Client-side validation catches the most common form mistakes before sending an API request.
+  // ============================================================
+  // FORM VALIDATION
+  // ============================================================
+
+  /**
+   * Validates the trip creation form before submission.
+   * Checks for required fields, date consistency, and valid budget.
+   * Returns an error message string or empty string if valid.
+   */
   const validateForm = () => {
     if (!form.title.trim()) return 'Trip title is required.';
     if (form.dateMode === 'exact' && new Date(form.endDate) < new Date(form.startDate)) return 'Trip end date cannot be before start date.';
@@ -383,7 +705,15 @@ function TripsPage() {
     return '';
   };
 
-  // Submission builds the final trip payload and optionally creates a matching packing list.
+  // ============================================================
+  // TRIP SUBMISSION HANDLER
+  // ============================================================
+
+  /**
+   * Handles the trip creation form submission.
+   * Validates the form, builds the payload, and creates the trip.
+   * Navigates to the trip detail page on success.
+   */
   const handleSubmit = async (event) => {
     event.preventDefault();
     const error = validateForm();
@@ -444,8 +774,15 @@ function TripsPage() {
     }
   };
 
+  // ============================================================
+  // RENDER - MAIN SECTION
+  // ============================================================
+
   return (
     <section className="trips-page trips-page-comfort" aria-labelledby="trips-page-title">
+      {/* ============================================================
+           HEADER WITH VIEW TOGGLES
+           ============================================================ */}
       <header className="trips-dashboard-header">
         <div>
           <h2 id="trips-page-title">My Trips</h2>
@@ -476,11 +813,18 @@ function TripsPage() {
         </div>
       </header>
 
+      {/* ============================================================
+           STATUS AND FEEDBACK MESSAGES
+           ============================================================ */}
       {message && <p className="form-error trips-status" role="alert">{message}</p>}
       {favoriteMessage && <p className="form-success trips-status" role="status">{favoriteMessage}</p>}
 
+      {/* ============================================================
+           MY TRIPS VIEW
+           ============================================================ */}
       {activeView === 'my-trips' ? (
         <section className="trip-dashboard-panel" aria-labelledby="my-trips-title">
+          {/* ---- Toolbar with filters and sort ---- */}
           <div className="trip-dashboard-toolbar">
             <div className="trip-dashboard-filters" aria-label="Trip filters">
               {tripFilters.map((filter) => (
@@ -503,6 +847,7 @@ function TripsPage() {
             </label>
           </div>
 
+          {/* ---- Trip statistics summary ---- */}
           <div className="trip-dashboard-stats" aria-label="Trip summary">
             <span>
               <i><Plane size={19} aria-hidden="true" /></i>
@@ -536,6 +881,7 @@ function TripsPage() {
             </span>
           </div>
 
+          {/* ---- Search and heading ---- */}
           <div className="trip-dashboard-heading">
             <h3 id="my-trips-title">Your Trips</h3>
             <label className="trip-search-field trip-search-field-large">
@@ -544,9 +890,11 @@ function TripsPage() {
             </label>
           </div>
 
+          {/* ---- Loading state ---- */}
           {status === 'loading' ? (
             <p className="settings-empty"><LoaderCircle className="trip-spin" size={16} aria-hidden="true" /> Loading trips...</p>
           ) : filteredDashboardTrips.length === 0 ? (
+            /* ---- Empty state ---- */
             <div className="trip-empty-state">
               <MapPin size={30} aria-hidden="true" />
               <h3>No trips found</h3>
@@ -554,6 +902,7 @@ function TripsPage() {
               <button type="button" onClick={() => setActiveView('create')}>Create trip</button>
             </div>
           ) : (
+            /* ---- Trip cards grid ---- */
             <div className="trip-dashboard-grid">
               {filteredDashboardTrips.map((trip, index) => {
                 const tripDays = getDurationDays(trip.startDate, trip.endDate);
@@ -567,6 +916,7 @@ function TripsPage() {
 
                 return (
                   <article className="trip-dashboard-card" key={trip._id}>
+                    {/* ---- Card image with status pill and favorite button ---- */}
                     <div className={`trip-dashboard-card-image trip-photo-${index % 5}`}>
                       <Link className="trip-dashboard-card-image-link" to={`/trips/${trip._id}`} aria-label={`Open ${tripTitle}`} />
                       <span className={`trip-status-pill is-${statusName.toLowerCase()}`}>{statusName}</span>
@@ -584,6 +934,8 @@ function TripsPage() {
                         )}
                       </button>
                     </div>
+
+                    {/* ---- Card body with trip details ---- */}
                     <div className="trip-dashboard-card-body">
                       <div className="trip-dashboard-card-title">
                         <Link to={`/trips/${trip._id}`}>{tripTitle}</Link>
@@ -615,16 +967,22 @@ function TripsPage() {
                           ) : null}
                         </div>
                       </div>
+
+                      {/* ---- Metadata row ---- */}
                       <div className="trip-dashboard-card-meta">
                         <span><CalendarDays size={14} aria-hidden="true" />{formatDateRange(trip.startDate, trip.endDate)}</span>
                         <span><Clock3 size={14} aria-hidden="true" />{Math.max(0, tripDays - 1)} night{tripDays - 1 === 1 ? '' : 's'} ({tripDays} day{tripDays === 1 ? '' : 's'})</span>
                         <span><MapPin size={14} aria-hidden="true" />{destinationLabel}</span>
                         <span><WalletCards size={14} aria-hidden="true" />{trip.budget?.totalAmount ? `${trip.budget.currency || 'MYR'} ${Number(trip.budget.totalAmount).toLocaleString()}` : '-'}</span>
                       </div>
+
+                      {/* ---- Progress bar ---- */}
                       <div className="trip-dashboard-progress" aria-label={`${progress.label} progress`}>
                         <span><em style={{ width: `${progress.percent}%` }} /></span>
                         <small>{progress.label}</small>
                       </div>
+
+                      {/* ---- Compare button ---- */}
                       <CompareButton compact item={getTripCompareItem(trip, itineraryDays)} />
                     </div>
                   </article>
@@ -634,13 +992,18 @@ function TripsPage() {
           )}
         </section>
       ) : (
+      /* ============================================================
+           CREATE TRIP VIEW
+           ============================================================ */
       <div className="trip-reference-layout">
+        {/* ---- Trip creation form ---- */}
         <form className="trip-reference-form" onSubmit={handleSubmit}>
           <div className="trip-reference-form-heading">
             <span>Create a Trip</span>
             <p>Set the basic trip details first. Places, route, packing list, and documents can be managed after creation.</p>
           </div>
 
+          {/* ---- Trip name input ---- */}
           <label className="trip-reference-field trip-reference-field-full">
             <span>Trip Name</span>
             <small>Give your trip a name you'll love.</small>
@@ -656,6 +1019,7 @@ function TripsPage() {
             </div>
           </label>
 
+          {/* ---- Date range inputs ---- */}
           <div className="trip-reference-date-row">
             <label className="trip-reference-field">
               <span>Start Date</span>
@@ -676,6 +1040,7 @@ function TripsPage() {
             </label>
           </div>
 
+          {/* ---- Duration display ---- */}
           <div className="trip-reference-field trip-reference-field-full">
             <span>Total Duration</span>
             <div className="trip-duration-banner">
@@ -684,6 +1049,7 @@ function TripsPage() {
             </div>
           </div>
 
+          {/* ---- Budget input ---- */}
           <label className="trip-reference-field trip-reference-field-full">
             <span>Total Budget</span>
             <small>Set your estimated budget for the entire trip.</small>
@@ -702,26 +1068,32 @@ function TripsPage() {
             </div>
           </label>
 
+          {/* ---- Budget note ---- */}
           <p className="trip-reference-info">
             <Info size={16} aria-hidden="true" />
             You can always adjust your budget later.
           </p>
 
+          {/* ---- Form error display ---- */}
           {formError && <p className="form-error trips-status" role="alert">{formError}</p>}
 
+          {/* ---- Submit button ---- */}
           <button className="trip-reference-submit" type="submit" disabled={isSaving}>
             {isSaving ? <LoaderCircle className="trip-spin" size={18} aria-hidden="true" /> : null}
             Create Trip
             <ArrowRight size={18} aria-hidden="true" />
           </button>
 
+          {/* ---- Footer note ---- */}
           <p className="trip-reference-after">
             <LockKeyhole size={13} aria-hidden="true" />
             You can edit everything later
           </p>
         </form>
 
+        {/* ---- Side panel: Trip preview and benefits ---- */}
         <aside className="trip-reference-side" aria-label="Trip creation preview">
+          {/* ---- Preview card ---- */}
           <section className="trip-reference-preview">
             <header>
               <h3>Trip Preview</h3>
@@ -743,6 +1115,7 @@ function TripsPage() {
             </p>
           </section>
 
+          {/* ---- Benefits section ---- */}
           <section className="trip-reference-benefits">
             <h3>Why create a trip?</h3>
             <div>
@@ -766,6 +1139,9 @@ function TripsPage() {
       </div>
       )}
 
+      {/* ============================================================
+           DELETE CONFIRMATION DIALOG
+           ============================================================ */}
       {tripToDelete ? (
         <div className="trip-delete-dialog-backdrop" role="presentation" onMouseDown={() => !isDeletingTrip && setTripToDelete(null)}>
           <section

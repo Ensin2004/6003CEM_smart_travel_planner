@@ -6,6 +6,8 @@
 import axiosClient from './axiosClient';
 
 const NOMINATIM_SEARCH_URL = 'https://nominatim.openstreetmap.org/search';
+
+// Defines average travel speeds in km/h for different transportation modes when estimating routes
 const estimatedModeSpeedsKph = {
   walking: 5,
   car: 45,
@@ -14,6 +16,7 @@ const estimatedModeSpeedsKph = {
   plane: 700,
 };
 
+// Maps category identifiers to OpenStreetMap search keywords for targeted place discovery
 const categorySearchTerms = {
   hotels: ['hotel', 'resort', 'guest house'],
   airports: ['airport'],
@@ -37,8 +40,10 @@ const getOpenStreetMapErrorMessage = (status) => {
   return 'Unable to search this location.';
 };
 
+// Determines whether an error is due to request cancellation/abortion
 const isAbortError = (error) => error.name === 'AbortError' || error.name === 'CanceledError';
 
+// Extracts a valid image URL from OpenStreetMap place extended tags
 const getOpenStreetMapImage = (place = {}) => {
   const image = place.extratags?.image || place.extratags?.wikimedia_commons;
   return /^https?:\/\//i.test(image || '') ? image : '';
@@ -238,6 +243,7 @@ export const getReverseGeocodeLocation = async ({ latitude, longitude }, options
   return response.data.data.location;
 };
 
+// Geocodes a text query to coordinates using the backend geocoding service
 export const getGeocodeLocation = async (query, options = {}) => {
   const response = await axiosClient.get('/map/geocode', {
     params: { query },
@@ -247,6 +253,7 @@ export const getGeocodeLocation = async (query, options = {}) => {
   return response.data.data.location;
 };
 
+// Converts degrees to radians for trigonometric calculations
 const toRadians = (degrees) => degrees * (Math.PI / 180);
 
 // The haversine calculation keeps route estimates available if the backend cannot be reached.

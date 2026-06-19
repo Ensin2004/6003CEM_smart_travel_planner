@@ -1,5 +1,6 @@
 /**
  * Admin category management page.
+ * Provides CRUD operations for managing content categories
  */
 import {
   ChevronLeft,
@@ -22,16 +23,21 @@ import {
 import { getApiErrorMessage } from '../../utils/apiError';
 import './ManageCategoriesPage.css';
 
+// Available category types with display labels and examples
 const typeOptions = [
   { value: 'attraction', label: 'Attraction', example: 'Art museum' },
   { value: 'food', label: 'Food', example: 'Japanese cuisine' },
   { value: 'hotel', label: 'Hotel', example: 'Boutique hotel' },
 ];
+
+// Number of categories displayed per page in the list
 const categoriesPerPage = 10;
 
+// Retrieves user-friendly error messages from API responses
 const getErrorMessage = (error) =>
   getApiErrorMessage(error, 'Unable to save category changes.');
 
+// Formats the creation date for display in a readable format
 const formatDateAdded = (value) => {
   if (!value) return 'Date unavailable';
 
@@ -40,7 +46,9 @@ const formatDateAdded = (value) => {
   }).format(new Date(value));
 };
 
+// Main component for managing categories with create, edit, and delete operations
 function ManageCategoriesPage() {
+  // State management for categories list, form data, and UI controls
   const [categories, setCategories] = useState([]);
   const [form, setForm] = useState({ type: 'attraction', name: '' });
   const [activeType, setActiveType] = useState('attraction');
@@ -57,6 +65,7 @@ function ManageCategoriesPage() {
   const [successMessage, setSuccessMessage] = useState('');
   const [deleteMessage, setDeleteMessage] = useState('');
 
+  // Fetches all categories from the API and updates the state
   const loadCategories = useCallback(async () => {
     setIsLoading(true);
     setError('');
@@ -70,11 +79,13 @@ function ManageCategoriesPage() {
     }
   }, []);
 
+  // Triggers initial category load when the component mounts
   useEffect(() => {
     const timeoutId = window.setTimeout(loadCategories, 0);
     return () => window.clearTimeout(timeoutId);
   }, [loadCategories]);
 
+  // Calculates category counts per type for the tab badges
   const categoryCounts = useMemo(
     () =>
       categories.reduce(
@@ -86,8 +97,12 @@ function ManageCategoriesPage() {
       ),
     [categories]
   );
+
+  // Gets the current active type option for display
   const activeTypeOption =
     typeOptions.find((type) => type.value === activeType) || typeOptions[0];
+
+  // Filters categories by active type and search query
   const filteredCategories = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
 
@@ -97,6 +112,8 @@ function ManageCategoriesPage() {
         (!normalizedQuery || category.name.toLowerCase().includes(normalizedQuery))
     );
   }, [activeType, categories, searchQuery]);
+
+  // Calculates pagination values for the category list
   const totalPages = Math.max(Math.ceil(filteredCategories.length / categoriesPerPage), 1);
   const activePage = Math.min(currentPage, totalPages);
   const pageStartIndex = (activePage - 1) * categoriesPerPage;
@@ -106,10 +123,12 @@ function ManageCategoriesPage() {
   );
   const pageNumbers = Array.from({ length: totalPages }, (_, index) => index + 1);
 
+  // Resets the add category form to default values
   const resetAddForm = () => {
     setForm({ type: activeType, name: '' });
   };
 
+  // Handles switching between category type tabs
   const selectType = (type) => {
     setActiveType(type);
     setSearchQuery('');
@@ -120,6 +139,7 @@ function ManageCategoriesPage() {
     setDeleteMessage('');
   };
 
+  // Handles form submission for creating a new category
   const handleSubmit = async (event) => {
     event.preventDefault();
     setIsSaving(true);
@@ -138,6 +158,7 @@ function ManageCategoriesPage() {
     }
   };
 
+  // Initiates the edit process for a category
   const startEditing = (category) => {
     setEditingCategory(category);
     setEditName(category.name);
@@ -146,12 +167,14 @@ function ManageCategoriesPage() {
     setDeleteMessage('');
   };
 
+  // Closes the edit dialog without saving changes
   const closeEditDialog = () => {
     if (isEditing) return;
     setEditingCategory(null);
     setEditName('');
   };
 
+  // Handles form submission for updating a category name
   const handleEditSubmit = async (event) => {
     event.preventDefault();
     if (!editingCategory) return;
@@ -176,6 +199,7 @@ function ManageCategoriesPage() {
     }
   };
 
+  // Opens the delete confirmation dialog for a category
   const requestDelete = (category) => {
     setCategoryToDelete(category);
     setError('');
@@ -183,11 +207,13 @@ function ManageCategoriesPage() {
     setDeleteMessage('');
   };
 
+  // Closes the delete dialog without performing deletion
   const closeDeleteDialog = () => {
     if (deletingId) return;
     setCategoryToDelete(null);
   };
 
+  // Confirms and executes category deletion
   const confirmDelete = async () => {
     if (!categoryToDelete) return;
 
@@ -210,8 +236,10 @@ function ManageCategoriesPage() {
     }
   };
 
+  // Renders the complete category management interface
   return (
     <section className="manage-categories-page" aria-labelledby="manage-categories-title">
+      {/* Header section with title and total category count */}
       <header className="manage-categories-hero">
         <div>
           <p className="eyebrow">Explore content</p>
@@ -221,12 +249,14 @@ function ManageCategoriesPage() {
         <span><Tags size={22} aria-hidden="true" /> {categories.length} categories</span>
       </header>
 
+      {/* Status message display area */}
       {error && <p className="form-error manage-categories-status">{error}</p>}
       {successMessage && <p className="form-success manage-categories-status">{successMessage}</p>}
       {deleteMessage && (
         <p className="manage-categories-delete-status manage-categories-status">{deleteMessage}</p>
       )}
 
+      {/* Add category form */}
       <form className="manage-categories-form" onSubmit={handleSubmit}>
         <div className="manage-categories-form-heading">
           <Plus size={20} aria-hidden="true" />
@@ -253,7 +283,9 @@ function ManageCategoriesPage() {
         </div>
       </form>
 
+      {/* Category list section with tabs and search */}
       <section className="manage-categories-group">
+        {/* Type tabs for filtering categories */}
         <div className="manage-categories-tabs" role="tablist" aria-label="Category types">
           {typeOptions.map((type) => (
             <button
@@ -269,6 +301,8 @@ function ManageCategoriesPage() {
             </button>
           ))}
         </div>
+
+        {/* Category list header with title and search */}
         <div className="manage-categories-group-heading">
           <div>
             <span>{activeTypeOption.label}</span>
@@ -288,6 +322,8 @@ function ManageCategoriesPage() {
             />
           </label>
         </div>
+
+        {/* Category list with loading and empty states */}
         {isLoading ? (
           <p className="settings-empty">Loading categories...</p>
         ) : filteredCategories.length === 0 ? (
@@ -296,6 +332,7 @@ function ManageCategoriesPage() {
           </p>
         ) : (
           <>
+            {/* Rendered category cards with edit and delete actions */}
             <div className="manage-categories-list">
               {paginatedCategories.map((category) => (
                 <article key={category.id || category._id}>
@@ -319,6 +356,8 @@ function ManageCategoriesPage() {
                 </article>
               ))}
             </div>
+
+            {/* Pagination controls */}
             <nav className="manage-categories-pagination" aria-label="Category pages">
               <span>
                 Showing {pageStartIndex + 1}-
@@ -360,6 +399,7 @@ function ManageCategoriesPage() {
         )}
       </section>
 
+      {/* Edit category dialog modal */}
       {editingCategory && (
         <div className="manage-categories-dialog-backdrop" role="presentation" onMouseDown={closeEditDialog}>
           <form
@@ -403,6 +443,7 @@ function ManageCategoriesPage() {
         </div>
       )}
 
+      {/* Delete category confirmation dialog modal */}
       {categoryToDelete && (
         <div className="manage-categories-dialog-backdrop" role="presentation" onMouseDown={closeDeleteDialog}>
           <div
@@ -445,4 +486,5 @@ function ManageCategoriesPage() {
   );
 }
 
+// Default export registers the primary component
 export default ManageCategoriesPage;

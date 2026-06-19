@@ -4,12 +4,17 @@
  */
 import { createContext, useCallback, useMemo, useState } from 'react';
 
+// Maximum number of items allowed in the comparison basket
 const maxCompareItems = 3;
+
+// Creates a context for comparing items across the application
 const CompareContext = createContext(null);
 
+// Generates a stable identifier for an item using available id fields
 const getStableId = (item = {}) =>
   String(item.compareId || item.id || item._id || item.placeId || item.dataId || item.name || '').toLowerCase();
 
+// Normalizes various item shapes into a consistent comparison item format
 const normalizeCompareItem = (item = {}) => ({
   id: getStableId(item) || `compare-${Date.now()}`,
   name: item.name || item.title || item.destination || 'Unnamed place',
@@ -29,6 +34,7 @@ export function CompareProvider({ children }) {
   const [items, setItems] = useState([]);
   const [notice, setNotice] = useState('');
 
+  // Adds an item to the comparison basket with duplicate and limit checks
   const addItem = useCallback((item) => {
     const normalizedItem = normalizeCompareItem(item);
 
@@ -48,21 +54,25 @@ export function CompareProvider({ children }) {
     });
   }, []);
 
+  // Removes an item from the comparison basket by its id
   const removeItem = useCallback((itemId) => {
     setItems((currentItems) => currentItems.filter((item) => item.id !== itemId));
     setNotice('');
   }, []);
 
+  // Clears all items from the comparison basket
   const clearItems = useCallback(() => {
     setItems([]);
     setNotice('');
   }, []);
 
+  // Checks whether a given item is already selected in the comparison basket
   const isSelected = useCallback((item) => {
     const itemId = getStableId(item);
     return items.some((selectedItem) => selectedItem.id === itemId);
   }, [items]);
 
+  // Memoized context value containing comparison state and actions
   const value = useMemo(
     () => ({
       addItem,

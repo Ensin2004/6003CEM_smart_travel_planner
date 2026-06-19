@@ -4,7 +4,8 @@
  */
 import { useContext } from 'react';
 import AuthContext from '../context/authContext';
-// Default export registers the primary  value.
+
+// Returns the authentication context value for accessing auth state and methods
 export default function useAuth() {
   return useContext(AuthContext);
 }

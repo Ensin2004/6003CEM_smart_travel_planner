@@ -10,12 +10,21 @@ import DashboardTopbar from './components/DashboardTopbar';
 import { useUserDashboard } from './hooks/useUserDashboard';
 import './UserDashboard.css';
 
+/**
+ * UserDashboard - Main dashboard page component
+ * Composes the dashboard from smaller section components
+ * All data and state management is delegated to the useUserDashboard hook
+ */
 function UserDashboard() {
+  // Initialize dashboard state and data through custom hook
   const dashboard = useUserDashboard();
 
   return (
     <section className="dashboard-page">
+      {/* Topbar with greeting and primary action buttons */}
       <DashboardTopbar user={dashboard.user} />
+      
+      {/* Statistics summary cards showing key metrics */}
       <DashboardStats
         favoritesCount={dashboard.favoritesCount}
         totalVisitCount={dashboard.totalVisitCount}
@@ -23,6 +32,8 @@ function UserDashboard() {
         tripsThisMonth={dashboard.tripsThisMonth}
         uniquePlaceCount={dashboard.uniquePlaceCount}
       />
+      
+      {/* Overview section with upcoming trips, activity feed, and calendar */}
       <DashboardOverview
         calendarCells={dashboard.calendarCells}
         error={dashboard.error}
@@ -38,6 +49,8 @@ function UserDashboard() {
         tripStatus={dashboard.tripStatus}
         upcomingTrips={dashboard.upcomingTrips}
       />
+      
+      {/* Place lists with search, filtering, and row actions */}
       <DashboardPlaceLists
         activePlaceMenu={dashboard.activePlaceMenu}
         handleVisitedPlaceAction={dashboard.handleVisitedPlaceAction}
@@ -51,6 +64,8 @@ function UserDashboard() {
         visitedCategories={dashboard.visitedCategories}
         visitedCategory={dashboard.visitedCategory}
       />
+      
+      {/* Reports section with donut charts, bar charts, and detailed modals */}
       <DashboardReports
         activeReport={dashboard.activeReport}
         countryInsights={dashboard.countryInsights}

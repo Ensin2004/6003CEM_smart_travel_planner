@@ -2,18 +2,30 @@
  * Settings styles.
  * Layout, spacing, and interaction rules support the matching React view.
  */
+
+/* ===== WORKSPACE CONTAINER ===== */
+/* Prevents the settings container from causing horizontal overflow */
 .settings-workspace {
   min-width: 0;
 }
+
+/* ===== SUB-NAVIGATION ===== */
+/* Sub-navigation is hidden by default; may be shown on larger screens if needed */
 .settings-subnav {
   display: none;
 }
+
+/* ===== MAIN CONTENT AREA ===== */
+/* Uses grid layout for vertical stacking with consistent gap between panes */
 .settings-content {
   display: grid;
   gap: 14px;
   align-self: start;
   min-width: 0;
 }
+
+/* ===== INDIVIDUAL SETTINGS PANE ===== */
+/* Each pane is a card-like container with border, padding, and rounded corners */
 .settings-pane {
   display: grid;
   align-content: start;
@@ -25,6 +37,8 @@
   border-radius: 8px;
   background: #ffffff;
 }
+
+/* Pane heading styling with consistent height and navy color */
 .settings-pane h3 {
   min-height: 38px;
   margin: 0;
@@ -32,6 +46,9 @@
   font-size: var(--font-size-2xl);
   line-height: 38px;
 }
+
+/* ===== PANE HEADER ROW ===== */
+/* Flex container for pane title and action buttons on the same row */
 .settings-pane-header {
   display: flex;
   align-items: center;
@@ -39,6 +56,9 @@
   gap: 12px;
   min-height: 38px;
 }
+
+/* ===== ICON BUTTON ===== */
+/* Square button with centered icon, border, and hover state */
 .settings-icon-button {
   display: grid;
   width: 38px;
@@ -49,15 +69,22 @@
   background: #ffffff;
   color: var(--muted);
 }
+
+/* Hover effect for icon buttons using primary color palette */
 .settings-icon-button:hover {
   background: var(--color-primary-soft);
   color: var(--color-primary);
 }
+
+/* ===== SETTINGS FORM ===== */
+/* Vertical stacking of form fields with consistent spacing */
 .settings-form {
   display: grid;
   gap: 16px;
 }
 
+/* ===== FORM LABELS ===== */
+/* Labels are block-level with gap between label text and input field */
 .settings-form label,
 .settings-pane label {
   display: grid;
@@ -68,6 +95,7 @@
   line-height: 1.4;
 }
 
+/* Inputs and custom pickers inside labels inherit muted text color and medium weight */
 .settings-form label input,
 .settings-pane label input,
 .settings-form label textarea,
@@ -78,6 +106,8 @@
   font-weight: 500;
 }
 
+/* ===== FORM INPUTS & SELECTS ===== */
+/* Uniform styling for all input, select, and textarea elements */
 .settings-form input,
 .settings-form select,
 .settings-pane input,
@@ -94,12 +124,16 @@
   outline: none;
 }
 
+/* ===== DISABLED INPUT STATE ===== */
+/* Visual indication for non-editable fields with custom background and cursor */
 .settings-disabled-input {
   background: #f1f5f9 !important;
   color: #94a3b8 !important;
   cursor: not-allowed;
 }
 
+/* ===== TEXTAREA SPECIFIC ===== */
+/* Larger minimum height, internal padding, and vertical resizing capability */
 .settings-pane textarea {
   min-height: 150px;
   padding: 12px 14px;
@@ -107,6 +141,8 @@
   line-height: 1.55;
 }
 
+/* ===== FOCUS STATE ===== */
+/* Teal border and soft glow when any form control receives focus */
 .settings-form input:focus,
 .settings-form select:focus,
 .settings-pane input:focus,
@@ -116,10 +152,14 @@
   box-shadow: 0 0 0 4px rgba(20, 184, 166, 0.16);
 }
 
+/* ===== ACTION BUTTON ===== */
+/* Primary action button constrained to a maximum width */
 .settings-action {
   width: min(220px, 100%);
 }
 
+/* ===== AVATAR BLOCK ===== */
+/* Container for avatar preview, camera button, and remove button */
 .settings-avatar-block {
   display: grid;
   justify-items: center;
@@ -129,6 +169,8 @@
   padding: 8px 0 4px;
 }
 
+/* ===== AVATAR FRAME ===== */
+/* Relative container that holds the avatar preview and camera overlay */
 .settings-avatar-frame {
   position: relative;
   width: 126px;
@@ -137,6 +179,8 @@
   place-items: center;
 }
 
+/* ===== AVATAR PREVIEW ===== */
+/* Circular avatar with primary color border and shadow for emphasis */
 .settings-avatar-preview {
   position: relative;
   display: grid;
@@ -153,12 +197,15 @@
   box-shadow: 0 12px 28px rgba(37, 99, 235, 0.22);
 }
 
+/* Avatar image fills the circular container without distortion */
 .settings-avatar-preview img {
   width: 100%;
   height: 100%;
   object-fit: cover;
 }
 
+/* ===== CAMERA ICON OVERLAY ===== */
+/* Small circular button positioned at the bottom-right of the avatar */
 .settings-avatar-camera {
   position: absolute;
   right: 2px;
@@ -174,15 +221,18 @@
   cursor: pointer;
 }
 
+/* Camera SVG icon inherits white color from parent */
 .settings-avatar-camera svg {
   color: #ffffff;
   stroke: #ffffff;
 }
 
+/* Hover state uses darker primary color */
 .settings-avatar-camera:hover {
   background: var(--color-primary-hover);
 }
 
+/* Hidden file input for image upload */
 .settings-avatar-camera input {
   position: absolute;
   width: 1px;
@@ -191,6 +241,8 @@
   pointer-events: none;
 }
 
+/* ===== AVATAR REMOVE BUTTON ===== */
+/* Secondary button for removing the current avatar image */
 .settings-avatar-remove {
   min-height: 34px;
   padding: 0 12px;
@@ -203,22 +255,29 @@
   font-weight: 800;
 }
 
+/* Hover adds primary color background tint */
 .settings-avatar-remove:hover {
   background: var(--color-primary-soft);
 }
 
+/* ===== EDITABLE FIELD WRAPPER ===== */
+/* Relative container for input with an inline edit button */
 .settings-edit-field {
   position: relative;
 }
 
+/* Extra right padding to make room for the edit icon */
 .settings-edit-field input {
   padding-right: 44px;
 }
 
+/* Ensures SVG icons do not interfere with pointer events */
 .settings-edit-field svg {
   pointer-events: none;
 }
 
+/* ===== FIELD EDIT BUTTON ===== */
+/* Absolute-positioned button inside the input field for inline editing */
 .settings-field-edit {
   position: absolute;
   top: 50%;
@@ -235,18 +294,23 @@
   transform: translateY(-50%);
 }
 
+/* Active or hover state highlights the edit button */
 .settings-field-edit:hover,
 .settings-field-edit.active {
   background: var(--color-primary-soft);
   color: var(--color-primary);
 }
 
+/* ===== SECONDARY ACTION ===== */
+/* Smaller action link or button using primary color */
 .settings-secondary {
   width: fit-content;
   min-height: 42px;
   color: var(--color-primary);
 }
 
+/* ===== READABLE TEXT BLOCK ===== */
+/* Preserves whitespace and line breaks for display-only content */
 .settings-readable {
   margin: 0;
   color: var(--muted);
@@ -254,6 +318,8 @@
   white-space: pre-wrap;
 }
 
+/* ===== EMPTY STATE ===== */
+/* Dashed border card shown when lists or sections have no content */
 .settings-empty {
   margin: 0;
   padding: 14px;
@@ -265,6 +331,8 @@
   line-height: 1.6;
 }
 
+/* ===== LIST CONTAINERS ===== */
+/* Common grid layout for lists of toggles, FAQ items, and other repeatable elements */
 .settings-toggle-list,
 .faq-editor-list,
 .faq-list {
@@ -272,14 +340,19 @@
   gap: 10px;
 }
 
+/* Larger gap specifically for toggle list items */
 .settings-toggle-list {
   gap: 16px;
 }
 
+/* ===== NOTIFICATIONS PANE ===== */
+/* Extra bottom padding for visual balance in notifications section */
 .settings-notifications-pane {
   padding-bottom: 34px;
 }
 
+/* ===== TOGGLE ROW ===== */
+/* Grid with two columns: label on left, toggle switch on right */
 .settings-toggle {
   grid-template-columns: 1fr auto;
   align-items: center;
@@ -289,11 +362,13 @@
   border-radius: 8px;
 }
 
+/* Toggle label text */
 .settings-toggle span {
   color: #64748b;
   font-weight: 500;
 }
 
+/* Small helper text below the toggle label */
 .settings-toggle small {
   display: block;
   margin-top: 3px;
@@ -302,6 +377,8 @@
   font-weight: 500;
 }
 
+/* ===== TOGGLE SWITCH INPUT ===== */
+/* Custom-styled checkbox used as a toggle switch */
 .settings-toggle input {
   position: relative;
   width: 46px;
@@ -314,6 +391,7 @@
   transition: background 0.18s ease, border-color 0.18s ease;
 }
 
+/* The circular knob inside the toggle */
 .settings-toggle input::after {
   content: "";
   position: absolute;
@@ -327,20 +405,25 @@
   transition: transform 0.18s ease;
 }
 
+/* Checked state uses primary color for background and border */
 .settings-toggle input:checked {
   border-color: var(--color-primary);
   background: var(--color-primary);
 }
 
+/* Moves the knob to the right when toggled on */
 .settings-toggle input:checked::after {
   transform: translateX(22px);
 }
 
+/* Disabled toggle with reduced opacity and no pointer events */
 .settings-toggle input:disabled {
   cursor: not-allowed;
   opacity: 0.55;
 }
 
+/* ===== FAQ EDITOR ITEM ===== */
+/* Individual FAQ item in edit mode with border and internal spacing */
 .faq-editor {
   display: grid;
   gap: 10px;
@@ -349,6 +432,7 @@
   border-radius: 8px;
 }
 
+/* Header row inside FAQ editor with question label and delete button */
 .faq-editor-header {
   display: flex;
   align-items: center;
@@ -356,11 +440,14 @@
   gap: 12px;
 }
 
+/* Bold question label in FAQ editor */
 .faq-editor-header strong {
   color: var(--navy);
   font-size: 14px;
 }
 
+/* ===== FAQ DELETE BUTTON ===== */
+/* Danger button with red border and hover effect for deleting FAQ entries */
 .faq-delete-button {
   display: inline-flex;
   align-items: center;
@@ -376,11 +463,14 @@
   font-weight: 700;
 }
 
+/* Hover intensifies the red border and background */
 .faq-delete-button:hover {
   border-color: #dc2626;
   background: #fef2f2;
 }
 
+/* ===== FAQ DIALOG BACKDROP ===== */
+/* Full-screen overlay with blur for modal confirmation dialogs */
 .faq-dialog-backdrop {
   position: fixed;
   inset: 0;
@@ -392,6 +482,8 @@
   backdrop-filter: blur(5px);
 }
 
+/* ===== FAQ DIALOG CARD ===== */
+/* Centered modal card with white background and shadow */
 .faq-dialog {
   display: grid;
   gap: 16px;
@@ -403,6 +495,7 @@
   box-shadow: 0 30px 80px rgba(15, 23, 42, 0.28);
 }
 
+/* Icon container for warning or confirmation visuals */
 .faq-dialog-icon {
   display: grid;
   width: 48px;
@@ -413,6 +506,7 @@
   color: #b42318;
 }
 
+/* Dialog heading with adjusted margin and font size */
 .faq-dialog h3 {
   min-height: 0;
   margin: 0 0 8px;
@@ -421,18 +515,22 @@
   line-height: 1.3;
 }
 
+/* Dialog description text */
 .faq-dialog p {
   margin: 0;
   color: #52616f;
   line-height: 1.6;
 }
 
+/* ===== DIALOG ACTION BUTTONS ===== */
+/* Row of buttons aligned to the right with consistent spacing */
 .faq-dialog-actions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
 }
 
+/* Shared button styles for dialog actions */
 .faq-dialog-actions button {
   display: inline-flex;
   align-items: center;
@@ -445,24 +543,29 @@
   font-weight: var(--font-weight-bold);
 }
 
+/* Cancel button with subtle border and neutral color */
 .faq-dialog-actions button:first-child {
   border: 1px solid rgba(148, 163, 184, 0.34);
   background: #ffffff;
   color: #475569;
 }
 
+/* Confirm/delete button with danger red background and white text */
 .faq-dialog-actions button:last-child {
   border: 1px solid #b42318;
   background: #b42318;
   color: #ffffff;
 }
 
+/* ===== FAQ LIST ===== */
+/* Each FAQ article is a bordered card with expand/collapse capability */
 .faq-list article {
   border: 1px solid var(--line);
   border-radius: 8px;
   overflow: hidden;
 }
 
+/* FAQ question button — full-width with flex layout for text and chevron */
 .faq-list button {
   display: flex;
   align-items: center;
@@ -479,10 +582,13 @@
   text-align: left;
 }
 
+/* Prevents text from overflowing the button */
 .faq-list button span {
   min-width: 0;
 }
 
+/* ===== FAQ CHEVRON ICON ===== */
+/* Rotates 180 degrees when the FAQ is expanded */
 .faq-chevron {
   flex: 0 0 auto;
   color: var(--muted);
@@ -493,11 +599,13 @@
   transform: rotate(180deg);
 }
 
+/* Hover adds primary color tint to the FAQ button */
 .faq-list button:hover {
   background: var(--color-primary-soft);
   color: #64748b;
 }
 
+/* FAQ answer paragraph with padding and muted text color */
 .faq-list p {
   margin: 0;
   padding: 0 14px 14px;
@@ -505,6 +613,8 @@
   line-height: 1.65;
 }
 
+/* ===== ADDITIONAL SPACING FOR SPECIFIC PANES ===== */
+/* Bottom margin for password form labels, FAQ items, and feedback entries */
 .settings-password-form label,
 .settings-support-pane .faq-list article,
 .settings-support-pane .faq-editor,
@@ -512,20 +622,26 @@
   margin-bottom: 16px;
 }
 
+/* Bottom padding for FAQ list in support pane */
 .settings-support-pane .faq-list {
   padding-bottom: 18px;
 }
 
+/* ===== FEEDBACK FORM ===== */
+/* Increased gap for feedback submission form */
 .feedback-form {
   gap: 20px;
 }
 
+/* ===== RATING PICKER ===== */
+/* Horizontal row of rating buttons centered with small gaps */
 .rating-picker {
   display: flex;
   justify-content: center;
   gap: 6px;
 }
 
+/* Individual rating button with square dimensions and border */
 .rating-picker button {
   display: grid;
   width: 42px;
@@ -538,6 +654,7 @@
   color: #94a3b8;
 }
 
+/* Active or hover state uses accent color for rating buttons */
 .rating-picker button.active,
 .rating-picker button:hover {
   border-color: var(--color-accent);
@@ -545,11 +662,15 @@
   color: var(--color-accent);
 }
 
+/* ===== FEEDBACK LIST ===== */
+/* Vertical grid for feedback entries with consistent spacing */
 .feedback-list {
   display: grid;
   gap: 12px;
 }
 
+/* ===== FEEDBACK FILTER ROW ===== */
+/* Two-column grid for filter dropdowns with alignment at bottom */
 .feedback-filter-row {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 260px));
@@ -557,10 +678,12 @@
   align-items: end;
 }
 
+/* Full-width filter control */
 .feedback-filter {
   width: 100%;
 }
 
+/* Individual feedback article as a card with border and padding */
 .feedback-list article {
   display: grid;
   gap: 8px;
@@ -569,6 +692,7 @@
   border-radius: 8px;
 }
 
+/* Header row within feedback card with flex spacing */
 .feedback-list-header {
   display: flex;
   align-items: flex-start;
@@ -576,11 +700,13 @@
   gap: 14px;
 }
 
+/* Feedback title and meta info as block elements */
 .feedback-list strong,
 .feedback-list span {
   display: block;
 }
 
+/* Meta text and timestamp styling */
 .feedback-list span,
 .feedback-list time {
   margin-top: 3px;
@@ -588,21 +714,24 @@
   font-size: 13px;
 }
 
+/* Timestamp aligned to the right with no top margin */
 .feedback-list time {
   flex: 0 0 auto;
   margin-top: 0;
 }
 
+/* Feedback comment text */
 .feedback-list p {
   margin: 0;
   color: #64748b;
   line-height: 1.55;
 }
 
+/* ===== FEEDBACK STAR RATING ===== */
+/* Horizontal star display using accent color */
 .feedback-stars {
   display: flex;
   gap: 3px;
   color: var(--color-accent) !important;
   font-weight: 900;
 }
-

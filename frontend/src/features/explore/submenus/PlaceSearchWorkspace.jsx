@@ -21,7 +21,61 @@ import { getVisitedPlaces } from '../../../api/visitedPlaceApi';
 import PlaceCard from '../../../components/place/PlaceCard';
 import { buildVisitedLookup, getVisitedPlacePayload } from '../../../components/visitedPlaces/visitedPlaceUtils';
 import { formatPercent, formatSpeed, formatTemperature, formatWeatherDate, getDateKey, getMaxWeatherDate, getMinWeatherDate } from '../explore.helpers';
-// PlaceSearchWorkspace renders the main screen and handles nearby interactions.
+
+/**
+ * PlaceSearchWorkspace renders the main screen and handles nearby interactions.
+ * 
+ * @param {Object} props - Component properties
+ * @param {Object} props.activeAi - Active AI insights data
+ * @param {Object} props.activeFilters - Current filter selections
+ * @param {Array} props.activeItems - Current list of items being displayed
+ * @param {Object} props.activeOption - Selected view option configuration
+ * @param {Object} props.activeWeather - Current weather data
+ * @param {Array} props.countryOptions - Available country options for filtering
+ * @param {Object} props.categoryOptions - Category options by type (hotel, food, attraction)
+ * @param {string} props.destination - Current destination search query
+ * @param {string} props.destinationLabel - Display label for the destination
+ * @param {string} props.error - Error message to display
+ * @param {Function} props.getFavoriteRecord - Function to retrieve favorite record for an item
+ * @param {Function} props.getConvertedPriceText - Function to format converted price text
+ * @param {Function} props.getOriginalPriceText - Function to format original price text
+ * @param {Function} props.handleCountryChange - Handler for country filter changes
+ * @param {Function} props.handleLoadMoreFilteredItems - Handler for loading more items
+ * @param {Function} props.handleSearch - Form submission handler for search
+ * @param {Function} props.handleTravelDateChange - Handler for travel date changes
+ * @param {boolean} props.hasMoreFilteredItems - Whether more filtered items are available
+ * @param {boolean} props.hasResults - Whether search results exist
+ * @param {Function} props.isItemFavorite - Function to check if an item is favorited
+ * @param {Object} props.detailReturnState - State for returning from detail view
+ * @param {boolean} props.isAiLoading - Whether AI insights are loading
+ * @param {boolean} props.isAttractionsView - Whether attractions view is active
+ * @param {boolean} props.isFilteredSearchView - Whether filtered search view is active
+ * @param {boolean} props.isFoodView - Whether food view is active
+ * @param {boolean} props.isHotelsView - Whether hotels view is active
+ * @param {boolean} props.isLoadingMore - Whether more items are being loaded
+ * @param {boolean} props.isSearching - Whether search is in progress
+ * @param {boolean} props.isWeatherLoading - Whether weather data is loading
+ * @param {Function} props.onHotelFavoriteChange - Handler for hotel favorite changes
+ * @param {Function} props.onAttractionFavoriteChange - Handler for attraction favorite changes
+ * @param {Function} props.onRestaurantFavoriteChange - Handler for restaurant favorite changes
+ * @param {number} props.pricedCount - Count of items with prices
+ * @param {number} props.ratedCount - Count of rated items
+ * @param {number} props.resultCount - Total number of search results
+ * @param {Object} props.searchConfig - Configuration for search display
+ * @param {string} props.selectedAttractionCategory - Selected attraction category value
+ * @param {string} props.selectedAttractionCategoryLabel - Selected attraction category display label
+ * @param {string} props.selectedFoodCategory - Selected food category value
+ * @param {string} props.selectedFoodCategoryLabel - Selected food category display label
+ * @param {string} props.selectedCurrency - Current currency selection
+ * @param {string} props.selectedRoomLabel - Selected room type display label
+ * @param {string} props.selectedRoomType - Selected room type value
+ * @param {Array} props.stateOptions - Available state options for filtering
+ * @param {string} props.status - Status message to display
+ * @param {number} props.topRatedCount - Count of highly rated items
+ * @param {string} props.travelDate - Selected travel date
+ * @param {Function} props.updateDestinationQuery - Handler for destination query updates
+ * @param {Function} props.updateFilterField - Handler for filter field updates
+ */
 function PlaceSearchWorkspace({
   activeAi,
   activeFilters,
@@ -73,29 +127,52 @@ function PlaceSearchWorkspace({
   updateDestinationQuery,
   updateFilterField,
 }) {
+  // State for storing visited places data
   const [visitedPlaces, setVisitedPlaces] = useState([]);
+  
+  // Build lookup map for quick visited place checking by place key
   const visitedLookup = useMemo(() => buildVisitedLookup(visitedPlaces), [visitedPlaces]);
+  
+  // Determine the card type based on the current view
   const cardType = isHotelsView ? 'hotels' : isFoodView ? 'food' : 'attractions';
+  
+  // Determine the visited type based on the current view
   const visitedType = isHotelsView ? 'hotel' : isFoodView ? 'restaurant' : 'attraction';
+  
+  // Source identifier for visited place tracking
   const visitedSource = `explore-${cardType}`;
+  
+  // Flag indicating whether price metric should be used
   const usesPriceMetric = isHotelsView || isFoodView;
+  
+  // Get category options based on the current view
   const activeCategoryOptions = isHotelsView
     ? categoryOptions.hotel
     : isFoodView
       ? categoryOptions.food
       : categoryOptions.attraction;
+  
+  // Get the current category value based on the view
   const categoryValue = isHotelsView
     ? activeFilters.roomType
     : isFoodView
       ? activeFilters.foodCategory
       : activeFilters.attractionCategory;
+  
+  // Get the category field name for updates
   const categoryField = isHotelsView ? 'roomType' : isFoodView ? 'foodCategory' : 'attractionCategory';
+  
+  // Get the category display label
   const categoryLabel = isHotelsView ? 'Room type' : isFoodView ? 'Food category' : 'Attraction category';
+  
+  // Determine the search class name based on the current view
   const searchClassName = isHotelsView
     ? 'explore-search explore-search-hotels'
     : isFoodView
       ? 'explore-search explore-search-restaurants'
       : 'explore-search explore-search-attractions';
+  
+  // Format weather data for display
   const weatherTemperature = activeWeather?.available ? formatTemperature(activeWeather.temperature?.mean) : '--';
   const weatherCondition = activeWeather?.available ? activeWeather.condition : 'Weather data unavailable';
   const weatherRain = activeWeather?.available
@@ -110,6 +187,7 @@ function PlaceSearchWorkspace({
     ? activeWeather.travelTip
     : 'Live weather could not be reached. Search results are still available while the forecast refreshes.';
 
+  // Fetch visited places data on component mount
   useEffect(() => {
     let isActive = true;
 
@@ -127,6 +205,11 @@ function PlaceSearchWorkspace({
     };
   }, []);
 
+  /**
+   * Handler for visited place changes that updates the visited places list
+   * 
+   * @param {Object} visitedPlace - The visited place data to add or update
+   */
   const handleVisitedChange = (visitedPlace) => {
     if (!visitedPlace?.placeKey) return;
     setVisitedPlaces((currentPlaces) => {
@@ -137,11 +220,14 @@ function PlaceSearchWorkspace({
 
   return (
     <div className="explore-workspace">
+      {/* Search form section */}
       <form className={searchClassName} onSubmit={handleSearch}>
         <div className="explore-search-copy">
           <span>{searchConfig.finderLabel}</span>
           <strong>{searchConfig.searchTitle}</strong>
         </div>
+        
+        {/* Destination search field */}
         <div className="explore-search-field explore-search-destination">
           <span className="explore-field-label">Search</span>
           <label>
@@ -161,6 +247,8 @@ function PlaceSearchWorkspace({
             />
           </label>
         </div>
+        
+        {/* Travel date input field */}
         <div className="explore-search-field explore-search-date">
           <span className="explore-field-label">Travel date</span>
           <label>
@@ -175,11 +263,14 @@ function PlaceSearchWorkspace({
             />
           </label>
         </div>
+        
+        {/* Filter row for filtered search view */}
         {isFilteredSearchView && (
           <div
             className="explore-filter-row explore-search-filters"
             aria-label={isHotelsView ? 'Hotel filters' : isFoodView ? 'Restaurant filters' : 'Attraction filters'}
           >
+            {/* Country filter dropdown */}
             <div className="explore-filter-control">
               <span className="explore-field-label">Country</span>
               <label className="explore-filter-field">
@@ -200,6 +291,8 @@ function PlaceSearchWorkspace({
                 </select>
               </label>
             </div>
+            
+            {/* State filter dropdown */}
             <div className="explore-filter-control">
               <span className="explore-field-label">State</span>
               <label className="explore-filter-field">
@@ -218,6 +311,8 @@ function PlaceSearchWorkspace({
                 </select>
               </label>
             </div>
+            
+            {/* Category filter dropdown based on current view */}
             <div className="explore-filter-control">
               <span className="explore-field-label">{categoryLabel}</span>
               <label className="explore-filter-field">
@@ -236,18 +331,23 @@ function PlaceSearchWorkspace({
             </div>
           </div>
         )}
+        
+        {/* Search action button */}
         <button className="primary-action explore-search-action" type="submit" disabled={isSearching}>
           {isSearching ? <LoaderCircle className="explore-spin" size={17} aria-hidden="true" /> : <Search size={17} aria-hidden="true" />}
           {isSearching ? 'Searching...' : 'Search'}
         </button>
       </form>
 
+      {/* Status and error messages */}
       {error && <p className="form-error explore-status">{error}</p>}
       {status && !error && <p className="form-success explore-status">{status}</p>}
 
+      {/* Briefing section with weather and tips */}
       <section className="explore-briefing" aria-label={`${activeOption.label} travel briefing`}>
         {hasResults ? (
           <>
+            {/* Statistics row showing result metrics */}
             <div className="explore-stats-row" aria-label={`${activeOption.label} result summary`}>
               <article>
                 <Search size={17} aria-hidden="true" />
@@ -278,7 +378,9 @@ function PlaceSearchWorkspace({
               </article>
             </div>
 
+            {/* Guidance grid with weather and tips cards */}
             <div className="explore-guidance-grid">
+              {/* Weather summary card */}
               <article className="explore-briefing-card explore-weather-summary">
                 <div className="explore-briefing-title">
                   <CloudSun size={17} aria-hidden="true" />
@@ -314,6 +416,7 @@ function PlaceSearchWorkspace({
                 )}
               </article>
 
+              {/* Quick tips card with AI insights or default tips */}
               <article className="explore-briefing-card explore-quick-tips-card">
                 <div className="explore-briefing-title">
                   <Sparkles size={17} aria-hidden="true" />
@@ -342,6 +445,7 @@ function PlaceSearchWorkspace({
             </div>
           </>
         ) : (
+          // Pre-search state with weather and tips placeholders
           <div className="explore-presearch-grid">
             <article className="explore-presearch-card explore-presearch-weather">
               <div className="explore-briefing-title">
@@ -394,6 +498,7 @@ function PlaceSearchWorkspace({
         )}
       </section>
 
+      {/* Results section displaying place cards */}
       <section className="explore-results-shell">
         <div className="explore-results-heading">
           <div>
@@ -405,6 +510,7 @@ function PlaceSearchWorkspace({
 
         <div className="explore-results">
           {activeItems.length === 0 ? (
+            // Empty state when no results are available
             <div className="explore-empty">
               {isHotelsView ? (
                 <Building2 size={34} aria-hidden="true" />
@@ -417,6 +523,7 @@ function PlaceSearchWorkspace({
               <p>{searchConfig.emptyText}</p>
             </div>
           ) : (
+            // Render place cards for each item in the active items list
             activeItems.map((item, index) => (
               <PlaceCard
                 categoryLabel={
@@ -462,6 +569,8 @@ function PlaceSearchWorkspace({
             ))
           )}
         </div>
+        
+        {/* Load more button for filtered search results */}
         {isFilteredSearchView && hasMoreFilteredItems && (
           <button className="explore-view-more" type="button" onClick={handleLoadMoreFilteredItems} disabled={isLoadingMore}>
             {isLoadingMore ? <LoaderCircle className="explore-spin" size={17} aria-hidden="true" /> : <Search size={17} aria-hidden="true" />}
@@ -472,5 +581,6 @@ function PlaceSearchWorkspace({
     </div>
   );
 }
-// Default export registers the primary  value.
+
+// Default export registers the primary value.
 export default PlaceSearchWorkspace;
