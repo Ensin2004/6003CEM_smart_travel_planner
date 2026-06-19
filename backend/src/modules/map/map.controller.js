@@ -122,6 +122,7 @@ const getGeocodeLocation = catchAsync(async (req, res) => {
 const getMapRoutes = catchAsync(async (req, res) => {
   const routes = await mapService.getMapRoutes({
     mode: req.body.mode,
+    optimize: req.body.optimize,
     points: req.body.points,
   });
 

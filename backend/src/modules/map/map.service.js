@@ -257,8 +257,8 @@ const getDijkstraOptimizedOrder = (points) => {
  * @param {Array} points - Array of points with lat and lng
  * @returns {Object} Optimized points and optimization metadata
  */
-const optimizeMapPoints = (points) => {
-  const pointOrder = getDijkstraOptimizedOrder(points);
+const optimizeMapPoints = (points, shouldOptimize = true) => {
+  const pointOrder = shouldOptimize ? getDijkstraOptimizedOrder(points) : points.map((_, index) => index);
   const optimizedPoints = pointOrder.map((pointIndex) => points[pointIndex]);
   const originalDistanceMeters = getPathDistanceMeters(points);
   const optimizedDistanceMeters = getPathDistanceMeters(optimizedPoints);
@@ -266,7 +266,7 @@ const optimizeMapPoints = (points) => {
   return {
     points: optimizedPoints,
     optimization: {
-      algorithm: 'dijkstra',
+      algorithm: shouldOptimize ? 'dijkstra' : 'preserve-order',
       pointOrder,
       originalDistanceMeters,
       optimizedDistanceMeters,
@@ -353,14 +353,14 @@ const normalizeOpenRouteServiceRoute = (feature, index) => ({
  * @param {object} input Ordered map points and travel mode.
  * @returns {Promise<object>} Route alternatives and optimization metadata.
  */
-const getMapRoutes = async ({ points = [], mode = 'car' }) => {
+const getMapRoutes = async ({ points = [], mode = 'car', optimize = true }) => {
   const normalizedPoints = points.map((point) => ({
     lat: Number(point.lat),
     lng: Number(point.lng),
   }));
   
   // Optimize point order for efficient routing
-  const optimizedRoute = optimizeMapPoints(normalizedPoints);
+  const optimizedRoute = optimizeMapPoints(normalizedPoints, optimize !== false);
   const optimizedPoints = optimizedRoute.points;
   const profile = openRouteServiceProfiles[mode];
 

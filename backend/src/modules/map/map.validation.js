@@ -183,6 +183,11 @@ const mapRouteRules = [
   body('points.*.lng')
     .isFloat({ min: -180, max: 180 })
     .withMessage('Route longitude must be a valid coordinate'),
+
+  body('optimize')
+    .optional()
+    .isBoolean()
+    .withMessage('Route optimize flag must be true or false'),
 ];
 
 module.exports = {
