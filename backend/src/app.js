@@ -35,6 +35,16 @@ app.use('/api/v1/auth', authRateLimit);
 // Sets up Swagger API documentation endpoint.
 setupSwagger(app);
 
+// Root route for Render/browser testing.
+app.get('/', (req, res) => {
+  res.status(200).json({
+    status: 'success',
+    message: 'Smart Travel Planner API is running',
+    health: '/health',
+    apiBase: '/api/v1',
+  });
+});
+
 // Health check stays outside the versioned router so uptime monitors can call a simple endpoint.
 app.get('/health', (req, res) => {
   res.status(200).json({
