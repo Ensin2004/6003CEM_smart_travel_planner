@@ -49,6 +49,9 @@ const createItemRules = [
   // Title is required
   body('title').trim().isLength({ min: 1, max: 160 }),
   body('description').optional().trim().isLength({ max: 2000 }),
+  body('imageUrl').optional({ checkFalsy: true }).trim().isURL({ protocols: ['https'], require_protocol: true }).isLength({ max: 2000 }),
+  body('imageUrls').optional().isArray({ max: 10 }),
+  body('imageUrls.*').optional({ checkFalsy: true }).trim().isURL({ protocols: ['https'], require_protocol: true }).isLength({ max: 2000 }),
   
   // Date and time fields
   body('scheduledDate').optional().isISO8601(),
@@ -71,6 +74,9 @@ const updateItemRules = [
   body('type').optional().isIn(['attraction', 'restaurant', 'hotel', 'transport', 'flight', 'custom']),
   body('title').optional().trim().isLength({ min: 1, max: 160 }),
   body('description').optional().trim().isLength({ max: 2000 }),
+  body('imageUrl').optional({ checkFalsy: true }).trim().isURL({ protocols: ['https'], require_protocol: true }).isLength({ max: 2000 }),
+  body('imageUrls').optional().isArray({ max: 10 }),
+  body('imageUrls.*').optional({ checkFalsy: true }).trim().isURL({ protocols: ['https'], require_protocol: true }).isLength({ max: 2000 }),
   body('scheduledDate').optional().isISO8601(),
   body('startTime').optional().trim().isLength({ max: 20 }),
   body('endTime').optional().trim().isLength({ max: 20 }),

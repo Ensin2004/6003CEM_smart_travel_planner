@@ -3,6 +3,10 @@
  */
 import { MapPin, Send, Sparkles, Star, X } from 'lucide-react';
 import { useEffect, useRef } from 'react';
+import { getPlaceImageSrc } from '../../../utils/placeImageProxy';
+
+const getAiPlaceImageSrc = (place = {}) =>
+  getPlaceImageSrc(place.imageUrl || place.imageUrls?.[0] || place.thumbnail || place.photoUrl || '');
 
 function TripAiAssistantPanel({
   error,
@@ -54,27 +58,31 @@ function TripAiAssistantPanel({
             <p>{message.text}</p>
             {message.places?.length ? (
               <div className="trip-ai-place-list">
-                {message.places.map((place) => (
-                  <button
-                    className={selectedPlaceId === place.id ? 'trip-ai-place-card is-active' : 'trip-ai-place-card'}
-                    key={place.id}
-                    type="button"
-                    onClick={() => onSelectPlace(place)}
-                  >
-                    <span className="trip-ai-place-image">
-                      {place.imageUrl ? <img src={place.imageUrl} alt="" loading="lazy" /> : <MapPin size={22} aria-hidden="true" />}
-                    </span>
-                    <span className="trip-ai-place-copy">
-                      <small>{place.categoryId}</small>
-                      <strong>{place.name}</strong>
-                      <span>{place.aiReason || place.address}</span>
-                      <em>
-                        <Star size={12} fill={place.rating && place.rating !== 'N/A' ? 'currentColor' : 'none'} aria-hidden="true" />
-                        {place.rating && place.rating !== 'N/A' ? Number(place.rating).toFixed(1) : 'Map result'}
-                      </em>
-                    </span>
-                  </button>
-                ))}
+                {message.places.map((place) => {
+                  const placeImageSrc = getAiPlaceImageSrc(place);
+
+                  return (
+                    <button
+                      className={selectedPlaceId === place.id ? 'trip-ai-place-card is-active' : 'trip-ai-place-card'}
+                      key={place.id}
+                      type="button"
+                      onClick={() => onSelectPlace(place)}
+                    >
+                      <span className="trip-ai-place-image">
+                        {placeImageSrc ? <img src={placeImageSrc} alt="" loading="lazy" /> : <MapPin size={22} aria-hidden="true" />}
+                      </span>
+                      <span className="trip-ai-place-copy">
+                        <small>{place.categoryId}</small>
+                        <strong>{place.name}</strong>
+                        <span>{place.aiReason || place.address}</span>
+                        <em>
+                          <Star size={12} fill={place.rating && place.rating !== 'N/A' ? 'currentColor' : 'none'} aria-hidden="true" />
+                          {place.rating && place.rating !== 'N/A' ? Number(place.rating).toFixed(1) : 'Map result'}
+                        </em>
+                      </span>
+                    </button>
+                  );
+                })}
               </div>
             ) : null}
           </article>
