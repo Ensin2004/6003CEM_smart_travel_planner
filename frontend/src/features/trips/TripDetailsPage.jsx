@@ -78,6 +78,7 @@ import TripAiAssistantPanel from './components/TripAiAssistantPanel';
 import VisitedPlaceControl from '../../components/visitedPlaces/VisitedPlaceControl';
 import { buildVisitedLookup, getVisitedPlacePayload } from '../../components/visitedPlaces/visitedPlaceUtils';
 import CurrencyContext from '../../context/currencyContext';
+import { getPlaceImageSrc } from '../../utils/placeImageProxy';
 import './TripDetailsPage.css';
 
 /**
@@ -101,11 +102,8 @@ const routeModes = [
   { id: 'walking', label: 'Walk', icon: Footprints },
   { id: 'bike', label: 'Bike', icon: Bike },
 ];
-
-/**
- * Formats route duration from seconds to human-readable string
- * Handles minutes and hours with proper pluralization
- */
+const tripPanelMinWidth = 320;
+const tripPanelMaxWidth = 560;
 const formatRouteDuration = (seconds) => {
   if (!Number.isFinite(Number(seconds))) return '--';
   const minutes = Math.max(1, Math.round(Number(seconds) / 60));
@@ -186,11 +184,16 @@ const categoryTextSearchTerms = {
  * Returns a user-friendly address string
  */
 const getPlaceAddress = (place) => place.address || place.displayName || 'Location details unavailable';
-
-/**
- * Deduplicates places by ID or name-address combination
- * Returns an array of unique places
- */
+const toImageList = (value) => (Array.isArray(value) ? value : value ? [value] : []);
+const getPlaceImageCandidates = (place = {}) => [
+  place.imageUrl,
+  ...toImageList(place.imageUrls),
+  place.thumbnail,
+  place.photoUrl,
+  place.photo,
+  place.location?.imageUrl,
+  ...toImageList(place.location?.imageUrls),
+].filter(Boolean);
 const getUniquePlaces = (places = []) => {
   const uniquePlaces = new Map();
 
@@ -212,8 +215,8 @@ const formatIdeaPlace = (place, categoryId) => ({
   lng: Number(place.lng ?? place.coordinates?.longitude),
   categoryId,
   address: getPlaceAddress(place),
-  imageUrl: place.imageUrl || place.imageUrls?.[0] || '',
-  imageUrls: place.imageUrls || (place.imageUrl ? [place.imageUrl] : []),
+  imageUrl: getPlaceImageCandidates(place)[0] || '',
+  imageUrls: getPlaceImageCandidates(place),
   hours: place.hours || place.hoursSummary || place.openState || 'Hours unavailable',
   rating: place.rating || 'N/A',
   reviews: place.reviews || place.reviewCount || '',
@@ -222,11 +225,38 @@ const formatIdeaPlace = (place, categoryId) => ({
   summary: place.summary || place.category || 'Place result from map data.',
   type: 'idea',
 });
+const enrichIdeaPlacesWithDetails = async (ideas = []) => {
+  const results = await Promise.allSettled(ideas.map(async (idea) => {
+    try {
+      const details = await getMapPlaceDetails(idea);
+      if (!details?.item) return idea;
 
-/**
- * Format Date converts raw values into readable display text.
- * Formats dates as localized date strings
- */
+      return formatIdeaPlace({
+        ...idea,
+        ...details.item,
+        name: details.item.name || idea.name,
+        address: details.item.address || idea.address,
+        summary: details.item.summary || idea.summary,
+      }, idea.categoryId);
+    } catch {
+      return idea;
+    }
+  }));
+
+  return results.map((result, index) => (result.status === 'fulfilled' ? result.value : ideas[index]));
+};
+const getItineraryItemLookupPlace = (item) => {
+  const point = getItemPoint(item);
+  return formatIdeaPlace({
+    ...item,
+    id: item.externalId || item._id,
+    name: item.title,
+    address: item.location?.address,
+    lat: point.lat,
+    lng: point.lng,
+  }, getMapCategoryForItemType(item.type));
+};
+// Format Date converts raw values into readable display text.
 const formatDate = (date) => (date ? new Date(date).toLocaleDateString() : 'No date');
 
 /**
@@ -348,11 +378,14 @@ const getOpenStreetMapTileUrl = (lat, lng, zoom = 15) => {
 
   return `https://tile.openstreetmap.org/${zoom}/${x}/${y}.png`;
 };
+const getTripPlaceImageSrc = (place = {}, fallbackCoordinates = null, zoom = 15) => {
+  const imageUrl = getPlaceImageCandidates(place)[0];
+  if (imageUrl) return getPlaceImageSrc(imageUrl);
 
-/**
- * Extracts point coordinates from an itinerary item
- * Returns object with lat and lng properties
- */
+  const latitude = Number(fallbackCoordinates?.lat ?? place.lat ?? place.coordinates?.latitude);
+  const longitude = Number(fallbackCoordinates?.lng ?? place.lng ?? place.coordinates?.longitude);
+  return getOpenStreetMapTileUrl(latitude, longitude, zoom);
+};
 const getItemPoint = (item) => ({
   lat: item.location?.coordinates?.coordinates?.[1],
   lng: item.location?.coordinates?.coordinates?.[0],
@@ -601,9 +634,7 @@ function TripDetailsPage() {
   const [addMode, setAddMode] = useState(null);
   const [ideaAddMode, setIdeaAddMode] = useState(null);
   const [message, setMessage] = useState('');
-  
-  // Panel and UI configuration
-  const [panelWidth, setPanelWidth] = useState(460);
+  const [panelWidth, setPanelWidth] = useState(tripPanelMaxWidth);
   const [isAddingIdea, setIsAddingIdea] = useState(false);
   const [selectedIdeaSchedule, setSelectedIdeaSchedule] = useState({ startTime: '09:00', endTime: '10:00' });
   
@@ -704,10 +735,44 @@ function TripDetailsPage() {
     };
   }, []);
 
-  /**
-   * Effect hook that loads packing lists and travel documents
-   * Fetches checklist data for the current trip
-   */
+  useEffect(() => {
+    let isActive = true;
+    const itemsMissingImages = items.filter((item) => item._id && !getPlaceImageCandidates(item).length);
+
+    if (!itemsMissingImages.length) {
+      return () => {
+        isActive = false;
+      };
+    }
+
+    Promise.allSettled(itemsMissingImages.map(async (item) => {
+      const [enrichedPlace] = await enrichIdeaPlacesWithDetails([getItineraryItemLookupPlace(item)]);
+      const imageCandidates = getPlaceImageCandidates(enrichedPlace).slice(0, 10);
+      if (!imageCandidates.length) return null;
+
+      const response = await updateItineraryItem(item._id, {
+        imageUrl: imageCandidates[0],
+        imageUrls: imageCandidates,
+      });
+
+      return response.data?.data?.item;
+    })).then((results) => {
+      if (!isActive) return;
+      const enrichedItems = results
+        .filter((result) => result.status === 'fulfilled' && result.value)
+        .map((result) => result.value);
+
+      if (!enrichedItems.length) return;
+
+      setItems((currentItems) =>
+        currentItems.map((item) => enrichedItems.find((enrichedItem) => enrichedItem._id === item._id) || item)
+      );
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, [items]);
   useEffect(() => {
     let isMounted = true;
 
@@ -939,6 +1004,7 @@ function TripDetailsPage() {
   const AddModeIcon = addMode?.icon || Plus;
   const recommendationLocation = getRecommendationLocation(trip, activeDay);
   const selectedIdeaHours = selectedIdea?.openState || selectedIdea?.hours || '';
+  const selectedIdeaImageSrc = selectedIdea ? getTripPlaceImageSrc(selectedIdea) : '';
   const selectedIdeaWarning = selectedIdea
     ? getOpeningWarning({ hoursText: selectedIdeaHours, ...selectedIdeaSchedule })
     : '';
@@ -1107,12 +1173,14 @@ function TripDetailsPage() {
         }).catch(() => []);
         const results = getUniquePlaces([...combinedResults, ...textResults]).slice(0, 3);
 
-        return [
-          group.id,
-          results.map((idea) => formatIdeaPlace({
+        const formattedIdeas = results.map((idea) => formatIdeaPlace({
             ...idea,
             summary: idea.displayName || `${group.addLabel} near ${sourceLabel}`,
-          }, group.categoryId)),
+          }, group.categoryId));
+
+        return [
+          group.id,
+          await enrichIdeaPlacesWithDetails(formattedIdeas),
         ];
       }));
 
@@ -1491,10 +1559,11 @@ function TripDetailsPage() {
         limitPerTerm: 4,
       }).catch(() => []);
       const results = getUniquePlaces([...combinedResults, ...textResults]).slice(0, 12);
-      const nextIdeas = results.map((idea) => formatIdeaPlace({
+      const formattedIdeas = results.map((idea) => formatIdeaPlace({
         ...idea,
         summary: idea.displayName || `${category} near ${locationQuery}`,
       }, category));
+      const nextIdeas = await enrichIdeaPlacesWithDetails(formattedIdeas);
       setIdeas(nextIdeas);
       setSelectedIdea(null);
       setIdeaStatus('success');
@@ -1641,7 +1710,18 @@ function TripDetailsPage() {
   const selectIdea = async (idea) => {
     setSelectedIdea(idea);
     setSelectedPlaceSource('idea');
-    setIdeaDetailStatus('success');
+    setIdeaDetailStatus('loading');
+
+    try {
+      const [enrichedIdea] = await enrichIdeaPlacesWithDetails([idea]);
+      setSelectedIdea(enrichedIdea);
+      setIdeas((currentIdeas) =>
+        currentIdeas.map((currentIdea) => (currentIdea.id === idea.id ? enrichedIdea : currentIdea))
+      );
+      setIdeaDetailStatus('success');
+    } catch {
+      setIdeaDetailStatus('fallback');
+    }
   };
 
   /**
@@ -1766,6 +1846,7 @@ function TripDetailsPage() {
     const hasCoordinates = Number.isFinite(Number(idea.lng)) && Number.isFinite(Number(idea.lat));
 
     try {
+      const ideaImageCandidates = getPlaceImageCandidates(idea).slice(0, 10);
       const response = await createItineraryItem(id, {
         type: modeOverride?.types?.[0] || getIdeaItemType(idea.categoryId || ideaCategory),
         title: idea.name,
@@ -1783,6 +1864,8 @@ function TripDetailsPage() {
             coordinates: [Number(idea.lng), Number(idea.lat)],
           },
         } : undefined,
+        imageUrl: ideaImageCandidates[0],
+        imageUrls: ideaImageCandidates,
         source: 'openstreetmap',
         externalId: idea.id,
         priceEstimate: { amount: 0, currency: tripCurrency },
@@ -1815,7 +1898,7 @@ function TripDetailsPage() {
 
     const handlePointerMove = (moveEvent) => {
       const nextWidth = startWidth + moveEvent.clientX - startX;
-      setPanelWidth(Math.min(Math.max(nextWidth, 320), 560));
+      setPanelWidth(Math.min(Math.max(nextWidth, tripPanelMinWidth), tripPanelMaxWidth));
     };
 
     const handlePointerUp = () => {
@@ -2100,6 +2183,7 @@ function TripDetailsPage() {
                   {ideas.map((idea) => {
                     const visitedPayload = getIdeaVisitedPayload(idea);
                     const visitedRecord = visitedLookup[visitedPayload.placeKey];
+                    const ideaImageSrc = getTripPlaceImageSrc(idea);
 
                     return (
                       <button
@@ -2111,8 +2195,8 @@ function TripDetailsPage() {
                         {visitedRecord ? <span className="visited-place-watermark">Visited</span> : null}
                         <div className="trip-idea-card-main">
                           <span className="trip-idea-thumb">
-                            {idea.imageUrl || getOpenStreetMapTileUrl(idea.lat, idea.lng)
-                              ? <img src={idea.imageUrl || getOpenStreetMapTileUrl(idea.lat, idea.lng)} alt="" loading="lazy" />
+                            {ideaImageSrc
+                              ? <img src={ideaImageSrc} alt="" loading="lazy" />
                               : <AddModeIcon size={20} aria-hidden="true" />}
                           </span>
                           <div>
@@ -2664,7 +2748,7 @@ function TripDetailsPage() {
                       {/* Group items */}
                       {group.items.map((item) => {
                         const itemPoint = getItemPoint(item);
-                        const itemPreviewUrl = getOpenStreetMapTileUrl(itemPoint.lat, itemPoint.lng, 15);
+                        const itemPreviewUrl = getTripPlaceImageSrc(item, itemPoint, 15);
                         const visitedPayload = getItemVisitedPayload(item);
                         const visitedRecord = visitedLookup[visitedPayload.placeKey];
                         const itemTimeWarning = getOpeningWarning({
@@ -2844,6 +2928,7 @@ function TripDetailsPage() {
                   {ideas.map((idea) => {
                     const visitedPayload = getIdeaVisitedPayload(idea);
                     const visitedRecord = visitedLookup[visitedPayload.placeKey];
+                    const ideaImageSrc = getTripPlaceImageSrc(idea);
 
                     return (
                       <button
@@ -2855,8 +2940,8 @@ function TripDetailsPage() {
                         {visitedRecord ? <span className="visited-place-watermark">Visited</span> : null}
                         <div className="trip-idea-card-main">
                           <span className="trip-idea-thumb">
-                            {idea.imageUrl || getOpenStreetMapTileUrl(idea.lat, idea.lng)
-                              ? <img src={idea.imageUrl || getOpenStreetMapTileUrl(idea.lat, idea.lng)} alt="" loading="lazy" />
+                            {ideaImageSrc
+                              ? <img src={ideaImageSrc} alt="" loading="lazy" />
                               : <Lightbulb size={20} aria-hidden="true" />}
                           </span>
                           <div>
@@ -2973,8 +3058,8 @@ function TripDetailsPage() {
               <button className="trip-place-detail-close" type="button" onClick={() => setSelectedIdea(null)} aria-label="Close place details">
                 <X size={18} aria-hidden="true" />
               </button>
-              {selectedIdea.imageUrl || getOpenStreetMapTileUrl(selectedIdea.lat, selectedIdea.lng) ? (
-                <img className="trip-place-detail-image" src={selectedIdea.imageUrl || getOpenStreetMapTileUrl(selectedIdea.lat, selectedIdea.lng)} alt="" loading="lazy" />
+              {selectedIdeaImageSrc ? (
+                <img className="trip-place-detail-image" src={selectedIdeaImageSrc} alt="" loading="lazy" />
               ) : (
                 <div className="trip-place-detail-image trip-place-detail-empty">
                   <Image size={26} aria-hidden="true" />
