@@ -1,5 +1,6 @@
 jest.mock('../src/modules/users/user.repository', () => ({
   findById: jest.fn(),
+  findActiveAdmins: jest.fn(),
 }));
 
 jest.mock('../src/modules/travelTools/travelTools.repository', () => ({
@@ -16,10 +17,12 @@ jest.mock('../src/modules/notifications/notification.repository', () => ({
   deleteById: jest.fn(),
   deletePendingByTripAndType: jest.fn(),
   deletePendingPackingListReminder: jest.fn(),
+  findRecentAdminAlert: jest.fn(),
   findByUserId: jest.fn(),
   findDueUnsent: jest.fn(),
   markAllReadByUserId: jest.fn(),
   markReadByIdAndUserId: jest.fn(),
+  recordAdminAlertDuplicate: jest.fn(),
   save: jest.fn(),
 }));
 
@@ -45,6 +48,8 @@ describe('Packing-list reminder scheduling', () => {
 
     userRepository.findById.mockResolvedValue({
       _id: 'user-1',
+      email: 'user@example.com',
+      name: 'Test User',
       notificationPreferences: { packingReminder: true },
     });
     notificationRepository.create.mockImplementation(async (data) => ({
@@ -146,5 +151,79 @@ describe('Packing-list reminder scheduling', () => {
 
     expect(notificationRepository.deleteById).toHaveBeenCalledWith('notification-1');
     expect(notificationRepository.save).not.toHaveBeenCalled();
+  });
+
+  test('suppresses repeated admin rate-limit alerts during the cooldown window', async () => {
+    userRepository.findActiveAdmins.mockResolvedValue([{ _id: 'admin-1' }]);
+    notificationRepository.findRecentAdminAlert.mockResolvedValue({
+      _id: 'existing-alert-1',
+      metadata: { alertKey: 'admin-rate-limit|rate_limit_exceeded|rate-limit|rate-limit|/api/map' },
+    });
+
+    const result = await notificationService.notifyAdminsOfApiLog({
+      _id: 'log-2',
+      service: 'rate-limit',
+      category: 'rate-limit',
+      severity: 'warning',
+      endpoint: '/api/map/search',
+      status: 'fail',
+      statusCode: 429,
+      errorCode: 'RATE_LIMIT_EXCEEDED',
+      requestId: 'request-2',
+      message: 'Too many travel data requests. Please try again later.',
+    });
+
+    expect(result).toEqual([]);
+    expect(notificationRepository.create).not.toHaveBeenCalled();
+    expect(notificationRepository.recordAdminAlertDuplicate).toHaveBeenCalledWith(
+      'existing-alert-1',
+      expect.objectContaining({
+        apiLogId: 'log-2',
+        requestId: 'request-2',
+        message: expect.stringContaining('Too many travel data requests'),
+      })
+    );
+  });
+
+  test('adds grouping metadata to the first admin system-error alert', async () => {
+    userRepository.findActiveAdmins.mockResolvedValue([{ _id: 'admin-1' }]);
+    userRepository.findById.mockResolvedValue({
+      _id: 'admin-1',
+      email: 'admin@example.com',
+      name: 'Admin',
+      notificationPreferences: { errorLogs: true },
+    });
+    notificationRepository.findRecentAdminAlert.mockResolvedValue(null);
+    notificationRepository.countUnreadByUserId.mockResolvedValue(1);
+
+    await notificationService.notifyAdminsOfApiLog({
+      _id: 'log-3',
+      service: 'serpapi',
+      category: 'external-api',
+      severity: 'critical',
+      endpoint: '/api/explore/restaurants',
+      status: 'error',
+      statusCode: 503,
+      errorCode: 'NETWORK_FAILURE',
+      requestId: 'request-3',
+      message: 'SerpApi could not be reached.',
+    });
+
+    expect(notificationRepository.findRecentAdminAlert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: 'admin-1',
+        type: 'admin-error-log',
+        alertKey: 'admin-error-log|network_failure|serpapi|external-api|/api/explore/restaurants',
+      })
+    );
+    expect(notificationRepository.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'admin-error-log',
+        metadata: expect.objectContaining({
+          alertKey: 'admin-error-log|network_failure|serpapi|external-api|/api/explore/restaurants',
+          suppressedCount: 0,
+        }),
+      })
+    );
   });
 });

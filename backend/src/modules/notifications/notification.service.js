@@ -10,11 +10,54 @@ const { packingListRepository } = require('../travelTools/travelTools.repository
 const notificationRepository = require('./notification.repository');
 const { emitNotification, emitUnreadCount } = require('./notification.socket');
 
+const ADMIN_ALERT_COOLDOWNS_MS = {
+  'admin-rate-limit': 60 * 60 * 1000,
+  'admin-error-log': 30 * 60 * 1000,
+  'admin-login-lock': 10 * 60 * 1000,
+};
+
 /**
  * Gets the client base URL from environment or falls back to localhost.
  * @returns {string} Client application base URL
  */
 const getClientBaseUrl = () => env.clientOrigin.split(',')[0]?.trim() || 'http://localhost:5173';
+
+/**
+ * Normalizes volatile alert values so repeated failures group cleanly.
+ * @param {string} value - Raw value
+ * @returns {string} Normalized value
+ */
+const normalizeAlertPart = (value = '') =>
+  String(value)
+    .trim()
+    .toLowerCase()
+    .split('?')[0]
+    .replace(/[0-9a-f]{24}/g, ':id')
+    .replace(/\b\d+\b/g, ':num')
+    .slice(0, 120);
+
+/**
+ * Builds a stable admin alert grouping key from an API log.
+ * @param {Object} log - API log document
+ * @param {string} type - Notification type
+ * @returns {string} Alert grouping key
+ */
+const getApiLogAlertKey = (log, type) => {
+  if (type === 'admin-login-lock') {
+    return [
+      type,
+      normalizeAlertPart(log.metadata?.attemptedEmailMasked || log.userId || 'unknown-account'),
+    ].join('|');
+  }
+
+  return [
+    type,
+    normalizeAlertPart(log.errorCode || log.statusCode || 'unknown-code'),
+    normalizeAlertPart(log.service || 'system'),
+    normalizeAlertPart(log.category || 'api'),
+    normalizeAlertPart(log.endpoint || 'unknown-endpoint'),
+  ].join('|');
+};
 
 /**
  * Converts a notification to plain object if it has a toJSON method.
@@ -175,18 +218,43 @@ const createNotification = async ({ userId, tripId, type = 'system', title, mess
  * @param {Object} params.metadata - Additional metadata
  * @returns {Promise<Array>} Created notifications
  */
-const notifyAdmins = async ({ type = 'system', title, message, metadata = {} }) => {
+const notifyAdmins = async ({ type = 'system', title, message, metadata = {}, cooldownMs = 0 }) => {
   const admins = await userRepository.findActiveAdmins();
   const createdNotifications = await Promise.all(
-    admins.map((admin) =>
-      createNotification({
+    admins.map(async (admin) => {
+      if (metadata.alertKey && cooldownMs > 0) {
+        const existingAlert = await notificationRepository.findRecentAdminAlert({
+          userId: admin._id,
+          type,
+          alertKey: metadata.alertKey,
+          since: new Date(Date.now() - cooldownMs),
+        });
+
+        if (existingAlert) {
+          await notificationRepository.recordAdminAlertDuplicate(existingAlert._id, {
+            apiLogId: metadata.apiLogId,
+            requestId: metadata.requestId,
+            message,
+          });
+          return null;
+        }
+      }
+
+      return createNotification({
         userId: admin._id,
         type,
         title,
         message,
-        metadata,
-      })
-    )
+        metadata: metadata.alertKey
+          ? {
+              ...metadata,
+              alertFirstSeenAt: new Date(),
+              alertLastSeenAt: new Date(),
+              suppressedCount: 0,
+            }
+          : metadata,
+      });
+    })
   );
 
   return createdNotifications.filter(Boolean);
@@ -232,13 +300,17 @@ const notifyAdminsOfApiLog = async (log) => {
     ? `A user account (${lockedAccount}) was locked after repeated failed login attempts.${requestText} Review the authentication logs for possible brute-force activity.`
     : `${log.service || 'System'}${endpointText} recorded ${log.category || 'api'} ${log.status || 'event'}${statusText}${codeText}: ${log.message || 'No message recorded'}.${requestText}`;
 
+  const type = isLoginLock ? 'admin-login-lock' : isRateLimit ? 'admin-rate-limit' : 'admin-error-log';
+
   return notifyAdmins({
-    type: isLoginLock ? 'admin-login-lock' : isRateLimit ? 'admin-rate-limit' : 'admin-error-log',
+    type,
     title,
     message,
+    cooldownMs: ADMIN_ALERT_COOLDOWNS_MS[type],
     metadata: {
       url: '/admin/logging-monitoring',
       apiLogId: log._id,
+      alertKey: getApiLogAlertKey(log, type),
       category: log.category,
       severity: log.severity,
       status: log.status,
