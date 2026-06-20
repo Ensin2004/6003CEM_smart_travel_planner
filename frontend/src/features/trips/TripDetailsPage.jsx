@@ -531,6 +531,8 @@ const formatMinutesAsTime = (minutes) => {
 const getItemStartMinutes = (item) => parseTimeToMinutes(item?.startTime);
 const getItemEndMinutes = (item) => parseTimeToMinutes(item?.endTime);
 const hasLockedTime = (item) => getItemStartMinutes(item) !== null;
+const defaultFlexibleDayStartMinutes = 9 * 60;
+const defaultFlexibleVisitMinutes = 60;
 
 const getPointDistanceMeters = (firstPoint, secondPoint) => {
   const toRadians = (degrees) => degrees * (Math.PI / 180);
@@ -733,6 +735,97 @@ const getOpeningWindow = (hoursText) => {
   return null;
 };
 
+const getSuggestedVisitWindow = ({
+  hoursText,
+  durationMinutes = defaultFlexibleVisitMinutes,
+  earliestMinutes = defaultFlexibleDayStartMinutes,
+  latestMinutes = null,
+}) => {
+  if (/closed/i.test(String(hoursText || ''))) return null;
+
+  const openingWindow = getOpeningWindow(hoursText);
+  let suggestedStart = Number(earliestMinutes) || defaultFlexibleDayStartMinutes;
+  const visitDuration = Math.max(15, Number(durationMinutes) || defaultFlexibleVisitMinutes);
+
+  if (openingWindow?.open !== null && openingWindow?.open !== undefined) {
+    suggestedStart = Math.max(suggestedStart, openingWindow.open);
+  }
+
+  if (Number.isFinite(Number(latestMinutes))) {
+    suggestedStart = Math.min(suggestedStart, Number(latestMinutes) - visitDuration);
+  }
+
+  if (openingWindow?.close !== null && openingWindow?.close !== undefined) {
+    suggestedStart = Math.min(suggestedStart, openingWindow.close - visitDuration);
+  }
+
+  if (openingWindow?.open !== null && openingWindow?.open !== undefined) {
+    suggestedStart = Math.max(suggestedStart, openingWindow.open);
+  }
+
+  suggestedStart = Math.max(0, Math.round(suggestedStart));
+  const suggestedEnd = suggestedStart + visitDuration;
+
+  if (openingWindow?.close !== null && openingWindow?.close !== undefined && suggestedEnd > openingWindow.close) {
+    return null;
+  }
+
+  if (Number.isFinite(Number(latestMinutes)) && suggestedEnd > Number(latestMinutes)) {
+    return null;
+  }
+
+  return {
+    startTime: formatMinutesAsTime(suggestedStart),
+    endTime: formatMinutesAsTime(suggestedEnd),
+    startMinutes: suggestedStart,
+    endMinutes: suggestedEnd,
+  };
+};
+
+const annotateFlexibleRouteSchedule = (routePoints = [], mode = 'car') => {
+  let timelineMinutes = defaultFlexibleDayStartMinutes;
+
+  return routePoints.map((point, index) => {
+    const start = getItemStartMinutes(point);
+    const end = getItemEndMinutes(point);
+
+    if (index > 0) {
+      timelineMinutes += getEstimatedTravelMinutes(routePoints[index - 1], point, mode);
+    }
+
+    if (start !== null) {
+      timelineMinutes = end ?? start + defaultFlexibleVisitMinutes;
+      return { ...point, scheduleKind: 'locked' };
+    }
+
+    const nextLockedIndex = routePoints.findIndex((candidate, candidateIndex) =>
+      candidateIndex > index && getItemStartMinutes(candidate) !== null
+    );
+    const nextLockedPoint = nextLockedIndex >= 0 ? routePoints[nextLockedIndex] : null;
+    const latestMinutes = nextLockedPoint
+      ? getItemStartMinutes(nextLockedPoint) - getEstimatedTravelMinutes(point, nextLockedPoint, mode)
+      : null;
+    const suggestedWindow = getSuggestedVisitWindow({
+      hoursText: point.hours || point.summary || '',
+      earliestMinutes: timelineMinutes,
+      latestMinutes,
+    });
+
+    if (!suggestedWindow) {
+      return { ...point, scheduleKind: 'flexible' };
+    }
+
+    timelineMinutes = suggestedWindow.endMinutes;
+
+    return {
+      ...point,
+      scheduleKind: 'suggested',
+      suggestedStartTime: suggestedWindow.startTime,
+      suggestedEndTime: suggestedWindow.endTime,
+    };
+  });
+};
+
 /**
  * Generates opening hours warning message for a place
  * Checks if selected time falls within opening hours
@@ -743,7 +836,7 @@ const getOpeningWarning = ({ hoursText, startTime, endTime }) => {
 
   if (start === null || end === null) return '';
   if (end <= start) return 'End time should be later than start time.';
-  if (/closed/i.test(String(hoursText || ''))) return 'This place appears closed during the selected time.';
+  if (/closed/i.test(String(hoursText || ''))) return 'This place may be closed at your selected time.';
 
   const openingWindow = getOpeningWindow(hoursText);
   if (!openingWindow || openingWindow.close === null) {
@@ -752,7 +845,8 @@ const getOpeningWarning = ({ hoursText, startTime, endTime }) => {
 
   if (openingWindow.closeOnly) {
     if (end > openingWindow.close) {
-      return `Selected time is after the listed closing time (${formatMinutesAsTime(openingWindow.close)}).`;
+      const suggestedWindow = getSuggestedVisitWindow({ hoursText, durationMinutes: end - start });
+      return `This place may be closed at your selected time. Listed closing time: ${formatMinutesAsTime(openingWindow.close)}.${suggestedWindow ? ` Suggested visit: ${suggestedWindow.startTime} - ${suggestedWindow.endTime}.` : ''}`;
     }
 
     return `Opening time is not listed. This place only says it closes at ${formatMinutesAsTime(openingWindow.close)}, so please confirm the selected time.`;
@@ -763,7 +857,8 @@ const getOpeningWarning = ({ hoursText, startTime, endTime }) => {
   }
 
   if (start < openingWindow.open || end > openingWindow.close) {
-    return `Selected time is outside the listed opening hours (${formatMinutesAsTime(openingWindow.open)} - ${formatMinutesAsTime(openingWindow.close)}).`;
+    const suggestedWindow = getSuggestedVisitWindow({ hoursText, durationMinutes: end - start });
+    return `This place may be closed at your selected time. Listed opening hours: ${formatMinutesAsTime(openingWindow.open)} - ${formatMinutesAsTime(openingWindow.close)}.${suggestedWindow ? ` Suggested visit: ${suggestedWindow.startTime} - ${suggestedWindow.endTime}.` : ''}`;
   }
 
   return '';
@@ -1045,7 +1140,7 @@ function TripDetailsPage() {
   const [message, setMessage] = useState('');
   const [panelWidth, setPanelWidth] = useState(tripPanelMaxWidth);
   const [isAddingIdea, setIsAddingIdea] = useState(false);
-  const [selectedIdeaSchedule, setSelectedIdeaSchedule] = useState({ startTime: '09:00', endTime: '10:00' });
+  const [selectedIdeaSchedule, setSelectedIdeaSchedule] = useState({ startTime: '', endTime: '' });
   const weatherRankingCacheRef = useRef(new Map());
   
   // Settings modal state
@@ -1423,10 +1518,13 @@ function TripDetailsPage() {
   const selectedIdeaWebsite = selectedIdea?.website || selectedIdea?.url || selectedIdea?.link || '';
   const selectedIdeaTimeText = [selectedIdea?.startTime, selectedIdea?.endTime].filter(Boolean).join(' - ');
   const selectedIdeaImageSrc = selectedIdea ? getTripPlaceImageSrc(selectedIdea) : '';
+  const hasPartialSelectedIdeaTime = Boolean(selectedIdeaSchedule.startTime) !== Boolean(selectedIdeaSchedule.endTime);
   const selectedIdeaWarning = selectedIdea
-    ? getOpeningWarning({ hoursText: selectedIdeaHours, ...selectedIdeaSchedule })
+    ? hasPartialSelectedIdeaTime
+      ? 'Choose both From and To times, or leave both blank to keep this stop flexible.'
+      : getOpeningWarning({ hoursText: selectedIdeaHours, ...selectedIdeaSchedule })
     : '';
-  const hasInvalidSelectedIdeaTime = selectedIdeaWarning.startsWith('End time');
+  const hasInvalidSelectedIdeaTime = hasPartialSelectedIdeaTime || selectedIdeaWarning.startsWith('End time');
   
   // Weather display values
   const weatherTemperature = weather?.temperature?.max || weather?.temperature?.mean
@@ -2179,9 +2277,23 @@ function TripDetailsPage() {
           optimize: !scheduleAwareRoute.preserveOrder,
         }),
       ]));
-      const results = Object.fromEntries(routeEntries);
+      const results = Object.fromEntries(routeEntries.map(([modeId, routeResult]) => [
+        modeId,
+        routeResult
+          ? {
+            ...routeResult,
+            optimizedPoints: annotateFlexibleRouteSchedule(
+              routeResult.optimizedPoints || dayPoints,
+              modeId
+            ),
+          }
+          : routeResult,
+      ]));
       const selectedMode = results[tripRoutePlan.selectedMode] ? tripRoutePlan.selectedMode : 'car';
       const activeRoute = results[selectedMode] || results.car;
+      const routeScheduleMessage = activeRoute?.optimizedPoints?.some((point) => point.suggestedStartTime)
+        ? 'Suggested times were placed inside available opening-hour windows when possible.'
+        : '';
       const travelIssues = getTravelTimeIssues(
         activeRoute?.optimizedPoints || dayPoints,
         selectedMode
@@ -2195,7 +2307,7 @@ function TripDetailsPage() {
         selectedMode,
         selectedRouteId: activeRoute?.id || '',
         status: 'success',
-        message: [scheduleAwareRoute.message, activeRoute?.message].filter(Boolean).join(' '),
+        message: [scheduleAwareRoute.message, routeScheduleMessage, activeRoute?.message].filter(Boolean).join(' '),
         scheduleIssues: [...dayScheduleIssues, ...travelIssues],
       }));
     } catch (error) {
@@ -2221,12 +2333,15 @@ function TripDetailsPage() {
     const baseScheduleIssues = (tripRoutePlan.scheduleIssues || [])
       .filter((issue) => issue.type !== 'travel-conflict');
     const travelIssues = getTravelTimeIssues(modeRoute?.optimizedPoints || tripRoutePlan.points, modeId);
+    const routeScheduleMessage = modeRoute?.optimizedPoints?.some((point) => point.suggestedStartTime)
+      ? 'Suggested times were placed inside available opening-hour windows when possible.'
+      : '';
 
     setTripRoutePlan((current) => ({
       ...current,
       selectedMode: modeId,
       selectedRouteId: modeRoute?.id || '',
-      message: modeRoute?.message || '',
+      message: [routeScheduleMessage, modeRoute?.message].filter(Boolean).join(' '),
       scheduleIssues: [...baseScheduleIssues, ...travelIssues],
     }));
   };
@@ -2425,8 +2540,8 @@ function TripDetailsPage() {
           idea.price && !unavailablePricePattern.test(String(idea.price)) ? `Price: ${idea.price}` : '',
         ].filter(Boolean).join('\n'),
         scheduledDate: activeDay?.date || trip.startDate,
-        startTime: selectedIdeaSchedule.startTime,
-        endTime: selectedIdeaSchedule.endTime,
+        ...(selectedIdeaSchedule.startTime ? { startTime: selectedIdeaSchedule.startTime } : {}),
+        ...(selectedIdeaSchedule.endTime ? { endTime: selectedIdeaSchedule.endTime } : {}),
         location: hasCoordinates ? {
           address: idea.address || idea.displayName,
           coordinates: {
@@ -3435,7 +3550,7 @@ function TripDetailsPage() {
                               </div>
                               <p><MapPin size={13} aria-hidden="true" />{item.location?.address || item.description || 'Location details unavailable'}</p>
                               <div className="trip-item-mini-meta">
-                                {item.startTime || item.endTime ? <span><Clock3 size={12} aria-hidden="true" />{[item.startTime, item.endTime].filter(Boolean).join(' - ')}</span> : null}
+                                <span><Clock3 size={12} aria-hidden="true" />{item.startTime || item.endTime ? [item.startTime, item.endTime].filter(Boolean).join(' - ') : 'Flexible'}</span>
                                 <span><DollarSign size={12} aria-hidden="true" />{currency?.formatAmount ? currency.formatAmount(item.priceEstimate?.amount || 0, tripCurrency) : `${item.priceEstimate?.amount || 0} ${tripCurrency}`}</span>
                               </div>
                               <div className="trip-item-fact-grid" aria-label={`${item.title} details`}>
@@ -3831,6 +3946,7 @@ function TripDetailsPage() {
                       onChange={(event) => setSelectedIdeaSchedule((current) => ({ ...current, endTime: event.target.value }))}
                     />
                   </label>
+                  <small>Leave time blank to add as a flexible stop.</small>
                 </div> : null}
                 {selectedPlaceSource !== 'itinerary' && selectedIdeaWarning ? (
                   <p className="trip-opening-warning">
@@ -3903,9 +4019,11 @@ function TripDetailsPage() {
                           <strong>{place.title || place.name || `Stop ${index + 1}`}</strong>
                           <small>
                             {place.startTime
-                              ? `${place.startTime}${place.endTime ? ` - ${place.endTime}` : ''} · locked time`
-                              : 'Flexible stop'}
-                            {' · '}
+                              ? `${place.startTime}${place.endTime ? ` - ${place.endTime}` : ''} - locked time`
+                              : place.suggestedStartTime
+                                ? `${place.suggestedStartTime} - ${place.suggestedEndTime} - suggested time`
+                                : 'Flexible stop'}
+                            {' - '}
                             {index === 0 ? 'Go here first' : index === tripRouteMapPlaces.length - 1 ? 'Final stop' : `Then continue to stop ${index + 1}`}
                           </small>
                         </div>
