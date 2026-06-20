@@ -41,7 +41,9 @@ module.exports = {
   // Email verification token expiration duration in hours
   emailVerificationExpiresInHours: Number(process.env.EMAIL_VERIFICATION_EXPIRES_IN_HOURS || 24),
 
-  // SMTP configuration for sending transactional emails
+  // Transactional email configuration. Resend is preferred when configured;
+  // SMTP remains available for local development and fallback environments.
+  resendApiKey: process.env.RESEND_API_KEY || '',
   smtpHost: process.env.SMTP_HOST || '',
   smtpPort: Number(process.env.SMTP_PORT || 587),
   smtpSecure: process.env.SMTP_SECURE === 'true', // Use TLS/SSL if explicitly set to 'true'
