@@ -38,6 +38,12 @@ const priceEstimateSchema = new mongoose.Schema(
   {
     amount: { type: Number, min: 0 },                        // Estimated cost amount (non-negative)
     currency: { type: String, trim: true, uppercase: true }, // ISO currency code (e.g., 'USD', 'MYR', 'JPY')
+    source: {
+      type: String,
+      enum: ['manual', 'api', 'ai'],
+      default: 'manual',
+    },
+    suggestionText: { type: String, trim: true, maxlength: 160 },
   },
   { _id: false }  // Prevent creation of separate _id for sub-documents
 );

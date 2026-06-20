@@ -81,6 +81,8 @@ const formatCategoryLabel = (category = 'api') =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 
+const getLogDisplayTime = (log) => log.lastOccurredAt || log.createdAt;
+
 // SystemErrorsPage renders the main screen and handles nearby interactions.
 // Main component for monitoring system activity and investigating errors
 function SystemErrorsPage() {
@@ -149,7 +151,7 @@ function SystemErrorsPage() {
   const dailyCounts = summary.dailyCounts || [];
   const categoryMaxCount = Math.max(...categoryCounts.map((item) => item.count), 1);
   const dailyMaxCount = Math.max(...dailyCounts.map((item) => item.success + item.fail + item.error), 1);
-  const latestEventLabel = logs[0]?.createdAt ? formatDateTime(logs[0].createdAt) : 'No events yet';
+  const latestEventLabel = logs[0] ? formatDateTime(getLogDisplayTime(logs[0])) : 'No events yet';
 
   // Handles filter input changes and updates filter state
   const handleFilterChange = (event) => {
@@ -187,7 +189,7 @@ function SystemErrorsPage() {
             </span>
             <span>
               <Clock3 size={16} aria-hidden="true" />
-              {logs[0]?.createdAt ? `Latest event ${formatDateTime(logs[0].createdAt)}` : 'No events yet'}
+              {logs[0] ? `Latest event ${formatDateTime(getLogDisplayTime(logs[0]))}` : 'No events yet'}
             </span>
           </div>
         </div>
@@ -431,7 +433,7 @@ function SystemErrorsPage() {
             <span>Investigation list</span>
             <h3>Recent events</h3>
           </div>
-          <small>{monitoring?.pagination?.total ?? 0} matching events</small>
+          <small>{monitoring?.pagination?.total ?? 0} grouped rows, {monitoring?.pagination?.totalOccurrences ?? summary.totalLogs ?? 0} events</small>
         </div>
         {isLoading ? (
           <p className="settings-empty">Loading logging and monitoring data...</p>
@@ -453,11 +455,16 @@ function SystemErrorsPage() {
               {logs.map((log) => (
                 <tr key={log._id}>
                   <td>
-                    <span className="logging-time">{formatDateTime(log.createdAt)}</span>
+                    <span className="logging-time">{formatDateTime(getLogDisplayTime(log))}</span>
                     <small>{formatCategoryLabel(log.category || 'api')}</small>
                   </td>
                   <td className="logging-event-summary">
-                    <strong>{log.message || 'No message recorded'}</strong>
+                    <strong>
+                      {log.message || 'No message recorded'}
+                      {Number(log.occurrenceCount || 1) > 1 ? (
+                        <span className="logging-repeat-badge">x{log.occurrenceCount}</span>
+                      ) : null}
+                    </strong>
                     <small>{log.errorCode || 'No error code'}</small>
                   </td>
                   <td>
@@ -504,7 +511,8 @@ function SystemErrorsPage() {
               <span>{formatCategoryLabel(selectedLog.category || 'api')}</span>
             </div>
             <dl className="logging-detail-grid">
-              <div><dt>Time</dt><dd>{formatDateTime(selectedLog.createdAt)}</dd></div>
+              <div><dt>Latest time</dt><dd>{formatDateTime(getLogDisplayTime(selectedLog))}</dd></div>
+              <div><dt>Occurrences</dt><dd>{Number(selectedLog.occurrenceCount || 1).toLocaleString()}</dd></div>
               <div><dt>Actor</dt><dd>{getActorLabel(selectedLog)} <small>{getActorMeta(selectedLog)}</small></dd></div>
               <div><dt>Service</dt><dd>{selectedLog.service || 'Not recorded'}</dd></div>
               <div><dt>Endpoint</dt><dd>{selectedLog.method || 'GET'} {selectedLog.endpoint || 'Not recorded'}</dd></div>

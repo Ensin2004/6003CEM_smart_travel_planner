@@ -10,6 +10,9 @@ jest.mock('../src/config/env', () => ({
   groqApiKey: 'test-groq-key',           // Test API key (not a real credential)
   groqModel: 'llama-3.1-8b-instant',      // Llama model for text generation
   groqDailyLimit: 100,                    // Mock daily quota
+  geminiApiKey: 'test-gemini-key',
+  geminiModel: 'gemini-2.5-flash-lite',
+  geminiDailyLimit: 100,
 }));
 // Mock API log service to prevent logging during tests
 jest.mock('../src/modules/apiLogs/apiLog.service', () => ({
@@ -114,6 +117,110 @@ describe('AI Assistant Groq integration', () => {
           name: 'Gardens by the Bay',
           searchQuery: 'Gardens by the Bay, Singapore',  // Query for further lookup
         }),
+      ],
+    }));
+  });
+
+  test('ranks weather-aware places using only provided candidate ids', async () => {
+    axios.post.mockResolvedValue({
+      data: {
+        choices: [{
+          message: {
+            content: JSON.stringify({
+              summary: 'Indoor places are better for rain.',
+              rankedPlaces: [
+                { id: 'place-2', score: 93, reason: 'Covered and practical for rain.' },
+                { id: 'invented-place', score: 99, reason: 'Should be ignored.' },
+                { id: 'place-1', score: 60, reason: 'Less sheltered.' },
+              ],
+            }),
+          },
+        }],
+      },
+    });
+
+    const ranking = await aiAssistantService.rankWeatherPlaces({
+      weather: { condition: 'Rain', mode: 'rainy' },
+      trip: { destination: 'George Town', country: 'Malaysia' },
+      day: { dayNumber: 1, location: 'George Town' },
+      category: 'food',
+      candidates: [
+        { id: 'place-1', name: 'Open Street Cafe', rating: 4.2 },
+        { id: 'place-2', name: 'Covered Food Hall', rating: 4.1 },
+      ],
+    });
+
+    expect(axios.post).toHaveBeenCalledWith(
+      'https://api.groq.com/openai/v1/chat/completions',
+      expect.objectContaining({
+        response_format: { type: 'json_object' },
+      }),
+      expect.any(Object)
+    );
+    expect(ranking).toEqual(expect.objectContaining({
+      available: true,
+      provider: 'groq',
+      summary: 'Indoor places are better for rain.',
+      rankedPlaces: [
+        expect.objectContaining({ id: 'place-2', score: 93 }),
+        expect.objectContaining({ id: 'place-1', score: 60 }),
+      ],
+    }));
+  });
+
+  test('falls back to Gemini when Groq ranking fails', async () => {
+    axios.post
+      .mockRejectedValueOnce({ response: { status: 429, data: { error: { message: 'Groq limit' } } } })
+      .mockResolvedValueOnce({
+        data: {
+          candidates: [{
+            content: {
+              parts: [{
+                text: JSON.stringify({
+                  summary: 'Gemini picked the indoor option.',
+                  rankedPlaces: [
+                    { id: 'place-2', score: 91, reason: 'Better shelter for rain.' },
+                    { id: 'place-1', score: 55, reason: 'Less suitable in wet weather.' },
+                  ],
+                }),
+              }],
+            },
+          }],
+        },
+      });
+
+    const ranking = await aiAssistantService.rankWeatherPlaces({
+      weather: { condition: 'Rain', mode: 'rainy' },
+      trip: { destination: 'George Town', country: 'Malaysia' },
+      day: { dayNumber: 1, location: 'George Town' },
+      category: 'food',
+      candidates: [
+        { id: 'place-1', name: 'Open Street Cafe', rating: 4.2 },
+        { id: 'place-2', name: 'Covered Food Hall', rating: 4.1 },
+      ],
+    });
+
+    expect(axios.post).toHaveBeenNthCalledWith(
+      2,
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent',
+      expect.objectContaining({
+        generationConfig: expect.objectContaining({
+          responseMimeType: 'application/json',
+        }),
+      }),
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          'x-goog-api-key': 'test-gemini-key',
+        }),
+      })
+    );
+    expect(ranking).toEqual(expect.objectContaining({
+      available: true,
+      provider: 'gemini',
+      summary: 'Gemini picked the indoor option.',
+      rankedPlaces: [
+        expect.objectContaining({ id: 'place-2', score: 91 }),
+        expect.objectContaining({ id: 'place-1', score: 55 }),
       ],
     }));
   });

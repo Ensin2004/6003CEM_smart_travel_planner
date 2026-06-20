@@ -44,6 +44,16 @@ const apiLogSchema = new mongoose.Schema(
     
     // Correlation ID for tracing requests across services
     requestId: { type: String, required: true, trim: true, index: true },
+
+    // Stable key for grouping repeated operational failures into one visible row
+    logKey: { type: String, trim: true, index: true },
+
+    // Number of matching events represented by this row
+    occurrenceCount: { type: Number, default: 1, min: 1 },
+
+    // First and latest times this grouped event happened
+    firstOccurredAt: { type: Date },
+    lastOccurredAt: { type: Date },
     
     // Human-readable log message
     message: { type: String, trim: true },
@@ -64,6 +74,7 @@ const apiLogSchema = new mongoose.Schema(
 apiLogSchema.index({ createdAt: -1 }); // For retrieving most recent logs
 apiLogSchema.index({ status: 1, createdAt: -1 }); // For filtering by status and ordering by date
 apiLogSchema.index({ category: 1, severity: 1 }); // For filtering by category and severity
+apiLogSchema.index({ logKey: 1, lastOccurredAt: -1 }); // For grouping repeated events
 
 // Create and export the Mongoose model for the apiLogs collection
 module.exports = mongoose.model('ApiLog', apiLogSchema, 'apiLogs');

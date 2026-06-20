@@ -1296,6 +1296,19 @@
   min-height: 250px;
 }
 
+.travel-guide-detail-shell {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+  gap: 18px;
+  align-items: start;
+}
+
+.travel-guide-detail-main {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
 /* ============================================================
  * MAP PANEL — decorative grid + content overlay
  * ============================================================ */

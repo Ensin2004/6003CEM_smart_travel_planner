@@ -10,6 +10,13 @@ const notificationService = require('../notifications/notification.service');
 // Default pagination constants
 const DEFAULT_LIMIT = 25;
 const MAX_LIMIT = 100;
+const REPEATED_LOG_COOLDOWNS_MS = {
+  RATE_LIMIT_EXCEEDED: 60 * 60 * 1000,
+  NETWORK_FAILURE: 30 * 60 * 1000,
+  REQUEST_TIMEOUT: 30 * 60 * 1000,
+  INTERNAL_SERVER_ERROR: 30 * 60 * 1000,
+  EXTERNAL_SERVICE_ERROR: 30 * 60 * 1000,
+};
 
 /**
  * Cleans and truncates metadata values for safe storage.
@@ -29,6 +36,58 @@ const cleanMetadata = (metadata = {}) =>
     safeMetadata[key] = String(value).slice(0, 200);
     return safeMetadata;
   }, {});
+
+/**
+ * Normalizes values used in repeated-log grouping keys.
+ * @param {string} value - Raw value
+ * @returns {string} Normalized value
+ */
+const normalizeLogKeyPart = (value = '') =>
+  String(value)
+    .trim()
+    .toLowerCase()
+    .split('?')[0]
+    .replace(/[0-9a-f]{24}/g, ':id')
+    .replace(/\b\d+\b/g, ':num')
+    .slice(0, 140);
+
+/**
+ * Decides whether a log event should be grouped in the database.
+ * @param {Object} params - Log event context
+ * @returns {boolean} True if repeated rows should be collapsed
+ */
+const isRepeatableOperationalLog = ({ category, errorCode, severity, status }) => {
+  if (status === 'success') return false;
+  if (category === 'rate-limit' || errorCode === 'RATE_LIMIT_EXCEEDED') return true;
+  return ['error', 'critical'].includes(severity) || [
+    'NETWORK_FAILURE',
+    'REQUEST_TIMEOUT',
+    'INTERNAL_SERVER_ERROR',
+    'EXTERNAL_SERVICE_ERROR',
+  ].includes(errorCode);
+};
+
+/**
+ * Builds a stable key for grouping repeated operational logs.
+ * @param {Object} params - Log event context
+ * @returns {string} Grouping key
+ */
+const buildRepeatedLogKey = ({ category, endpoint, errorCode, message, method, metadata, service, statusCode, userId }) => {
+  const actorKey = category === 'auth'
+    ? metadata?.attemptedEmailMasked || userId || 'unknown-actor'
+    : 'all-actors';
+
+  return [
+    normalizeLogKeyPart(errorCode || 'unknown-code'),
+    normalizeLogKeyPart(service || 'system'),
+    normalizeLogKeyPart(category || 'api'),
+    normalizeLogKeyPart(method || 'GET'),
+    normalizeLogKeyPart(endpoint || 'unknown-endpoint'),
+    normalizeLogKeyPart(statusCode || 'no-status'),
+    normalizeLogKeyPart(message || 'no-message'),
+    normalizeLogKeyPart(actorKey),
+  ].join('|');
+};
 
 /**
  * Escapes special characters in a string for use in regex.
@@ -206,24 +265,82 @@ const fillDailyCounts = (dailyCounts, days = 7) => {
 const recordEvent = async (data) => {
   const errorCode = data.errorCode || getDefaultErrorCode(data);
   const requestId = data.requestId || crypto.randomUUID();
+  const now = new Date();
+  const category = data.category || 'api';
+  const severity = data.severity || 'info';
   
   // Clean and mask sensitive metadata
   const metadata = cleanMetadata({
     ...data.metadata,
     ...(data.attemptedEmail && { attemptedEmailMasked: maskEmail(data.attemptedEmail) }),
   });
+  const shouldGroupLog = isRepeatableOperationalLog({
+    category,
+    errorCode,
+    severity,
+    status: data.status,
+  });
+  const logKey = shouldGroupLog
+    ? buildRepeatedLogKey({
+        category,
+        endpoint: data.endpoint,
+        errorCode,
+        message: data.message,
+        method: data.method,
+        metadata,
+        service: data.service,
+        statusCode: data.statusCode,
+        userId: data.userId,
+      })
+    : '';
+  const cooldownMs = REPEATED_LOG_COOLDOWNS_MS[errorCode] || (shouldGroupLog ? 30 * 60 * 1000 : 0);
+
+  if (logKey && cooldownMs > 0) {
+    const existingLog = await apiLogRepository.findRecentRepeatedEvent({
+      logKey,
+      since: new Date(Date.now() - cooldownMs),
+    });
+
+    if (existingLog) {
+      const repeatedLog = await apiLogRepository.recordRepeatedEvent(existingLog._id, {
+        lastOccurredAt: now,
+        requestId,
+        message: data.message,
+        severity,
+        status: data.status,
+        statusCode: data.statusCode,
+        userId: data.userId,
+        metadata: {
+          ...existingLog.metadata,
+          ...metadata,
+          latestRequestId: requestId,
+          latestMessage: data.message,
+        },
+      });
+
+      notificationService
+        .notifyAdminsOfApiLog(repeatedLog)
+        .catch((error) => logger.error(`Failed to notify admins about API log: ${error.message}`));
+
+      return repeatedLog;
+    }
+  }
 
   // Create log entry in repository
   const log = await apiLogRepository.create({
     service: data.service,
-    category: data.category || 'api',
-    severity: data.severity || 'info',
+    category,
+    severity,
     method: data.method,
     endpoint: data.endpoint,
     status: data.status,
     statusCode: data.statusCode,
     errorCode,
     requestId,
+    ...(logKey && { logKey }),
+    occurrenceCount: 1,
+    firstOccurredAt: now,
+    lastOccurredAt: now,
     message: data.message,
     userId: data.userId,
     ...(Object.keys(metadata).length && { metadata }),
@@ -269,16 +386,18 @@ const getMonitoring = async (query = {}) => {
     failures,
     errors,
     recentFailures,
+    groupedLogCount,
     categoryCounts,
     statusCounts,
     severityCounts,
     dailyCounts,
   ] = await Promise.all([
     apiLogRepository.findMany({ filter, ...pagination }),
+    apiLogRepository.sumOccurrences(filter),
+    apiLogRepository.sumOccurrences({ ...filter, status: { $in: ['fail', 'error'] } }),
+    apiLogRepository.sumOccurrences({ ...filter, status: 'error' }),
+    apiLogRepository.sumOccurrencesSince({ status: { $in: ['fail', 'error'] } }, lastDay),
     apiLogRepository.countMany(filter),
-    apiLogRepository.countMany({ ...filter, status: { $in: ['fail', 'error'] } }),
-    apiLogRepository.countMany({ ...filter, status: 'error' }),
-    apiLogRepository.countSince({ status: { $in: ['fail', 'error'] } }, lastDay),
     apiLogRepository.aggregateCategoryCounts(filter),
     apiLogRepository.aggregateStatusCounts(filter),
     apiLogRepository.aggregateSeverityCounts(filter),
@@ -310,8 +429,9 @@ const getMonitoring = async (query = {}) => {
     pagination: {
       page: pagination.page,
       limit: pagination.limit,
-      total: totalLogs,
-      totalPages: Math.ceil(totalLogs / pagination.limit),
+      total: groupedLogCount,
+      totalOccurrences: totalLogs,
+      totalPages: Math.ceil(groupedLogCount / pagination.limit),
     },
   };
 };

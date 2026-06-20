@@ -13,7 +13,6 @@ import { useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { convertCurrency } from '../../api/currencyApi';
 import {
-  getAiRecommendations,
   searchAttractions,
   searchFlight,
   searchHotels,
@@ -28,6 +27,7 @@ import CurrencyContext from '../../context/currencyContext';
 import useNotifications from '../../hooks/useNotifications';
 import { emptyCategoryOptions, groupCategoryOptions } from './explore.constants';
 import { formatMoney, getDateKey, getErrorMessage, getPriceConversionKey } from './explore.helpers';
+import { buildWeatherRankingRequestKey, rankPlacesForWeather } from '../../utils/weatherPlaceRanking';
 import AttractionsSubmenu from './submenus/Attractions';
 import RestaurantSubmenu from './submenus/Restaurant';
 import HotelsSubmenu from './submenus/Hotels';
@@ -367,17 +367,12 @@ function ExplorePage() {
       return '';
     }
 
-    return JSON.stringify({
+    return buildWeatherRankingRequestKey({
       view: activeOption.id,
       destination: aiDestination,
       date: travelDate,
-      weather: activeWeather?.available ? activeWeather.condition : activeWeather?.message || '',
-      items: activeItems.slice(0, 20).map((item) => ({
-        id: item.id || item.name,
-        rating: item.rating || '',
-        price: item.priceDetail?.display || item.price || '',
-        openState: item.openState || '',
-      })),
+      weather: activeWeather,
+      items: activeItems,
     });
   }, [activeItems, activeOption.id, activeWeather, aiDestination, isSearchView, travelDate]);
   
@@ -1336,16 +1331,32 @@ function ExplorePage() {
     setAiLoadingView(activeOption.id);
 
     try {
-      const response = await getAiRecommendations({
-        view: activeOption.id,
-        destination: aiDestination,
-        date: travelDate,
+      const ranking = await rankPlacesForWeather({
+        items: activeItems,
         weather: activeWeather,
-        items: activeItems.slice(0, 20),
+        trip: {
+          destination: aiDestination,
+        },
+        day: {
+          location: aiDestination,
+          date: travelDate,
+        },
+        category: activeOption.id,
       });
+      if (ranking.available) {
+        const rankedItems = ranking.items;
+        if (activeOption.id === 'attractions') {
+          setAttractions(rankedItems);
+        } else if (activeOption.id === 'food') {
+          setRestaurants(rankedItems);
+        } else if (activeOption.id === 'hotels') {
+          setHotels(rankedItems);
+        }
+        updateSearchSummary(activeOption.id, rankedItems);
+      }
       setAiByView((currentAi) => ({
         ...currentAi,
-        [activeOption.id]: response.data.data.recommendations,
+        [activeOption.id]: ranking,
       }));
     } catch (requestError) {
       setAiByView((currentAi) => ({

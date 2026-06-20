@@ -9,15 +9,12 @@ import {
   ChefHat,
   ChevronLeft,
   ChevronRight,
-  CloudRain,
   CloudSun,
   Compass,
   ExternalLink,
-  Flame,
   LoaderCircle,
   MapPin,
   Sparkles,
-  Sun,
 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useContext, useEffect, useMemo, useState } from 'react';
@@ -29,7 +26,9 @@ import CurrencyContext from '../../context/currencyContext';
 import { buildVisitedLookup, getVisitedPlacePayload } from '../../components/visitedPlaces/visitedPlaceUtils';
 import { getApiErrorMessage } from '../../utils/apiError';
 import { getPlaceImageSrc } from '../../utils/placeImageProxy';
+import { rankPlacesForWeather } from '../../utils/weatherPlaceRanking';
 import { formatMoney, getPriceConversionKey } from '../explore/explore.helpers';
+import ExploreAiPanel from '../explore/submenus/ExploreAiPanel';
 import './TravelGuidePage.css';
 
 // Helper function to get today's date in YYYY-MM-DD format for the date input default
@@ -46,40 +45,6 @@ const categoryOptions = [
   { id: 'restaurants', label: 'Restaurants', icon: ChefHat },
   { id: 'hotels', label: 'Hotels', icon: BedDouble },
 ];
-
-// Weather scenario configurations for re-ranking recommendations
-const weatherOptions = [
-  { id: 'overall', label: 'Overall', icon: CloudSun, tip: 'Balanced choices using the live guide results.' },
-  { id: 'rainy', label: 'Rainy', icon: CloudRain, tip: 'Prioritizes indoor attractions, food stops, and easy hotel backups.' },
-  { id: 'sunny', label: 'Sunny', icon: Sun, tip: 'Prioritizes outdoor sights, viewpoints, and flexible walking routes.' },
-  { id: 'cloudy', label: 'Cloudy', icon: CloudSun, tip: 'Keeps outdoor plans open while favoring places with easier backup options.' },
-  { id: 'hot', label: 'Hot', icon: Flame, tip: 'Prioritizes shaded, air-conditioned, and lower-transfer plans.' },
-];
-
-// Calculates a weather-adaptive score for a place based on the selected scenario
-const getWeatherScore = (place, scenario, category) => {
-  // Baseline score uses the place rating
-  if (scenario === 'overall') return Number(place.rating || 0);
-
-  // Analyze place metadata for indoor/outdoor indicators
-  const text = [place.name, place.category, place.address].join(' ').toLowerCase();
-  const rating = Number(place.rating || 0);
-  const indoorBoost = /(museum|mall|gallery|restaurant|hotel|cafe|indoor|shopping)/.test(text) ? 2 : 0;
-  const outdoorBoost = /(park|garden|beach|trail|view|tower|zoo|island|waterfall)/.test(text) ? 2 : 0;
-  const foodBoost = category === 'restaurants' ? 1.5 : 0;
-  const hotelBoost = category === 'hotels' ? 1.5 : 0;
-
-  // Apply scenario-specific scoring logic
-  if (scenario === 'rainy') return rating + indoorBoost + foodBoost + hotelBoost;
-  if (scenario === 'sunny') return rating + outdoorBoost;
-  if (scenario === 'cloudy') return rating + outdoorBoost * 0.7 + indoorBoost * 0.5;
-  if (scenario === 'hot') return rating + indoorBoost + foodBoost + hotelBoost;
-  return rating;
-};
-
-// Sorts items by their weather-adaptive score in descending order
-const sortForWeather = (items, scenario, category) =>
-  [...items].sort((first, second) => getWeatherScore(second, scenario, category) - getWeatherScore(first, scenario, category));
 
 // Formats a date string into a readable localized format
 const formatTravelDate = (date) => {
@@ -223,9 +188,10 @@ function TravelGuideDestinationPage() {
   // State management for user controls and UI state
   const [travelDate, setTravelDate] = useState(getDateKey());
   const [activeCategory, setActiveCategory] = useState('all');
-  const [weatherScenario, setWeatherScenario] = useState('overall');
   const [starts, setStarts] = useState({ attractions: 0, restaurants: 0, hotels: 0 });
   const [guide, setGuide] = useState(null);
+  const [weatherRankings, setWeatherRankings] = useState({ attractions: null, restaurants: null, hotels: null });
+  const [weatherRankingStatus, setWeatherRankingStatus] = useState('idle');
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -243,17 +209,17 @@ function TravelGuideDestinationPage() {
   // Gallery and map configuration
   const gallery = guide?.gallery?.length ? guide.gallery : guide?.heroImageUrl ? [guide.heroImageUrl] : [];
   const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destinationLabel || destination)}`;
-  const weatherTip = weatherOptions.find((option) => option.id === weatherScenario)?.tip;
+  const weatherTip = guide?.weather?.travelTip || 'Places are ranked from live guide results and current weather context.';
   const isRefreshingGuide = isLoading && Boolean(guide);
   
-  // Categorized and sorted place lists based on weather scenario
+  // Categorized place lists based on shared weather-aware AI ranking
   const categories = useMemo(
     () => ({
-      attractions: sortForWeather(guide?.attractions?.items || [], weatherScenario, 'attractions'),
-      restaurants: sortForWeather(guide?.restaurants?.items || [], weatherScenario, 'restaurants'),
-      hotels: sortForWeather(guide?.hotels?.items || [], weatherScenario, 'hotels'),
+      attractions: weatherRankings.attractions?.items || guide?.attractions?.items || [],
+      restaurants: weatherRankings.restaurants?.items || guide?.restaurants?.items || [],
+      hotels: weatherRankings.hotels?.items || guide?.hotels?.items || [],
     }),
-    [guide, weatherScenario]
+    [guide, weatherRankings]
   );
   
   // Lookup for visited places to track user interactions
@@ -266,6 +232,30 @@ function TravelGuideDestinationPage() {
     ],
     [guide]
   );
+  const panelItems = useMemo(() => {
+    if (activeCategory === 'attractions') return categories.attractions;
+    if (activeCategory === 'restaurants') return categories.restaurants;
+    if (activeCategory === 'hotels') return categories.hotels;
+    return [
+      ...categories.attractions.slice(0, 6),
+      ...categories.restaurants.slice(0, 6),
+      ...categories.hotels.slice(0, 6),
+    ];
+  }, [activeCategory, categories]);
+  const activeAi = useMemo(() => {
+    const rankings = [weatherRankings.attractions, weatherRankings.restaurants, weatherRankings.hotels].filter(Boolean);
+    const availableRankings = rankings.filter((ranking) => ranking.available);
+
+    if (availableRankings.length) {
+      return {
+        available: true,
+        summary: availableRankings.map((ranking) => ranking.summary).filter(Boolean)[0] || 'Weather-aware recommendations are ready.',
+        picks: availableRankings.flatMap((ranking) => ranking.picks || []).slice(0, 6),
+      };
+    }
+
+    return guide?.recommendations || null;
+  }, [guide?.recommendations, weatherRankings]);
   
   // Helper to generate section titles
   const getTopTitle = (items, action) => `Top ${Math.min(items.length || 8, 8)} ${action}`;
@@ -423,6 +413,57 @@ function TravelGuideDestinationPage() {
     };
   }, [country, destination, latitude, longitude, starts, travelDate]);
 
+  useEffect(() => {
+    if (!guide || !guide.weather?.available) {
+      setWeatherRankings({ attractions: null, restaurants: null, hotels: null });
+      setWeatherRankingStatus('idle');
+      return undefined;
+    }
+
+    let isActive = true;
+    setWeatherRankingStatus('loading');
+
+    Promise.allSettled([
+      rankPlacesForWeather({
+        items: guide.attractions?.items || [],
+        weather: guide.weather,
+        trip: { destination: guide.destination, country: guide.country || country },
+        day: { location: destinationLabel, date: travelDate },
+        category: 'attractions',
+      }),
+      rankPlacesForWeather({
+        items: guide.restaurants?.items || [],
+        weather: guide.weather,
+        trip: { destination: guide.destination, country: guide.country || country },
+        day: { location: destinationLabel, date: travelDate },
+        category: 'restaurants',
+      }),
+      rankPlacesForWeather({
+        items: guide.hotels?.items || [],
+        weather: guide.weather,
+        trip: { destination: guide.destination, country: guide.country || country },
+        day: { location: destinationLabel, date: travelDate },
+        category: 'hotels',
+      }),
+    ]).then(([attractionResult, restaurantResult, hotelResult]) => {
+      if (!isActive) return;
+      setWeatherRankings({
+        attractions: attractionResult.status === 'fulfilled' ? attractionResult.value : null,
+        restaurants: restaurantResult.status === 'fulfilled' ? restaurantResult.value : null,
+        hotels: hotelResult.status === 'fulfilled' ? hotelResult.value : null,
+      });
+      setWeatherRankingStatus('success');
+    }).catch(() => {
+      if (!isActive) return;
+      setWeatherRankings({ attractions: null, restaurants: null, hotels: null });
+      setWeatherRankingStatus('fallback');
+    });
+
+    return () => {
+      isActive = false;
+    };
+  }, [country, destinationLabel, guide, travelDate]);
+
   // Effect hook for loading visited places data
   useEffect(() => {
     let isActive = true;
@@ -448,12 +489,6 @@ function TravelGuideDestinationPage() {
       const withoutCurrent = currentPlaces.filter((place) => place.placeKey !== visitedPlace.placeKey);
       return [visitedPlace, ...withoutCurrent];
     });
-  };
-  
-  // Handler for changing weather scenario
-  const handleWeatherScenarioChange = (scenario) => {
-    setWeatherScenario(scenario);
-    setRowIndexes({ things: 0, stays: 0, food: 0 });
   };
   
   // Handler for loading more items in a category
@@ -608,6 +643,8 @@ function TravelGuideDestinationPage() {
             </div>
           </section>
 
+          <div className="travel-guide-detail-shell">
+            <div className="travel-guide-detail-main">
           {/* Weather planner card */}
           <section className="travel-guide-weather-card travel-guide-weather-wide">
             <div className="travel-guide-detail-title">
@@ -617,6 +654,11 @@ function TravelGuideDestinationPage() {
                 <span className="travel-guide-weather-updating" role="status">
                   <LoaderCircle className="travel-guide-spin" size={14} aria-hidden="true" />
                   Updating forecast
+                </span>
+              ) : weatherRankingStatus === 'loading' ? (
+                <span className="travel-guide-weather-updating" role="status">
+                  <LoaderCircle className="travel-guide-spin" size={14} aria-hidden="true" />
+                  Ranking places
                 </span>
               ) : null}
             </div>
@@ -643,46 +685,9 @@ function TravelGuideDestinationPage() {
                 ? `${formatTravelDate(guide.weather.requestedDate || travelDate)} · ${guide.weather.source || 'Weather forecast'}`
                 : `Weather requested for ${formatTravelDate(travelDate)}.`}
             </p>
-            <div className="travel-guide-weather-options" aria-label="Weather planning mode">
-              {weatherOptions.map((option) => {
-                const OptionIcon = option.icon;
-                return (
-                  <button
-                    className={weatherScenario === option.id ? 'active' : ''}
-                    type="button"
-                    key={option.id}
-                    aria-pressed={weatherScenario === option.id}
-                    onClick={() => handleWeatherScenarioChange(option.id)}
-                  >
-                    <OptionIcon size={16} aria-hidden="true" />
-                    {option.label}
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          {/* AI recommendations card */}
-          <section className="travel-guide-ai-card travel-guide-ai-wide">
-            <div className="travel-guide-detail-title">
-              <Sparkles size={18} aria-hidden="true" />
-              <h3>{weatherOptions.find((option) => option.id === weatherScenario)?.label} recommendations</h3>
-            </div>
-            <p>
-              {weatherTip} The place rows below are reranked for this mode.
-              {' '}{guide.recommendations?.summary || ''}
-            </p>
             <div className="travel-guide-weather-recommendations">
               {weatherPickNames.map((name) => (
                 <span key={name}>{name}</span>
-              ))}
-            </div>
-            <div className="travel-guide-ai-picks">
-              {(guide.recommendations?.picks || []).map((pick) => (
-                <span key={`${pick.itemName}-${pick.score}`}>
-                  <strong>{pick.itemName}</strong>
-                  {pick.reason}
-                </span>
               ))}
             </div>
           </section>
@@ -782,6 +787,24 @@ function TravelGuideDestinationPage() {
             // Single category view
             renderSingleCategory(activeCategory)
           )}
+            </div>
+            <ExploreAiPanel
+              activeAi={activeAi}
+              activeOption={{
+                id: activeCategory,
+                label: activeCategory === 'all'
+                  ? 'Travel Guide'
+                  : categoryOptions.find((item) => item.id === activeCategory)?.label || 'Travel Guide',
+              }}
+              canRefresh={false}
+              currentLocationName={destinationLabel}
+              destinationLabel={destinationLabel}
+              isLoading={weatherRankingStatus === 'loading'}
+              items={panelItems}
+              resultCount={panelItems.length}
+              summary={activeAi?.summary || weatherTip}
+            />
+          </div>
         </>
       ) : null}
     </section>
