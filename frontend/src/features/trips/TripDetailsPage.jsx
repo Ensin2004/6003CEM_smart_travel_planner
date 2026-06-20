@@ -102,6 +102,14 @@ const routeModes = [
   { id: 'walking', label: 'Walk', icon: Footprints },
   { id: 'bike', label: 'Bike', icon: Bike },
 ];
+
+const routeModeSpeedsKph = {
+  walking: 5,
+  car: 45,
+  bike: 16,
+  train: 80,
+  plane: 700,
+};
 const tripPanelMinWidth = 320;
 const tripPanelMaxWidth = 560;
 const formatRouteDuration = (seconds) => {
@@ -347,6 +355,173 @@ const parseTimeToMinutes = (time) => {
   const match = String(time || '').match(/^(\d{1,2}):(\d{2})$/);
   if (!match) return null;
   return Number(match[1]) * 60 + Number(match[2]);
+};
+
+const formatMinutesAsTime = (minutes) => {
+  const safeMinutes = Math.max(0, Math.round(Number(minutes) || 0));
+  const hour = Math.floor(safeMinutes / 60) % 24;
+  const minute = safeMinutes % 60;
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+};
+
+const getItemStartMinutes = (item) => parseTimeToMinutes(item?.startTime);
+const getItemEndMinutes = (item) => parseTimeToMinutes(item?.endTime);
+const hasLockedTime = (item) => getItemStartMinutes(item) !== null;
+
+const getPointDistanceMeters = (firstPoint, secondPoint) => {
+  const toRadians = (degrees) => degrees * (Math.PI / 180);
+  const earthRadiusMeters = 6371000;
+  const firstLat = toRadians(Number(firstPoint?.lat));
+  const secondLat = toRadians(Number(secondPoint?.lat));
+  const latDifference = toRadians(Number(secondPoint?.lat) - Number(firstPoint?.lat));
+  const lngDifference = toRadians(Number(secondPoint?.lng) - Number(firstPoint?.lng));
+  const haversineValue = Math.sin(latDifference / 2) ** 2
+    + Math.cos(firstLat) * Math.cos(secondLat) * Math.sin(lngDifference / 2) ** 2;
+
+  return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(haversineValue), Math.sqrt(1 - haversineValue));
+};
+
+const getPathDistanceMeters = (points = []) => points.slice(1).reduce(
+  (total, point, index) => total + getPointDistanceMeters(points[index], point),
+  0
+);
+
+const getEstimatedTravelMinutes = (firstPoint, secondPoint, mode = 'car') => {
+  const speedKph = routeModeSpeedsKph[mode] || routeModeSpeedsKph.car;
+  const distanceMeters = getPointDistanceMeters(firstPoint, secondPoint);
+  return Math.ceil(distanceMeters / ((speedKph * 1000) / 60));
+};
+
+const sortItemsBySchedule = (items = []) => [...items].sort((firstItem, secondItem) => {
+  const firstStart = getItemStartMinutes(firstItem);
+  const secondStart = getItemStartMinutes(secondItem);
+
+  if (firstStart !== null || secondStart !== null) {
+    return (firstStart ?? Number.POSITIVE_INFINITY) - (secondStart ?? Number.POSITIVE_INFINITY)
+      || (getItemEndMinutes(firstItem) ?? Number.POSITIVE_INFINITY) - (getItemEndMinutes(secondItem) ?? Number.POSITIVE_INFINITY);
+  }
+
+  return new Date(firstItem.createdAt || 0) - new Date(secondItem.createdAt || 0);
+});
+
+const getScheduleIssues = (items = []) => {
+  const timedItems = sortItemsBySchedule(items).filter((item) => getItemStartMinutes(item) !== null);
+  const issues = [];
+
+  timedItems.forEach((item, index) => {
+    const start = getItemStartMinutes(item);
+    const end = getItemEndMinutes(item);
+
+    if (end !== null && end <= start) {
+      issues.push({
+        type: 'invalid-time',
+        itemId: item._id,
+        message: `${item.title}: end time should be later than start time.`,
+      });
+    }
+
+    const previous = timedItems[index - 1];
+    if (!previous) return;
+
+    const previousStart = getItemStartMinutes(previous);
+    const previousEnd = getItemEndMinutes(previous) ?? previousStart;
+
+    if (start === previousStart) {
+      issues.push({
+        type: 'duplicate-time',
+        itemId: item._id,
+        relatedItemId: previous._id,
+        message: `${item.title} and ${previous.title} are both scheduled at ${item.startTime}. Choose different times or mark one as flexible.`,
+      });
+    } else if (start < previousEnd) {
+      issues.push({
+        type: 'overlap',
+        itemId: item._id,
+        relatedItemId: previous._id,
+        message: `${item.title} overlaps with ${previous.title}. Adjust one time range.`,
+      });
+    }
+  });
+
+  return issues;
+};
+
+const getBestInsertionIndex = (routePoints, flexiblePoint) => {
+  if (!routePoints.length) return 0;
+
+  let bestIndex = routePoints.length;
+  let bestDistance = Number.POSITIVE_INFINITY;
+
+  for (let index = 0; index <= routePoints.length; index += 1) {
+    const nextPoints = [
+      ...routePoints.slice(0, index),
+      flexiblePoint,
+      ...routePoints.slice(index),
+    ];
+    const distance = getPathDistanceMeters(nextPoints);
+
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestIndex = index;
+    }
+  }
+
+  return bestIndex;
+};
+
+const getScheduleAwareRoutePoints = (points = []) => {
+  const timedPoints = [...points]
+    .filter(hasLockedTime)
+    .sort((firstPoint, secondPoint) => getItemStartMinutes(firstPoint) - getItemStartMinutes(secondPoint));
+  const flexiblePoints = points.filter((point) => !hasLockedTime(point));
+
+  if (!timedPoints.length) {
+    return {
+      points,
+      preserveOrder: false,
+      message: 'No fixed times found, so the route was optimized for shortest travel path.',
+    };
+  }
+
+  const orderedPoints = [...timedPoints];
+  flexiblePoints.forEach((point) => {
+    const insertAt = getBestInsertionIndex(orderedPoints, point);
+    orderedPoints.splice(insertAt, 0, point);
+  });
+
+  return {
+    points: orderedPoints,
+    preserveOrder: true,
+    message: flexiblePoints.length
+      ? 'Timed places are locked in chronological order. Flexible places were inserted where they best fit the route.'
+      : 'Timed places are locked in chronological order.',
+  };
+};
+
+const getTravelTimeIssues = (routePoints = [], mode = 'car') => {
+  const issues = [];
+
+  routePoints.slice(1).forEach((point, index) => {
+    const previous = routePoints[index];
+    const previousEnd = getItemEndMinutes(previous);
+    const nextStart = getItemStartMinutes(point);
+
+    if (previousEnd === null || nextStart === null) return;
+
+    const travelMinutes = getEstimatedTravelMinutes(previous, point, mode);
+    const arrivalMinutes = previousEnd + travelMinutes;
+
+    if (arrivalMinutes > nextStart) {
+      issues.push({
+        type: 'travel-conflict',
+        itemId: point.itineraryItemId || point.id,
+        relatedItemId: previous.itineraryItemId || previous.id,
+        message: `Conflict: ${previous.title || previous.name} ends at ${previous.endTime}, but travel to ${point.title || point.name} takes about ${travelMinutes} min. Earliest realistic time: ${formatMinutesAsTime(arrivalMinutes)}.`,
+      });
+    }
+  });
+
+  return issues;
 };
 
 /**
@@ -1026,12 +1201,13 @@ function TripDetailsPage() {
   const hasOverflowDayTabs = days.length > visibleDayTabs.length;
 
   // Computed values for active day items and groupings
-  const activeDayItems = useMemo(() => getItemsForDay(items, activeDay || {}), [activeDay, items]);
+  const activeDayItems = useMemo(() => sortItemsBySchedule(getItemsForDay(items, activeDay || {})), [activeDay, items]);
   const visitedLookup = useMemo(() => buildVisitedLookup(visitedPlaces), [visitedPlaces]);
   const groupedDayItems = useMemo(() => itineraryGroups.map((group) => ({
     ...group,
-    items: activeDayItems.filter((item) => group.types.includes(item.type)),
+    items: sortItemsBySchedule(activeDayItems.filter((item) => group.types.includes(item.type))),
   })), [activeDayItems]);
+  const activeDayScheduleIssues = useMemo(() => getScheduleIssues(activeDayItems), [activeDayItems]);
 
   // Budget computation values
   const plannedBudget = days.reduce((total, day) => total + Number(day.budget?.amount || 0), 0);
@@ -1199,6 +1375,9 @@ function TripDetailsPage() {
         price: item.priceEstimate?.amount
           ? `${item.priceEstimate.amount} ${item.priceEstimate.currency || tripCurrency}`
           : 'Price unavailable',
+        startTime: item.startTime || '',
+        endTime: item.endTime || '',
+        hours: item.description || '',
         lat: item.location?.coordinates?.coordinates?.[1],
         lng: item.location?.coordinates?.coordinates?.[0],
         dayNumber: itemDay?.dayNumber,
@@ -1756,7 +1935,11 @@ function TripDetailsPage() {
    * Fetches route between all places on that day
    */
   const optimizeDayRoute = async (day) => {
-    const dayPoints = mapPlaces.filter((place) => place.dayNumber === day.dayNumber);
+    const rawDayPoints = mapPlaces.filter((place) => place.dayNumber === day.dayNumber);
+    const dayItems = getItemsForDay(items, day);
+    const dayScheduleIssues = getScheduleIssues(dayItems);
+    const scheduleAwareRoute = getScheduleAwareRoutePoints(rawDayPoints);
+    const dayPoints = scheduleAwareRoute.points;
     setActiveTab('itinerary');
     setActiveDayNumber(day.dayNumber);
     setIsEditingDayLocation(false);
@@ -1773,6 +1956,7 @@ function TripDetailsPage() {
         selectedRouteId: '',
         status: 'error',
         message: `Add at least two places to Day ${day.dayNumber} before optimizing its route.`,
+        scheduleIssues: dayScheduleIssues,
       }));
       return;
     }
@@ -1785,16 +1969,24 @@ function TripDetailsPage() {
       selectedRouteId: '',
       status: 'loading',
       message: `Optimizing Day ${day.dayNumber} route...`,
+      scheduleIssues: dayScheduleIssues,
     }));
 
     try {
       const routeEntries = await Promise.all(routeModes.map(async (mode) => [
         mode.id,
-        await getRouteBetweenPlaces(dayPoints, null, { mode: mode.id }),
+        await getRouteBetweenPlaces(dayPoints, null, {
+          mode: mode.id,
+          optimize: !scheduleAwareRoute.preserveOrder,
+        }),
       ]));
       const results = Object.fromEntries(routeEntries);
       const selectedMode = results[tripRoutePlan.selectedMode] ? tripRoutePlan.selectedMode : 'car';
       const activeRoute = results[selectedMode] || results.car;
+      const travelIssues = getTravelTimeIssues(
+        activeRoute?.optimizedPoints || dayPoints,
+        selectedMode
+      );
 
       setTripRoutePlan((current) => ({
         ...current,
@@ -1804,7 +1996,8 @@ function TripDetailsPage() {
         selectedMode,
         selectedRouteId: activeRoute?.id || '',
         status: 'success',
-        message: activeRoute?.message || '',
+        message: [scheduleAwareRoute.message, activeRoute?.message].filter(Boolean).join(' '),
+        scheduleIssues: [...dayScheduleIssues, ...travelIssues],
       }));
     } catch (error) {
       setTripRoutePlan((current) => ({
@@ -1815,6 +2008,7 @@ function TripDetailsPage() {
         selectedRouteId: '',
         status: 'error',
         message: error.message || 'Unable to optimize this day route.',
+        scheduleIssues: dayScheduleIssues,
       }));
     }
   };
@@ -1825,11 +2019,16 @@ function TripDetailsPage() {
    */
   const selectDayRouteMode = (modeId) => {
     const modeRoute = tripRoutePlan.results[modeId];
+    const baseScheduleIssues = (tripRoutePlan.scheduleIssues || [])
+      .filter((issue) => issue.type !== 'travel-conflict');
+    const travelIssues = getTravelTimeIssues(modeRoute?.optimizedPoints || tripRoutePlan.points, modeId);
+
     setTripRoutePlan((current) => ({
       ...current,
       selectedMode: modeId,
       selectedRouteId: modeRoute?.id || '',
       message: modeRoute?.message || '',
+      scheduleIssues: [...baseScheduleIssues, ...travelIssues],
     }));
   };
 
@@ -1846,6 +2045,7 @@ function TripDetailsPage() {
       selectedRouteId: '',
       status: 'idle',
       message: '',
+      scheduleIssues: [],
     }));
   };
 
@@ -2645,6 +2845,18 @@ function TripDetailsPage() {
                 </section>
               )}
 
+              {activeDayScheduleIssues.length ? (
+                <section className="trip-schedule-alerts" aria-label="Schedule warnings">
+                  <strong>
+                    <AlertTriangle size={15} aria-hidden="true" />
+                    Schedule needs attention
+                  </strong>
+                  {activeDayScheduleIssues.slice(0, 3).map((issue) => (
+                    <p key={`${issue.type}-${issue.itemId}-${issue.relatedItemId || ''}`}>{issue.message}</p>
+                  ))}
+                </section>
+              ) : null}
+
               {/* Day location row */}
               {activeDay && (
                 <section className="trip-day-location-row">
@@ -2943,6 +3155,8 @@ function TripDetailsPage() {
                           startTime: item.startTime,
                           endTime: item.endTime,
                         });
+                        const itemScheduleWarnings = activeDayScheduleIssues
+                          .filter((issue) => issue.itemId === item._id || issue.relatedItemId === item._id);
 
                         return (
                         <article className="trip-itinerary-item" key={item._id}>
@@ -3044,6 +3258,12 @@ function TripDetailsPage() {
                               {itemTimeWarning}
                             </p>
                           ) : null}
+                          {itemScheduleWarnings.map((issue) => (
+                            <p className="trip-opening-warning" key={`${issue.type}-${issue.itemId}-${issue.relatedItemId || ''}`}>
+                              <AlertTriangle size={14} aria-hidden="true" />
+                              {issue.message}
+                            </p>
+                          ))}
                         </article>
                         );
                       })}
@@ -3376,6 +3596,16 @@ function TripDetailsPage() {
                     <strong>{routeModes.find((mode) => mode.id === tripRoutePlan.selectedMode)?.label}</strong>
                     <span>{formatRouteDuration(selectedTripRoute?.durationSeconds)} · {formatRouteDistance(selectedTripRoute?.distanceMeters)}</span>
                   </div>
+                  {tripRoutePlan.scheduleIssues?.length ? (
+                    <div className="trip-route-conflicts" aria-label="Route schedule warnings">
+                      {tripRoutePlan.scheduleIssues.map((issue) => (
+                        <p key={`${issue.type}-${issue.itemId}-${issue.relatedItemId || ''}`}>
+                          <AlertTriangle size={14} aria-hidden="true" />
+                          {issue.message}
+                        </p>
+                      ))}
+                    </div>
+                  ) : null}
                   <ol className="trip-day-route-order">
                     {tripRouteMapPlaces.map((place, index) => (
                       <li
@@ -3393,7 +3623,13 @@ function TripDetailsPage() {
                         <span>{index + 1}</span>
                         <div>
                           <strong>{place.title || place.name || `Stop ${index + 1}`}</strong>
-                          <small>{index === 0 ? 'Go here first' : index === tripRouteMapPlaces.length - 1 ? 'Final stop' : `Then continue to stop ${index + 1}`}</small>
+                          <small>
+                            {place.startTime
+                              ? `${place.startTime}${place.endTime ? ` - ${place.endTime}` : ''} · locked time`
+                              : 'Flexible stop'}
+                            {' · '}
+                            {index === 0 ? 'Go here first' : index === tripRouteMapPlaces.length - 1 ? 'Final stop' : `Then continue to stop ${index + 1}`}
+                          </small>
                         </div>
                       </li>
                     ))}
