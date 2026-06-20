@@ -28,6 +28,7 @@ const createTransporter = () => {
     host: env.smtpHost,
     port: env.smtpPort,
     secure: env.smtpSecure,
+    family: 4,
     auth: {
       user: env.smtpUser,
       pass: env.smtpPass,
