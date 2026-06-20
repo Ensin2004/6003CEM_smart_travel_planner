@@ -3,7 +3,7 @@
  * Request handlers translate HTTP input into service calls and response payloads.
  */
 const catchAsync = require('../../utils/catchAsync');
-const sendSuccess = require('../../utils/apiResponse');
+const { sendSuccess } = require('../../utils/apiResponse');
 const ensureApiResult = require('../../utils/ensureApiResult');
 const travelGuideService = require('./travelGuide.service');
 
