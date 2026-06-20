@@ -79,7 +79,6 @@ const userSchema = new mongoose.Schema(
     notificationPreferences: {
       notificationsOff: { type: Boolean, default: false },  // Master toggle for all notifications
       tripAlerts: { type: Boolean, default: true },  // Trip-related notifications
-      weatherAlerts: { type: Boolean, default: true },  // Weather updates
       packingReminder: { type: Boolean, default: true },  // Packing list reminders
       errorLogs: { type: Boolean, default: true },  // Error notifications
       systemAlerts: { type: Boolean, default: true },  // System notifications

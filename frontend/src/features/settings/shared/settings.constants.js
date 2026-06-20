@@ -20,7 +20,7 @@ export const sections = [
 
 // Notification preference labels organized by user role
 // Admin notifications include system alerts, error logs, and feedback monitoring
-// User notifications include trip planning, weather, and packing reminders
+// User notifications include trip planning and packing reminders
 export const notificationCopy = {
   admin: [
     ['errorLogs', 'Error logs'],
@@ -29,7 +29,6 @@ export const notificationCopy = {
   ],
   user: [
     ['tripAlerts', 'Trip alerts'],
-    ['weatherAlerts', 'Weather alerts'],
     ['packingReminder', 'Packing reminder'],
   ],
 };
@@ -38,7 +37,6 @@ export const notificationCopy = {
 // Combines both admin and user notification types
 export const allNotificationKeys = [
   'tripAlerts',
-  'weatherAlerts',
   'packingReminder',
   'errorLogs',
   'systemAlerts',
@@ -50,7 +48,6 @@ export const allNotificationKeys = [
 export const defaultNotificationPreferences = {
   notificationsOff: false,
   tripAlerts: true,
-  weatherAlerts: true,
   packingReminder: true,
   errorLogs: true,
   systemAlerts: true,

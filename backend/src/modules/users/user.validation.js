@@ -44,7 +44,6 @@ const updateMeRules = [
   // Notification preference flags must be boolean values when provided.
   body('notificationPreferences.notificationsOff').optional().isBoolean(),
   body('notificationPreferences.tripAlerts').optional().isBoolean(),
-  body('notificationPreferences.weatherAlerts').optional().isBoolean(),
   body('notificationPreferences.packingReminder').optional().isBoolean(),
   body('notificationPreferences.errorLogs').optional().isBoolean(),
   body('notificationPreferences.systemAlerts').optional().isBoolean(),
