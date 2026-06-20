@@ -1051,6 +1051,19 @@
   background: #eff6ff;
   color: #1d4ed8 !important;
 }
+.trip-allocation-card.is-danger {
+  border-color: #fecaca;
+  background:
+    linear-gradient(135deg, rgba(254, 242, 242, 0.96), rgba(255, 255, 255, 0.94)),
+    #ffffff;
+}
+.trip-allocation-card.is-danger .trip-statistic-card-icon {
+  background: #fee2e2;
+  color: #dc2626 !important;
+}
+.trip-allocation-card.is-danger .trip-budget-remaining strong {
+  color: #b91c1c;
+}
 
 /**
  * Primary value display with two-column layout for amount and controls
@@ -1104,6 +1117,12 @@
 .trip-budget-input small {
   color: #475569;
   font-weight: 650;
+}
+.trip-budget-note {
+  margin: -2px 0 0;
+  color: #475569 !important;
+  font-size: 11px !important;
+  line-height: 1.4 !important;
 }
 
 /**
@@ -2181,6 +2200,15 @@
   padding: 0 8px;
   font: inherit;
   font-size: 12px;
+}
+.trip-item-cost-control {
+  grid-column: 1 / -1;
+}
+.trip-item-cost-control small {
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.35;
 }
 
 /**
@@ -3381,6 +3409,13 @@
   color: #0f172a;
   font-size: 12px;
   font-weight: 650;
+}
+.trip-place-facts dd small {
+  display: block;
+  margin-top: 3px;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 600;
 }
 
 /**

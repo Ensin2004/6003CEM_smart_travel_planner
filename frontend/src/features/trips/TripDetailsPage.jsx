@@ -290,6 +290,49 @@ const formatIdeaPlace = (place, categoryId) => ({
   summary: place.summary || place.category || 'Place result from map data.',
   type: 'idea',
 });
+
+const unavailablePricePattern = /unavailable|unknown|not available|n\/a/i;
+
+const getPlacePriceSuggestionText = (place = {}) => {
+  const text = place.priceDetail?.display || place.price || place.priceEstimate?.suggestionText || '';
+  if (!text || unavailablePricePattern.test(String(text))) return '';
+  return String(text).trim().slice(0, 160);
+};
+
+const getPlacePriceSuggestionAmount = (place = {}) => {
+  const directAmount = Number(place.priceDetail?.amount ?? place.priceEstimate?.amount);
+  if (Number.isFinite(directAmount) && directAmount >= 0) return directAmount;
+
+  const suggestionText = getPlacePriceSuggestionText(place);
+  if (!suggestionText) return null;
+  if (/\bfree\b/i.test(suggestionText)) return 0;
+
+  const amounts = [...suggestionText.replace(/,/g, '').matchAll(/\d+(?:\.\d+)?/g)]
+    .map((match) => Number(match[0]))
+    .filter((amount) => Number.isFinite(amount));
+
+  if (!amounts.length) return null;
+  return Math.round(Math.min(...amounts) * 100) / 100;
+};
+
+const buildPlacePriceEstimate = (place = {}, currencyCode = 'MYR') => {
+  const suggestionText = getPlacePriceSuggestionText(place);
+  const suggestionAmount = getPlacePriceSuggestionAmount(place);
+
+  return {
+    amount: Number.isFinite(suggestionAmount) ? suggestionAmount : 0,
+    currency: currencyCode,
+    source: suggestionText ? 'api' : 'manual',
+    suggestionText,
+  };
+};
+
+const getPriceEstimateLabel = (priceEstimate = {}) => {
+  if (priceEstimate.source === 'api') return 'API suggestion, editable';
+  if (priceEstimate.source === 'ai') return 'AI suggestion, editable';
+  return 'Manual estimate';
+};
+
 const enrichIdeaPlacesWithDetails = async (ideas = []) => {
   const results = await Promise.allSettled(ideas.map(async (idea) => {
     try {
@@ -1214,6 +1257,7 @@ function TripDetailsPage() {
   const tripCurrency = trip?.budget?.currency || currency?.selectedCurrency || 'MYR';
   const activeDayBudget = Number(activeDay?.budget?.amount || 0);
   const activeDaySpend = activeDayItems.reduce((total, item) => total + Number(item.priceEstimate?.amount || 0), 0);
+  const activeDaySuggestedCostCount = activeDayItems.filter((item) => ['api', 'ai'].includes(item.priceEstimate?.source)).length;
   const activeDayBudgetDelta = activeDayBudget - activeDaySpend;
   const activeDayBudgetStatus = activeDayBudget <= 0
     ? {
@@ -1230,7 +1274,9 @@ function TripDetailsPage() {
         text: `${currency?.formatAmount ? currency.formatAmount(activeDayBudgetDelta, tripCurrency) : activeDayBudgetDelta} remaining`,
       };
   const totalBudget = Number(trip?.budget?.totalAmount || 0);
-  const remainingBudget = Math.max(0, totalBudget - plannedBudget);
+  const tripBudgetDelta = totalBudget - plannedBudget;
+  const remainingBudget = Math.max(0, tripBudgetDelta);
+  const isTripBudgetOverAllocated = totalBudget > 0 && tripBudgetDelta < 0;
   const plannedBudgetPercent = totalBudget ? Math.min(100, Math.round((plannedBudget / totalBudget) * 100)) : 0;
   const activeDaySpendPercent = activeDayBudget ? Math.min(100, Math.round((activeDaySpend / activeDayBudget) * 100)) : 0;
 
@@ -1796,7 +1842,15 @@ function TripDetailsPage() {
     setItems((currentItems) =>
       currentItems.map((currentItem) =>
         currentItem._id === item._id
-          ? { ...currentItem, priceEstimate: { amount: Number(amount) || 0, currency: tripCurrency } }
+          ? {
+            ...currentItem,
+            priceEstimate: {
+              ...currentItem.priceEstimate,
+              amount: Number(amount) || 0,
+              currency: currentItem.priceEstimate?.currency || tripCurrency,
+              source: 'manual',
+            },
+          }
           : currentItem
       )
     );
@@ -1812,6 +1866,8 @@ function TripDetailsPage() {
       priceEstimate: {
         amount: Number(item?.priceEstimate?.amount || 0),
         currency: item?.priceEstimate?.currency || tripCurrency,
+        source: 'manual',
+        suggestionText: item?.priceEstimate?.suggestionText || '',
       },
     });
   };
@@ -2232,7 +2288,7 @@ function TripDetailsPage() {
         imageUrls: ideaImageCandidates,
         source: 'openstreetmap',
         externalId: idea.id,
-        priceEstimate: { amount: 0, currency: tripCurrency },
+        priceEstimate: buildPlacePriceEstimate(idea, tripCurrency),
       });
       const savedItem = response.data?.data?.item;
 
@@ -2969,7 +3025,7 @@ function TripDetailsPage() {
                   <div className="trip-statistic-card-main">
                     <div className="trip-budget-summary-value">
                       <strong>{currency?.formatAmount ? currency.formatAmount(activeDaySpend, tripCurrency) : `${tripCurrency} ${activeDaySpend}`}</strong>
-                      <span>spent today</span>
+                      <span>estimated spend today</span>
                     </div>
                     {activeDay ? (
                       <label className="trip-budget-input" title="Daily budget for this itinerary day. Item estimates below count against this amount.">
@@ -2990,11 +3046,15 @@ function TripDetailsPage() {
                       </label>
                     ) : null}
                   </div>
+                  <small className="trip-budget-note">
+                    Day budget is your planned allowance. Place costs are editable estimates
+                    {activeDaySuggestedCostCount ? `, including ${activeDaySuggestedCostCount} imported suggestion${activeDaySuggestedCostCount === 1 ? '' : 's'}` : ''}.
+                  </small>
                   <span className="trip-budget-bar is-day"><em style={{ width: `${activeDaySpendPercent}%` }} /></span>
                 </div>
 
                 {/* Trip allocation card */}
-                <div className="trip-statistic-card trip-allocation-card">
+                <div className={`trip-statistic-card trip-allocation-card${isTripBudgetOverAllocated ? ' is-danger' : ''}`}>
                   <div className="trip-statistic-card-header">
                     <span className="trip-statistic-card-icon"><DollarSign size={16} aria-hidden="true" /></span>
                     <div>
@@ -3009,8 +3069,12 @@ function TripDetailsPage() {
                       <span>of {currency?.formatAmount ? currency.formatAmount(totalBudget, tripCurrency) : totalBudget}</span>
                     </div>
                     <div className="trip-budget-remaining">
-                      <span>Unallocated</span>
-                      <strong>{currency?.formatAmount ? currency.formatAmount(remainingBudget, tripCurrency) : remainingBudget}</strong>
+                      <span>{isTripBudgetOverAllocated ? 'Over allocated' : 'Unallocated'}</span>
+                      <strong>
+                        {currency?.formatAmount
+                          ? currency.formatAmount(isTripBudgetOverAllocated ? Math.abs(tripBudgetDelta) : remainingBudget, tripCurrency)
+                          : isTripBudgetOverAllocated ? Math.abs(tripBudgetDelta) : remainingBudget}
+                      </strong>
                     </div>
                   </div>
                   <span className="trip-budget-bar"><em style={{ width: `${plannedBudgetPercent}%` }} /></span>
@@ -3150,6 +3214,8 @@ function TripDetailsPage() {
                         const itemPreviewUrl = getTripPlaceImageSrc(item, itemPoint, 15);
                         const visitedPayload = getItemVisitedPayload(item);
                         const visitedRecord = visitedLookup[visitedPayload.placeKey];
+                        const priceEstimateLabel = getPriceEstimateLabel(item.priceEstimate);
+                        const priceSuggestionText = item.priceEstimate?.suggestionText || '';
                         const itemTimeWarning = getOpeningWarning({
                           hoursText: item.description,
                           startTime: item.startTime,
@@ -3241,8 +3307,8 @@ function TripDetailsPage() {
                                 onBlur={() => saveItemTime(item._id)}
                               />
                             </label>
-                            <label>
-                              <span>Cost</span>
+                            <label className="trip-item-cost-control">
+                              <span>Estimated cost</span>
                               <input
                                 type="number"
                                 min="0"
@@ -3250,6 +3316,10 @@ function TripDetailsPage() {
                                 onChange={(event) => updateItemPriceLocal(item, event.target.value)}
                                 onBlur={() => saveItemPrice(item._id)}
                               />
+                              <small>
+                                {priceEstimateLabel}
+                                {priceSuggestionText ? ` · Suggested: ${priceSuggestionText}` : ''}
+                              </small>
                             </label>
                           </div>
                           {itemTimeWarning ? (
@@ -3527,7 +3597,10 @@ function TripDetailsPage() {
                   </div>
                   <div>
                     <dt><DollarSign size={14} aria-hidden="true" /> Price</dt>
-                    <dd>{selectedIdea.price || 'Price unavailable'}</dd>
+                    <dd>
+                      {selectedIdea.price || 'Price unavailable'}
+                      {getPlacePriceSuggestionText(selectedIdea) ? <small>Suggestion only. You can edit the estimate after adding.</small> : null}
+                    </dd>
                   </div>
                   <div>
                     <dt><MapPin size={14} aria-hidden="true" /> Address</dt>

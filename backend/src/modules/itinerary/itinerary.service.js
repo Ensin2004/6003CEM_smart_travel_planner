@@ -6,6 +6,23 @@ const AppError = require('../../utils/AppError');
 const tripRepository = require('../trips/trip.repository');
 const itineraryRepository = require('./itinerary.repository');
 
+const allowedPriceEstimateSources = new Set(['manual', 'api', 'ai']);
+
+const normalizePriceEstimate = (priceEstimate) => {
+  if (!priceEstimate) return undefined;
+
+  const source = allowedPriceEstimateSources.has(priceEstimate.source)
+    ? priceEstimate.source
+    : 'manual';
+
+  return {
+    amount: Number(priceEstimate.amount) || 0,
+    currency: (priceEstimate.currency || 'MYR').toString().toUpperCase(),
+    source,
+    suggestionText: priceEstimate.suggestionText?.toString().trim().slice(0, 160) || '',
+  };
+};
+
 /**
  * Add Days builds a new record from validated input.
  * Adds a specified number of days to a date.
@@ -176,14 +193,9 @@ const createItem = async (tripId, userId, data) => {
 
   return itineraryRepository.createItem({
     ...data,
+    priceEstimate: normalizePriceEstimate(data.priceEstimate),
     tripId,
     userId,
-    priceEstimate: data.priceEstimate
-      ? {
-          amount: Number(data.priceEstimate.amount) || 0,
-          currency: (data.priceEstimate.currency || 'MYR').toString().toUpperCase(),
-        }
-      : undefined,
   });
 };
 
@@ -198,7 +210,10 @@ const createItem = async (tripId, userId, data) => {
  * @throws {AppError} If item not found
  */
 const updateItem = async (itemId, userId, data) => {
-  const item = await itineraryRepository.updateItemByIdAndUserId(itemId, userId, data);
+  const item = await itineraryRepository.updateItemByIdAndUserId(itemId, userId, {
+    ...data,
+    ...(data.priceEstimate ? { priceEstimate: normalizePriceEstimate(data.priceEstimate) } : {}),
+  });
   if (!item) throw new AppError('Itinerary item not found', 404);
   return item;
 };

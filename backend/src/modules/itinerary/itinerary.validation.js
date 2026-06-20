@@ -61,6 +61,8 @@ const createItemRules = [
   // Price estimate - amount must be non-negative, currency must be 3 letters
   body('priceEstimate.amount').optional().isFloat({ min: 0 }),
   body('priceEstimate.currency').optional().trim().isLength({ min: 3, max: 3 }),
+  body('priceEstimate.source').optional().isIn(['manual', 'api', 'ai']),
+  body('priceEstimate.suggestionText').optional({ checkFalsy: true }).trim().isLength({ max: 160 }),
 ];
 
 /**
@@ -82,6 +84,8 @@ const updateItemRules = [
   body('endTime').optional().trim().isLength({ max: 20 }),
   body('priceEstimate.amount').optional().isFloat({ min: 0 }),
   body('priceEstimate.currency').optional().trim().isLength({ min: 3, max: 3 }),
+  body('priceEstimate.source').optional().isIn(['manual', 'api', 'ai']),
+  body('priceEstimate.suggestionText').optional({ checkFalsy: true }).trim().isLength({ max: 160 }),
 ];
 
 module.exports = {
