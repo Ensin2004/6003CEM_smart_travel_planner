@@ -385,7 +385,7 @@ function ExplorePage() {
         searchTitle: 'Search for hotels',
         resultLabel: 'Hotel results',
         emptyTitle: 'No hotels loaded yet',
-        emptyText: 'Select a country, then optionally narrow the search by hotel name, location, or room type.',
+        emptyText: 'Search by hotel name, location, room type, or optionally narrow by country.',
         readyText: 'Search text or filters can begin',
         matchesLabel: 'hotel matches',
       }
@@ -395,7 +395,7 @@ function ExplorePage() {
           searchTitle: 'Search for food',
           resultLabel: 'Restaurant results',
           emptyTitle: 'No restaurants loaded yet',
-          emptyText: 'Select a country, then optionally narrow the search by restaurant name, location, or food category.',
+          emptyText: 'Search by restaurant name, location, food category, or optionally narrow by country.',
           readyText: 'Search text or filters can begin',
           matchesLabel: 'restaurant matches',
         }
@@ -404,7 +404,7 @@ function ExplorePage() {
         searchTitle: 'Search for attractions',
         resultLabel: 'Attraction results',
         emptyTitle: 'No attractions loaded yet',
-        emptyText: 'Select a country, then optionally narrow the search by attraction name, location, or category.',
+        emptyText: 'Search by attraction name, location, category, or optionally narrow by country.',
         readyText: 'Search text or filters can begin',
         matchesLabel: 'curated matches',
       };
@@ -1064,9 +1064,9 @@ function ExplorePage() {
   const handleFlightSearch = async (event) => {
     event.preventDefault();
 
-    if (!flightSearch.airlineName.trim() && !flightSearch.fromCountryCode && !flightSearch.toCountryCode) {
+    if (!flightSearch.fromCountryCode && !flightSearch.toCountryCode) {
       setErrorScope('transport:flights');
-      setError('Enter an airline name or select at least one country.');
+      setError('Select at least one country before searching flights.');
       return;
     }
 

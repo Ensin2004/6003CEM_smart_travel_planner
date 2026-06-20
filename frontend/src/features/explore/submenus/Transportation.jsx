@@ -489,7 +489,7 @@ function TransportationSubmenu({
               </div>
               <p>
                 <Clock size={15} aria-hidden="true" />
-                You can search by route, airline, or both.
+                Choose at least one country, then optionally narrow by airline or date.
               </p>
             </div>
             <div className="explore-transport-route-row">
@@ -730,7 +730,7 @@ function TransportationSubmenu({
                 <h3 className={flightResults && !flightResults.available ? 'form-error' : undefined}>
                   {flightResults?.message || 'Search by route'}
                 </h3>
-                <p>Enter an airline name, choose one or both countries, and optionally set a departure date.</p>
+                <p>Choose one or both countries, then optionally add airline name and departure date.</p>
               </div>
             </section>
           )}
