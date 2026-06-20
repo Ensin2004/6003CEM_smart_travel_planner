@@ -69,6 +69,12 @@ const formatCategoryLabel = (category = 'none') =>
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 
+const formatRoleLabel = (role = 'user') => {
+  if (role === 'user') return 'Traveller';
+  if (role === 'admin') return 'Admin';
+  return formatCategoryLabel(role);
+};
+
 // ManageUsersPage renders the main screen and handles nearby interactions.
 // Main component for user management with filtering, removal, and activity viewing
 function ManageUsersPage() {
@@ -455,7 +461,7 @@ function ManageUsersPage() {
                     </button>
                   </td>
                   <td>
-                    <span className={`manage-users-role manage-users-role-${user.role}`}>{user.role}</span>
+                    <span className={`manage-users-role manage-users-role-${user.role}`}>{formatRoleLabel(user.role)}</span>
                   </td>
                   <td>
                     <span className={`manage-users-badge manage-users-badge-${user.status}`}>{user.status}</span>
@@ -560,7 +566,7 @@ function ManageUsersPage() {
 
             <div className="manage-users-activity-summary">
               <span>{activityUser.email}</span>
-              <span>{formatCategoryLabel(activityUser.role)}</span>
+              <span>{formatRoleLabel(activityUser.role)}</span>
               <span>{formatCategoryLabel(activityUser.status)}</span>
               <span>{activityUser.country || 'Country not set'}</span>
             </div>
