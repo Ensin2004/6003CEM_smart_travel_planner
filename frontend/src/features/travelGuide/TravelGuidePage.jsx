@@ -73,7 +73,7 @@ const getFallbackTravelImage = (name = '') => {
 };
 
 // DestinationCard renders the main screen and handles nearby interactions.
-function DestinationCard({ destination, onOpen, visitedRecord, onVisitedChange }) {
+function DestinationCard({ destination, hideActions = false, onOpen, visitedRecord, onVisitedChange }) {
   // Memoized image candidates with fallback handling
   const imageCandidates = useMemo(
     () => [...new Set([destination.imageUrl, ...(destination.imageUrls || []), getFallbackTravelImage(destination.name)].filter(Boolean))],
@@ -83,12 +83,14 @@ function DestinationCard({ destination, onOpen, visitedRecord, onVisitedChange }
   const imageUrl = imageCandidates[Math.min(failedImageCount, imageCandidates.length - 1)];
   
   // Prepare visited place payload for tracking
-  const visitedPayload = getVisitedPlacePayload({
-    item: destination,
-    type: 'location',
-    source: 'travel-guide',
-    defaultDate: new Date().toISOString().slice(0, 10),
-  });
+  const visitedPayload = hideActions
+    ? null
+    : getVisitedPlacePayload({
+      item: destination,
+      type: 'location',
+      source: 'travel-guide',
+      defaultDate: new Date().toISOString().slice(0, 10),
+    });
   
   // Prepare compare item data
   const compareItem = {
@@ -114,7 +116,7 @@ function DestinationCard({ destination, onOpen, visitedRecord, onVisitedChange }
       }}
     >
       {/* Visited watermark overlay */}
-      {visitedRecord ? (
+      {!hideActions && visitedRecord ? (
         <span className="visited-place-watermark">
           <CheckCircle2 size={13} aria-hidden="true" />
           Visited
@@ -137,13 +139,17 @@ function DestinationCard({ destination, onOpen, visitedRecord, onVisitedChange }
       {destination.region && <small>{destination.region}</small>}
       
       {/* Visited place control and compare button */}
-      <VisitedPlaceControl
-        compact
-        payload={visitedPayload}
-        visitedRecord={visitedRecord}
-        onVisitedChange={onVisitedChange}
-      />
-      <CompareButton item={compareItem} />
+      {!hideActions ? (
+        <>
+          <VisitedPlaceControl
+            compact
+            payload={visitedPayload}
+            visitedRecord={visitedRecord}
+            onVisitedChange={onVisitedChange}
+          />
+          <CompareButton item={compareItem} />
+        </>
+      ) : null}
     </article>
   );
 }
@@ -579,6 +585,7 @@ function TravelGuidePage() {
               {filteredDestinations.map((destination) => (
                 <DestinationCard
                   destination={destination}
+                  hideActions={isCountryDirectory}
                   key={`${destination.id}-${destination.name}`}
                   onOpen={openDestination}
                   onVisitedChange={handleVisitedChange}
