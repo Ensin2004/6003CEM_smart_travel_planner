@@ -6,7 +6,7 @@
  * display, day management, place search, AI assistance, budget tracking,
  * weather integration, and map visualization.
  */
-import { useContext, useEffect, useMemo, useState } from 'react';
+import { useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import { Country, State } from 'country-state-city';
 import { toast } from 'react-toastify';
@@ -56,7 +56,7 @@ import {
   updateItineraryDay,
   updateItineraryItem,
 } from '../../api/itineraryApi';
-import { getTripAiRecommendations } from '../../api/aiAssistantApi';
+import { getTripAiRecommendations, getWeatherPlaceRanking } from '../../api/aiAssistantApi';
 import { searchAttractions, searchHotels, searchRestaurants, searchWeather } from '../../api/exploreApi';
 import { getTripSummary, updateTrip } from '../../api/tripApi';
 import {
@@ -102,6 +102,14 @@ const routeModes = [
   { id: 'walking', label: 'Walk', icon: Footprints },
   { id: 'bike', label: 'Bike', icon: Bike },
 ];
+
+const routeModeSpeedsKph = {
+  walking: 5,
+  car: 45,
+  bike: 16,
+  train: 80,
+  plane: 700,
+};
 const tripPanelMinWidth = 320;
 const tripPanelMaxWidth = 560;
 const formatRouteDuration = (seconds) => {
@@ -177,6 +185,26 @@ const categoryTextSearchTerms = {
   attractions: ['attractions', 'things to do', 'museums', 'landmarks', 'parks'],
   hotels: ['hotels', 'places to stay', 'resorts', 'hostels', 'guest houses'],
   train: ['train stations', 'railway stations', 'bus stations', 'transport hubs', 'airports'],
+  shopping: ['shopping malls', 'shopping centres', 'markets', 'local shops'],
+};
+
+const weatherIdeaProfiles = {
+  rainy: {
+    label: 'Rain-friendly',
+    reason: 'AI-ranked for wet weather',
+  },
+  sunny: {
+    label: 'Sunny-day',
+    reason: 'AI-ranked for sunny weather',
+  },
+  cold: {
+    label: 'Cold-weather',
+    reason: 'AI-ranked for cold weather',
+  },
+  comfortable: {
+    label: 'Comfortable-weather',
+    reason: 'AI-ranked for today weather',
+  },
 };
 
 /**
@@ -205,6 +233,43 @@ const getUniquePlaces = (places = []) => {
   return [...uniquePlaces.values()];
 };
 
+const getWeatherCandidateId = (place = {}, category = '', index = 0) =>
+  String(place.id || place.placeId || place.externalId || `${category}-${place.name || place.title}-${place.address || place.displayName || index}`)
+    .trim()
+    .slice(0, 160);
+
+const toWeatherCandidate = (place = {}, category = '', index = 0) => ({
+  id: getWeatherCandidateId(place, category, index),
+  name: String(place.name || place.title || place.displayName || 'Unnamed place').trim().slice(0, 180),
+  category: String(place.categoryId || place.category || category || '').trim().slice(0, 60),
+  address: String(place.address || place.displayName || '').trim().slice(0, 240),
+  summary: String(place.summary || place.description || place.type || '').trim().slice(0, 320),
+  rating: Number(place.rating) || undefined,
+  price: String(place.price || place.priceDetail?.display || '').trim().slice(0, 80),
+  hours: String(place.hours || place.hoursSummary || place.openState || '').trim().slice(0, 120),
+});
+
+const getWeatherIdeaProfile = (weatherGuidance, isEnabled) => {
+  if (!isEnabled || !weatherGuidance?.available) return null;
+  return weatherIdeaProfiles[weatherGuidance.mode] || weatherIdeaProfiles.comfortable;
+};
+
+const applyWeatherRanking = (places, category, profile) => {
+  if (!profile) return places;
+
+  return [...places]
+    .map((place) => ({
+      ...place,
+      weatherScore: Number(place.rating || 0) || 0,
+      weatherReason: profile.reason,
+      weatherProfileLabel: profile.label,
+    }))
+    .sort((firstPlace, secondPlace) =>
+      Number(secondPlace.weatherScore || 0) - Number(firstPlace.weatherScore || 0)
+      || Number(secondPlace.rating || 0) - Number(firstPlace.rating || 0)
+    );
+};
+
 /**
  * Format Idea Place converts raw values into readable display text.
  * Normalizes place data structure for consistent rendering across the application
@@ -225,6 +290,49 @@ const formatIdeaPlace = (place, categoryId) => ({
   summary: place.summary || place.category || 'Place result from map data.',
   type: 'idea',
 });
+
+const unavailablePricePattern = /unavailable|unknown|not available|n\/a/i;
+
+const getPlacePriceSuggestionText = (place = {}) => {
+  const text = place.priceDetail?.display || place.price || place.priceEstimate?.suggestionText || '';
+  if (!text || unavailablePricePattern.test(String(text))) return '';
+  return String(text).trim().slice(0, 160);
+};
+
+const getPlacePriceSuggestionAmount = (place = {}) => {
+  const directAmount = Number(place.priceDetail?.amount ?? place.priceEstimate?.amount);
+  if (Number.isFinite(directAmount) && directAmount >= 0) return directAmount;
+
+  const suggestionText = getPlacePriceSuggestionText(place);
+  if (!suggestionText) return null;
+  if (/\bfree\b/i.test(suggestionText)) return 0;
+
+  const amounts = [...suggestionText.replace(/,/g, '').matchAll(/\d+(?:\.\d+)?/g)]
+    .map((match) => Number(match[0]))
+    .filter((amount) => Number.isFinite(amount));
+
+  if (!amounts.length) return null;
+  return Math.round(Math.min(...amounts) * 100) / 100;
+};
+
+const buildPlacePriceEstimate = (place = {}, currencyCode = 'MYR') => {
+  const suggestionText = getPlacePriceSuggestionText(place);
+  const suggestionAmount = getPlacePriceSuggestionAmount(place);
+
+  return {
+    amount: Number.isFinite(suggestionAmount) ? suggestionAmount : 0,
+    currency: currencyCode,
+    source: suggestionText ? 'api' : 'manual',
+    suggestionText,
+  };
+};
+
+const getPriceEstimateLabel = (priceEstimate = {}) => {
+  if (priceEstimate.source === 'api') return 'API suggestion, editable';
+  if (priceEstimate.source === 'ai') return 'AI suggestion, editable';
+  return 'Manual estimate';
+};
+
 const enrichIdeaPlacesWithDetails = async (ideas = []) => {
   const results = await Promise.allSettled(ideas.map(async (idea) => {
     try {
@@ -290,6 +398,173 @@ const parseTimeToMinutes = (time) => {
   const match = String(time || '').match(/^(\d{1,2}):(\d{2})$/);
   if (!match) return null;
   return Number(match[1]) * 60 + Number(match[2]);
+};
+
+const formatMinutesAsTime = (minutes) => {
+  const safeMinutes = Math.max(0, Math.round(Number(minutes) || 0));
+  const hour = Math.floor(safeMinutes / 60) % 24;
+  const minute = safeMinutes % 60;
+  return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
+};
+
+const getItemStartMinutes = (item) => parseTimeToMinutes(item?.startTime);
+const getItemEndMinutes = (item) => parseTimeToMinutes(item?.endTime);
+const hasLockedTime = (item) => getItemStartMinutes(item) !== null;
+
+const getPointDistanceMeters = (firstPoint, secondPoint) => {
+  const toRadians = (degrees) => degrees * (Math.PI / 180);
+  const earthRadiusMeters = 6371000;
+  const firstLat = toRadians(Number(firstPoint?.lat));
+  const secondLat = toRadians(Number(secondPoint?.lat));
+  const latDifference = toRadians(Number(secondPoint?.lat) - Number(firstPoint?.lat));
+  const lngDifference = toRadians(Number(secondPoint?.lng) - Number(firstPoint?.lng));
+  const haversineValue = Math.sin(latDifference / 2) ** 2
+    + Math.cos(firstLat) * Math.cos(secondLat) * Math.sin(lngDifference / 2) ** 2;
+
+  return earthRadiusMeters * 2 * Math.atan2(Math.sqrt(haversineValue), Math.sqrt(1 - haversineValue));
+};
+
+const getPathDistanceMeters = (points = []) => points.slice(1).reduce(
+  (total, point, index) => total + getPointDistanceMeters(points[index], point),
+  0
+);
+
+const getEstimatedTravelMinutes = (firstPoint, secondPoint, mode = 'car') => {
+  const speedKph = routeModeSpeedsKph[mode] || routeModeSpeedsKph.car;
+  const distanceMeters = getPointDistanceMeters(firstPoint, secondPoint);
+  return Math.ceil(distanceMeters / ((speedKph * 1000) / 60));
+};
+
+const sortItemsBySchedule = (items = []) => [...items].sort((firstItem, secondItem) => {
+  const firstStart = getItemStartMinutes(firstItem);
+  const secondStart = getItemStartMinutes(secondItem);
+
+  if (firstStart !== null || secondStart !== null) {
+    return (firstStart ?? Number.POSITIVE_INFINITY) - (secondStart ?? Number.POSITIVE_INFINITY)
+      || (getItemEndMinutes(firstItem) ?? Number.POSITIVE_INFINITY) - (getItemEndMinutes(secondItem) ?? Number.POSITIVE_INFINITY);
+  }
+
+  return new Date(firstItem.createdAt || 0) - new Date(secondItem.createdAt || 0);
+});
+
+const getScheduleIssues = (items = []) => {
+  const timedItems = sortItemsBySchedule(items).filter((item) => getItemStartMinutes(item) !== null);
+  const issues = [];
+
+  timedItems.forEach((item, index) => {
+    const start = getItemStartMinutes(item);
+    const end = getItemEndMinutes(item);
+
+    if (end !== null && end <= start) {
+      issues.push({
+        type: 'invalid-time',
+        itemId: item._id,
+        message: `${item.title}: end time should be later than start time.`,
+      });
+    }
+
+    const previous = timedItems[index - 1];
+    if (!previous) return;
+
+    const previousStart = getItemStartMinutes(previous);
+    const previousEnd = getItemEndMinutes(previous) ?? previousStart;
+
+    if (start === previousStart) {
+      issues.push({
+        type: 'duplicate-time',
+        itemId: item._id,
+        relatedItemId: previous._id,
+        message: `${item.title} and ${previous.title} are both scheduled at ${item.startTime}. Choose different times or mark one as flexible.`,
+      });
+    } else if (start < previousEnd) {
+      issues.push({
+        type: 'overlap',
+        itemId: item._id,
+        relatedItemId: previous._id,
+        message: `${item.title} overlaps with ${previous.title}. Adjust one time range.`,
+      });
+    }
+  });
+
+  return issues;
+};
+
+const getBestInsertionIndex = (routePoints, flexiblePoint) => {
+  if (!routePoints.length) return 0;
+
+  let bestIndex = routePoints.length;
+  let bestDistance = Number.POSITIVE_INFINITY;
+
+  for (let index = 0; index <= routePoints.length; index += 1) {
+    const nextPoints = [
+      ...routePoints.slice(0, index),
+      flexiblePoint,
+      ...routePoints.slice(index),
+    ];
+    const distance = getPathDistanceMeters(nextPoints);
+
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      bestIndex = index;
+    }
+  }
+
+  return bestIndex;
+};
+
+const getScheduleAwareRoutePoints = (points = []) => {
+  const timedPoints = [...points]
+    .filter(hasLockedTime)
+    .sort((firstPoint, secondPoint) => getItemStartMinutes(firstPoint) - getItemStartMinutes(secondPoint));
+  const flexiblePoints = points.filter((point) => !hasLockedTime(point));
+
+  if (!timedPoints.length) {
+    return {
+      points,
+      preserveOrder: false,
+      message: 'No fixed times found, so the route was optimized for shortest travel path.',
+    };
+  }
+
+  const orderedPoints = [...timedPoints];
+  flexiblePoints.forEach((point) => {
+    const insertAt = getBestInsertionIndex(orderedPoints, point);
+    orderedPoints.splice(insertAt, 0, point);
+  });
+
+  return {
+    points: orderedPoints,
+    preserveOrder: true,
+    message: flexiblePoints.length
+      ? 'Timed places are locked in chronological order. Flexible places were inserted where they best fit the route.'
+      : 'Timed places are locked in chronological order.',
+  };
+};
+
+const getTravelTimeIssues = (routePoints = [], mode = 'car') => {
+  const issues = [];
+
+  routePoints.slice(1).forEach((point, index) => {
+    const previous = routePoints[index];
+    const previousEnd = getItemEndMinutes(previous);
+    const nextStart = getItemStartMinutes(point);
+
+    if (previousEnd === null || nextStart === null) return;
+
+    const travelMinutes = getEstimatedTravelMinutes(previous, point, mode);
+    const arrivalMinutes = previousEnd + travelMinutes;
+
+    if (arrivalMinutes > nextStart) {
+      issues.push({
+        type: 'travel-conflict',
+        itemId: point.itineraryItemId || point.id,
+        relatedItemId: previous.itineraryItemId || previous.id,
+        message: `Conflict: ${previous.title || previous.name} ends at ${previous.endTime}, but travel to ${point.title || point.name} takes about ${travelMinutes} min. Earliest realistic time: ${formatMinutesAsTime(arrivalMinutes)}.`,
+      });
+    }
+  });
+
+  return issues;
 };
 
 /**
@@ -455,7 +730,7 @@ const getBrowserCurrentLocationCenter = () => new Promise((resolve) => {
  * Executes multiple queries and deduplicates results
  */
 const searchCategoryPlacesByText = async (category, locationQuery, options = {}) => {
-  const searchTerms = categoryTextSearchTerms[category] || [category];
+  const searchTerms = options.searchTerms || categoryTextSearchTerms[category] || [category];
   const trimmedLocation = String(locationQuery || '').trim();
 
   if (!trimmedLocation) return [];
@@ -637,6 +912,7 @@ function TripDetailsPage() {
   const [panelWidth, setPanelWidth] = useState(tripPanelMaxWidth);
   const [isAddingIdea, setIsAddingIdea] = useState(false);
   const [selectedIdeaSchedule, setSelectedIdeaSchedule] = useState({ startTime: '09:00', endTime: '10:00' });
+  const weatherRankingCacheRef = useRef(new Map());
   
   // Settings modal state
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -968,18 +1244,20 @@ function TripDetailsPage() {
   const hasOverflowDayTabs = days.length > visibleDayTabs.length;
 
   // Computed values for active day items and groupings
-  const activeDayItems = useMemo(() => getItemsForDay(items, activeDay || {}), [activeDay, items]);
+  const activeDayItems = useMemo(() => sortItemsBySchedule(getItemsForDay(items, activeDay || {})), [activeDay, items]);
   const visitedLookup = useMemo(() => buildVisitedLookup(visitedPlaces), [visitedPlaces]);
   const groupedDayItems = useMemo(() => itineraryGroups.map((group) => ({
     ...group,
-    items: activeDayItems.filter((item) => group.types.includes(item.type)),
+    items: sortItemsBySchedule(activeDayItems.filter((item) => group.types.includes(item.type))),
   })), [activeDayItems]);
+  const activeDayScheduleIssues = useMemo(() => getScheduleIssues(activeDayItems), [activeDayItems]);
 
   // Budget computation values
   const plannedBudget = days.reduce((total, day) => total + Number(day.budget?.amount || 0), 0);
   const tripCurrency = trip?.budget?.currency || currency?.selectedCurrency || 'MYR';
   const activeDayBudget = Number(activeDay?.budget?.amount || 0);
   const activeDaySpend = activeDayItems.reduce((total, item) => total + Number(item.priceEstimate?.amount || 0), 0);
+  const activeDaySuggestedCostCount = activeDayItems.filter((item) => ['api', 'ai'].includes(item.priceEstimate?.source)).length;
   const activeDayBudgetDelta = activeDayBudget - activeDaySpend;
   const activeDayBudgetStatus = activeDayBudget <= 0
     ? {
@@ -996,7 +1274,9 @@ function TripDetailsPage() {
         text: `${currency?.formatAmount ? currency.formatAmount(activeDayBudgetDelta, tripCurrency) : activeDayBudgetDelta} remaining`,
       };
   const totalBudget = Number(trip?.budget?.totalAmount || 0);
-  const remainingBudget = Math.max(0, totalBudget - plannedBudget);
+  const tripBudgetDelta = totalBudget - plannedBudget;
+  const remainingBudget = Math.max(0, tripBudgetDelta);
+  const isTripBudgetOverAllocated = totalBudget > 0 && tripBudgetDelta < 0;
   const plannedBudgetPercent = totalBudget ? Math.min(100, Math.round((plannedBudget / totalBudget) * 100)) : 0;
   const activeDaySpendPercent = activeDayBudget ? Math.min(100, Math.round((activeDaySpend / activeDayBudget) * 100)) : 0;
 
@@ -1023,6 +1303,99 @@ function TripDetailsPage() {
     ? `${Number(weather.windSpeed.max).toFixed(1)} ${weather.windSpeed.unit || 'km/h'} wind`
     : 'Wind unavailable';
   const WeatherModeIcon = weatherModeIcons[weatherGuidance?.mode] || CloudSun;
+  const activeWeatherIdeaProfile = getWeatherIdeaProfile(weatherGuidance, showWeatherHelp);
+  const weatherRecommendedCategories = activeWeatherIdeaProfile ? ideaCategories : [];
+  const addModeWeatherCategories = weatherRecommendedCategories
+    .filter((category) => itineraryGroups.some((group) => group.categoryId === category.id));
+
+  const rankIdeasForWeather = async (places, category, options = {}) => {
+    const profile = getWeatherIdeaProfile(weatherGuidance, showWeatherHelp);
+    const uniquePlaces = getUniquePlaces(places);
+
+    if (!profile || !weather?.available || !uniquePlaces.length) {
+      return uniquePlaces;
+    }
+
+    const placesWithCandidateIds = uniquePlaces.map((place, index) => ({
+      ...place,
+      weatherCandidateId: getWeatherCandidateId(place, category, index),
+    }));
+    const candidateIds = placesWithCandidateIds.map((place) => place.weatherCandidateId).join('|');
+    const cacheKey = JSON.stringify({
+      mode: weatherGuidance?.mode || '',
+      condition: weather?.condition || '',
+      date: activeDay?.date || '',
+      location: options.locationQuery || recommendationLocation || '',
+      category,
+      candidateIds,
+    });
+    const cachedRanking = weatherRankingCacheRef.current.get(cacheKey);
+
+    if (cachedRanking) return cachedRanking;
+
+    try {
+      const response = await getWeatherPlaceRanking({
+        weather: {
+          condition: weather.condition || '',
+          mode: weatherGuidance?.mode || '',
+          temperature: weatherTemperature,
+          precipitation: weatherRain,
+          wind: weatherWind,
+          travelTip: weather.travelTip || '',
+          placeTips: weatherGuidance?.placeTips || [],
+        },
+        trip: {
+          destination: trip?.destination || '',
+          country: trip?.country || '',
+        },
+        day: {
+          dayNumber: activeDay?.dayNumber,
+          location: getDayLocationQuery(activeDay, trip) || options.locationQuery || '',
+        },
+        category,
+        candidates: placesWithCandidateIds.map((place, index) => toWeatherCandidate({
+          ...place,
+          id: place.weatherCandidateId,
+        }, category, index)),
+      });
+      const ranking = response.data?.data?.ranking;
+
+      if (ranking?.available && Array.isArray(ranking.rankedPlaces) && ranking.rankedPlaces.length) {
+        const rankingMap = new Map(ranking.rankedPlaces.map((place, index) => [
+          place.id,
+          {
+            index,
+            score: Number(place.score) || 0,
+            reason: place.reason || ranking.summary || profile.reason,
+          },
+        ]));
+        const rankedPlaces = [...placesWithCandidateIds]
+          .map((place, index) => {
+            const rankedPlace = rankingMap.get(place.weatherCandidateId);
+            return {
+              ...place,
+              weatherScore: rankedPlace?.score ?? Number(place.rating || 0),
+              weatherReason: rankedPlace?.reason || profile.reason,
+              weatherProfileLabel: profile.label,
+              weatherRank: rankedPlace?.index ?? index + placesWithCandidateIds.length,
+            };
+          })
+          .sort((firstPlace, secondPlace) =>
+            Number(firstPlace.weatherRank || 0) - Number(secondPlace.weatherRank || 0)
+            || Number(secondPlace.weatherScore || 0) - Number(firstPlace.weatherScore || 0)
+          );
+
+        weatherRankingCacheRef.current.set(cacheKey, rankedPlaces);
+        return rankedPlaces;
+      }
+    } catch {
+      // Keep place search usable when AI quota/network is unavailable.
+    }
+
+    const fallbackRanking = applyWeatherRanking(placesWithCandidateIds, category, profile);
+    weatherRankingCacheRef.current.set(cacheKey, fallbackRanking);
+    return fallbackRanking;
+  };
 
   // Map and route computed values
   const activeDayMapCenter = activeDayNumber !== 'summary'
@@ -1048,6 +1421,9 @@ function TripDetailsPage() {
         price: item.priceEstimate?.amount
           ? `${item.priceEstimate.amount} ${item.priceEstimate.currency || tripCurrency}`
           : 'Price unavailable',
+        startTime: item.startTime || '',
+        endTime: item.endTime || '',
+        hours: item.description || '',
         lat: item.location?.coordinates?.coordinates?.[1],
         lng: item.location?.coordinates?.coordinates?.[0],
         dayNumber: itemDay?.dayNumber,
@@ -1171,11 +1547,15 @@ function TripDetailsPage() {
           limitPerTerm: 2,
           signal: controller.signal,
         }).catch(() => []);
-        const results = getUniquePlaces([...combinedResults, ...textResults]).slice(0, 3);
+        const results = (await rankIdeasForWeather(
+          getUniquePlaces([...combinedResults, ...textResults]),
+          group.categoryId,
+          { locationQuery: textLocationQuery }
+        )).slice(0, 3);
 
         const formattedIdeas = results.map((idea) => formatIdeaPlace({
             ...idea,
-            summary: idea.displayName || `${group.addLabel} near ${sourceLabel}`,
+            summary: idea.weatherReason || idea.displayName || `${group.addLabel} near ${sourceLabel}`,
           }, group.categoryId));
 
         return [
@@ -1209,7 +1589,7 @@ function TripDetailsPage() {
       isCancelled = true;
       controller.abort();
     };
-  }, [activeDay, activeDayNumber, activeTab, recommendationLocation, trip]);
+  }, [activeDay, activeDayNumber, activeTab, recommendationLocation, showWeatherHelp, trip, weather, weatherGuidance]);
 
   /**
    * Handles visited place changes by updating the visited places list
@@ -1462,7 +1842,15 @@ function TripDetailsPage() {
     setItems((currentItems) =>
       currentItems.map((currentItem) =>
         currentItem._id === item._id
-          ? { ...currentItem, priceEstimate: { amount: Number(amount) || 0, currency: tripCurrency } }
+          ? {
+            ...currentItem,
+            priceEstimate: {
+              ...currentItem.priceEstimate,
+              amount: Number(amount) || 0,
+              currency: currentItem.priceEstimate?.currency || tripCurrency,
+              source: 'manual',
+            },
+          }
           : currentItem
       )
     );
@@ -1478,6 +1866,8 @@ function TripDetailsPage() {
       priceEstimate: {
         amount: Number(item?.priceEstimate?.amount || 0),
         currency: item?.priceEstimate?.currency || tripCurrency,
+        source: 'manual',
+        suggestionText: item?.priceEstimate?.suggestionText || '',
       },
     });
   };
@@ -1517,13 +1907,15 @@ function TripDetailsPage() {
    * Loads place ideas based on category and search term
    * Queries multiple APIs and deduplicates results
    */
-  const loadIdeas = async (category = ideaCategory, searchTerm = ideaSearch) => {
+  const loadIdeas = async (category = '', searchTerm = ideaSearch) => {
     if (!trip) return;
     setIdeaStatus('loading');
-    setIdeaCategory(category);
     setSelectedIdea(null);
 
     try {
+      const weatherProfile = getWeatherIdeaProfile(weatherGuidance, showWeatherHelp && !searchTerm?.trim());
+      const activeCategory = category || ideaCategory;
+      setIdeaCategory(activeCategory);
       const ideaAnchorDay = activeDayNumber === 'summary' ? days[0] : activeDay;
       const explicitSearchTerm = searchTerm?.trim();
       let center = null;
@@ -1545,24 +1937,31 @@ function TripDetailsPage() {
       }
 
       const [exploreResults, providerResults, mapResults] = await Promise.all([
-        searchExploreCategoryPlaces(category, locationQuery, { limit: 12 }).catch(() => []),
-        searchProviderCategoryPlaces(category, center, locationQuery, { limit: 12 }).catch(() => []),
+        searchExploreCategoryPlaces(activeCategory, locationQuery, { limit: 12 }).catch(() => []),
+        searchProviderCategoryPlaces(activeCategory, center, locationQuery, { limit: 12 }).catch(() => []),
         center
-          ? searchOpenStreetMapCategoryPlaces(category, center, { limit: 12, radius: 0.35 }).catch(() => [])
+          ? searchOpenStreetMapCategoryPlaces(activeCategory, center, { limit: 12, radius: 0.35 }).catch(() => [])
           : Promise.resolve([]),
       ]);
       const combinedResults = getUniquePlaces([...exploreResults, ...providerResults, ...mapResults]);
       const textResults = combinedResults.length >= 6
         ? []
-        : await searchCategoryPlacesByText(category, locationQuery, {
+        : await searchCategoryPlacesByText(activeCategory, locationQuery, {
         limit: 12,
         limitPerTerm: 4,
       }).catch(() => []);
-      const results = getUniquePlaces([...combinedResults, ...textResults]).slice(0, 12);
+      const results = (weatherProfile
+        ? await rankIdeasForWeather(
+          getUniquePlaces([...combinedResults, ...textResults]),
+          activeCategory,
+          { locationQuery }
+        )
+        : getUniquePlaces([...combinedResults, ...textResults])
+      ).slice(0, 12);
       const formattedIdeas = results.map((idea) => formatIdeaPlace({
         ...idea,
-        summary: idea.displayName || `${category} near ${locationQuery}`,
-      }, category));
+        summary: idea.weatherReason || idea.displayName || `${activeCategory} near ${locationQuery}`,
+      }, activeCategory));
       const nextIdeas = await enrichIdeaPlacesWithDetails(formattedIdeas);
       setIdeas(nextIdeas);
       setSelectedIdea(null);
@@ -1592,7 +1991,11 @@ function TripDetailsPage() {
    * Fetches route between all places on that day
    */
   const optimizeDayRoute = async (day) => {
-    const dayPoints = mapPlaces.filter((place) => place.dayNumber === day.dayNumber);
+    const rawDayPoints = mapPlaces.filter((place) => place.dayNumber === day.dayNumber);
+    const dayItems = getItemsForDay(items, day);
+    const dayScheduleIssues = getScheduleIssues(dayItems);
+    const scheduleAwareRoute = getScheduleAwareRoutePoints(rawDayPoints);
+    const dayPoints = scheduleAwareRoute.points;
     setActiveTab('itinerary');
     setActiveDayNumber(day.dayNumber);
     setIsEditingDayLocation(false);
@@ -1609,6 +2012,7 @@ function TripDetailsPage() {
         selectedRouteId: '',
         status: 'error',
         message: `Add at least two places to Day ${day.dayNumber} before optimizing its route.`,
+        scheduleIssues: dayScheduleIssues,
       }));
       return;
     }
@@ -1621,16 +2025,24 @@ function TripDetailsPage() {
       selectedRouteId: '',
       status: 'loading',
       message: `Optimizing Day ${day.dayNumber} route...`,
+      scheduleIssues: dayScheduleIssues,
     }));
 
     try {
       const routeEntries = await Promise.all(routeModes.map(async (mode) => [
         mode.id,
-        await getRouteBetweenPlaces(dayPoints, null, { mode: mode.id }),
+        await getRouteBetweenPlaces(dayPoints, null, {
+          mode: mode.id,
+          optimize: !scheduleAwareRoute.preserveOrder,
+        }),
       ]));
       const results = Object.fromEntries(routeEntries);
       const selectedMode = results[tripRoutePlan.selectedMode] ? tripRoutePlan.selectedMode : 'car';
       const activeRoute = results[selectedMode] || results.car;
+      const travelIssues = getTravelTimeIssues(
+        activeRoute?.optimizedPoints || dayPoints,
+        selectedMode
+      );
 
       setTripRoutePlan((current) => ({
         ...current,
@@ -1640,7 +2052,8 @@ function TripDetailsPage() {
         selectedMode,
         selectedRouteId: activeRoute?.id || '',
         status: 'success',
-        message: activeRoute?.message || '',
+        message: [scheduleAwareRoute.message, activeRoute?.message].filter(Boolean).join(' '),
+        scheduleIssues: [...dayScheduleIssues, ...travelIssues],
       }));
     } catch (error) {
       setTripRoutePlan((current) => ({
@@ -1651,6 +2064,7 @@ function TripDetailsPage() {
         selectedRouteId: '',
         status: 'error',
         message: error.message || 'Unable to optimize this day route.',
+        scheduleIssues: dayScheduleIssues,
       }));
     }
   };
@@ -1661,11 +2075,16 @@ function TripDetailsPage() {
    */
   const selectDayRouteMode = (modeId) => {
     const modeRoute = tripRoutePlan.results[modeId];
+    const baseScheduleIssues = (tripRoutePlan.scheduleIssues || [])
+      .filter((issue) => issue.type !== 'travel-conflict');
+    const travelIssues = getTravelTimeIssues(modeRoute?.optimizedPoints || tripRoutePlan.points, modeId);
+
     setTripRoutePlan((current) => ({
       ...current,
       selectedMode: modeId,
       selectedRouteId: modeRoute?.id || '',
       message: modeRoute?.message || '',
+      scheduleIssues: [...baseScheduleIssues, ...travelIssues],
     }));
   };
 
@@ -1682,6 +2101,7 @@ function TripDetailsPage() {
       selectedRouteId: '',
       status: 'idle',
       message: '',
+      scheduleIssues: [],
     }));
   };
 
@@ -1868,7 +2288,7 @@ function TripDetailsPage() {
         imageUrls: ideaImageCandidates,
         source: 'openstreetmap',
         externalId: idea.id,
-        priceEstimate: { amount: 0, currency: tripCurrency },
+        priceEstimate: buildPlacePriceEstimate(idea, tripCurrency),
       });
       const savedItem = response.data?.data?.item;
 
@@ -2166,6 +2586,28 @@ function TripDetailsPage() {
                       {(weatherGuidance?.placeTips || []).slice(0, 1).map((tip) => <span key={tip}>{tip}</span>)}
                     </div>
                   ) : null}
+                  {addModeWeatherCategories.length ? (
+                    <div className="trip-weather-shortcuts" aria-label="Weather-aware place categories">
+                      {addModeWeatherCategories.map((category) => {
+                        const CategoryIcon = category.icon;
+                        return (
+                          <button
+                            type="button"
+                            key={category.id}
+                            onClick={() => {
+                              if (addMode) {
+                                setAddMode(itineraryGroups.find((group) => group.categoryId === category.id) || addMode);
+                              }
+                              loadIdeas(category.id, '');
+                            }}
+                          >
+                            <CategoryIcon size={13} aria-hidden="true" />
+                            {category.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ) : null}
                 </section>
               ) : null}
 
@@ -2206,6 +2648,7 @@ function TripDetailsPage() {
                           </div>
                         </div>
                         <div className="trip-idea-meta">
+                          {idea.weatherReason ? <span className="trip-weather-match"><WeatherModeIcon size={12} aria-hidden="true" />{idea.weatherReason}</span> : null}
                           <span><Star size={12} aria-hidden="true" />{idea.rating && idea.rating !== 'N/A' ? `${Number(idea.rating).toFixed(1)} rating` : 'No rating yet'}</span>
                           {idea.reviews ? <span>{Number(idea.reviews) ? `${Number(idea.reviews).toLocaleString()} reviews` : idea.reviews}</span> : null}
                           <span><Clock3 size={12} aria-hidden="true" />{idea.openState || idea.hours || 'Hours unavailable'}</span>
@@ -2458,6 +2901,18 @@ function TripDetailsPage() {
                 </section>
               )}
 
+              {activeDayScheduleIssues.length ? (
+                <section className="trip-schedule-alerts" aria-label="Schedule warnings">
+                  <strong>
+                    <AlertTriangle size={15} aria-hidden="true" />
+                    Schedule needs attention
+                  </strong>
+                  {activeDayScheduleIssues.slice(0, 3).map((issue) => (
+                    <p key={`${issue.type}-${issue.itemId}-${issue.relatedItemId || ''}`}>{issue.message}</p>
+                  ))}
+                </section>
+              ) : null}
+
               {/* Day location row */}
               {activeDay && (
                 <section className="trip-day-location-row">
@@ -2570,7 +3025,7 @@ function TripDetailsPage() {
                   <div className="trip-statistic-card-main">
                     <div className="trip-budget-summary-value">
                       <strong>{currency?.formatAmount ? currency.formatAmount(activeDaySpend, tripCurrency) : `${tripCurrency} ${activeDaySpend}`}</strong>
-                      <span>spent today</span>
+                      <span>estimated spend today</span>
                     </div>
                     {activeDay ? (
                       <label className="trip-budget-input" title="Daily budget for this itinerary day. Item estimates below count against this amount.">
@@ -2591,11 +3046,15 @@ function TripDetailsPage() {
                       </label>
                     ) : null}
                   </div>
+                  <small className="trip-budget-note">
+                    Day budget is your planned allowance. Place costs are editable estimates
+                    {activeDaySuggestedCostCount ? `, including ${activeDaySuggestedCostCount} imported suggestion${activeDaySuggestedCostCount === 1 ? '' : 's'}` : ''}.
+                  </small>
                   <span className="trip-budget-bar is-day"><em style={{ width: `${activeDaySpendPercent}%` }} /></span>
                 </div>
 
                 {/* Trip allocation card */}
-                <div className="trip-statistic-card trip-allocation-card">
+                <div className={`trip-statistic-card trip-allocation-card${isTripBudgetOverAllocated ? ' is-danger' : ''}`}>
                   <div className="trip-statistic-card-header">
                     <span className="trip-statistic-card-icon"><DollarSign size={16} aria-hidden="true" /></span>
                     <div>
@@ -2610,8 +3069,12 @@ function TripDetailsPage() {
                       <span>of {currency?.formatAmount ? currency.formatAmount(totalBudget, tripCurrency) : totalBudget}</span>
                     </div>
                     <div className="trip-budget-remaining">
-                      <span>Unallocated</span>
-                      <strong>{currency?.formatAmount ? currency.formatAmount(remainingBudget, tripCurrency) : remainingBudget}</strong>
+                      <span>{isTripBudgetOverAllocated ? 'Over allocated' : 'Unallocated'}</span>
+                      <strong>
+                        {currency?.formatAmount
+                          ? currency.formatAmount(isTripBudgetOverAllocated ? Math.abs(tripBudgetDelta) : remainingBudget, tripCurrency)
+                          : isTripBudgetOverAllocated ? Math.abs(tripBudgetDelta) : remainingBudget}
+                      </strong>
                     </div>
                   </div>
                   <span className="trip-budget-bar"><em style={{ width: `${plannedBudgetPercent}%` }} /></span>
@@ -2751,11 +3214,15 @@ function TripDetailsPage() {
                         const itemPreviewUrl = getTripPlaceImageSrc(item, itemPoint, 15);
                         const visitedPayload = getItemVisitedPayload(item);
                         const visitedRecord = visitedLookup[visitedPayload.placeKey];
+                        const priceEstimateLabel = getPriceEstimateLabel(item.priceEstimate);
+                        const priceSuggestionText = item.priceEstimate?.suggestionText || '';
                         const itemTimeWarning = getOpeningWarning({
                           hoursText: item.description,
                           startTime: item.startTime,
                           endTime: item.endTime,
                         });
+                        const itemScheduleWarnings = activeDayScheduleIssues
+                          .filter((issue) => issue.itemId === item._id || issue.relatedItemId === item._id);
 
                         return (
                         <article className="trip-itinerary-item" key={item._id}>
@@ -2840,8 +3307,8 @@ function TripDetailsPage() {
                                 onBlur={() => saveItemTime(item._id)}
                               />
                             </label>
-                            <label>
-                              <span>Cost</span>
+                            <label className="trip-item-cost-control">
+                              <span>Estimated cost</span>
                               <input
                                 type="number"
                                 min="0"
@@ -2849,6 +3316,10 @@ function TripDetailsPage() {
                                 onChange={(event) => updateItemPriceLocal(item, event.target.value)}
                                 onBlur={() => saveItemPrice(item._id)}
                               />
+                              <small>
+                                {priceEstimateLabel}
+                                {priceSuggestionText ? ` · Suggested: ${priceSuggestionText}` : ''}
+                              </small>
                             </label>
                           </div>
                           {itemTimeWarning ? (
@@ -2857,6 +3328,12 @@ function TripDetailsPage() {
                               {itemTimeWarning}
                             </p>
                           ) : null}
+                          {itemScheduleWarnings.map((issue) => (
+                            <p className="trip-opening-warning" key={`${issue.type}-${issue.itemId}-${issue.relatedItemId || ''}`}>
+                              <AlertTriangle size={14} aria-hidden="true" />
+                              {issue.message}
+                            </p>
+                          ))}
                         </article>
                         );
                       })}
@@ -2891,6 +3368,41 @@ function TripDetailsPage() {
                   <Search size={16} aria-hidden="true" />
                 </button>
               </form>
+
+              {showWeatherHelp && weather?.available && activeWeatherIdeaProfile ? (
+                <section className="trip-weather-helper" aria-label="Weather-aware recommendations">
+                  <div className="trip-weather-helper-heading">
+                    <span><WeatherModeIcon size={16} aria-hidden="true" /></span>
+                    <div>
+                      <strong>{activeWeatherIdeaProfile.label} recommendations</strong>
+                      <small>{weatherGuidance?.placeTips?.[0] || weather.travelTip || 'Places are ranked for today weather.'}</small>
+                    </div>
+                    <button className="trip-weather-hide" type="button" onClick={() => setShowWeatherHelp(false)}>
+                      Default
+                    </button>
+                  </div>
+                  <div className="trip-weather-shortcuts" aria-label="Weather-aware place categories">
+                    {weatherRecommendedCategories.map((category) => {
+                      const CategoryIcon = category.icon;
+                      return (
+                        <button
+                          type="button"
+                          key={category.id}
+                          onClick={() => {
+                            if (ideaAddMode) {
+                              setIdeaAddMode(itineraryGroups.find((group) => group.categoryId === category.id) || null);
+                            }
+                            loadIdeas(category.id, '');
+                          }}
+                        >
+                          <CategoryIcon size={13} aria-hidden="true" />
+                          {category.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </section>
+              ) : null}
 
               <div className="trip-idea-filters" aria-label="Idea categories">
                 {ideaCategories.map((category) => {
@@ -2951,6 +3463,7 @@ function TripDetailsPage() {
                           </div>
                         </div>
                         <div className="trip-idea-meta">
+                          {idea.weatherReason ? <span className="trip-weather-match"><WeatherModeIcon size={12} aria-hidden="true" />{idea.weatherReason}</span> : null}
                           <span><Star size={12} aria-hidden="true" />{idea.rating && idea.rating !== 'N/A' ? `${Number(idea.rating).toFixed(1)} rating` : 'No rating yet'}</span>
                           {idea.reviews ? <span>{Number(idea.reviews) ? `${Number(idea.reviews).toLocaleString()} reviews` : idea.reviews}</span> : null}
                           <span><Clock3 size={12} aria-hidden="true" />{idea.openState || idea.hours || 'Hours unavailable'}</span>
@@ -3084,7 +3597,10 @@ function TripDetailsPage() {
                   </div>
                   <div>
                     <dt><DollarSign size={14} aria-hidden="true" /> Price</dt>
-                    <dd>{selectedIdea.price || 'Price unavailable'}</dd>
+                    <dd>
+                      {selectedIdea.price || 'Price unavailable'}
+                      {getPlacePriceSuggestionText(selectedIdea) ? <small>Suggestion only. You can edit the estimate after adding.</small> : null}
+                    </dd>
                   </div>
                   <div>
                     <dt><MapPin size={14} aria-hidden="true" /> Address</dt>
@@ -3153,6 +3669,16 @@ function TripDetailsPage() {
                     <strong>{routeModes.find((mode) => mode.id === tripRoutePlan.selectedMode)?.label}</strong>
                     <span>{formatRouteDuration(selectedTripRoute?.durationSeconds)} · {formatRouteDistance(selectedTripRoute?.distanceMeters)}</span>
                   </div>
+                  {tripRoutePlan.scheduleIssues?.length ? (
+                    <div className="trip-route-conflicts" aria-label="Route schedule warnings">
+                      {tripRoutePlan.scheduleIssues.map((issue) => (
+                        <p key={`${issue.type}-${issue.itemId}-${issue.relatedItemId || ''}`}>
+                          <AlertTriangle size={14} aria-hidden="true" />
+                          {issue.message}
+                        </p>
+                      ))}
+                    </div>
+                  ) : null}
                   <ol className="trip-day-route-order">
                     {tripRouteMapPlaces.map((place, index) => (
                       <li
@@ -3170,7 +3696,13 @@ function TripDetailsPage() {
                         <span>{index + 1}</span>
                         <div>
                           <strong>{place.title || place.name || `Stop ${index + 1}`}</strong>
-                          <small>{index === 0 ? 'Go here first' : index === tripRouteMapPlaces.length - 1 ? 'Final stop' : `Then continue to stop ${index + 1}`}</small>
+                          <small>
+                            {place.startTime
+                              ? `${place.startTime}${place.endTime ? ` - ${place.endTime}` : ''} · locked time`
+                              : 'Flexible stop'}
+                            {' · '}
+                            {index === 0 ? 'Go here first' : index === tripRouteMapPlaces.length - 1 ? 'Final stop' : `Then continue to stop ${index + 1}`}
+                          </small>
                         </div>
                       </li>
                     ))}

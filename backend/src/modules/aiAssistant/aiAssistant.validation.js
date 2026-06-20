@@ -55,4 +55,29 @@ const tripRecommendationRules = [
   body('history.*.text').optional({ checkFalsy: true }).trim().isLength({ max: 2000 }),
 ];
 
-module.exports = { chatRules, tripRecommendationRules };
+const weatherPlaceRankingRules = [
+  body('weather.condition').optional({ checkFalsy: true }).trim().isLength({ max: 120 }),
+  body('weather.mode').optional({ checkFalsy: true }).trim().isLength({ max: 40 }),
+  body('weather.temperature').optional({ checkFalsy: true }).trim().isLength({ max: 80 }),
+  body('weather.precipitation').optional({ checkFalsy: true }).trim().isLength({ max: 80 }),
+  body('weather.wind').optional({ checkFalsy: true }).trim().isLength({ max: 80 }),
+  body('weather.travelTip').optional({ checkFalsy: true }).trim().isLength({ max: 240 }),
+  body('weather.placeTips').optional().isArray({ max: 5 }),
+  body('weather.placeTips.*').optional({ checkFalsy: true }).trim().isLength({ max: 240 }),
+  body('trip.destination').optional({ checkFalsy: true }).trim().isLength({ max: 120 }),
+  body('trip.country').optional({ checkFalsy: true }).trim().isLength({ max: 80 }),
+  body('day.dayNumber').optional({ checkFalsy: true }).isInt({ min: 1, max: 365 }),
+  body('day.location').optional({ checkFalsy: true }).trim().isLength({ max: 180 }),
+  body('category').optional({ checkFalsy: true }).trim().isLength({ max: 60 }),
+  body('candidates').isArray({ min: 1, max: 40 }).withMessage('Candidates are required.'),
+  body('candidates.*.id').trim().isLength({ min: 1, max: 160 }),
+  body('candidates.*.name').trim().isLength({ min: 1, max: 180 }),
+  body('candidates.*.category').optional({ checkFalsy: true }).trim().isLength({ max: 60 }),
+  body('candidates.*.address').optional({ checkFalsy: true }).trim().isLength({ max: 240 }),
+  body('candidates.*.summary').optional({ checkFalsy: true }).trim().isLength({ max: 320 }),
+  body('candidates.*.rating').optional({ checkFalsy: true }).isFloat({ min: 0, max: 5 }),
+  body('candidates.*.price').optional({ checkFalsy: true }).trim().isLength({ max: 80 }),
+  body('candidates.*.hours').optional({ checkFalsy: true }).trim().isLength({ max: 120 }),
+];
+
+module.exports = { chatRules, tripRecommendationRules, weatherPlaceRankingRules };

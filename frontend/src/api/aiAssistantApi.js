@@ -19,4 +19,13 @@ export const getTripAiRecommendations = ({ prompt, trip, plannedPlaces, history 
     plannedPlaces,
     history,
   });
+
+export const getWeatherPlaceRanking = ({ weather, trip, day, category, candidates }) =>
+  axiosClient.post('/ai/weather-place-ranking', {
+    weather,
+    trip,
+    day,
+    category,
+    candidates,
+  });
   

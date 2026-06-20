@@ -811,6 +811,20 @@
   font-weight: var(--font-weight-semibold);
 }
 
+.logging-repeat-badge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  margin-left: 8px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  font-size: 12px;
+  font-weight: var(--font-weight-bold);
+  vertical-align: middle;
+}
+
 /* View details action button */
 .logging-view-action {
   display: inline-flex;

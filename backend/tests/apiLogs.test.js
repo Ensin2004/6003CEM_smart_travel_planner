@@ -6,6 +6,7 @@
 // Mock the API log repository to isolate service layer tests from database operations
 jest.mock('../src/modules/apiLogs/apiLog.repository', () => ({
   findMany: jest.fn(),
+  findRecentRepeatedEvent: jest.fn(),
   countMany: jest.fn(),
   countSince: jest.fn(),
   aggregateCategoryCounts: jest.fn(),
@@ -13,6 +14,13 @@ jest.mock('../src/modules/apiLogs/apiLog.repository', () => ({
   aggregateSeverityCounts: jest.fn(),
   aggregateDailyCounts: jest.fn(),
   create: jest.fn(),
+  recordRepeatedEvent: jest.fn(),
+  sumOccurrences: jest.fn(),
+  sumOccurrencesSince: jest.fn(),
+}));
+
+jest.mock('../src/modules/notifications/notification.service', () => ({
+  notifyAdminsOfApiLog: jest.fn().mockResolvedValue([]),
 }));
 
 // Import mocked modules after jest.mock calls for reference in tests
@@ -43,11 +51,12 @@ describe('API log monitoring service', () => {
     // Mock repository methods with specific return values
     apiLogRepository.findMany.mockResolvedValue(logs);
     // Count queries for different log types
-    apiLogRepository.countMany
-      .mockResolvedValueOnce(8)   // Total logs
+    apiLogRepository.sumOccurrences
+      .mockResolvedValueOnce(8)   // Total represented events
       .mockResolvedValueOnce(3)   // Failure count
       .mockResolvedValueOnce(1);  // Error count
-    apiLogRepository.countSince.mockResolvedValue(2);  // Recent failures (last 24h)
+    apiLogRepository.sumOccurrencesSince.mockResolvedValue(2);  // Recent failures (last 24h)
+    apiLogRepository.countMany.mockResolvedValue(6); // Grouped rows in table
     apiLogRepository.aggregateCategoryCounts.mockResolvedValue([{ _id: 'api', count: 5 }]);
     apiLogRepository.aggregateStatusCounts.mockResolvedValue([{ _id: 'fail', count: 3 }]);
     apiLogRepository.aggregateSeverityCounts.mockResolvedValue([{ _id: 'warning', count: 3 }]);
@@ -97,7 +106,8 @@ describe('API log monitoring service', () => {
     expect(result.pagination).toEqual({
       page: 1,
       limit: 10,
-      total: 8,
+      total: 6,
+      totalOccurrences: 8,
       totalPages: 1,
     });
   });
@@ -106,6 +116,7 @@ describe('API log monitoring service', () => {
   test('removes empty metadata before saving event', async () => {
     // Mock repository create to return success
     apiLogRepository.create.mockResolvedValue({});
+    apiLogRepository.findRecentRepeatedEvent.mockResolvedValue(null);
 
     // Record event with undefined metadata value
     await apiLogService.recordEvent({
@@ -125,6 +136,9 @@ describe('API log monitoring service', () => {
       status: 'fail',
       errorCode: 'REQUEST_FAILED',  // Default error code for failures
       requestId: expect.any(String), // Auto-generated if not provided
+      occurrenceCount: 1,
+      firstOccurredAt: expect.any(Date),
+      lastOccurredAt: expect.any(Date),
       metadata: {
         failedAttempts: '2',  // Converted to string for consistent storage
       },
@@ -135,6 +149,7 @@ describe('API log monitoring service', () => {
   test('masks attempted email before saving auth log metadata', async () => {
     // Mock repository create
     apiLogRepository.create.mockResolvedValue({});
+    apiLogRepository.findRecentRepeatedEvent.mockResolvedValue(null);
 
     // Record authentication failure with attempted email
     await apiLogService.recordEvent({
@@ -151,6 +166,9 @@ describe('API log monitoring service', () => {
       status: 'fail',
       errorCode: 'REQUEST_FAILED',
       requestId: expect.any(String),
+      occurrenceCount: 1,
+      firstOccurredAt: expect.any(Date),
+      lastOccurredAt: expect.any(Date),
       metadata: {
         attemptedEmailMasked: 't***@example.com',  // Masked for privacy
       },
@@ -161,6 +179,7 @@ describe('API log monitoring service', () => {
   test('stores standardized error code and request ID as searchable fields', async () => {
     // Mock repository create
     apiLogRepository.create.mockResolvedValue({});
+    apiLogRepository.findRecentRepeatedEvent.mockResolvedValue(null);
 
     // Record system error with specific error code and request ID
     await apiLogService.recordEvent({
@@ -179,8 +198,57 @@ describe('API log monitoring service', () => {
       expect.objectContaining({
         errorCode: 'DATABASE_UNAVAILABLE',
         requestId: 'request-123',
+        occurrenceCount: 1,
       })
     );
+  });
+
+  test('groups repeated rate-limit events into an existing API log row', async () => {
+    apiLogRepository.findRecentRepeatedEvent.mockResolvedValue({ _id: 'log-1', metadata: { firstRequestId: 'request-1' } });
+    apiLogRepository.recordRepeatedEvent.mockResolvedValue({
+      _id: 'log-1',
+      service: 'rate-limit',
+      category: 'rate-limit',
+      status: 'fail',
+      severity: 'warning',
+      statusCode: 429,
+      errorCode: 'RATE_LIMIT_EXCEEDED',
+      requestId: 'request-2',
+      occurrenceCount: 2,
+    });
+
+    const result = await apiLogService.recordEvent({
+      service: 'rate-limit',
+      category: 'rate-limit',
+      severity: 'warning',
+      method: 'GET',
+      endpoint: '/api/map/search',
+      status: 'fail',
+      statusCode: 429,
+      errorCode: 'RATE_LIMIT_EXCEEDED',
+      requestId: 'request-2',
+      message: 'Too many travel data requests. Please try again later.',
+    });
+
+    expect(apiLogRepository.create).not.toHaveBeenCalled();
+    expect(apiLogRepository.findRecentRepeatedEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        logKey: expect.stringContaining('rate_limit_exceeded'),
+        since: expect.any(Date),
+      })
+    );
+    expect(apiLogRepository.recordRepeatedEvent).toHaveBeenCalledWith(
+      'log-1',
+      expect.objectContaining({
+        requestId: 'request-2',
+        message: 'Too many travel data requests. Please try again later.',
+        metadata: expect.objectContaining({
+          firstRequestId: 'request-1',
+          latestRequestId: 'request-2',
+        }),
+      })
+    );
+    expect(result.occurrenceCount).toBe(2);
   });
 
   // Verify that monitoring logs can be filtered by error code and request ID
@@ -188,7 +256,8 @@ describe('API log monitoring service', () => {
     // Mock all repository methods to return empty results
     apiLogRepository.findMany.mockResolvedValue([]);
     apiLogRepository.countMany.mockResolvedValue(0);
-    apiLogRepository.countSince.mockResolvedValue(0);
+    apiLogRepository.sumOccurrences.mockResolvedValue(0);
+    apiLogRepository.sumOccurrencesSince.mockResolvedValue(0);
     apiLogRepository.aggregateCategoryCounts.mockResolvedValue([]);
     apiLogRepository.aggregateStatusCounts.mockResolvedValue([]);
     apiLogRepository.aggregateSeverityCounts.mockResolvedValue([]);
@@ -214,7 +283,8 @@ describe('API log monitoring service', () => {
   test('filters monitoring logs by user ID for admin account activity', async () => {
     apiLogRepository.findMany.mockResolvedValue([]);
     apiLogRepository.countMany.mockResolvedValue(0);
-    apiLogRepository.countSince.mockResolvedValue(0);
+    apiLogRepository.sumOccurrences.mockResolvedValue(0);
+    apiLogRepository.sumOccurrencesSince.mockResolvedValue(0);
     apiLogRepository.aggregateCategoryCounts.mockResolvedValue([]);
     apiLogRepository.aggregateStatusCounts.mockResolvedValue([]);
     apiLogRepository.aggregateSeverityCounts.mockResolvedValue([]);
@@ -234,7 +304,8 @@ describe('API log monitoring service', () => {
   test('includes the full selected end date in monitoring filters', async () => {
     apiLogRepository.findMany.mockResolvedValue([]);
     apiLogRepository.countMany.mockResolvedValue(0);
-    apiLogRepository.countSince.mockResolvedValue(0);
+    apiLogRepository.sumOccurrences.mockResolvedValue(0);
+    apiLogRepository.sumOccurrencesSince.mockResolvedValue(0);
     apiLogRepository.aggregateCategoryCounts.mockResolvedValue([]);
     apiLogRepository.aggregateStatusCounts.mockResolvedValue([]);
     apiLogRepository.aggregateSeverityCounts.mockResolvedValue([]);

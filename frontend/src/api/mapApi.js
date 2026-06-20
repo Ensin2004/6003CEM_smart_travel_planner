@@ -306,6 +306,7 @@ export const getRouteBetweenPlaces = async (pointsOrOrigin, destination, options
   try {
     const response = await axiosClient.post('/map/routes', {
       mode,
+      optimize: options.optimize !== false,
       points: validPoints.map((point) => ({ lat: point.lat, lng: point.lng })),
     }, {
       signal: options.signal,
