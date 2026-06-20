@@ -28,7 +28,6 @@ const monitoringRefreshIntervalMs = 20 * 1000;
 // Status filter options for event outcomes
 const statusOptions = [
   { value: '', label: 'All statuses' },
-  { value: 'success', label: 'Success' },
   { value: 'fail', label: 'Failed' },
   { value: 'error', label: 'Error' },
 ];
@@ -171,7 +170,7 @@ function SystemErrorsPage() {
   const categoryCounts = summary.categoryCounts || [];
   const dailyCounts = summary.dailyCounts || [];
   const categoryMaxCount = Math.max(...categoryCounts.map((item) => item.count), 1);
-  const dailyMaxCount = Math.max(...dailyCounts.map((item) => item.success + item.fail + item.error), 1);
+  const dailyMaxCount = Math.max(...dailyCounts.map((item) => item.fail + item.error), 1);
   const latestEventLabel = logs[0] ? formatDateTime(getLogDisplayTime(logs[0])) : 'No events yet';
   const lastUpdatedLabel = lastUpdatedAt ? formatDateTime(lastUpdatedAt) : 'Loading now';
 
@@ -283,7 +282,7 @@ function SystemErrorsPage() {
           </div>
         </div>
         <div className="logging-guide-items">
-          <p><strong>Status</strong> tells you the outcome: success completed, failed was rejected, and error was unexpected.</p>
+          <p><strong>Status</strong> tells you the outcome: failed was rejected, and error was unexpected.</p>
           <p><strong>Severity</strong> tells you the impact: info is normal, warning needs checking, and error or critical needs attention.</p>
           <p><strong>Category</strong> tells you where it happened: authentication, API, system, or rate limiting.</p>
         </div>
@@ -297,16 +296,15 @@ function SystemErrorsPage() {
               <span>Health trend</span>
               <h3 id="trend-chart-title">Activity during the last 7 days</h3>
             </div>
-            <small>Green: success | Orange: failed | Red: error</small>
+            <small>Orange: failed | Red: error</small>
           </div>
           <div className="logging-trend-chart">
             {dailyCounts.map((item) => {
-              const total = item.success + item.fail + item.error;
+              const total = item.fail + item.error;
               return (
                 <div className="logging-trend-day" key={item.date}>
                   <span>{new Date(item.date).toLocaleDateString('en', { weekday: 'short' })}</span>
                   <i style={{ '--bar-size': `${Math.max((total / dailyMaxCount) * 100, total ? 8 : 0)}%` }}>
-                    <b className="logging-trend-success" style={{ '--segment-size': `${(item.success / Math.max(total, 1)) * 100}%` }} />
                     <b className="logging-trend-fail" style={{ '--segment-size': `${(item.fail / Math.max(total, 1)) * 100}%` }} />
                     <b className="logging-trend-error" style={{ '--segment-size': `${(item.error / Math.max(total, 1)) * 100}%` }} />
                   </i>
