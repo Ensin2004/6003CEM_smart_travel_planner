@@ -68,6 +68,9 @@ const normalizeFilters = (filters = {}) => {
       country: '',
       state: '',
       attractionCategory: '',
+      latitude: undefined,
+      longitude: undefined,
+      locationLabel: '',
       start: 0,
     };
   }
@@ -77,17 +80,12 @@ const normalizeFilters = (filters = {}) => {
     country: (filters.country || '').trim(),
     state: (filters.state || '').trim(),
     attractionCategory: (filters.attractionCategory || '').trim(),
+    latitude: filters.latitude,
+    longitude: filters.longitude,
+    locationLabel: (filters.locationLabel || '').trim(),
     start: Math.max(Number(filters.start) || 0, 0),
   };
 };
-
-/**
- * Checks if any attraction search input is provided.
- * @param {Object} filters - Normalized filters
- * @returns {boolean} True if at least one search criterion exists
- */
-const hasAttractionSearchInput = ({ destination, country, state, attractionCategory }) =>
-  Boolean(destination || country || state || attractionCategory);
 
 /**
  * Builds a search query string for attractions.
@@ -96,7 +94,7 @@ const hasAttractionSearchInput = ({ destination, country, state, attractionCateg
  * @param {Object} filters - Normalized filters
  * @returns {string} Search query for SerpApi
  */
-const getAttractionQuery = ({ destination, country, state, attractionCategory }) => {
+const getAttractionQuery = ({ destination, country, state, attractionCategory, locationLabel }) => {
   const category = attractionCategory || 'tourist attractions';
   const location = [state, country].filter(Boolean).join(', ');
 
@@ -112,6 +110,10 @@ const getAttractionQuery = ({ destination, country, state, attractionCategory })
     return `${category} in ${location}`;
   }
 
+  if (locationLabel) {
+    return `${category} near ${locationLabel}`;
+  }
+
   return category;
 };
 
@@ -122,11 +124,6 @@ const getAttractionQuery = ({ destination, country, state, attractionCategory })
  */
 const getAttractionsByDestination = async (filters) => {
   const normalizedFilters = normalizeFilters(filters);
-
-  // Validate that search criteria exist
-  if (!hasAttractionSearchInput(normalizedFilters)) {
-    return fallbackAttractions(normalizedFilters, 'Enter an attraction name, country, location, or category first.');
-  }
   
   // Check if SerpApi key is configured
   if (!env.serpApiKey || env.nodeEnv === 'test') {

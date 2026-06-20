@@ -121,6 +121,9 @@ const attractionRules = [
   optionalFilterRule('country'),
   optionalFilterRule('state'),
   optionalFilterRule('attractionCategory'),
+  optionalFilterRule('locationLabel'),
+  optionalCoordinateRule('latitude', -90, 90),
+  optionalCoordinateRule('longitude', -180, 180),
   optionalStartRule,
 ];
 
@@ -145,6 +148,9 @@ const hotelRules = [
   optionalFilterRule('country'),
   optionalFilterRule('state'),
   optionalFilterRule('roomType'),
+  optionalFilterRule('locationLabel'),
+  optionalCoordinateRule('latitude', -90, 90),
+  optionalCoordinateRule('longitude', -180, 180),
   optionalStartRule,
 ];
 
@@ -169,6 +175,9 @@ const restaurantRules = [
   optionalFilterRule('country'),
   optionalFilterRule('state'),
   optionalFilterRule('foodCategory'),
+  optionalFilterRule('locationLabel'),
+  optionalCoordinateRule('latitude', -90, 90),
+  optionalCoordinateRule('longitude', -180, 180),
   optionalStartRule,
 ];
 

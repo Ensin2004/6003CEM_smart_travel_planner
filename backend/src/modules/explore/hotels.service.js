@@ -66,16 +66,11 @@ const normalizeFilters = (filters = {}) => ({
   country: (filters.country || '').trim(),
   state: (filters.state || '').trim(),
   roomType: (filters.roomType || '').trim(),
+  latitude: filters.latitude,
+  longitude: filters.longitude,
+  locationLabel: (filters.locationLabel || '').trim(),
   start: Math.max(Number(filters.start) || 0, 0),
 });
-
-/**
- * Checks if any hotel search input is provided.
- * @param {Object} filters - Normalized filters
- * @returns {boolean} True if at least one search criterion exists
- */
-const hasHotelSearchInput = ({ destination, country, state, roomType }) =>
-  Boolean(destination || country || state || roomType);
 
 /**
  * Builds a search query string for hotels.
@@ -84,7 +79,7 @@ const hasHotelSearchInput = ({ destination, country, state, roomType }) =>
  * @param {Object} filters - Normalized filters
  * @returns {string} Search query for SerpApi
  */
-const getHotelQuery = ({ destination, country, state, roomType }) => {
+const getHotelQuery = ({ destination, country, state, roomType, locationLabel }) => {
   const roomPrefix = roomType ? `${roomType} ` : '';
   const location = [state, country].filter(Boolean).join(', ');
 
@@ -100,6 +95,10 @@ const getHotelQuery = ({ destination, country, state, roomType }) => {
     return `${roomPrefix}hotels in ${location}`;
   }
 
+  if (locationLabel) {
+    return `${roomPrefix}hotels near ${locationLabel}`;
+  }
+
   return `${roomPrefix}hotels`;
 };
 
@@ -110,11 +109,6 @@ const getHotelQuery = ({ destination, country, state, roomType }) => {
  */
 const getHotelsByDestination = async (filters) => {
   const normalizedFilters = normalizeFilters(filters);
-
-  // Validate that search criteria exist
-  if (!hasHotelSearchInput(normalizedFilters)) {
-    return fallbackHotels(normalizedFilters, 'Enter a hotel name, country, location, or room type first.');
-  }
   
   // Check if SerpApi key is configured
   if (!env.serpApiKey || env.nodeEnv === 'test') {

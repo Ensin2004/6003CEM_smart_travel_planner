@@ -65,16 +65,11 @@ const normalizeFilters = (filters = {}) => ({
   country: (filters.country || '').trim(),
   state: (filters.state || '').trim(),
   foodCategory: (filters.foodCategory || '').trim(),
+  latitude: filters.latitude,
+  longitude: filters.longitude,
+  locationLabel: (filters.locationLabel || '').trim(),
   start: Math.max(Number(filters.start) || 0, 0),
 });
-
-/**
- * Checks if any restaurant search input is provided.
- * @param {Object} filters - Normalized filters
- * @returns {boolean} True if at least one search criterion exists
- */
-const hasRestaurantSearchInput = ({ destination, country, state, foodCategory }) =>
-  Boolean(destination || country || state || foodCategory);
 
 /**
  * Builds a search query string for restaurants.
@@ -83,7 +78,7 @@ const hasRestaurantSearchInput = ({ destination, country, state, foodCategory })
  * @param {Object} filters - Normalized filters
  * @returns {string} Search query for SerpApi
  */
-const getRestaurantQuery = ({ destination, country, state, foodCategory }) => {
+const getRestaurantQuery = ({ destination, country, state, foodCategory, locationLabel }) => {
   const categoryPrefix = foodCategory ? `${foodCategory} ` : '';
   const location = [state, country].filter(Boolean).join(', ');
 
@@ -99,6 +94,10 @@ const getRestaurantQuery = ({ destination, country, state, foodCategory }) => {
     return `${categoryPrefix}restaurants in ${location}`;
   }
 
+  if (locationLabel) {
+    return `${categoryPrefix}restaurants near ${locationLabel}`;
+  }
+
   return `${categoryPrefix}restaurants`;
 };
 
@@ -109,11 +108,6 @@ const getRestaurantQuery = ({ destination, country, state, foodCategory }) => {
  */
 const getRestaurantsByDestination = async (filters) => {
   const normalizedFilters = normalizeFilters(filters);
-
-  // Validate that search criteria exist
-  if (!hasRestaurantSearchInput(normalizedFilters)) {
-    return fallbackRestaurants(normalizedFilters, 'Enter a restaurant name, country, location, or food category first.');
-  }
   
   // Check if SerpApi key is configured
   if (!env.serpApiKey || env.nodeEnv === 'test') {

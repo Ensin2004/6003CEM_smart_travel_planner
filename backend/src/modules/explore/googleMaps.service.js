@@ -549,12 +549,17 @@ const searchGoogleMaps = async ({ cache, cacheKey, query, start = 0, metadata = 
   }
 
   // Execute SerpApi Google Maps search request
+  const latitude = Number(metadata.latitude);
+  const longitude = Number(metadata.longitude);
+  const hasCoordinates = Number.isFinite(latitude) && Number.isFinite(longitude);
+
   const response = await serpApiClient.get('/search', {
     params: {
       engine: 'google_maps',
       type: 'search',
       q: query, // Search query string
       start, // Pagination offset
+      ...(hasCoordinates ? { ll: `@${latitude},${longitude},14z` } : {}),
       google_domain: 'google.com',
       hl: 'en', // Language
       api_key: env.serpApiKey,

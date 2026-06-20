@@ -344,6 +344,7 @@ function ExplorePage() {
     submittedSearchCriteria?.destination ?? destination.trim(),
     submittedSearchCriteria?.state ?? activeFilters.state.trim(),
     submittedSearchCriteria?.country ?? activeFilters.country.trim(),
+    submittedSearchCriteria?.locationLabel ? `Near ${submittedSearchCriteria.locationLabel}` : '',
     isHotelsView && selectedHotelRoomType ? selectedRoomLabel : '',
     isFoodView && selectedRestaurantFoodCategory ? selectedFoodCategoryLabel : '',
     isAttractionsView && selectedAttractionCategory ? selectedAttractionCategoryLabel : '',
@@ -681,6 +682,25 @@ function ExplorePage() {
   const getWeatherDestination = (criteria) =>
     [criteria.destination, criteria.state, criteria.country].filter(Boolean).join(', ');
 
+  const withCurrentLocationFallback = (criteria) => {
+    const hasLocationFilter = Boolean(criteria.destination || criteria.country || criteria.state);
+    if (hasLocationFilter) return criteria;
+
+    const latitude = Number(currentLocation.latitude);
+    const longitude = Number(currentLocation.longitude);
+    const hasCoordinates = Number.isFinite(latitude) && Number.isFinite(longitude);
+    const locationLabel = currentLocationName === 'current area' ? '' : currentLocationName;
+
+    if (!hasCoordinates && !locationLabel) return criteria;
+
+    return {
+      ...criteria,
+      latitude: hasCoordinates ? latitude : undefined,
+      longitude: hasCoordinates ? longitude : undefined,
+      locationLabel: locationLabel || 'your current location',
+    };
+  };
+
   /**
    * Builds weather request object from search criteria and items
    * 
@@ -793,10 +813,12 @@ function ExplorePage() {
    * @returns {Object} Attraction search criteria
    */
   const getAttractionCriteria = () => ({
-    destination: destination.trim(),
-    country: attractionFilters.country.trim(),
-    state: attractionFilters.state.trim(),
-    attractionCategory: attractionFilters.attractionCategory,
+    ...withCurrentLocationFallback({
+      destination: destination.trim(),
+      country: attractionFilters.country.trim(),
+      state: attractionFilters.state.trim(),
+      attractionCategory: attractionFilters.attractionCategory,
+    }),
   });
 
   /**
@@ -805,10 +827,12 @@ function ExplorePage() {
    * @returns {Object} Hotel search criteria
    */
   const getHotelCriteria = () => ({
-    destination: destination.trim(),
-    country: hotelFilters.country.trim(),
-    state: hotelFilters.state.trim(),
-    roomType: hotelFilters.roomType,
+    ...withCurrentLocationFallback({
+      destination: destination.trim(),
+      country: hotelFilters.country.trim(),
+      state: hotelFilters.state.trim(),
+      roomType: hotelFilters.roomType,
+    }),
   });
 
   /**
@@ -817,10 +841,12 @@ function ExplorePage() {
    * @returns {Object} Restaurant search criteria
    */
   const getRestaurantCriteria = () => ({
-    destination: destination.trim(),
-    country: restaurantFilters.country.trim(),
-    state: restaurantFilters.state.trim(),
-    foodCategory: restaurantFilters.foodCategory,
+    ...withCurrentLocationFallback({
+      destination: destination.trim(),
+      country: restaurantFilters.country.trim(),
+      state: restaurantFilters.state.trim(),
+      foodCategory: restaurantFilters.foodCategory,
+    }),
   });
 
   /**
