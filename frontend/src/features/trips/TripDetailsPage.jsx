@@ -328,9 +328,9 @@ const buildPlacePriceEstimate = (place = {}, currencyCode = 'MYR') => {
 };
 
 const getPriceEstimateLabel = (priceEstimate = {}) => {
-  if (priceEstimate.source === 'api') return 'API suggestion, editable';
-  if (priceEstimate.source === 'ai') return 'AI suggestion, editable';
-  return 'Manual estimate';
+  if (priceEstimate.source === 'api') return 'Imported suggestion. Edit the amount you want to budget.';
+  if (priceEstimate.source === 'ai') return 'AI suggestion. Edit the amount you want to budget.';
+  return 'Used in day and trip budget totals.';
 };
 
 const approximateUsdRates = {
@@ -3484,7 +3484,7 @@ function TripDetailsPage() {
                               />
                             </label>
                             <label className="trip-item-cost-control">
-                              <span>Estimated cost</span>
+                              <span>Planned cost</span>
                               <input
                                 type="number"
                                 min="0"
@@ -3494,7 +3494,7 @@ function TripDetailsPage() {
                               />
                               <small>
                                 {priceEstimateLabel}
-                                {priceSuggestionText ? ` · Suggested: ${priceSuggestionText}` : ''}
+                                {priceSuggestionText ? ` Suggested price: ${priceSuggestionText}` : ''}
                               </small>
                             </label>
                           </div>
