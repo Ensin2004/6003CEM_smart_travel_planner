@@ -328,9 +328,130 @@ const buildPlacePriceEstimate = (place = {}, currencyCode = 'MYR') => {
 };
 
 const getPriceEstimateLabel = (priceEstimate = {}) => {
-  if (priceEstimate.source === 'api') return 'API suggestion, editable';
-  if (priceEstimate.source === 'ai') return 'AI suggestion, editable';
-  return 'Manual estimate';
+  if (priceEstimate.source === 'api') return 'Imported suggestion. Edit the amount you want to budget.';
+  if (priceEstimate.source === 'ai') return 'AI suggestion. Edit the amount you want to budget.';
+  return 'Used in day and trip budget totals.';
+};
+
+const approximateUsdRates = {
+  USD: 1,
+  MYR: 4.7,
+  SGD: 1.35,
+  EUR: 0.92,
+  GBP: 0.79,
+  JPY: 157,
+  THB: 36,
+  IDR: 16200,
+  VND: 25400,
+};
+
+const formatEstimatedMoney = (amount, currencyCode) =>
+  new Intl.NumberFormat(undefined, {
+    style: 'currency',
+    currency: currencyCode,
+    maximumFractionDigits: amount >= 1000 ? 0 : 2,
+  }).format(amount);
+
+const convertApproximateAmount = (amount, sourceCurrency = 'USD', targetCurrency = 'USD') => {
+  const sourceRate = approximateUsdRates[sourceCurrency] || approximateUsdRates.USD;
+  const targetRate = approximateUsdRates[targetCurrency] || approximateUsdRates.USD;
+  return (Number(amount) / sourceRate) * targetRate;
+};
+
+const getEstimatedPriceRange = ({ type = '', category = '', currencyCode = 'USD' }) => {
+  const normalizedType = String(type || '').toLowerCase();
+  const normalizedCategory = String(category || '').toLowerCase();
+  let usdRange = [];
+
+  if (normalizedType === 'hotel') {
+    if (normalizedCategory.includes('luxury') || normalizedCategory.includes('suite')) usdRange = [75, 140];
+    else if (normalizedCategory.includes('budget') || normalizedCategory.includes('hostel')) usdRange = [18, 40];
+    else usdRange = [35, 70];
+  } else if (normalizedType === 'restaurant') {
+    if (normalizedCategory.includes('fine') || normalizedCategory.includes('steak')) usdRange = [14, 35];
+    else if (normalizedCategory.includes('cafe') || normalizedCategory.includes('dessert')) usdRange = [3, 8];
+    else usdRange = [4, 12];
+  } else if (normalizedType === 'attraction' || normalizedType === 'custom') {
+    usdRange = [0, 20];
+  }
+
+  if (!usdRange.length) return '';
+  const convertedRange = usdRange.map((amount) => convertApproximateAmount(amount, 'USD', currencyCode));
+  return `${formatEstimatedMoney(convertedRange[0], currencyCode)} - ${formatEstimatedMoney(convertedRange[1], currencyCode)}`;
+};
+
+const getDescriptionLineValue = (description = '', label = '') => {
+  const line = String(description || '')
+    .split('\n')
+    .find((part) => part.trim().toLowerCase().startsWith(`${label.toLowerCase()}:`));
+
+  return line ? line.split(':').slice(1).join(':').trim() : '';
+};
+
+const getPlaceHoursText = (place = {}) =>
+  place.openState
+  || place.hours
+  || place.hoursSummary
+  || getDescriptionLineValue(place.description, 'Hours')
+  || 'Hours unavailable';
+
+const getOpeningStatusTone = (hoursText = '') => {
+  const normalizedHours = String(hoursText || '').toLowerCase();
+  if (normalizedHours.includes('closed')) return 'closed';
+  if (normalizedHours.includes('open')) return 'open';
+  return 'unknown';
+};
+
+const getPlacePriceText = (place = {}, currencyCode = 'MYR', formatter) => {
+  if (place.price) return place.price;
+  if (place.priceDetail?.display) return place.priceDetail.display;
+  if (Number(place.priceEstimate?.amount) > 0) {
+    return formatter
+      ? formatter(Number(place.priceEstimate.amount), place.priceEstimate.currency || currencyCode)
+      : `${place.priceEstimate.currency || currencyCode} ${place.priceEstimate.amount}`;
+  }
+  return 'Price unavailable';
+};
+
+const getItineraryItemFacts = (item = {}, selectedCurrency = 'USD', formatter) => {
+  const sourceCurrency = item.priceEstimate?.currency || selectedCurrency;
+  const amount = Number(item.priceEstimate?.amount || 0);
+  const estimateCategory = [
+    item.category,
+    getDescriptionLineValue(item.description, 'Category'),
+    item.type,
+    item.title,
+  ].filter(Boolean).join(' ');
+  const sourceEstimate = getEstimatedPriceRange({
+    type: item.type,
+    category: estimateCategory,
+    currencyCode: sourceCurrency,
+  });
+  const convertedEstimate = getEstimatedPriceRange({
+    type: item.type,
+    category: estimateCategory,
+    currencyCode: selectedCurrency,
+  });
+  const convertedAmount = amount > 0
+    ? convertApproximateAmount(amount, sourceCurrency, selectedCurrency)
+    : 0;
+  const rating = Number(item.rating || getDescriptionLineValue(item.description, 'Rating'));
+  const reviews = item.reviews || item.reviewCount || getDescriptionLineValue(item.description, 'Reviews');
+
+  return {
+    convertedPrice: amount > 0
+      ? formatEstimatedMoney(convertedAmount, selectedCurrency)
+      : convertedEstimate || '-',
+    hours: getPlaceHoursText(item),
+    originalPrice: item.priceEstimate?.suggestionText
+      || (amount > 0
+        ? (formatter ? formatter(amount, sourceCurrency) : formatEstimatedMoney(amount, sourceCurrency))
+        : sourceEstimate || '-'),
+    priceTone: amount > 0 ? 'Saved estimate' : 'AI estimate',
+    rating: Number.isFinite(rating) && rating > 0 ? `${rating.toFixed(1)} stars` : 'Rating unavailable',
+    reviews: reviews ? `${Number(reviews) ? Number(reviews).toLocaleString() : reviews} reviews` : '',
+    time: [item.startTime, item.endTime].filter(Boolean).join(' - ') || 'Flexible',
+  };
 };
 
 const enrichIdeaPlacesWithDetails = async (ideas = []) => {
@@ -410,6 +531,8 @@ const formatMinutesAsTime = (minutes) => {
 const getItemStartMinutes = (item) => parseTimeToMinutes(item?.startTime);
 const getItemEndMinutes = (item) => parseTimeToMinutes(item?.endTime);
 const hasLockedTime = (item) => getItemStartMinutes(item) !== null;
+const defaultFlexibleDayStartMinutes = 9 * 60;
+const defaultFlexibleVisitMinutes = 60;
 
 const getPointDistanceMeters = (firstPoint, secondPoint) => {
   const toRadians = (degrees) => degrees * (Math.PI / 180);
@@ -463,27 +586,27 @@ const getScheduleIssues = (items = []) => {
       });
     }
 
-    const previous = timedItems[index - 1];
-    if (!previous) return;
+    timedItems.slice(index + 1).forEach((nextItem) => {
+      const nextStart = getItemStartMinutes(nextItem);
+      const nextEnd = getItemEndMinutes(nextItem);
+      const itemEnd = end ?? start;
+      const nextEffectiveEnd = nextEnd ?? nextStart;
+      const hasDuration = end !== null || nextEnd !== null;
+      const overlaps = hasDuration
+        ? start < nextEffectiveEnd && nextStart < itemEnd
+        : start === nextStart;
 
-    const previousStart = getItemStartMinutes(previous);
-    const previousEnd = getItemEndMinutes(previous) ?? previousStart;
+      if (!overlaps) return;
 
-    if (start === previousStart) {
       issues.push({
-        type: 'duplicate-time',
-        itemId: item._id,
-        relatedItemId: previous._id,
-        message: `${item.title} and ${previous.title} are both scheduled at ${item.startTime}. Choose different times or mark one as flexible.`,
+        type: start === nextStart ? 'duplicate-time' : 'overlap',
+        itemId: nextItem._id,
+        relatedItemId: item._id,
+        message: start === nextStart
+          ? `${item.title} and ${nextItem.title} are both scheduled at ${item.startTime}. Choose different times or mark one as flexible.`
+          : `${item.title} overlaps with ${nextItem.title}. Adjust one time range.`,
       });
-    } else if (start < previousEnd) {
-      issues.push({
-        type: 'overlap',
-        itemId: item._id,
-        relatedItemId: previous._id,
-        message: `${item.title} overlaps with ${previous.title}. Adjust one time range.`,
-      });
-    }
+    });
   });
 
   return issues;
@@ -603,12 +726,104 @@ const getOpeningWindow = (hoursText) => {
 
   if (closesMatch && /open/i.test(text)) {
     return {
-      open: 0,
+      open: null,
       close: parseHourTextToMinutes(closesMatch[1]),
+      closeOnly: true,
     };
   }
 
   return null;
+};
+
+const getSuggestedVisitWindow = ({
+  hoursText,
+  durationMinutes = defaultFlexibleVisitMinutes,
+  earliestMinutes = defaultFlexibleDayStartMinutes,
+  latestMinutes = null,
+}) => {
+  if (/closed/i.test(String(hoursText || ''))) return null;
+
+  const openingWindow = getOpeningWindow(hoursText);
+  let suggestedStart = Number(earliestMinutes) || defaultFlexibleDayStartMinutes;
+  const visitDuration = Math.max(15, Number(durationMinutes) || defaultFlexibleVisitMinutes);
+
+  if (openingWindow?.open !== null && openingWindow?.open !== undefined) {
+    suggestedStart = Math.max(suggestedStart, openingWindow.open);
+  }
+
+  if (Number.isFinite(Number(latestMinutes))) {
+    suggestedStart = Math.min(suggestedStart, Number(latestMinutes) - visitDuration);
+  }
+
+  if (openingWindow?.close !== null && openingWindow?.close !== undefined) {
+    suggestedStart = Math.min(suggestedStart, openingWindow.close - visitDuration);
+  }
+
+  if (openingWindow?.open !== null && openingWindow?.open !== undefined) {
+    suggestedStart = Math.max(suggestedStart, openingWindow.open);
+  }
+
+  suggestedStart = Math.max(0, Math.round(suggestedStart));
+  const suggestedEnd = suggestedStart + visitDuration;
+
+  if (openingWindow?.close !== null && openingWindow?.close !== undefined && suggestedEnd > openingWindow.close) {
+    return null;
+  }
+
+  if (Number.isFinite(Number(latestMinutes)) && suggestedEnd > Number(latestMinutes)) {
+    return null;
+  }
+
+  return {
+    startTime: formatMinutesAsTime(suggestedStart),
+    endTime: formatMinutesAsTime(suggestedEnd),
+    startMinutes: suggestedStart,
+    endMinutes: suggestedEnd,
+  };
+};
+
+const annotateFlexibleRouteSchedule = (routePoints = [], mode = 'car') => {
+  let timelineMinutes = defaultFlexibleDayStartMinutes;
+
+  return routePoints.map((point, index) => {
+    const start = getItemStartMinutes(point);
+    const end = getItemEndMinutes(point);
+
+    if (index > 0) {
+      timelineMinutes += getEstimatedTravelMinutes(routePoints[index - 1], point, mode);
+    }
+
+    if (start !== null) {
+      timelineMinutes = end ?? start + defaultFlexibleVisitMinutes;
+      return { ...point, scheduleKind: 'locked' };
+    }
+
+    const nextLockedIndex = routePoints.findIndex((candidate, candidateIndex) =>
+      candidateIndex > index && getItemStartMinutes(candidate) !== null
+    );
+    const nextLockedPoint = nextLockedIndex >= 0 ? routePoints[nextLockedIndex] : null;
+    const latestMinutes = nextLockedPoint
+      ? getItemStartMinutes(nextLockedPoint) - getEstimatedTravelMinutes(point, nextLockedPoint, mode)
+      : null;
+    const suggestedWindow = getSuggestedVisitWindow({
+      hoursText: point.hours || point.summary || '',
+      earliestMinutes: timelineMinutes,
+      latestMinutes,
+    });
+
+    if (!suggestedWindow) {
+      return { ...point, scheduleKind: 'flexible' };
+    }
+
+    timelineMinutes = suggestedWindow.endMinutes;
+
+    return {
+      ...point,
+      scheduleKind: 'suggested',
+      suggestedStartTime: suggestedWindow.startTime,
+      suggestedEndTime: suggestedWindow.endTime,
+    };
+  });
 };
 
 /**
@@ -621,15 +836,29 @@ const getOpeningWarning = ({ hoursText, startTime, endTime }) => {
 
   if (start === null || end === null) return '';
   if (end <= start) return 'End time should be later than start time.';
-  if (/closed/i.test(String(hoursText || ''))) return 'This place appears closed during the selected time.';
+  if (/closed/i.test(String(hoursText || ''))) return 'This place may be closed at your selected time.';
 
   const openingWindow = getOpeningWindow(hoursText);
-  if (!openingWindow || openingWindow.open === null || openingWindow.close === null) {
+  if (!openingWindow || openingWindow.close === null) {
     return hoursText ? '' : 'Opening hours unavailable. Please confirm before adding.';
   }
 
+  if (openingWindow.closeOnly) {
+    if (end > openingWindow.close) {
+      const suggestedWindow = getSuggestedVisitWindow({ hoursText, durationMinutes: end - start });
+      return `This place may be closed at your selected time. Listed closing time: ${formatMinutesAsTime(openingWindow.close)}.${suggestedWindow ? ` Suggested visit: ${suggestedWindow.startTime} - ${suggestedWindow.endTime}.` : ''}`;
+    }
+
+    return `Opening time is not listed. This place only says it closes at ${formatMinutesAsTime(openingWindow.close)}, so please confirm the selected time.`;
+  }
+
+  if (openingWindow.open === null) {
+    return 'Opening hours unavailable. Please confirm the selected time.';
+  }
+
   if (start < openingWindow.open || end > openingWindow.close) {
-    return 'Selected time may be outside this place opening hours.';
+    const suggestedWindow = getSuggestedVisitWindow({ hoursText, durationMinutes: end - start });
+    return `This place may be closed at your selected time. Listed opening hours: ${formatMinutesAsTime(openingWindow.open)} - ${formatMinutesAsTime(openingWindow.close)}.${suggestedWindow ? ` Suggested visit: ${suggestedWindow.startTime} - ${suggestedWindow.endTime}.` : ''}`;
   }
 
   return '';
@@ -911,7 +1140,7 @@ function TripDetailsPage() {
   const [message, setMessage] = useState('');
   const [panelWidth, setPanelWidth] = useState(tripPanelMaxWidth);
   const [isAddingIdea, setIsAddingIdea] = useState(false);
-  const [selectedIdeaSchedule, setSelectedIdeaSchedule] = useState({ startTime: '09:00', endTime: '10:00' });
+  const [selectedIdeaSchedule, setSelectedIdeaSchedule] = useState({ startTime: '', endTime: '' });
   const weatherRankingCacheRef = useRef(new Map());
   
   // Settings modal state
@@ -1283,12 +1512,19 @@ function TripDetailsPage() {
   // Computed values for UI display
   const AddModeIcon = addMode?.icon || Plus;
   const recommendationLocation = getRecommendationLocation(trip, activeDay);
-  const selectedIdeaHours = selectedIdea?.openState || selectedIdea?.hours || '';
+  const selectedIdeaHours = selectedIdea ? getPlaceHoursText(selectedIdea) : '';
+  const selectedIdeaPriceText = selectedIdea ? getPlacePriceText(selectedIdea, tripCurrency, currency?.formatAmount) : '';
+  const selectedIdeaPhone = selectedIdea?.phone || selectedIdea?.phoneNumber || selectedIdea?.telephone || '';
+  const selectedIdeaWebsite = selectedIdea?.website || selectedIdea?.url || selectedIdea?.link || '';
+  const selectedIdeaTimeText = [selectedIdea?.startTime, selectedIdea?.endTime].filter(Boolean).join(' - ');
   const selectedIdeaImageSrc = selectedIdea ? getTripPlaceImageSrc(selectedIdea) : '';
+  const hasPartialSelectedIdeaTime = Boolean(selectedIdeaSchedule.startTime) !== Boolean(selectedIdeaSchedule.endTime);
   const selectedIdeaWarning = selectedIdea
-    ? getOpeningWarning({ hoursText: selectedIdeaHours, ...selectedIdeaSchedule })
+    ? hasPartialSelectedIdeaTime
+      ? 'Choose both From and To times, or leave both blank to keep this stop flexible.'
+      : getOpeningWarning({ hoursText: selectedIdeaHours, ...selectedIdeaSchedule })
     : '';
-  const hasInvalidSelectedIdeaTime = selectedIdeaWarning.startsWith('End time');
+  const hasInvalidSelectedIdeaTime = hasPartialSelectedIdeaTime || selectedIdeaWarning.startsWith('End time');
   
   // Weather display values
   const weatherTemperature = weather?.temperature?.max || weather?.temperature?.mean
@@ -1880,17 +2116,22 @@ function TripDetailsPage() {
     setItems((currentItems) =>
       currentItems.map((currentItem) => (currentItem._id === item._id ? { ...currentItem, [field]: value } : currentItem))
     );
+    setSelectedIdea((currentPlace) => {
+      const currentId = currentPlace?.itineraryItemId || currentPlace?._id || currentPlace?.id;
+      if (currentId !== item._id) return currentPlace;
+      return { ...currentPlace, [field]: value };
+    });
   };
 
   /**
    * Saves item time to the server
    * Updates start time and end time for an itinerary item
    */
-  const saveItemTime = async (itemId) => {
+  const saveItemTime = async (itemId, nextTime = {}) => {
     const item = items.find((currentItem) => currentItem._id === itemId);
     await updateItineraryItem(itemId, {
-      startTime: item?.startTime || '',
-      endTime: item?.endTime || '',
+      startTime: nextTime.startTime ?? item?.startTime ?? '',
+      endTime: nextTime.endTime ?? item?.endTime ?? '',
     });
   };
 
@@ -2036,9 +2277,23 @@ function TripDetailsPage() {
           optimize: !scheduleAwareRoute.preserveOrder,
         }),
       ]));
-      const results = Object.fromEntries(routeEntries);
+      const results = Object.fromEntries(routeEntries.map(([modeId, routeResult]) => [
+        modeId,
+        routeResult
+          ? {
+            ...routeResult,
+            optimizedPoints: annotateFlexibleRouteSchedule(
+              routeResult.optimizedPoints || dayPoints,
+              modeId
+            ),
+          }
+          : routeResult,
+      ]));
       const selectedMode = results[tripRoutePlan.selectedMode] ? tripRoutePlan.selectedMode : 'car';
       const activeRoute = results[selectedMode] || results.car;
+      const routeScheduleMessage = activeRoute?.optimizedPoints?.some((point) => point.suggestedStartTime)
+        ? 'Suggested times were placed inside available opening-hour windows when possible.'
+        : '';
       const travelIssues = getTravelTimeIssues(
         activeRoute?.optimizedPoints || dayPoints,
         selectedMode
@@ -2052,7 +2307,7 @@ function TripDetailsPage() {
         selectedMode,
         selectedRouteId: activeRoute?.id || '',
         status: 'success',
-        message: [scheduleAwareRoute.message, activeRoute?.message].filter(Boolean).join(' '),
+        message: [scheduleAwareRoute.message, routeScheduleMessage, activeRoute?.message].filter(Boolean).join(' '),
         scheduleIssues: [...dayScheduleIssues, ...travelIssues],
       }));
     } catch (error) {
@@ -2078,12 +2333,15 @@ function TripDetailsPage() {
     const baseScheduleIssues = (tripRoutePlan.scheduleIssues || [])
       .filter((issue) => issue.type !== 'travel-conflict');
     const travelIssues = getTravelTimeIssues(modeRoute?.optimizedPoints || tripRoutePlan.points, modeId);
+    const routeScheduleMessage = modeRoute?.optimizedPoints?.some((point) => point.suggestedStartTime)
+      ? 'Suggested times were placed inside available opening-hour windows when possible.'
+      : '';
 
     setTripRoutePlan((current) => ({
       ...current,
       selectedMode: modeId,
       selectedRouteId: modeRoute?.id || '',
-      message: modeRoute?.message || '',
+      message: [routeScheduleMessage, modeRoute?.message].filter(Boolean).join(' '),
       scheduleIssues: [...baseScheduleIssues, ...travelIssues],
     }));
   };
@@ -2155,6 +2413,8 @@ function TripDetailsPage() {
       ...place,
       name: place.name || place.title,
       address: place.address || place.city,
+      hours: getPlaceHoursText(place),
+      price: getPlacePriceText(place, tripCurrency, currency?.formatAmount),
     }, place.categoryId || getMapCategoryForItemType(place.type));
 
     setSelectedIdea(normalizedPlace);
@@ -2169,6 +2429,8 @@ function TripDetailsPage() {
           ...details.item,
           name: details.item.name || normalizedPlace.name,
           address: details.item.address || normalizedPlace.address,
+          hours: getPlaceHoursText({ ...normalizedPlace, ...details.item }),
+          price: getPlacePriceText({ ...normalizedPlace, ...details.item }, tripCurrency, currency?.formatAmount),
         }, normalizedPlace.categoryId)
         : normalizedPlace;
 
@@ -2273,10 +2535,13 @@ function TripDetailsPage() {
         description: [
           idea.summary || idea.address || idea.displayName || '',
           idea.openState ? `Hours: ${idea.openState}` : '',
+          idea.rating && idea.rating !== 'N/A' ? `Rating: ${Number(idea.rating).toFixed(1)}` : '',
+          idea.reviews ? `Reviews: ${idea.reviews}` : '',
+          idea.price && !unavailablePricePattern.test(String(idea.price)) ? `Price: ${idea.price}` : '',
         ].filter(Boolean).join('\n'),
         scheduledDate: activeDay?.date || trip.startDate,
-        startTime: selectedIdeaSchedule.startTime,
-        endTime: selectedIdeaSchedule.endTime,
+        ...(selectedIdeaSchedule.startTime ? { startTime: selectedIdeaSchedule.startTime } : {}),
+        ...(selectedIdeaSchedule.endTime ? { endTime: selectedIdeaSchedule.endTime } : {}),
         location: hasCoordinates ? {
           address: idea.address || idea.displayName,
           coordinates: {
@@ -2289,6 +2554,7 @@ function TripDetailsPage() {
         source: 'openstreetmap',
         externalId: idea.id,
         priceEstimate: buildPlacePriceEstimate(idea, tripCurrency),
+        rating: Number.isFinite(Number(idea.rating)) ? Number(idea.rating) : undefined,
       });
       const savedItem = response.data?.data?.item;
 
@@ -3216,8 +3482,9 @@ function TripDetailsPage() {
                         const visitedRecord = visitedLookup[visitedPayload.placeKey];
                         const priceEstimateLabel = getPriceEstimateLabel(item.priceEstimate);
                         const priceSuggestionText = item.priceEstimate?.suggestionText || '';
+                        const itemFacts = getItineraryItemFacts(item, currency?.selectedCurrency || tripCurrency, currency?.formatAmount);
                         const itemTimeWarning = getOpeningWarning({
-                          hoursText: item.description,
+                          hoursText: itemFacts.hours,
                           startTime: item.startTime,
                           endTime: item.endTime,
                         });
@@ -3283,8 +3550,32 @@ function TripDetailsPage() {
                               </div>
                               <p><MapPin size={13} aria-hidden="true" />{item.location?.address || item.description || 'Location details unavailable'}</p>
                               <div className="trip-item-mini-meta">
-                                {item.startTime || item.endTime ? <span><Clock3 size={12} aria-hidden="true" />{[item.startTime, item.endTime].filter(Boolean).join(' - ')}</span> : null}
+                                <span><Clock3 size={12} aria-hidden="true" />{item.startTime || item.endTime ? [item.startTime, item.endTime].filter(Boolean).join(' - ') : 'Flexible'}</span>
                                 <span><DollarSign size={12} aria-hidden="true" />{currency?.formatAmount ? currency.formatAmount(item.priceEstimate?.amount || 0, tripCurrency) : `${item.priceEstimate?.amount || 0} ${tripCurrency}`}</span>
+                              </div>
+                              <div className="trip-item-fact-grid" aria-label={`${item.title} details`}>
+                                <div>
+                                  <span>Working hours</span>
+                                  <strong className={`trip-opening-status is-${getOpeningStatusTone(itemFacts.hours)}`}>
+                                    <Clock3 size={13} aria-hidden="true" />
+                                    {itemFacts.hours}
+                                  </strong>
+                                </div>
+                                <div>
+                                  <span>Rating</span>
+                                  <strong><Star size={13} aria-hidden="true" />{itemFacts.rating}</strong>
+                                  {itemFacts.reviews ? <small>{itemFacts.reviews}</small> : null}
+                                </div>
+                                <div>
+                                  <span>Estimated price</span>
+                                  <strong><DollarSign size={13} aria-hidden="true" />{itemFacts.originalPrice}</strong>
+                                  <small>{itemFacts.priceTone}</small>
+                                </div>
+                                <div>
+                                  <span>Converted price</span>
+                                  <strong><DollarSign size={13} aria-hidden="true" />{itemFacts.convertedPrice}</strong>
+                                  <small>{currency?.selectedCurrency || tripCurrency}</small>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -3295,7 +3586,7 @@ function TripDetailsPage() {
                                 type="time"
                                 value={item.startTime || ''}
                                 onChange={(event) => updateItemTimeLocal(item, 'startTime', event.target.value)}
-                                onBlur={() => saveItemTime(item._id)}
+                                onBlur={(event) => saveItemTime(item._id, { startTime: event.target.value })}
                               />
                             </label>
                             <label>
@@ -3304,11 +3595,11 @@ function TripDetailsPage() {
                                 type="time"
                                 value={item.endTime || ''}
                                 onChange={(event) => updateItemTimeLocal(item, 'endTime', event.target.value)}
-                                onBlur={() => saveItemTime(item._id)}
+                                onBlur={(event) => saveItemTime(item._id, { endTime: event.target.value })}
                               />
                             </label>
                             <label className="trip-item-cost-control">
-                              <span>Estimated cost</span>
+                              <span>Planned cost</span>
                               <input
                                 type="number"
                                 min="0"
@@ -3318,7 +3609,7 @@ function TripDetailsPage() {
                               />
                               <small>
                                 {priceEstimateLabel}
-                                {priceSuggestionText ? ` · Suggested: ${priceSuggestionText}` : ''}
+                                {priceSuggestionText ? ` Suggested price: ${priceSuggestionText}` : ''}
                               </small>
                             </label>
                           </div>
@@ -3592,16 +3883,45 @@ function TripDetailsPage() {
                 <p>{selectedIdea.summary || selectedIdea.address || selectedIdea.displayName || 'Map place result for this trip.'}</p>
                 <dl className="trip-place-facts">
                   <div>
-                    <dt><Clock3 size={14} aria-hidden="true" /> Hours</dt>
-                    <dd>{selectedIdea.openState || selectedIdea.hours || 'Hours unavailable'}</dd>
+                    <dt><Clock3 size={14} aria-hidden="true" /> Working hours</dt>
+                    <dd>{selectedIdeaHours || 'Hours unavailable'}</dd>
                   </div>
                   <div>
                     <dt><DollarSign size={14} aria-hidden="true" /> Price</dt>
                     <dd>
-                      {selectedIdea.price || 'Price unavailable'}
+                      {selectedIdeaPriceText || 'Price unavailable'}
                       {getPlacePriceSuggestionText(selectedIdea) ? <small>Suggestion only. You can edit the estimate after adding.</small> : null}
                     </dd>
                   </div>
+                  <div>
+                    <dt><Star size={14} aria-hidden="true" /> Rating</dt>
+                    <dd>
+                      {selectedIdea.rating && selectedIdea.rating !== 'N/A' ? `${Number(selectedIdea.rating).toFixed(1)} stars` : 'No rating'}
+                      {selectedIdea.reviews ? <small>{Number(selectedIdea.reviews) ? `${Number(selectedIdea.reviews).toLocaleString()} reviews` : selectedIdea.reviews}</small> : null}
+                    </dd>
+                  </div>
+                  {selectedIdeaTimeText ? (
+                    <div>
+                      <dt><CalendarDays size={14} aria-hidden="true" /> Planned time</dt>
+                      <dd>{selectedIdeaTimeText}</dd>
+                    </div>
+                  ) : null}
+                  {selectedIdeaPhone ? (
+                    <div>
+                      <dt><Info size={14} aria-hidden="true" /> Contact</dt>
+                      <dd>{selectedIdeaPhone}</dd>
+                    </div>
+                  ) : null}
+                  {selectedIdeaWebsite ? (
+                    <div>
+                      <dt><StickyNote size={14} aria-hidden="true" /> Website</dt>
+                      <dd>
+                        <a href={selectedIdeaWebsite} target="_blank" rel="noreferrer">
+                          {selectedIdeaWebsite.replace(/^https?:\/\//, '').replace(/\/$/, '')}
+                        </a>
+                      </dd>
+                    </div>
+                  ) : null}
                   <div>
                     <dt><MapPin size={14} aria-hidden="true" /> Address</dt>
                     <dd>{selectedIdea.address || selectedIdea.displayName || 'Address unavailable'}</dd>
@@ -3626,6 +3946,7 @@ function TripDetailsPage() {
                       onChange={(event) => setSelectedIdeaSchedule((current) => ({ ...current, endTime: event.target.value }))}
                     />
                   </label>
+                  <small>Leave time blank to add as a flexible stop.</small>
                 </div> : null}
                 {selectedPlaceSource !== 'itinerary' && selectedIdeaWarning ? (
                   <p className="trip-opening-warning">
@@ -3698,9 +4019,11 @@ function TripDetailsPage() {
                           <strong>{place.title || place.name || `Stop ${index + 1}`}</strong>
                           <small>
                             {place.startTime
-                              ? `${place.startTime}${place.endTime ? ` - ${place.endTime}` : ''} · locked time`
-                              : 'Flexible stop'}
-                            {' · '}
+                              ? `${place.startTime}${place.endTime ? ` - ${place.endTime}` : ''} - locked time`
+                              : place.suggestedStartTime
+                                ? `${place.suggestedStartTime} - ${place.suggestedEndTime} - suggested time`
+                                : 'Flexible stop'}
+                            {' - '}
                             {index === 0 ? 'Go here first' : index === tripRouteMapPlaces.length - 1 ? 'Final stop' : `Then continue to stop ${index + 1}`}
                           </small>
                         </div>

@@ -4,6 +4,7 @@
  */
 import { CalendarCheck, CheckCircle2, LoaderCircle, PlusCircle, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { markVisitedPlace } from '../../api/visitedPlaceApi';
 import './VisitedPlaceControl.css';
 
@@ -31,7 +32,9 @@ function VisitedPlaceControl({
   compact = false,
 }) {
   const controlRef = useRef(null);
+  const popoverRef = useRef(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [popoverStyle, setPopoverStyle] = useState({});
   const [visitedDate, setVisitedDate] = useState('');
   const [visitCount, setVisitCount] = useState(1);
   const [notes, setNotes] = useState('');
@@ -44,12 +47,38 @@ function VisitedPlaceControl({
     setError('');
   };
 
+  const updatePopoverPosition = () => {
+    const button = controlRef.current?.querySelector('.visited-place-button');
+    if (!button) return;
+
+    const buttonRect = button.getBoundingClientRect();
+    const popoverWidth = Math.min(260, window.innerWidth - 24);
+    const estimatedHeight = 320;
+    const gap = 8;
+    const viewportPadding = 12;
+    const canOpenBelow = buttonRect.bottom + gap + estimatedHeight <= window.innerHeight - viewportPadding;
+    const top = canOpenBelow
+      ? buttonRect.bottom + gap
+      : Math.max(viewportPadding, buttonRect.top - estimatedHeight - gap);
+    const left = Math.min(
+      Math.max(viewportPadding, buttonRect.right - popoverWidth),
+      window.innerWidth - popoverWidth - viewportPadding
+    );
+
+    setPopoverStyle({
+      left: `${left}px`,
+      maxHeight: `${Math.max(220, window.innerHeight - top - viewportPadding)}px`,
+      top: `${top}px`,
+      width: `${popoverWidth}px`,
+    });
+  };
+
   // Sets up click-outside and escape key handlers when popover is open
   useEffect(() => {
     if (!isOpen) return undefined;
 
     const handlePointerDown = (event) => {
-      if (!controlRef.current?.contains(event.target)) {
+      if (!controlRef.current?.contains(event.target) && !popoverRef.current?.contains(event.target)) {
         closePopover();
       }
     };
@@ -59,12 +88,18 @@ function VisitedPlaceControl({
       }
     };
 
+    updatePopoverPosition();
+
     document.addEventListener('pointerdown', handlePointerDown);
     document.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('resize', updatePopoverPosition);
+    window.addEventListener('scroll', updatePopoverPosition, true);
 
     return () => {
       document.removeEventListener('pointerdown', handlePointerDown);
       document.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('resize', updatePopoverPosition);
+      window.removeEventListener('scroll', updatePopoverPosition, true);
     };
   }, [isOpen]);
 
@@ -116,9 +151,15 @@ function VisitedPlaceControl({
         {getVisitSummary(visitedRecord)}
       </button>
 
-      {/* Popover form for adding visit details */}
-      {isOpen ? (
-        <form className="visited-place-popover" onSubmit={saveVisitedPlace}>
+      {isOpen ? createPortal(
+        <form
+          ref={popoverRef}
+          className="visited-place-popover"
+          style={popoverStyle}
+          onClick={(event) => event.stopPropagation()}
+          onKeyDown={(event) => event.stopPropagation()}
+          onSubmit={saveVisitedPlace}
+        >
           <div className="visited-place-popover-header">
             <strong>Add visit details</strong>
             <button
@@ -170,7 +211,8 @@ function VisitedPlaceControl({
             {isSaving ? <LoaderCircle className="visited-place-spin" size={14} aria-hidden="true" /> : <PlusCircle size={14} aria-hidden="true" />}
             Add visit
           </button>
-        </form>
+        </form>,
+        document.body
       ) : null}
     </div>
   );

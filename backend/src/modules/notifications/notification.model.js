@@ -6,8 +6,8 @@ const mongoose = require('mongoose');
 
 /**
  * Notification Schema groups database fields before model registration.
- * Stores user notifications for various events including trip reminders,
- * weather alerts, budget alerts, and admin notifications.
+ * Stores user notifications for events including trip reminders,
+ * budget alerts, and admin notifications.
  */
 const notificationSchema = new mongoose.Schema(
   {
@@ -23,7 +23,6 @@ const notificationSchema = new mongoose.Schema(
       enum: [
         'trip-reminder',      // Trip date approaching
         'packing-list',       // Packing list reminder
-        'weather-alert',      // Severe weather warning
         'document-expiry',    // Document expiration warning
         'budget-alert',       // Budget threshold exceeded
         'admin-rate-limit',   // Rate limit exceeded (admin alert)

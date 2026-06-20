@@ -4,14 +4,12 @@
  */
 const { query } = require('express-validator');
 
-// Validate that at least one flight filter is provided
-const requireAnyFlightFilter = query().custom((_, { req }) => {
-  // Check if any search field has a value
-  const hasSearchValue = ['airlineName', 'fromCountryCode', 'toCountryCode'].some((field) => Boolean(req.query[field]?.trim()));
+// Validate that flight search includes country context.
+const requireFlightCountryFilter = query().custom((_, { req }) => {
+  const hasCountry = ['fromCountryCode', 'toCountryCode'].some((field) => Boolean(req.query[field]?.trim()));
   
-  // Throw error if no filters provided
-  if (!hasSearchValue) {
-    throw new Error('Enter an airline name or select at least one country.');
+  if (!hasCountry) {
+    throw new Error('Select at least one country before searching flights.');
   }
 
   return true;
@@ -73,8 +71,8 @@ const flightLookupRules = [
       return true;
     }),
   
-  // Apply the any-filter requirement
-  requireAnyFlightFilter,
+  // Apply the country-context requirement
+  requireFlightCountryFilter,
 ];
 
 // Validation rules for train station timetable endpoint

@@ -272,17 +272,17 @@ function PlaceSearchWorkspace({
           >
             {/* Country filter dropdown */}
             <div className="explore-filter-control">
-              <span className="explore-field-label">Country</span>
+              <span className="explore-field-label">Country optional</span>
               <label className="explore-filter-field">
                 <span className="sr-only">Country</span>
                 <select
                   value={activeFilters.countryCode}
-                  aria-required="true"
+                  aria-required="false"
                   onChange={(event) =>
                     handleCountryChange(event.target.value, isHotelsView ? 'hotel' : isFoodView ? 'restaurant' : 'attraction')
                   }
                 >
-                  <option value="">Country</option>
+                  <option value="">Any country</option>
                   {countryOptions.map((country) => (
                     <option key={country.isoCode} value={country.isoCode}>
                       {country.name}

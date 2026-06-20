@@ -19,18 +19,6 @@ const optionalDestinationRule = query('destination').optional({ checkFalsy: true
 const optionalFilterRule = (field) => query(field).optional({ checkFalsy: true }).trim().isLength({ max: 80 });
 
 /**
- * Helper: Required country field with length validation.
- * @returns {Object} Validation chain
- */
-const requiredCountryRule = query('country')
-  .trim()
-  .notEmpty()
-  .withMessage('Select a country before searching.')
-  .bail() // Stop validation chain if previous check fails
-  .isLength({ max: 80 })
-  .withMessage('Country must be 80 characters or fewer.');
-
-/**
  * Helper: Optional coordinate field with range validation.
  * @param {string} field - Field name
  * @param {number} min - Minimum value
@@ -126,13 +114,16 @@ const weatherRules = [
 
 /**
  * Attractions list endpoint validation rules.
- * Requires country, optional destination, state, category, and pagination.
+ * Allows optional country, destination, state, category, and pagination.
  */
 const attractionRules = [
   optionalDestinationRule,
-  requiredCountryRule,
+  optionalFilterRule('country'),
   optionalFilterRule('state'),
   optionalFilterRule('attractionCategory'),
+  optionalFilterRule('locationLabel'),
+  optionalCoordinateRule('latitude', -90, 90),
+  optionalCoordinateRule('longitude', -180, 180),
   optionalStartRule,
 ];
 
@@ -150,13 +141,16 @@ const attractionDetailRules = [
 
 /**
  * Hotels list endpoint validation rules.
- * Requires country, optional destination, state, room type, and pagination.
+ * Allows optional country, destination, state, room type, and pagination.
  */
 const hotelRules = [
   optionalDestinationRule,
-  requiredCountryRule,
+  optionalFilterRule('country'),
   optionalFilterRule('state'),
   optionalFilterRule('roomType'),
+  optionalFilterRule('locationLabel'),
+  optionalCoordinateRule('latitude', -90, 90),
+  optionalCoordinateRule('longitude', -180, 180),
   optionalStartRule,
 ];
 
@@ -174,13 +168,16 @@ const hotelDetailRules = [
 
 /**
  * Restaurants list endpoint validation rules.
- * Requires country, optional destination, state, food category, and pagination.
+ * Allows optional country, destination, state, food category, and pagination.
  */
 const restaurantRules = [
   optionalDestinationRule,
-  requiredCountryRule,
+  optionalFilterRule('country'),
   optionalFilterRule('state'),
   optionalFilterRule('foodCategory'),
+  optionalFilterRule('locationLabel'),
+  optionalCoordinateRule('latitude', -90, 90),
+  optionalCoordinateRule('longitude', -180, 180),
   optionalStartRule,
 ];
 

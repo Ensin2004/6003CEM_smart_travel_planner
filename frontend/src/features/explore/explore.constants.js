@@ -17,6 +17,20 @@ export const emptyCategoryOptions = {
   food: [{ value: '', label: 'Any' }],
 };
 
+const categoryOptionCollator = new Intl.Collator('en', {
+  numeric: true,
+  sensitivity: 'base',
+});
+
+const sortCategoryOptions = (options = []) => [
+  ...options.filter((option) => option.value === ''),
+  ...options
+    .filter((option) => option.value !== '')
+    .sort((firstOption, secondOption) =>
+      categoryOptionCollator.compare(firstOption.label, secondOption.label)
+    ),
+];
+
 /**
  * Groups category items by their type into separate arrays.
  * Preserves existing category options and appends new categories from the input.
@@ -30,8 +44,8 @@ export const emptyCategoryOptions = {
  * @property {Array} attraction - Combined attraction category options
  * @property {Array} food - Combined food category options
  */
-export const groupCategoryOptions = (categories = []) =>
-  categories.reduce(
+export const groupCategoryOptions = (categories = []) => {
+  const groups = categories.reduce(
     (groups, category) => {
       if (groups[category.type]) {
         groups[category.type].push({ value: category.value, label: category.name });
@@ -44,4 +58,11 @@ export const groupCategoryOptions = (categories = []) =>
       food: [...emptyCategoryOptions.food],
     }
   );
+
+  return {
+    hotel: sortCategoryOptions(groups.hotel),
+    attraction: sortCategoryOptions(groups.attraction),
+    food: sortCategoryOptions(groups.food),
+  };
+};
   

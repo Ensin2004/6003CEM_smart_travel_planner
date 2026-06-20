@@ -41,13 +41,11 @@
 
 /* Popover form that appears when the button is clicked */
 .visited-place-popover {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
-  z-index: 40;
+  position: fixed;
+  z-index: 10000;
   display: grid;
   gap: 8px;
-  width: min(260px, 82vw);
+  overflow: auto;
   border: 1px solid #dbe3ed;
   border-radius: 8px;
   background: #ffffff;

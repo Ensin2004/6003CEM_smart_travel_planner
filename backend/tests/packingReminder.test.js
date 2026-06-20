@@ -103,7 +103,7 @@ describe('Packing-list reminder scheduling', () => {
   test.each([
     ['the linked trip is today', '2026-06-01T00:00:00.000Z', 2],
     ['the selected reminder date has already passed', '2026-06-02T00:00:00.000Z', 3],
-  ])('sends immediately when %s', async (_scenario, tripStartDate, daysBeforeTrip) => {
+  ])('does not create a new immediate reminder when %s', async (_scenario, tripStartDate, daysBeforeTrip) => {
     const packingList = {
       _id: 'packing-list-1',
       userId: 'user-1',
@@ -117,15 +117,13 @@ describe('Packing-list reminder scheduling', () => {
     packingListRepository.findByIdAndUserId.mockResolvedValue(packingList);
     notificationRepository.countUnreadByUserId.mockResolvedValue(1);
 
-    await notificationService.schedulePackingListReminder(packingList);
+    const result = await notificationService.schedulePackingListReminder(packingList);
 
-    expect(notificationRepository.create).toHaveBeenCalled();
-    expect(notificationRepository.save).toHaveBeenCalledWith(
-      expect.objectContaining({
-        _id: 'notification-1',
-        sentAt: expect.any(Date),
-      })
-    );
+    expect(result).toBeNull();
+    expect(notificationRepository.deletePendingPackingListReminder)
+      .toHaveBeenCalledWith('packing-list-1', 'user-1');
+    expect(notificationRepository.create).not.toHaveBeenCalled();
+    expect(notificationRepository.save).not.toHaveBeenCalled();
   });
 
   test('discards a due reminder when the live packing list has no unpacked items', async () => {

@@ -37,6 +37,9 @@ const getAttractions = catchAsync(async (req, res) => {
     country: req.query.country,
     state: req.query.state,
     attractionCategory: req.query.attractionCategory,
+    latitude: req.query.latitude,
+    longitude: req.query.longitude,
+    locationLabel: req.query.locationLabel,
     start: req.query.start,
   });
   sendSuccess(res, 200, { attractions: ensureApiResult(attractions, {
@@ -72,6 +75,9 @@ const getHotels = catchAsync(async (req, res) => {
     country: req.query.country,
     state: req.query.state,
     roomType: req.query.roomType,
+    latitude: req.query.latitude,
+    longitude: req.query.longitude,
+    locationLabel: req.query.locationLabel,
     start: req.query.start,
   });
   sendSuccess(res, 200, { hotels: ensureApiResult(hotels, {
@@ -107,6 +113,9 @@ const getRestaurants = catchAsync(async (req, res) => {
     country: req.query.country,
     state: req.query.state,
     foodCategory: req.query.foodCategory,
+    latitude: req.query.latitude,
+    longitude: req.query.longitude,
+    locationLabel: req.query.locationLabel,
     start: req.query.start,
   });
   sendSuccess(res, 200, { restaurants: ensureApiResult(restaurants, {

@@ -26,6 +26,9 @@ export const searchAttractions = (filters) => {
       country: params?.country,
       state: params?.state,
       attractionCategory: params?.attractionCategory,
+      latitude: params?.latitude,
+      longitude: params?.longitude,
+      locationLabel: params?.locationLabel,
       start: params?.start,
     },
   });
@@ -43,25 +46,31 @@ export const getAttractionDetails = ({ name, address, dataId, placeId }) =>
   });
 
 // Searches for hotels based on destination, location, room type, and pagination start
-export const searchHotels = ({ destination, country, state, roomType, start }) =>
+export const searchHotels = ({ destination, country, state, roomType, latitude, longitude, locationLabel, start }) =>
   axiosClient.get('/explore/hotels', {
     params: {
       destination,
       country,
       state,
       roomType,
+      latitude,
+      longitude,
+      locationLabel,
       start,
     },
   });
 
 // Searches for restaurants with destination, location, food category, and pagination options
-export const searchRestaurants = ({ destination, country, state, foodCategory, start }) =>
+export const searchRestaurants = ({ destination, country, state, foodCategory, latitude, longitude, locationLabel, start }) =>
   axiosClient.get('/explore/restaurants', {
     params: {
       destination,
       country,
       state,
       foodCategory,
+      latitude,
+      longitude,
+      locationLabel,
       start,
     },
   });
