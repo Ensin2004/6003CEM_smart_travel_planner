@@ -410,7 +410,7 @@ const getCoordinates = (item = {}) =>
  */
 const consumeDailyQuota = () => {
   const today = new Date().toISOString().slice(0, 10);
-  const dailyLimit = Math.max(Number(env.serpApiDailyLimit) || 100, 0);
+  const dailyLimit = Math.max(Number(env.serpApiDailyLimit) || 500, 0);
   
   // Reset counter when date changes
   if (dailyUsage.date !== today) {

@@ -327,6 +327,9 @@ const buildPlacePriceEstimate = (place = {}, currencyCode = 'MYR') => {
   };
 };
 
+const getEditableMoneyValue = (value) => (value ?? '') === '' ? '' : value;
+const getSavedMoneyValue = (value) => Number(value) || 0;
+
 const getPriceEstimateLabel = (priceEstimate = {}) => {
   if (priceEstimate.source === 'api') return 'Imported suggestion. Edit the amount you want to budget.';
   if (priceEstimate.source === 'ai') return 'AI suggestion. Edit the amount you want to budget.';
@@ -1980,7 +1983,7 @@ function TripDetailsPage() {
     const response = await updateTrip(id, {
       budget: {
         ...trip.budget,
-        totalAmount: Number(amount) || 0,
+        totalAmount: getSavedMoneyValue(amount),
         currency: tripCurrency,
       },
     });
@@ -2082,7 +2085,7 @@ function TripDetailsPage() {
             ...currentItem,
             priceEstimate: {
               ...currentItem.priceEstimate,
-              amount: Number(amount) || 0,
+              amount,
               currency: currentItem.priceEstimate?.currency || tripCurrency,
               source: 'manual',
             },
@@ -2100,7 +2103,7 @@ function TripDetailsPage() {
     const item = items.find((currentItem) => currentItem._id === itemId);
     await updateItineraryItem(itemId, {
       priceEstimate: {
-        amount: Number(item?.priceEstimate?.amount || 0),
+        amount: getSavedMoneyValue(item?.priceEstimate?.amount),
         currency: item?.priceEstimate?.currency || tripCurrency,
         source: 'manual',
         suggestionText: item?.priceEstimate?.suggestionText || '',
@@ -2763,10 +2766,10 @@ function TripDetailsPage() {
                 <input
                   type="number"
                   min="0"
-                  value={trip.budget?.totalAmount || 0}
+                  value={getEditableMoneyValue(trip.budget?.totalAmount)}
                   onChange={(event) => setTrip((current) => ({
                     ...current,
-                    budget: { ...current.budget, totalAmount: Number(event.target.value) || 0, currency: tripCurrency },
+                    budget: { ...current.budget, totalAmount: event.target.value, currency: tripCurrency },
                   }))}
                   onBlur={(event) => updateTripBudget(event.target.value)}
                 />
@@ -3302,11 +3305,14 @@ function TripDetailsPage() {
                             aria-label="Daily budget"
                             type="number"
                             min="0"
-                            value={activeDay.budget?.amount || 0}
+                            value={getEditableMoneyValue(activeDay.budget?.amount)}
                             onChange={(event) => updateDayLocal(activeDay.dayNumber, {
-                              budget: { amount: Number(event.target.value), currency: tripCurrency },
+                              budget: { amount: event.target.value, currency: tripCurrency },
                             })}
-                            onBlur={() => saveDay(activeDay)}
+                            onBlur={(event) => saveDay({
+                              ...activeDay,
+                              budget: { amount: getSavedMoneyValue(event.target.value), currency: tripCurrency },
+                            })}
                           />
                         </div>
                       </label>
@@ -3603,7 +3609,7 @@ function TripDetailsPage() {
                               <input
                                 type="number"
                                 min="0"
-                                value={item.priceEstimate?.amount || 0}
+                                value={getEditableMoneyValue(item.priceEstimate?.amount)}
                                 onChange={(event) => updateItemPriceLocal(item, event.target.value)}
                                 onBlur={() => saveItemPrice(item._id)}
                               />
