@@ -3,8 +3,14 @@
  * Business rules, repository access, and external integrations live in this layer.
  */
 const nodemailer = require('nodemailer');
+const { Resend } = require('resend');
 const env = require('../config/env');
 const logger = require('./logger');
+
+const resend = env.resendApiKey ? new Resend(env.resendApiKey) : null;
+
+// Resend uses HTTPS and is preferred in hosted environments where SMTP ports may be unavailable.
+const hasResendConfig = () => Boolean(resend);
 
 // Checks if SMTP configuration is available for real email delivery.
 const hasSmtpConfig = () => Boolean(env.smtpHost && env.smtpUser && env.smtpPass);
@@ -36,9 +42,28 @@ const createTransporter = () => {
   });
 };
 
+// Sends through Resend when configured, then falls back to SMTP or local JSON preview delivery.
+const sendEmail = async (message, previewLabel) => {
+  if (hasResendConfig()) {
+    const { data, error } = await resend.emails.send(message);
+    if (error) {
+      throw new Error(`Resend email failed: ${error.message || 'Unknown API error'}`);
+    }
+    return data;
+  }
+
+  const transporter = createTransporter();
+  const info = await transporter.sendMail(message);
+
+  if (!hasSmtpConfig()) {
+    logger.info(`${previewLabel}: ${info.message}`);
+  }
+
+  return info;
+};
+
 // Sends a verification email with an expiring link for email confirmation.
 const sendVerificationEmail = async ({ to, name, verificationUrl, expiresAt }) => {
-  const transporter = createTransporter();
   const expiresText = expiresAt.toLocaleString('en-MY', {
     dateStyle: 'medium',
     timeStyle: 'short',
@@ -63,19 +88,11 @@ const sendVerificationEmail = async ({ to, name, verificationUrl, expiresAt }) =
     text: `Hi ${name || 'there'},\n\nVerify your Smart Travel Planner account here:\n${verificationUrl}\n\nThis link expires on ${expiresText}.`,
   };
 
-  const info = await transporter.sendMail(message);
-
-  if (!hasSmtpConfig()) {
-    logger.info(`Email verification link for ${to}: ${verificationUrl}`);
-    logger.info(`SMTP is not configured. Email preview payload: ${info.message}`);
-  }
-
-  return info;
+  return sendEmail(message, `Email verification preview for ${to}`);
 };
 
 // Sends a generic notification email with optional action link.
 const sendNotificationEmail = async ({ to, name, title, message, actionUrl }) => {
-  const transporter = createTransporter();
   const htmlAction = actionUrl
     ? `<p><a href="${escapeHtml(actionUrl)}" style="display: inline-block; padding: 12px 18px; background: #0f766e; color: #ffffff; text-decoration: none; border-radius: 8px;">Open notification</a></p>`
     : '';
@@ -95,13 +112,7 @@ const sendNotificationEmail = async ({ to, name, title, message, actionUrl }) =>
     text: `Hi ${name || 'there'},\n\n${title}\n\n${message}${actionUrl ? `\n\nOpen: ${actionUrl}` : ''}`,
   };
 
-  const info = await transporter.sendMail(email);
-
-  if (!hasSmtpConfig()) {
-    logger.info(`Notification email for ${to}: ${title}`);
-  }
-
-  return info;
+  return sendEmail(email, `Notification email preview for ${to}: ${title}`);
 };
 
 // Exports email sending functions for use across the application.
