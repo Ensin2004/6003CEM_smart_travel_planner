@@ -2648,6 +2648,59 @@
   font-size: 11px;
   font-weight: 600;
 }
+.trip-item-fact-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  overflow: hidden;
+  margin-top: 4px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+}
+.trip-item-fact-grid > div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  border-right: 1px solid #eef2f7;
+  border-bottom: 1px solid #eef2f7;
+  padding: 7px 8px;
+}
+.trip-item-fact-grid > div:nth-child(2n) {
+  border-right: 0;
+}
+.trip-item-fact-grid > div:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+.trip-item-fact-grid span {
+  color: #0f766e;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.trip-item-fact-grid strong {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+  color: #0f172a;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.25;
+}
+.trip-item-fact-grid strong svg {
+  flex: 0 0 auto;
+  color: #64748b;
+}
+.trip-item-fact-grid small {
+  display: block;
+  overflow: hidden;
+  color: #64748b;
+  font-size: 11px;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 
 /**
  * Strong and small elements within itinerary with consistent weight
@@ -3416,6 +3469,15 @@
   color: #64748b;
   font-size: 11px;
   font-weight: 600;
+}
+.trip-place-facts dd a {
+  color: #0f766e;
+  font-weight: 650;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+.trip-place-facts dd a:hover {
+  text-decoration: underline;
 }
 
 /**
