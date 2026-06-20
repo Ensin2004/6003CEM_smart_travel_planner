@@ -10,7 +10,10 @@ const Category = require('./category.model');
  * 
  * @returns {Promise<Array>} Array of all category documents sorted by type then name
  */
-const findAll = () => Category.find().sort({ type: 1, name: 1 });
+const findAll = () =>
+  Category.find()
+    .collation({ locale: 'en', strength: 2, numericOrdering: true })
+    .sort({ type: 1, name: 1 });
 
 /**
  * Finds a category by its MongoDB ObjectId.

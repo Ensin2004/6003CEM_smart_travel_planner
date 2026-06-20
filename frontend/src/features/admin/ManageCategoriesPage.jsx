@@ -33,6 +33,11 @@ const typeOptions = [
 // Number of categories displayed per page in the list
 const categoriesPerPage = 10;
 
+const categoryNameCollator = new Intl.Collator('en', {
+  numeric: true,
+  sensitivity: 'base',
+});
+
 // Retrieves user-friendly error messages from API responses
 const getErrorMessage = (error) =>
   getApiErrorMessage(error, 'Unable to save category changes.');
@@ -106,11 +111,15 @@ function ManageCategoriesPage() {
   const filteredCategories = useMemo(() => {
     const normalizedQuery = searchQuery.trim().toLowerCase();
 
-    return categories.filter(
-      (category) =>
-        category.type === activeType &&
-        (!normalizedQuery || category.name.toLowerCase().includes(normalizedQuery))
-    );
+    return categories
+      .filter(
+        (category) =>
+          category.type === activeType &&
+          (!normalizedQuery || category.name.toLowerCase().includes(normalizedQuery))
+      )
+      .sort((firstCategory, secondCategory) =>
+        categoryNameCollator.compare(firstCategory.name, secondCategory.name)
+      );
   }, [activeType, categories, searchQuery]);
 
   // Calculates pagination values for the category list
