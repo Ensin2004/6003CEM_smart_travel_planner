@@ -413,6 +413,10 @@ const schedulePackingListReminder = async (packingList) => {
   const scheduledAt = new Date(packingList.tripStartDate);
   scheduledAt.setDate(scheduledAt.getDate() - daysBeforeTrip);
 
+  // Packing-list edits can happen after the reminder window has already passed.
+  // In that case, keep the list saved quietly instead of creating a new immediate notification on every action.
+  if (scheduledAt <= new Date()) return null;
+
   return createNotification({
     userId: packingList.userId,
     tripId: packingList.tripId,
