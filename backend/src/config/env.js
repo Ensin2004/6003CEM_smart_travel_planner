@@ -70,7 +70,7 @@ module.exports = {
   transportApiAppKey: process.env.TRANSPORTAPI_APP_KEY || process.env.TAPI_APP_KEY || '',
   
   // Daily rate limits for external API usage - prevents quota exhaustion
-  serpApiDailyLimit: Number(process.env.SERPAPI_DAILY_LIMIT || 100),
+  serpApiDailyLimit: Number(process.env.SERPAPI_DAILY_LIMIT || 500),
   airlabsDailyLimit: Number(process.env.AIRLABS_DAILY_LIMIT || 100),
   openMeteoDailyLimit: Number(process.env.OPEN_METEO_DAILY_LIMIT || 500),
 
