@@ -2692,6 +2692,21 @@
   flex: 0 0 auto;
   color: #64748b;
 }
+.trip-item-fact-grid .trip-opening-status.is-open {
+  color: #047857;
+}
+.trip-item-fact-grid .trip-opening-status.is-open svg {
+  color: #16a34a;
+}
+.trip-item-fact-grid .trip-opening-status.is-closed {
+  color: #b42318;
+}
+.trip-item-fact-grid .trip-opening-status.is-closed svg {
+  color: #dc2626;
+}
+.trip-item-fact-grid .trip-opening-status.is-unknown {
+  color: #475569;
+}
 .trip-item-fact-grid small {
   display: block;
   overflow: hidden;

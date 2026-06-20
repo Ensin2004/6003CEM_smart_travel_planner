@@ -395,6 +395,13 @@ const getPlaceHoursText = (place = {}) =>
   || getDescriptionLineValue(place.description, 'Hours')
   || 'Hours unavailable';
 
+const getOpeningStatusTone = (hoursText = '') => {
+  const normalizedHours = String(hoursText || '').toLowerCase();
+  if (normalizedHours.includes('closed')) return 'closed';
+  if (normalizedHours.includes('open')) return 'open';
+  return 'unknown';
+};
+
 const getPlacePriceText = (place = {}, currencyCode = 'MYR', formatter) => {
   if (place.price) return place.price;
   if (place.priceDetail?.display) return place.priceDetail.display;
@@ -717,8 +724,9 @@ const getOpeningWindow = (hoursText) => {
 
   if (closesMatch && /open/i.test(text)) {
     return {
-      open: 0,
+      open: null,
       close: parseHourTextToMinutes(closesMatch[1]),
+      closeOnly: true,
     };
   }
 
@@ -738,12 +746,24 @@ const getOpeningWarning = ({ hoursText, startTime, endTime }) => {
   if (/closed/i.test(String(hoursText || ''))) return 'This place appears closed during the selected time.';
 
   const openingWindow = getOpeningWindow(hoursText);
-  if (!openingWindow || openingWindow.open === null || openingWindow.close === null) {
+  if (!openingWindow || openingWindow.close === null) {
     return hoursText ? '' : 'Opening hours unavailable. Please confirm before adding.';
   }
 
+  if (openingWindow.closeOnly) {
+    if (end > openingWindow.close) {
+      return `Selected time is after the listed closing time (${formatMinutesAsTime(openingWindow.close)}).`;
+    }
+
+    return `Opening time is not listed. This place only says it closes at ${formatMinutesAsTime(openingWindow.close)}, so please confirm the selected time.`;
+  }
+
+  if (openingWindow.open === null) {
+    return 'Opening hours unavailable. Please confirm the selected time.';
+  }
+
   if (start < openingWindow.open || end > openingWindow.close) {
-    return 'Selected time may be outside this place opening hours.';
+    return `Selected time is outside the listed opening hours (${formatMinutesAsTime(openingWindow.open)} - ${formatMinutesAsTime(openingWindow.close)}).`;
   }
 
   return '';
@@ -3349,7 +3369,7 @@ function TripDetailsPage() {
                         const priceSuggestionText = item.priceEstimate?.suggestionText || '';
                         const itemFacts = getItineraryItemFacts(item, currency?.selectedCurrency || tripCurrency, currency?.formatAmount);
                         const itemTimeWarning = getOpeningWarning({
-                          hoursText: item.description,
+                          hoursText: itemFacts.hours,
                           startTime: item.startTime,
                           endTime: item.endTime,
                         });
@@ -3421,7 +3441,10 @@ function TripDetailsPage() {
                               <div className="trip-item-fact-grid" aria-label={`${item.title} details`}>
                                 <div>
                                   <span>Working hours</span>
-                                  <strong><Clock3 size={13} aria-hidden="true" />{itemFacts.hours}</strong>
+                                  <strong className={`trip-opening-status is-${getOpeningStatusTone(itemFacts.hours)}`}>
+                                    <Clock3 size={13} aria-hidden="true" />
+                                    {itemFacts.hours}
+                                  </strong>
                                 </div>
                                 <div>
                                   <span>Rating</span>
