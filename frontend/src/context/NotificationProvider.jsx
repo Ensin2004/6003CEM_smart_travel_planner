@@ -25,6 +25,7 @@ const NotificationContext = createContext({
   subscribeToSettingsContent: () => () => {},
   subscribeToFeedback: () => () => {},
   subscribeToAdminUserCreated: () => () => {},
+  subscribeToAdminLogEvents: () => () => {},
 });
 
 const adminNotificationTypes = new Set([
@@ -46,6 +47,7 @@ export function NotificationProvider({ children }) {
   const settingsContentSubscribers = useRef(new Set());
   const feedbackSubscribers = useRef(new Set());
   const adminUserCreatedSubscribers = useRef(new Set());
+  const adminLogEventSubscribers = useRef(new Set());
 
   const refreshNotifications = useCallback(async (sort = sortOrder) => {
     if (!localStorage.getItem('accessToken')) return;
@@ -89,6 +91,11 @@ export function NotificationProvider({ children }) {
     return () => adminUserCreatedSubscribers.current.delete(listener);
   }, []);
 
+  const subscribeToAdminLogEvents = useCallback((listener) => {
+    adminLogEventSubscribers.current.add(listener);
+    return () => adminLogEventSubscribers.current.delete(listener);
+  }, []);
+
   useEffect(() => {
     if (!isAuthenticated) {
       return;
@@ -126,6 +133,10 @@ export function NotificationProvider({ children }) {
           toastId: notification._id,
           closeOnClick: true,
         });
+      }
+
+      if (isAdminNotification) {
+        adminLogEventSubscribers.current.forEach((listener) => listener(notification));
       }
     });
 
@@ -165,6 +176,7 @@ export function NotificationProvider({ children }) {
       setSortOrder,
       sortOrder,
       subscribeToAdminUserCreated,
+      subscribeToAdminLogEvents,
       subscribeToCategories,
       subscribeToFeedback,
       subscribeToSettingsContent,
@@ -176,6 +188,7 @@ export function NotificationProvider({ children }) {
       refreshNotifications,
       sortOrder,
       subscribeToAdminUserCreated,
+      subscribeToAdminLogEvents,
       subscribeToCategories,
       subscribeToFeedback,
       subscribeToSettingsContent,

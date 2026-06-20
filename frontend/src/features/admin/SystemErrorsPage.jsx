@@ -19,8 +19,11 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getLoggingMonitoring } from '../../api/adminLogApi';
+import useNotifications from '../../hooks/useNotifications';
 import { getApiErrorMessage } from '../../utils/apiError';
 import './SystemErrorsPage.css';
+
+const monitoringRefreshIntervalMs = 20 * 1000;
 
 // Status filter options for event outcomes
 const statusOptions = [
@@ -86,6 +89,8 @@ const getLogDisplayTime = (log) => log.lastOccurredAt || log.createdAt;
 // SystemErrorsPage renders the main screen and handles nearby interactions.
 // Main component for monitoring system activity and investigating errors
 function SystemErrorsPage() {
+  const { subscribeToAdminLogEvents } = useNotifications();
+
   // State management for filters, monitoring data, and UI controls
   const [filters, setFilters] = useState({
     status: '',
@@ -103,6 +108,7 @@ function SystemErrorsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
+  const [lastUpdatedAt, setLastUpdatedAt] = useState(null);
 
   // Builds query parameters from active filter values
   const params = useMemo(
@@ -115,21 +121,22 @@ function SystemErrorsPage() {
   );
 
   // Fetches monitoring data from the API with current filter parameters
-  const fetchMonitoring = useCallback(async ({ showSuccess = false } = {}) => {
-    setIsLoading(true);
-    setError('');
-    setSuccessMessage('');
+  const fetchMonitoring = useCallback(async ({ showSuccess = false, showLoading = true, silent = false } = {}) => {
+    if (showLoading) setIsLoading(true);
+    if (!silent) setError('');
+    if (showSuccess) setSuccessMessage('');
     try {
       const response = await getLoggingMonitoring({ ...params, limit: 50 });
       setMonitoring(response.data.data);
+      setLastUpdatedAt(new Date());
 
       if (showSuccess) {
         setSuccessMessage('Logging and monitoring data refreshed.');
       }
     } catch (requestError) {
-      setError(getErrorMessage(requestError));
+      if (!silent) setError(getErrorMessage(requestError));
     } finally {
-      setIsLoading(false);
+      if (showLoading) setIsLoading(false);
     }
   }, [params]);
 
@@ -142,6 +149,20 @@ function SystemErrorsPage() {
     return () => window.clearTimeout(timeoutId);
   }, [fetchMonitoring]);
 
+  // Keeps the monitoring page fresh while the admin stays on it.
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      fetchMonitoring({ showLoading: false, silent: true });
+    }, monitoringRefreshIntervalMs);
+
+    return () => window.clearInterval(intervalId);
+  }, [fetchMonitoring]);
+
+  // Reacts immediately when the server sends an admin operational alert.
+  useEffect(() => subscribeToAdminLogEvents(() => {
+    fetchMonitoring({ showLoading: false, silent: true });
+  }), [fetchMonitoring, subscribeToAdminLogEvents]);
+
   // Extracts summary data and logs from the monitoring response
   const summary = monitoring?.summary || {};
   const logs = monitoring?.logs || [];
@@ -152,6 +173,7 @@ function SystemErrorsPage() {
   const categoryMaxCount = Math.max(...categoryCounts.map((item) => item.count), 1);
   const dailyMaxCount = Math.max(...dailyCounts.map((item) => item.success + item.fail + item.error), 1);
   const latestEventLabel = logs[0] ? formatDateTime(getLogDisplayTime(logs[0])) : 'No events yet';
+  const lastUpdatedLabel = lastUpdatedAt ? formatDateTime(lastUpdatedAt) : 'Loading now';
 
   // Handles filter input changes and updates filter state
   const handleFilterChange = (event) => {
@@ -197,6 +219,7 @@ function SystemErrorsPage() {
           <div className="logging-live-card" aria-label="Latest monitoring event">
             <span>Latest event</span>
             <strong>{latestEventLabel}</strong>
+            <small>Auto-updated {lastUpdatedLabel}</small>
           </div>
           <button
             className="admin-icon-action"
