@@ -434,6 +434,44 @@
   line-height: 1.45;
 }
 
+.shared-detail-hours-panel {
+  grid-column: 1 / -1;
+}
+
+.shared-detail-weekly-hours {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+}
+
+.shared-detail-weekly-hours span {
+  display: grid;
+  grid-template-columns: 100px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.86);
+  padding: 8px 0;
+}
+
+.shared-detail-weekly-hours strong {
+  color: var(--navy);
+  font-size: 14px;
+}
+
+.shared-detail-weekly-hours em {
+  color: var(--color-text-muted);
+  font-size: 14px;
+  font-style: normal;
+  line-height: 1.4;
+}
+
+.shared-detail-hours-panel > small {
+  display: block;
+  margin-top: 12px;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
 /* Reviews section container */
 .shared-detail-reviews {
   display: grid;
@@ -881,6 +919,10 @@
   }
 
   .shared-detail-info-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .shared-detail-weekly-hours {
     grid-template-columns: 1fr;
   }
 

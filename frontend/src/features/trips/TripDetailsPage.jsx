@@ -330,10 +330,27 @@ const buildPlacePriceEstimate = (place = {}, currencyCode = 'MYR') => {
 const getEditableMoneyValue = (value) => (value ?? '') === '' ? '' : value;
 const getSavedMoneyValue = (value) => Number(value) || 0;
 
-const getPriceEstimateLabel = (priceEstimate = {}) => {
-  if (priceEstimate.source === 'api') return 'Imported suggestion. Edit the amount you want to budget.';
-  if (priceEstimate.source === 'ai') return 'AI suggestion. Edit the amount you want to budget.';
-  return 'Used in day and trip budget totals.';
+const getCostHelperText = (priceEstimate = {}) => {
+  const suggestionText = priceEstimate.suggestionText || '';
+  const hasSavedAmount = Number(priceEstimate.amount || 0) > 0;
+
+  if (priceEstimate.source === 'api' && suggestionText) {
+    return `Price guide: ${suggestionText}. Enter what you plan to spend.`;
+  }
+
+  if (priceEstimate.source === 'api') {
+    return 'Suggested from place data. Edit it to your planned spend.';
+  }
+
+  if (priceEstimate.source === 'ai') {
+    return suggestionText
+      ? `AI estimate: ${suggestionText}. Edit it to your planned spend.`
+      : 'AI estimated this cost. Edit it to your planned spend.';
+  }
+
+  if (hasSavedAmount) return 'Your planned amount. It counts in the day and trip budget totals.';
+
+  return 'Enter your expected spend. Use 0 for free or unknown cost.';
 };
 
 const approximateUsdRates = {
@@ -1392,39 +1409,12 @@ function TripDetailsPage() {
   }, [activeDay, trip]);
 
   /**
-   * Effect hook that handles location search autocomplete
-   * Geocodes search text and updates suggestions
+   * Clears transient suggestions when the day location editor closes.
+   * The visible suggestions are computed from country, state, and city lists.
    */
   useEffect(() => {
-    if (!isEditingDayLocation || locationSearchText.trim().length < 2) {
-      return undefined;
-    }
-
-    const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => {
-      getGeocodeLocation(locationSearchText.trim(), { signal: controller.signal })
-        .then((place) => {
-          if (!place?.available || !activeDay?.dayNumber) {
-            setLocationSearchSuggestions([]);
-            return;
-          }
-
-          setLocationSearchSuggestions([place.name || locationSearchText.trim()].filter(Boolean));
-          setEditedLocationMapCenter({
-            dayNumber: activeDay.dayNumber,
-            center: [place.latitude, place.longitude],
-          });
-        })
-        .catch(() => {
-          if (!controller.signal.aborted) setLocationSearchSuggestions([]);
-        });
-    }, 500);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-      controller.abort();
-    };
-  }, [activeDay, isEditingDayLocation, locationSearchText]);
+    if (!isEditingDayLocation) setLocationSearchSuggestions([]);
+  }, [isEditingDayLocation]);
 
   // Computed values for location display and suggestions
   const activeDayLocationLabel = [
@@ -1437,25 +1427,32 @@ function TripDetailsPage() {
     return Country.getAllCountries().find((countryItem) => countryItem.name.toLowerCase() === countryName.toLowerCase());
   }, [activeDay?.location?.country, trip?.country, trip?.destinationSegments]);
   
-  const stateLocationSuggestions = tripCountry
-    ? State.getStatesOfCountry(tripCountry.isoCode).map((stateItem) => stateItem.name)
-    : [];
+  const stateLocationSuggestions = useMemo(() => (
+    tripCountry
+      ? State.getStatesOfCountry(tripCountry.isoCode).map((stateItem) => stateItem.name)
+      : []
+  ), [tripCountry]);
+  const countryLocationSuggestions = useMemo(
+    () => Country.getAllCountries().map((countryItem) => countryItem.name),
+    []
+  );
   const popularLocationSuggestions = [
     getEditableLocationName(activeDay?.location?.name),
-    getEditableLocationName(trip?.destination),
     ...(trip?.destinationSegments || []).map((segment) => segment.city || segment.name),
-    'Georgetown',
   ].filter(Boolean);
-  const activeLocationSearchSuggestions = isEditingDayLocation && locationSearchText.trim().length >= 2
-    ? locationSearchSuggestions
-    : [];
   const locationSuggestions = [...new Set([
     ...popularLocationSuggestions,
-    ...activeLocationSearchSuggestions,
     ...stateLocationSuggestions,
-  ])].slice(0, 60);
+    ...countryLocationSuggestions,
+    ...locationSearchSuggestions,
+  ])];
   const visibleLocationSuggestions = locationSuggestions
-    .filter((locationName) => !locationSearchText || locationName.toLowerCase().includes(locationSearchText.toLowerCase()))
+    .filter((locationName) => {
+      const query = locationSearchText.trim().toLowerCase();
+      if (query.length < 1) return true;
+      const normalizedName = locationName.toLowerCase();
+      return normalizedName.startsWith(query) || normalizedName.includes(` ${query}`);
+    })
     .slice(0, 8);
 
   /**
@@ -1749,17 +1746,19 @@ function TripDetailsPage() {
       const currentLocationCenter = locationCenter ? null : await getBrowserCurrentLocationCenter();
       const primaryDestinationPlace = trip.destinationSegments?.[0] || { city: trip.destination, country: trip.country };
       const destinationCenter = getTripMapPoint(primaryDestinationPlace);
-      const center = locationCenter || currentLocationCenter || destinationCenter;
-      const sourceLabel = locationCenter
+      const primaryCenter = locationCenter || currentLocationCenter || destinationCenter;
+      const primarySourceLabel = locationCenter
         ? activeDay.location?.name || 'day location'
         : currentLocationCenter
           ? 'current location'
           : recommendationLocation || trip.destination || 'trip destination';
-      const textLocationQuery = hasEnteredLocation
+      const primaryLocationQuery = hasEnteredLocation
         ? getDayLocationQuery(activeDay, trip)
-        : sourceLabel;
+        : primarySourceLabel;
+      const fallbackLocationQuery = recommendationLocation || [primaryDestinationPlace.city, primaryDestinationPlace.country].filter(Boolean).join(', ') || trip.destination || trip.country || '';
+      const fallbackCenter = destinationCenter || primaryCenter;
 
-      if (!center || isCancelled) {
+      if (!primaryCenter || isCancelled) {
         setDayGroupIdeaPreviews({});
         setDayGroupIdeaStatus('fallback');
         setDayGroupIdeaSource('');
@@ -1767,34 +1766,47 @@ function TripDetailsPage() {
       }
 
       const previewResults = await Promise.allSettled(itineraryGroups.map(async (group) => {
-        const [providerResults, mapResults] = await Promise.all([
-          searchProviderCategoryPlaces(group.categoryId, center, textLocationQuery, {
+        const searchGroupIdeas = async (center, locationQuery) => {
+          const searchRadius = ['attractions', 'train'].includes(group.categoryId) ? 8 : 4;
+          const [providerResults, mapResults] = await Promise.all([
+            searchProviderCategoryPlaces(group.categoryId, center, locationQuery, {
+              limit: 3,
+              signal: controller.signal,
+            }).catch(() => []),
+            searchOpenStreetMapCategoryPlaces(group.categoryId, center, {
+              limit: 3,
+              radius: searchRadius,
+              signal: controller.signal,
+            }).catch(() => []),
+          ]);
+          const combinedResults = getUniquePlaces([...providerResults, ...mapResults]);
+          const textResults = combinedResults.length >= 3
+            ? []
+            : await searchCategoryPlacesByText(group.categoryId, locationQuery, {
             limit: 3,
+            limitPerTerm: 2,
             signal: controller.signal,
-          }).catch(() => []),
-          searchOpenStreetMapCategoryPlaces(group.categoryId, center, {
-            limit: 3,
-            radius: 0.35,
-            signal: controller.signal,
-          }).catch(() => []),
-        ]);
-        const combinedResults = getUniquePlaces([...providerResults, ...mapResults]);
-        const textResults = combinedResults.length >= 3
-          ? []
-          : await searchCategoryPlacesByText(group.categoryId, textLocationQuery, {
-          limit: 3,
-          limitPerTerm: 2,
-          signal: controller.signal,
-        }).catch(() => []);
+          }).catch(() => []);
+
+          return getUniquePlaces([...combinedResults, ...textResults]);
+        };
+        let groupResults = await searchGroupIdeas(primaryCenter, primaryLocationQuery);
+        let resultSourceLabel = primarySourceLabel;
+
+        if (!groupResults.length && fallbackLocationQuery && fallbackLocationQuery !== primaryLocationQuery) {
+          groupResults = await searchGroupIdeas(fallbackCenter, fallbackLocationQuery);
+          resultSourceLabel = fallbackLocationQuery;
+        }
+
         const results = (await rankIdeasForWeather(
-          getUniquePlaces([...combinedResults, ...textResults]),
+          groupResults,
           group.categoryId,
-          { locationQuery: textLocationQuery }
+          { locationQuery: resultSourceLabel }
         )).slice(0, 3);
 
         const formattedIdeas = results.map((idea) => formatIdeaPlace({
             ...idea,
-            summary: idea.weatherReason || idea.displayName || `${group.addLabel} near ${sourceLabel}`,
+            summary: idea.weatherReason || idea.displayName || `${group.addLabel} near ${resultSourceLabel}`,
           }, group.categoryId));
 
         return [
@@ -1814,7 +1826,7 @@ function TripDetailsPage() {
       });
 
       setDayGroupIdeaPreviews(nextPreviews);
-      setDayGroupIdeaSource(sourceLabel);
+      setDayGroupIdeaSource(primarySourceLabel);
       setDayGroupIdeaStatus('success');
     }).catch(() => {
       if (!isCancelled) {
@@ -1906,7 +1918,7 @@ function TripDetailsPage() {
 
       const resolvedLocation = {
         name: day?.location?.name || place.name,
-        country: day?.location?.country || '',
+        country: day?.location?.country || place.country || '',
         address: place.displayName || query,
         coordinates: {
           latitude: place.lat,
@@ -2132,10 +2144,26 @@ function TripDetailsPage() {
    */
   const saveItemTime = async (itemId, nextTime = {}) => {
     const item = items.find((currentItem) => currentItem._id === itemId);
-    await updateItineraryItem(itemId, {
+    const response = await updateItineraryItem(itemId, {
       startTime: nextTime.startTime ?? item?.startTime ?? '',
       endTime: nextTime.endTime ?? item?.endTime ?? '',
     });
+    const savedItem = response.data?.data?.item;
+    if (savedItem) {
+      setItems((currentItems) =>
+        currentItems.map((currentItem) => (currentItem._id === savedItem._id ? savedItem : currentItem))
+      );
+      setSelectedIdea((currentPlace) => {
+        const currentId = currentPlace?.itineraryItemId || currentPlace?._id || currentPlace?.id;
+        if (currentId !== savedItem._id) return currentPlace;
+        return { ...currentPlace, ...savedItem };
+      });
+    }
+  };
+
+  const clearItemTime = async (item, field) => {
+    updateItemTimeLocal(item, field, '');
+    await saveItemTime(item._id, { [field]: '' });
   };
 
   /**
@@ -3218,20 +3246,13 @@ function TripDetailsPage() {
                 <section className="trip-day-location-edit">
                   <span>Day location</span>
                   <input
-                    value={getEditableLocationName(activeDay.location?.name)}
+                    value={locationSearchText}
                     onFocus={() => setLocationSearchText(getEditableLocationName(activeDay.location?.name))}
                     onChange={(event) => {
                       setLocationSearchText(event.target.value);
                       if (event.target.value.trim().length < 2) {
                         setLocationSearchSuggestions([]);
                       }
-                      updateDayLocal(activeDay.dayNumber, {
-                        location: {
-                          name: event.target.value,
-                          country: '',
-                          address: event.target.value,
-                        },
-                      });
                     }}
                     onKeyDown={(event) => {
                       if (event.key !== 'Enter') return;
@@ -3486,8 +3507,7 @@ function TripDetailsPage() {
                         const itemPreviewUrl = getTripPlaceImageSrc(item, itemPoint, 15);
                         const visitedPayload = getItemVisitedPayload(item);
                         const visitedRecord = visitedLookup[visitedPayload.placeKey];
-                        const priceEstimateLabel = getPriceEstimateLabel(item.priceEstimate);
-                        const priceSuggestionText = item.priceEstimate?.suggestionText || '';
+                        const costHelperText = getCostHelperText(item.priceEstimate);
                         const itemFacts = getItineraryItemFacts(item, currency?.selectedCurrency || tripCurrency, currency?.formatAmount);
                         const itemTimeWarning = getOpeningWarning({
                           hoursText: itemFacts.hours,
@@ -3588,24 +3608,38 @@ function TripDetailsPage() {
                           <div className="trip-item-controls">
                             <label>
                               <span>From</span>
-                              <input
-                                type="time"
-                                value={item.startTime || ''}
-                                onChange={(event) => updateItemTimeLocal(item, 'startTime', event.target.value)}
-                                onBlur={(event) => saveItemTime(item._id, { startTime: event.target.value })}
-                              />
+                              <div className="trip-time-input-row">
+                                <input
+                                  type="time"
+                                  value={item.startTime || ''}
+                                  onChange={(event) => updateItemTimeLocal(item, 'startTime', event.target.value)}
+                                  onBlur={(event) => saveItemTime(item._id, { startTime: event.target.value })}
+                                />
+                                {item.startTime ? (
+                                  <button type="button" onClick={() => clearItemTime(item, 'startTime')} aria-label="Clear from time">
+                                    <X size={13} aria-hidden="true" />
+                                  </button>
+                                ) : null}
+                              </div>
                             </label>
                             <label>
                               <span>To</span>
-                              <input
-                                type="time"
-                                value={item.endTime || ''}
-                                onChange={(event) => updateItemTimeLocal(item, 'endTime', event.target.value)}
-                                onBlur={(event) => saveItemTime(item._id, { endTime: event.target.value })}
-                              />
+                              <div className="trip-time-input-row">
+                                <input
+                                  type="time"
+                                  value={item.endTime || ''}
+                                  onChange={(event) => updateItemTimeLocal(item, 'endTime', event.target.value)}
+                                  onBlur={(event) => saveItemTime(item._id, { endTime: event.target.value })}
+                                />
+                                {item.endTime ? (
+                                  <button type="button" onClick={() => clearItemTime(item, 'endTime')} aria-label="Clear to time">
+                                    <X size={13} aria-hidden="true" />
+                                  </button>
+                                ) : null}
+                              </div>
                             </label>
                             <label className="trip-item-cost-control">
-                              <span>Planned cost</span>
+                              <span>Your budget for this place</span>
                               <input
                                 type="number"
                                 min="0"
@@ -3613,10 +3647,7 @@ function TripDetailsPage() {
                                 onChange={(event) => updateItemPriceLocal(item, event.target.value)}
                                 onBlur={() => saveItemPrice(item._id)}
                               />
-                              <small>
-                                {priceEstimateLabel}
-                                {priceSuggestionText ? ` Suggested price: ${priceSuggestionText}` : ''}
-                              </small>
+                              <small>{costHelperText}</small>
                             </label>
                           </div>
                           {itemTimeWarning ? (

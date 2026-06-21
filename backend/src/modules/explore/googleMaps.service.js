@@ -200,12 +200,35 @@ const mergePlaceImages = (place = {}, imageUrls = []) => {
  * @param {Object} item - Place item with hours fields
  * @returns {string} Formatted hours string
  */
+const formatOpeningHourEntry = (entry) => {
+  if (!entry) return '';
+  if (typeof entry === 'string') return entry;
+  if (Array.isArray(entry)) return entry.map(formatOpeningHourEntry).filter(Boolean).join(' | ');
+  if (typeof entry !== 'object') return String(entry);
+
+  const day = entry.day || entry.weekday || entry.name || '';
+  const hours = entry.hours || entry.time || entry.value || entry.opening_hours || entry.text || '';
+  const open = entry.open || entry.opens || '';
+  const close = entry.close || entry.closes || '';
+  const range = hours || [open, close].filter(Boolean).join(' - ');
+
+  return [day, range].filter(Boolean).join(': ');
+};
+
 const getOpeningHours = (item = {}) => {
-  if (Array.isArray(item.hours)) return item.hours.filter(Boolean).join(' | ');
-  if (Array.isArray(item.operating_hours)) return item.operating_hours.filter(Boolean).join(' | ');
+  if (Array.isArray(item.hours)) return item.hours.map(formatOpeningHourEntry).filter(Boolean).join(' | ');
+  if (Array.isArray(item.operating_hours)) return item.operating_hours.map(formatOpeningHourEntry).filter(Boolean).join(' | ');
   if (typeof item.hours === 'string') return item.hours;
   if (typeof item.operating_hours === 'string') return item.operating_hours;
+  if (item.hours && typeof item.hours === 'object') return formatOpeningHourEntry(item.hours);
+  if (item.operating_hours && typeof item.operating_hours === 'object') return formatOpeningHourEntry(item.operating_hours);
   return '';
+};
+
+const getWeeklyHours = (item = {}) => {
+  if (item.hours) return item.hours;
+  if (item.operating_hours) return item.operating_hours;
+  return [];
 };
 
 /**
@@ -447,6 +470,7 @@ const normalizePlaceItem = (item = {}, index, defaults = {}) => ({
   category: getText(item.type || item.types?.[0]) || defaults.category,
   openState: getText(item.open_state || item.status), // Current open/closed status
   hoursSummary: getOpeningHours(item), // Formatted opening hours
+  weeklyHours: getWeeklyHours(item), // Structured weekly opening hours when provider includes it
   phone: getText(item.phone || item.phone_number || item.telephone),
   imageUrl: pickImage(item), // Primary image
   imageUrls: pickImages(item), // All images

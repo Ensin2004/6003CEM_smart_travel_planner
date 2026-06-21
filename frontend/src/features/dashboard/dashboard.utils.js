@@ -156,8 +156,23 @@ export const getCountryFromText = (value) => {
   return parts[parts.length - 1] || '';
 };
 
-// Build a set of all known country names for validation
-const knownCountryNames = new Set(Country.getAllCountries().map((country) => country.name.toLowerCase()));
+const allCountries = Country.getAllCountries();
+
+// Build country lookups once so destination text can be safely resolved to real countries.
+const knownCountryNames = new Set(allCountries.map((country) => country.name.toLowerCase()));
+const knownCountriesByLength = [...allCountries].sort((firstCountry, secondCountry) => secondCountry.name.length - firstCountry.name.length);
+
+const escapeRegExp = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const findCountryInText = (value) => {
+  const text = String(value || '').trim();
+  if (!text) return '';
+
+  return knownCountriesByLength.find((country) => {
+    const countryPattern = new RegExp(`(^|[^a-z])${escapeRegExp(country.name)}([^a-z]|$)`, 'i');
+    return countryPattern.test(text);
+  })?.name || '';
+};
 
 /**
  * Normalize a country name to standard capitalization
@@ -167,13 +182,10 @@ const normalizeCountryName = (value) => {
   const name = String(value || '').trim();
   if (!name) return '';
 
-  const countryMatch = Country.getAllCountries().find((country) => country.name.toLowerCase() === name.toLowerCase());
+  const countryMatch = allCountries.find((country) => country.name.toLowerCase() === name.toLowerCase());
   if (countryMatch) return countryMatch.name;
 
-  return name
-    .split(/\s+/)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1).toLowerCase())
-    .join(' ');
+  return findCountryInText(name);
 };
 
 /**
@@ -188,7 +200,9 @@ export const getPlaceCountry = (place = {}) => {
   if (textCountry) return normalizeCountryName(textCountry);
 
   const name = String(place.title || place.name || '').trim();
-  return knownCountryNames.has(name.toLowerCase()) ? normalizeCountryName(name) : '';
+  if (knownCountryNames.has(name.toLowerCase())) return normalizeCountryName(name);
+
+  return findCountryInText([place.title, place.name, place.address, place.displayName].filter(Boolean).join(' '));
 };
 
 /**

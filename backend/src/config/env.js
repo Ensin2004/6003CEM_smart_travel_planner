@@ -4,14 +4,29 @@
  * controllers, and external API clients.
  */
 const path = require('path');
+const { DEFAULT_ROTATION_DAYS, resolveRotatedApiKey } = require('../utils/apiKeyRotation');
 
 // Load environment variables from the .env file located in the project root
 // The path is resolved relative to the current module's location
 require('dotenv').config({ path: path.resolve(__dirname, '../../.env') });
 
-module.exports = {
+const nodeEnv = process.env.NODE_ENV || 'development';
+const apiKeyRotationDays = Number(process.env.API_KEY_ROTATION_DAYS || DEFAULT_ROTATION_DAYS);
+const apiKeyRotationWarnings = [];
+
+const getRotatedApiKey = (keyName, key, rotatedAt) =>
+  resolveRotatedApiKey({
+    key,
+    keyName,
+    nodeEnv,
+    rotatedAt,
+    rotationDays: apiKeyRotationDays,
+    warnings: apiKeyRotationWarnings,
+  });
+
+const env = {
   // Application environment: development, test, or production
-  nodeEnv: process.env.NODE_ENV || 'development',
+  nodeEnv,
   
   // HTTP server port for the application to listen on
   port: process.env.PORT || 5000,
@@ -53,19 +68,37 @@ module.exports = {
   // Each service handles its own fallback logic when API keys are not provided
   
   // Location and places APIs
-  placesApiKey: process.env.PLACES_API_KEY || '',
-  geoapifyApiKey: process.env.GEOAPIFY_API_KEY || process.env.GEOAPIFY_KEY || '',
-  openRouteServiceApiKey: process.env.OPENROUTESERVICE_API_KEY || process.env.ORS_API_KEY || '',
-  foursquareApiKey: process.env.FOURSQUARE_API_KEY || '',
-  restCountriesApiKey: process.env.REST_COUNTRIES_API_KEY || '',
+  apiKeyRotationDays,
+  apiKeyRotationWarnings,
+  placesApiKey: getRotatedApiKey('PLACES_API_KEY', process.env.PLACES_API_KEY || '', process.env.PLACES_API_KEY_ROTATED_AT),
+  geoapifyApiKey: getRotatedApiKey(
+    'GEOAPIFY_API_KEY',
+    process.env.GEOAPIFY_API_KEY || process.env.GEOAPIFY_KEY || '',
+    process.env.GEOAPIFY_API_KEY_ROTATED_AT || process.env.GEOAPIFY_KEY_ROTATED_AT
+  ),
+  openRouteServiceApiKey: getRotatedApiKey(
+    'OPENROUTESERVICE_API_KEY',
+    process.env.OPENROUTESERVICE_API_KEY || process.env.ORS_API_KEY || '',
+    process.env.OPENROUTESERVICE_API_KEY_ROTATED_AT || process.env.ORS_API_KEY_ROTATED_AT
+  ),
+  foursquareApiKey: getRotatedApiKey('FOURSQUARE_API_KEY', process.env.FOURSQUARE_API_KEY || '', process.env.FOURSQUARE_API_KEY_ROTATED_AT),
+  restCountriesApiKey: getRotatedApiKey('REST_COUNTRIES_API_KEY', process.env.REST_COUNTRIES_API_KEY || '', process.env.REST_COUNTRIES_API_KEY_ROTATED_AT),
   
   // Search and data aggregation APIs
-  serpApiKey: process.env.SERPAPI_KEY || process.env.SERPAPI_API_KEY || '',
-  airlabsApiKey: process.env.AIRLABS_API_KEY || '',
+  serpApiKey: getRotatedApiKey(
+    'SERPAPI_KEY',
+    process.env.SERPAPI_KEY || process.env.SERPAPI_API_KEY || '',
+    process.env.SERPAPI_KEY_ROTATED_AT || process.env.SERPAPI_API_KEY_ROTATED_AT
+  ),
+  airlabsApiKey: getRotatedApiKey('AIRLABS_API_KEY', process.env.AIRLABS_API_KEY || '', process.env.AIRLABS_API_KEY_ROTATED_AT),
   
   // Transportation APIs
   transportApiAppId: process.env.TRANSPORTAPI_APP_ID || process.env.TAPI_APP_ID || '',
-  transportApiAppKey: process.env.TRANSPORTAPI_APP_KEY || process.env.TAPI_APP_KEY || '',
+  transportApiAppKey: getRotatedApiKey(
+    'TRANSPORTAPI_APP_KEY',
+    process.env.TRANSPORTAPI_APP_KEY || process.env.TAPI_APP_KEY || '',
+    process.env.TRANSPORTAPI_APP_KEY_ROTATED_AT || process.env.TAPI_APP_KEY_ROTATED_AT
+  ),
   
   // Daily rate limits for external API usage - prevents quota exhaustion
   serpApiDailyLimit: Number(process.env.SERPAPI_DAILY_LIMIT || 500),
@@ -73,16 +106,28 @@ module.exports = {
   openMeteoDailyLimit: Number(process.env.OPEN_METEO_DAILY_LIMIT || 500),
 
   // AI and LLM API configurations
-  geminiApiKey: process.env.GEMINI_API_KEY || '',
+  geminiApiKey: getRotatedApiKey('GEMINI_API_KEY', process.env.GEMINI_API_KEY || '', process.env.GEMINI_API_KEY_ROTATED_AT),
   geminiModel: process.env.GEMINI_MODEL || 'gemini-2.5-flash-lite',
   geminiDailyLimit: Number(process.env.GEMINI_DAILY_LIMIT || 100),
   
-  groqApiKey: process.env.GROQ_API_KEY || '',
+  groqApiKey: getRotatedApiKey('GROQ_API_KEY', process.env.GROQ_API_KEY || '', process.env.GROQ_API_KEY_ROTATED_AT),
   groqModel: process.env.GROQ_MODEL || 'llama-3.1-8b-instant',
   groqDailyLimit: Number(process.env.GROQ_DAILY_LIMIT || 100),
 
   // Translation service configuration with self-hosted option
   libreTranslateBaseUrl: process.env.LIBRETRANSLATE_BASE_URL || 'http://127.0.0.1:5001',
-  libreTranslateApiKey: process.env.LIBRETRANSLATE_API_KEY || '',
+  libreTranslateApiKey: getRotatedApiKey(
+    'LIBRETRANSLATE_API_KEY',
+    process.env.LIBRETRANSLATE_API_KEY || '',
+    process.env.LIBRETRANSLATE_API_KEY_ROTATED_AT
+  ),
   libreTranslateDailyLimit: Number(process.env.LIBRETRANSLATE_DAILY_LIMIT || 100),
 };
+
+if (apiKeyRotationWarnings.length && nodeEnv !== 'test') {
+  apiKeyRotationWarnings.forEach((warning) => {
+    console.warn(`[api-key-rotation] ${warning}`);
+  });
+}
+
+module.exports = env;
