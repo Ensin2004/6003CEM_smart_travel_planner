@@ -207,6 +207,34 @@ const weatherIdeaProfiles = {
   },
 };
 
+const getWeatherModeFromWeather = (weather) => {
+  if (!weather?.available) return '';
+  const condition = String(weather.condition || '').toLowerCase();
+  const rainChance = Number(weather.precipitation?.probability);
+  const rainAmount = Number(weather.precipitation?.amountMm);
+  const temperature = Number(weather.temperature?.max ?? weather.temperature?.mean);
+
+  if (
+    condition.includes('rain')
+    || condition.includes('storm')
+    || condition.includes('drizzle')
+    || (Number.isFinite(rainChance) && rainChance >= 45)
+    || (Number.isFinite(rainAmount) && rainAmount >= 1)
+  ) {
+    return 'rainy';
+  }
+  if (Number.isFinite(temperature) && temperature <= 12) return 'cold';
+  if (
+    condition.includes('sun')
+    || condition.includes('clear')
+    || (Number.isFinite(temperature) && temperature >= 30)
+  ) {
+    return 'sunny';
+  }
+
+  return 'comfortable';
+};
+
 /**
  * Extracts address from a place object with fallback
  * Returns a user-friendly address string
@@ -233,6 +261,18 @@ const getUniquePlaces = (places = []) => {
   return [...uniquePlaces.values()];
 };
 
+const withoutWeatherRanking = (place = {}) => {
+  const {
+    weatherCandidateId,
+    weatherProfileLabel,
+    weatherRank,
+    weatherReason,
+    weatherScore,
+    ...plainPlace
+  } = place;
+  return plainPlace;
+};
+
 const getWeatherCandidateId = (place = {}, category = '', index = 0) =>
   String(place.id || place.placeId || place.externalId || `${category}-${place.name || place.title}-${place.address || place.displayName || index}`)
     .trim()
@@ -249,21 +289,52 @@ const toWeatherCandidate = (place = {}, category = '', index = 0) => ({
   hours: String(place.hours || place.hoursSummary || place.openState || '').trim().slice(0, 120),
 });
 
-const getWeatherIdeaProfile = (weatherGuidance, isEnabled) => {
-  if (!isEnabled || !weatherGuidance?.available) return null;
-  return weatherIdeaProfiles[weatherGuidance.mode] || weatherIdeaProfiles.comfortable;
+const getWeatherIdeaProfile = (weatherGuidance, isEnabled, weather) => {
+  if (!isEnabled) return null;
+  const mode = weatherGuidance?.available
+    ? weatherGuidance.mode
+    : getWeatherModeFromWeather(weather);
+
+  if (!mode) return null;
+  return {
+    ...(weatherIdeaProfiles[mode] || weatherIdeaProfiles.comfortable),
+    mode,
+  };
 };
 
 const applyWeatherRanking = (places, category, profile) => {
   if (!profile) return places;
 
   return [...places]
-    .map((place) => ({
-      ...place,
-      weatherScore: Number(place.rating || 0) || 0,
-      weatherReason: profile.reason,
-      weatherProfileLabel: profile.label,
-    }))
+    .map((place) => {
+      const text = [
+        place.name,
+        place.title,
+        place.category,
+        place.type,
+        place.summary,
+        place.description,
+        place.address,
+        place.displayName,
+      ].filter(Boolean).join(' ').toLowerCase();
+      const ratingScore = Math.min(50, Math.max(0, Number(place.rating || 0) * 10));
+      const indoorFit = /mall|museum|gallery|indoor|restaurant|cafe|hotel|station|terminal|market/.test(text) ? 30 : 0;
+      const outdoorFit = /park|beach|viewpoint|garden|trail|outdoor|waterfront|monument|landmark/.test(text) ? 30 : 0;
+      const openFit = /open/i.test(String(place.openState || place.hours || '')) ? 10 : 0;
+      const modeFit = profile.mode === 'rainy' || profile.mode === 'cold'
+        ? indoorFit - Math.round(outdoorFit / 2)
+        : profile.mode === 'sunny'
+          ? outdoorFit + Math.round(indoorFit / 3)
+          : Math.max(indoorFit, outdoorFit);
+      const weatherScore = Math.max(0, Math.min(100, Math.round(45 + ratingScore + modeFit + openFit)));
+
+      return {
+        ...place,
+        weatherScore,
+        weatherReason: profile.reason,
+        weatherProfileLabel: profile.label,
+      };
+    })
     .sort((firstPlace, secondPlace) =>
       Number(secondPlace.weatherScore || 0) - Number(firstPlace.weatherScore || 0)
       || Number(secondPlace.rating || 0) - Number(firstPlace.rating || 0)
@@ -1539,13 +1610,11 @@ function TripDetailsPage() {
     ? `${Number(weather.windSpeed.max).toFixed(1)} ${weather.windSpeed.unit || 'km/h'} wind`
     : 'Wind unavailable';
   const WeatherModeIcon = weatherModeIcons[weatherGuidance?.mode] || CloudSun;
-  const activeWeatherIdeaProfile = getWeatherIdeaProfile(weatherGuidance, showWeatherHelp);
-  const weatherRecommendedCategories = activeWeatherIdeaProfile ? ideaCategories : [];
-  const addModeWeatherCategories = weatherRecommendedCategories
-    .filter((category) => itineraryGroups.some((group) => group.categoryId === category.id));
+  const activeWeatherIdeaProfile = getWeatherIdeaProfile(weatherGuidance, showWeatherHelp, weather);
+  const showWeatherRankedIdeas = Boolean(showWeatherHelp && weather?.available && activeWeatherIdeaProfile);
 
   const rankIdeasForWeather = async (places, category, options = {}) => {
-    const profile = getWeatherIdeaProfile(weatherGuidance, showWeatherHelp);
+    const profile = getWeatherIdeaProfile(weatherGuidance, options.weatherEnabled ?? showWeatherHelp, weather);
     const uniquePlaces = getUniquePlaces(places);
 
     if (!profile || !weather?.available || !uniquePlaces.length) {
@@ -1767,7 +1836,7 @@ function TripDetailsPage() {
 
       const previewResults = await Promise.allSettled(itineraryGroups.map(async (group) => {
         const searchGroupIdeas = async (center, locationQuery) => {
-          const searchRadius = ['attractions', 'train'].includes(group.categoryId) ? 8 : 4;
+          const searchRadiusKm = ['attractions', 'train'].includes(group.categoryId) ? 40 : 25;
           const [providerResults, mapResults] = await Promise.all([
             searchProviderCategoryPlaces(group.categoryId, center, locationQuery, {
               limit: 3,
@@ -1775,7 +1844,7 @@ function TripDetailsPage() {
             }).catch(() => []),
             searchOpenStreetMapCategoryPlaces(group.categoryId, center, {
               limit: 3,
-              radius: searchRadius,
+              radiusKm: searchRadiusKm,
               signal: controller.signal,
             }).catch(() => []),
           ]);
@@ -2179,13 +2248,14 @@ function TripDetailsPage() {
    * Loads place ideas based on category and search term
    * Queries multiple APIs and deduplicates results
    */
-  const loadIdeas = async (category = '', searchTerm = ideaSearch) => {
+  const loadIdeas = async (category = '', searchTerm = ideaSearch, options = {}) => {
     if (!trip) return;
     setIdeaStatus('loading');
     setSelectedIdea(null);
 
     try {
-      const weatherProfile = getWeatherIdeaProfile(weatherGuidance, showWeatherHelp && !searchTerm?.trim());
+      const weatherEnabled = options.weatherEnabled ?? showWeatherHelp;
+      const weatherProfile = getWeatherIdeaProfile(weatherGuidance, weatherEnabled && !searchTerm?.trim(), weather);
       const activeCategory = category || ideaCategory;
       setIdeaCategory(activeCategory);
       const ideaAnchorDay = activeDayNumber === 'summary' ? days[0] : activeDay;
@@ -2212,7 +2282,7 @@ function TripDetailsPage() {
         searchExploreCategoryPlaces(activeCategory, locationQuery, { limit: 12 }).catch(() => []),
         searchProviderCategoryPlaces(activeCategory, center, locationQuery, { limit: 12 }).catch(() => []),
         center
-          ? searchOpenStreetMapCategoryPlaces(activeCategory, center, { limit: 12, radius: 0.35 }).catch(() => [])
+          ? searchOpenStreetMapCategoryPlaces(activeCategory, center, { limit: 12, radiusKm: 35 }).catch(() => [])
           : Promise.resolve([]),
       ]);
       const combinedResults = getUniquePlaces([...exploreResults, ...providerResults, ...mapResults]);
@@ -2222,17 +2292,20 @@ function TripDetailsPage() {
         limit: 12,
         limitPerTerm: 4,
       }).catch(() => []);
+      const plainResults = getUniquePlaces([...combinedResults, ...textResults]).map(withoutWeatherRanking);
       const results = (weatherProfile
         ? await rankIdeasForWeather(
-          getUniquePlaces([...combinedResults, ...textResults]),
+          plainResults,
           activeCategory,
-          { locationQuery }
+          { locationQuery, weatherEnabled }
         )
-        : getUniquePlaces([...combinedResults, ...textResults])
+        : plainResults
       ).slice(0, 12);
       const formattedIdeas = results.map((idea) => formatIdeaPlace({
         ...idea,
-        summary: idea.weatherReason || idea.displayName || `${activeCategory} near ${locationQuery}`,
+        summary: weatherProfile && idea.weatherReason
+          ? idea.weatherReason
+          : idea.displayName || `${activeCategory} near ${locationQuery}`,
       }, activeCategory));
       const nextIdeas = await enrichIdeaPlacesWithDetails(formattedIdeas);
       setIdeas(nextIdeas);
@@ -2257,6 +2330,13 @@ function TripDetailsPage() {
     setIdeaSearch('');
     loadIdeas(group.categoryId, '');
   };
+
+  useEffect(() => {
+    if (!trip || (!ideaAddMode && !addMode && activeTab !== 'ideas')) return;
+    loadIdeas(ideaAddMode?.categoryId || addMode?.categoryId || ideaCategory, ideaSearch, {
+      weatherEnabled: showWeatherHelp,
+    });
+  }, [showWeatherHelp]);
 
   /**
    * Optimizes route for a specific day
@@ -2883,30 +2963,22 @@ function TripDetailsPage() {
                       {(weatherGuidance?.placeTips || []).slice(0, 1).map((tip) => <span key={tip}>{tip}</span>)}
                     </div>
                   ) : null}
-                  {addModeWeatherCategories.length ? (
-                    <div className="trip-weather-shortcuts" aria-label="Weather-aware place categories">
-                      {addModeWeatherCategories.map((category) => {
-                        const CategoryIcon = category.icon;
-                        return (
-                          <button
-                            type="button"
-                            key={category.id}
-                            onClick={() => {
-                              if (addMode) {
-                                setAddMode(itineraryGroups.find((group) => group.categoryId === category.id) || addMode);
-                              }
-                              loadIdeas(category.id, '');
-                            }}
-                          >
-                            <CategoryIcon size={13} aria-hidden="true" />
-                            {category.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ) : null}
                 </section>
               ) : null}
+
+              <div className={showWeatherHelp && activeWeatherIdeaProfile ? 'trip-idea-mode is-weather' : 'trip-idea-mode'}>
+                {showWeatherHelp && activeWeatherIdeaProfile ? (
+                  <>
+                    <WeatherModeIcon size={13} aria-hidden="true" />
+                    Weather-ranked results are on. Scores and reasons appear on matching places.
+                  </>
+                ) : (
+                  <>
+                    <MapPin size={13} aria-hidden="true" />
+                    Normal nearby results are on.
+                  </>
+                )}
+              </div>
 
               {/* Ideas list */}
               {ideaStatus === 'loading' ? (
@@ -2945,7 +3017,13 @@ function TripDetailsPage() {
                           </div>
                         </div>
                         <div className="trip-idea-meta">
-                          {idea.weatherReason ? <span className="trip-weather-match"><WeatherModeIcon size={12} aria-hidden="true" />{idea.weatherReason}</span> : null}
+                          {showWeatherHelp && idea.weatherReason ? (
+                            <span className="trip-weather-match">
+                              <WeatherModeIcon size={12} aria-hidden="true" />
+                              {idea.weatherScore ? <b>{Math.round(Number(idea.weatherScore))}/100</b> : null}
+                              {idea.weatherReason}
+                            </span>
+                          ) : null}
                           <span><Star size={12} aria-hidden="true" />{idea.rating && idea.rating !== 'N/A' ? `${Number(idea.rating).toFixed(1)} rating` : 'No rating yet'}</span>
                           {idea.reviews ? <span>{Number(idea.reviews) ? `${Number(idea.reviews).toLocaleString()} reviews` : idea.reviews}</span> : null}
                           <span><Clock3 size={12} aria-hidden="true" />{idea.openState || idea.hours || 'Hours unavailable'}</span>
@@ -3466,11 +3544,16 @@ function TripDetailsPage() {
                       {/* Nearby suggestions */}
                       <div className="trip-group-ideas">
                         <div className="trip-group-ideas-heading">
-                          <span><Sparkles size={14} aria-hidden="true" /> Nearby suggestions</span>
+                          <span>
+                            <Sparkles size={14} aria-hidden="true" />
+                            {showWeatherRankedIdeas ? 'Weather-based suggestions' : 'Nearby suggestions'}
+                          </span>
                           <small>
                             {dayGroupIdeaStatus === 'loading'
                               ? 'Finding places near the day location...'
-                              : `Ideas near ${dayGroupIdeaSource || activeDayLocationLabel}`}
+                              : showWeatherRankedIdeas
+                                ? `Ranked for weather near ${dayGroupIdeaSource || activeDayLocationLabel}`
+                                : `Normal nearby ideas near ${dayGroupIdeaSource || activeDayLocationLabel}`}
                           </small>
                         </div>
                         {dayGroupIdeaStatus === 'loading' ? (
@@ -3482,6 +3565,12 @@ function TripDetailsPage() {
                                 <div>
                                   <strong>{idea.name}</strong>
                                   <small>{idea.address || idea.summary || 'Suggested nearby place'}</small>
+                                  {showWeatherRankedIdeas && idea.weatherReason ? (
+                                    <small className="trip-group-idea-weather">
+                                      {idea.weatherScore ? <b>{Math.round(Number(idea.weatherScore))}/100</b> : null}
+                                      {idea.weatherReason}
+                                    </small>
+                                  ) : null}
                                 </div>
                                 <button
                                   type="button"
@@ -3594,12 +3683,12 @@ function TripDetailsPage() {
                                 </div>
                                 <div>
                                   <span>Estimated price</span>
-                                  <strong><DollarSign size={13} aria-hidden="true" />{itemFacts.originalPrice}</strong>
+                                  <strong>{itemFacts.originalPrice}</strong>
                                   <small>{itemFacts.priceTone}</small>
                                 </div>
                                 <div>
                                   <span>Converted price</span>
-                                  <strong><DollarSign size={13} aria-hidden="true" />{itemFacts.convertedPrice}</strong>
+                                  <strong>{itemFacts.convertedPrice}</strong>
                                   <small>{currency?.selectedCurrency || tripCurrency}</small>
                                 </div>
                               </div>
@@ -3709,26 +3798,6 @@ function TripDetailsPage() {
                       Default
                     </button>
                   </div>
-                  <div className="trip-weather-shortcuts" aria-label="Weather-aware place categories">
-                    {weatherRecommendedCategories.map((category) => {
-                      const CategoryIcon = category.icon;
-                      return (
-                        <button
-                          type="button"
-                          key={category.id}
-                          onClick={() => {
-                            if (ideaAddMode) {
-                              setIdeaAddMode(itineraryGroups.find((group) => group.categoryId === category.id) || null);
-                            }
-                            loadIdeas(category.id, '');
-                          }}
-                        >
-                          <CategoryIcon size={13} aria-hidden="true" />
-                          {category.label}
-                        </button>
-                      );
-                    })}
-                  </div>
                 </section>
               ) : null}
 
@@ -3753,6 +3822,20 @@ function TripDetailsPage() {
                     </button>
                   );
                 })}
+              </div>
+
+              <div className={showWeatherHelp && activeWeatherIdeaProfile ? 'trip-idea-mode is-weather' : 'trip-idea-mode'}>
+                {showWeatherHelp && activeWeatherIdeaProfile ? (
+                  <>
+                    <WeatherModeIcon size={13} aria-hidden="true" />
+                    Weather-ranked results are on. Scores and reasons appear on matching places.
+                  </>
+                ) : (
+                  <>
+                    <MapPin size={13} aria-hidden="true" />
+                    Normal nearby results are on.
+                  </>
+                )}
               </div>
 
               {ideaStatus === 'loading' ? (
@@ -3791,7 +3874,13 @@ function TripDetailsPage() {
                           </div>
                         </div>
                         <div className="trip-idea-meta">
-                          {idea.weatherReason ? <span className="trip-weather-match"><WeatherModeIcon size={12} aria-hidden="true" />{idea.weatherReason}</span> : null}
+                          {showWeatherHelp && idea.weatherReason ? (
+                            <span className="trip-weather-match">
+                              <WeatherModeIcon size={12} aria-hidden="true" />
+                              {idea.weatherScore ? <b>{Math.round(Number(idea.weatherScore))}/100</b> : null}
+                              {idea.weatherReason}
+                            </span>
+                          ) : null}
                           <span><Star size={12} aria-hidden="true" />{idea.rating && idea.rating !== 'N/A' ? `${Number(idea.rating).toFixed(1)} rating` : 'No rating yet'}</span>
                           {idea.reviews ? <span>{Number(idea.reviews) ? `${Number(idea.reviews).toLocaleString()} reviews` : idea.reviews}</span> : null}
                           <span><Clock3 size={12} aria-hidden="true" />{idea.openState || idea.hours || 'Hours unavailable'}</span>
