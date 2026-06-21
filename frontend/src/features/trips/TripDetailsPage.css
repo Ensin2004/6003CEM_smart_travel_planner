@@ -2202,6 +2202,28 @@
   font-size: 12px;
 }
 
+.trip-time-input-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 30px;
+  gap: 6px;
+}
+
+.trip-time-input-row button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #64748b;
+}
+
+.trip-time-input-row button:hover {
+  border-color: #94a3b8;
+  color: #13202f;
+}
+
 .trip-place-time-grid small {
   grid-column: 1 / -1;
   color: #64748b;

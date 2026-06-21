@@ -167,6 +167,121 @@ const getCoordinateText = (coordinates = {}) => {
   return `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`;
 };
 
+const weekDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+const dayAliasLookup = {
+  mon: 'Monday',
+  monday: 'Monday',
+  tue: 'Tuesday',
+  tues: 'Tuesday',
+  tuesday: 'Tuesday',
+  wed: 'Wednesday',
+  wednesday: 'Wednesday',
+  thu: 'Thursday',
+  thur: 'Thursday',
+  thurs: 'Thursday',
+  thursday: 'Thursday',
+  fri: 'Friday',
+  friday: 'Friday',
+  sat: 'Saturday',
+  saturday: 'Saturday',
+  sun: 'Sunday',
+  sunday: 'Sunday',
+};
+
+const normalizeWeekday = (value) => {
+  const normalized = String(value || '').trim().toLowerCase().replace(/[^a-z]/g, '');
+  return dayAliasLookup[normalized] || '';
+};
+
+const formatHoursEntry = (entry) => {
+  if (!entry) return '';
+  if (typeof entry === 'string') return entry;
+  if (Array.isArray(entry)) return entry.map(formatHoursEntry).filter(Boolean).join(' | ');
+  if (typeof entry !== 'object') return String(entry);
+
+  const day = entry.day || entry.weekday || entry.name || '';
+  const hours = entry.hours || entry.time || entry.value || entry.opening_hours || entry.text || '';
+  const open = entry.open || entry.opens || '';
+  const close = entry.close || entry.closes || '';
+  const range = hours || [open, close].filter(Boolean).join(' - ');
+
+  return [day, range].filter(Boolean).join(': ');
+};
+
+const formatHoursText = (value) => formatHoursEntry(value).replace(/\s+/g, ' ').trim();
+
+const getEntryDayAndHours = (entry) => {
+  if (!entry) return null;
+
+  if (typeof entry === 'string') {
+    const match = entry.match(/^\s*([^:]+):\s*(.+)$/);
+    if (!match) return null;
+    const day = normalizeWeekday(match[1]);
+    return day ? { day, hours: match[2].trim() } : null;
+  }
+
+  if (Array.isArray(entry)) return null;
+  if (typeof entry !== 'object') return null;
+
+  const day = normalizeWeekday(entry.day || entry.weekday || entry.name);
+  if (!day) return null;
+
+  const hours = entry.hours || entry.time || entry.value || entry.opening_hours || entry.text || '';
+  const open = entry.open || entry.opens || '';
+  const close = entry.close || entry.closes || '';
+  const range = String(hours || [open, close].filter(Boolean).join(' - ')).trim();
+
+  return { day, hours: range || 'Not provided' };
+};
+
+const collectWeeklyHoursEntries = (value, entries = []) => {
+  if (!value) return entries;
+
+  if (Array.isArray(value)) {
+    value.forEach((entry) => collectWeeklyHoursEntries(entry, entries));
+    return entries;
+  }
+
+  if (typeof value === 'string') {
+    value.split('|').forEach((part) => {
+      const parsed = getEntryDayAndHours(part.trim());
+      if (parsed) entries.push(parsed);
+    });
+    return entries;
+  }
+
+  if (typeof value === 'object') {
+    const parsed = getEntryDayAndHours(value);
+    if (parsed) entries.push(parsed);
+
+    Object.entries(value).forEach(([key, entryValue]) => {
+      const day = normalizeWeekday(key);
+      if (!day) return;
+      entries.push({ day, hours: formatHoursText(entryValue) || 'Not provided' });
+    });
+  }
+
+  return entries;
+};
+
+const getWeeklyHoursRows = (place = {}) => {
+  const entries = collectWeeklyHoursEntries([
+    place.weeklyHours,
+    place.hours,
+    place.operating_hours,
+    place.hoursSummary,
+  ]);
+  const hoursByDay = entries.reduce((lookup, entry) => ({
+    ...lookup,
+    [entry.day]: entry.hours,
+  }), {});
+
+  return weekDays.map((day) => ({
+    day,
+    hours: hoursByDay[day] || 'Not provided',
+  }));
+};
+
 /**
  * Creates a search result description object from place data.
  * 
@@ -181,7 +296,7 @@ const getSearchResultDescription = (place = {}, singularLower = 'place') => {
   const detailParts = [
     place.category ? `${place.category} ${singularLower}` : `Selected ${singularLower}`,
     ratingText,
-    place.openState,
+    formatHoursText(place.openState),
     place.priceDetail?.display || place.price,
   ].filter(Boolean);
   const locationText = place.address ? ` Located at ${place.address}.` : '';
@@ -208,7 +323,7 @@ const getHighlightItems = ({ place = {}, originalPriceText = '' }) =>
     place.rating ? `Rated ${Number(place.rating).toFixed(1)} stars by Google users` : '',
     place.reviewCount ? `${Number(place.reviewCount).toLocaleString()} Google reviews listed` : '',
     originalPriceText || place.priceDetail?.display || place.price ? 'Price information is available' : '',
-    place.openState || place.hoursSummary ? `Hours: ${place.openState || place.hoursSummary}` : '',
+    formatHoursText(place.openState || place.hoursSummary) ? `Hours: ${formatHoursText(place.openState || place.hoursSummary)}` : '',
     place.address ? 'Address is available for trip planning' : '',
     place.category ? `${place.category} category` : '',
   ].filter(Boolean).slice(0, 5);
@@ -220,7 +335,7 @@ const getHighlightItems = ({ place = {}, originalPriceText = '' }) =>
  * @returns {Object} Timing information with title, detail, and note
  */
 const getVisitTimingText = (place = {}) => {
-  const hoursText = (place.openState || place.hoursSummary || '').trim();
+  const hoursText = formatHoursText(place.openState || place.hoursSummary);
 
   if (/open/i.test(hoursText)) {
     return {
@@ -472,6 +587,9 @@ function SharedDestinationDetailPage({
   const convertedPriceValue = hasPriceText(location.state?.convertedPriceText) ? location.state.convertedPriceText : estimatedConvertedPrice || '-';
   const originalPriceLabel = estimatedPrice ? 'AI price estimate' : 'Original price';
   const convertedPriceLabel = estimatedConvertedPrice && !hasPriceText(location.state?.convertedPriceText) ? 'AI converted estimate' : 'Converted price';
+  const openStateText = formatHoursText(place?.openState);
+  const hoursSummaryText = formatHoursText(place?.hoursSummary);
+  const weeklyHoursRows = getWeeklyHoursRows(place);
   
   // Information cards configuration
   const infoCards = [
@@ -495,8 +613,8 @@ function SharedDestinationDetailPage({
     },
     {
       label: 'Open hours',
-      value: place?.openState || place?.hoursSummary || 'Not provided',
-      helper: place?.hoursSummary && place.hoursSummary !== place.openState ? place.hoursSummary : 'Check listing before going',
+      value: openStateText || hoursSummaryText || 'Not provided',
+      helper: hoursSummaryText && hoursSummaryText !== openStateText ? hoursSummaryText : 'Check listing before going',
       icon: Clock,
     },
     {
@@ -674,6 +792,19 @@ function SharedDestinationDetailPage({
               <strong>{visitTiming.title}</strong>
               <p>{visitTiming.detail}</p>
               <small>{visitTiming.note}</small>
+            </article>
+
+            <article className="shared-detail-panel shared-detail-hours-panel">
+              <h3>Opening hours</h3>
+              <div className="shared-detail-weekly-hours">
+                {weeklyHoursRows.map((row) => (
+                  <span key={row.day}>
+                    <strong>{row.day}</strong>
+                    <em>{row.hours}</em>
+                  </span>
+                ))}
+              </div>
+              <small>Confirm live hours with the listing before going.</small>
             </article>
           </section>
 

@@ -353,14 +353,15 @@ export function useUserDashboard() {
   const countryInsights = useMemo(() => {
     const visitedCountryRows = buildCountryRows([
       ...filteredVisitedPlaces.map((place) => getPlaceCountry(place)),
-      ...allTripDestinationRows.filter((destination) => destination.visited).map((destination) => destination.country),
+      ...allTripDestinationRows.filter((destination) => destination.visited).map((destination) => getPlaceCountry(destination)),
     ]);
+    const visitedCountryLabels = new Set(visitedCountryRows.map((row) => row.label));
     const nextCountryRows = buildCountryRows(
       [...allTripDestinationRows, ...filteredItineraryDestinationRows]
         .filter((destination) => !destination.visited)
         .sort((firstDestination, secondDestination) => new Date(firstDestination.startDate) - new Date(secondDestination.startDate))
-        .map((destination) => destination.country || getPlaceCountry(destination))
-    );
+        .map((destination) => getPlaceCountry(destination))
+    ).filter((row) => !visitedCountryLabels.has(row.label));
     const topCountryValue = Math.max(
       ...visitedCountryRows.map((row) => row.value),
       ...nextCountryRows.map((row) => row.value),
@@ -518,6 +519,7 @@ export function useUserDashboard() {
       totalDatedVisits,
       totalTripDays,
       totalUndatedVisits,
+      totalVisitCount,
       tripDestinationCount,
       tripDestinationProgress: tripDestinationCount ? Math.round((visitedTripDestinationCount / tripDestinationCount) * 100) : 0,
       visitedTripDestinationCount,
