@@ -15,7 +15,10 @@ const adminService = require('./admin.service');
  * @returns {void} - Sends success response with dashboard data
  */
 const getDashboard = catchAsync(async (req, res) => {
-  const dashboard = await adminService.getDashboard();
+  const dashboard = await adminService.getDashboard({
+    startDate: req.query.startDate,
+    endDate: req.query.endDate,
+  });
   sendSuccess(res, 200, { dashboard });
 });
 

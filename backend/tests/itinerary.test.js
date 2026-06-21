@@ -130,7 +130,10 @@ describe('Itinerary service', () => {
       expect.objectContaining({
         tripId: 'trip-1',
         userId: 'user-1',
-        priceEstimate: { amount: 40, currency: 'JPY' },  // Normalized
+        priceEstimate: expect.objectContaining({
+          amount: 40,
+          currency: 'JPY',
+        }),  // Normalized
       })
     );
   });

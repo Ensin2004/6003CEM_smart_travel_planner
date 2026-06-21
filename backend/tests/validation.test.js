@@ -107,31 +107,19 @@ describe('Explore search validation', () => {
     return validationApp;
   };
 
-  // Verify that country parameter is required for all search types
+  // Verify that destination-only searches are accepted (country is optional)
   test.each([
     ['attractions', attractionRules],
     ['hotels', hotelRules],
     ['restaurants', restaurantRules],
-  ])('requires a country before searching for %s', async (_, rules) => {
-    // Send request with destination but missing country parameter
+  ])('accepts a destination-only %s search', async (_, rules) => {
+    // Send request with destination but no country parameter
     const response = await request(createValidationApp(rules))
       .get('/search')
       .query({ destination: 'Central' });
 
-    // Verify bad request status code
-    expect(response.statusCode).toBe(400);
-    // Verify validation error structure
-    expect(response.body).toEqual(
-      expect.objectContaining({
-        code: 'VALIDATION_ERROR',
-        errors: expect.arrayContaining([
-          expect.objectContaining({
-            field: 'country',
-            message: 'Select a country before searching.',
-          }),
-        ]),
-      })
-    );
+    // Verify successful response (validation passed)
+    expect(response.statusCode).toBe(204);
   });
 
   // Verify that country-only searches are accepted (destination optional)

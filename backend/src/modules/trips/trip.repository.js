@@ -32,18 +32,18 @@ const deleteByIdAndUserId = (id, userId) => Trip.findOneAndDelete({ _id: id, use
 const deleteByUserId = (userId) => Trip.deleteMany({ userId });
 
 // Count total number of trips across all users (admin function)
-const countAll = () => Trip.countDocuments();
+const countAll = (filter = {}) => Trip.countDocuments(filter);
 
 // Aggregate trip status counts (active vs inactive) based on end date comparison with today
-const aggregateStatusCounts = async () => {
+const aggregateStatusCounts = async (filter = {}) => {
   // Get the boundary date that separates active from inactive trips
   const today = Trip.getStatusBoundaryDate();
   
   // Count active trips (end date is today or in the future)
-  const active = await Trip.countDocuments({ endDate: { $gte: today } });
+  const active = await Trip.countDocuments({ ...filter, endDate: { ...(filter.endDate || {}), $gte: today } });
   
   // Count inactive trips (end date is before today)
-  const inactive = await Trip.countDocuments({ endDate: { $lt: today } });
+  const inactive = await Trip.countDocuments({ ...filter, endDate: { ...(filter.endDate || {}), $lt: today } });
 
   // Return array of status objects, filtering out any status with zero count
   return [

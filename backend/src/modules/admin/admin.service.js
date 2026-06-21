@@ -7,13 +7,121 @@ const tripRepository = require('../trips/trip.repository');
 const apiLogRepository = require('../apiLogs/apiLog.repository');
 const AppError = require('../../utils/AppError');
 
+const ageGroupLabels = {
+  'under-18': 'Under 18',
+  '18-24': '18-24',
+  '25-34': '25-34',
+  '35-44': '35-44',
+  '45-54': '45-54',
+  '55+': '55+',
+};
+
+const genderLabels = {
+  female: 'Female',
+  male: 'Male',
+  'non-binary': 'Non-binary',
+  'prefer-not-to-say': 'Prefer not to say',
+};
+
+const parseDateRange = ({ startDate, endDate } = {}) => {
+  const range = {};
+
+  if (startDate) {
+    const parsedStart = new Date(`${startDate}T00:00:00.000Z`);
+    if (!Number.isNaN(parsedStart.getTime())) range.start = parsedStart;
+  }
+
+  if (endDate) {
+    const parsedEnd = new Date(`${endDate}T23:59:59.999Z`);
+    if (!Number.isNaN(parsedEnd.getTime())) range.end = parsedEnd;
+  }
+
+  return range;
+};
+
+const buildCreatedAtFilter = (dateRange) => {
+  if (!dateRange.start && !dateRange.end) return {};
+  return {
+    createdAt: {
+      ...(dateRange.start ? { $gte: dateRange.start } : {}),
+      ...(dateRange.end ? { $lte: dateRange.end } : {}),
+    },
+  };
+};
+
+const buildTripDateFilter = (dateRange) => {
+  if (!dateRange.start && !dateRange.end) return {};
+
+  if (dateRange.start && dateRange.end) {
+    return {
+      startDate: { $lte: dateRange.end },
+      endDate: { $gte: dateRange.start },
+    };
+  }
+
+  if (dateRange.start) return { endDate: { $gte: dateRange.start } };
+  return { startDate: { $lte: dateRange.end } };
+};
+
+const buildLogDateFilter = (dateRange) => {
+  const dateConstraints = {
+    ...(dateRange.start ? { $gte: dateRange.start } : {}),
+    ...(dateRange.end ? { $lte: dateRange.end } : {}),
+  };
+
+  if (!Object.keys(dateConstraints).length) return {};
+
+  return {
+    $or: [
+      { lastOccurredAt: dateConstraints },
+      { lastOccurredAt: { $exists: false }, createdAt: dateConstraints },
+    ],
+  };
+};
+
+const countByValue = (items, field, labelMap = {}) => {
+  const counts = items.reduce((totals, item) => {
+    const value = item[field] || 'unknown';
+    totals[value] = (totals[value] || 0) + 1;
+    return totals;
+  }, {});
+
+  return Object.entries(counts)
+    .map(([value, count]) => ({ value, label: labelMap[value] || 'Unknown', count }))
+    .sort((a, b) => b.count - a.count);
+};
+
+const fillSignupCounts = (users, dateRange, days = 7) => {
+  const end = dateRange.end || new Date();
+  const start = dateRange.start || new Date(end);
+  if (!dateRange.start) start.setUTCDate(end.getUTCDate() - (days - 1));
+  start.setUTCHours(0, 0, 0, 0);
+
+  const dayCount = Math.max(1, Math.min(31, Math.round((end - start) / 86400000) + 1));
+
+  return Array.from({ length: dayCount }, (_, index) => {
+    const date = new Date(start);
+    date.setUTCDate(start.getUTCDate() + index);
+    const key = date.toISOString().slice(0, 10);
+    return {
+      date: key,
+      count: users.filter((user) => user.createdAt?.toISOString?.().slice(0, 10) === key).length,
+    };
+  });
+};
+
 /**
  * Retrieves comprehensive dashboard data for administrative overview.
  * Aggregates user statistics, trip metrics, API logs, and system health indicators.
  * 
  * @returns {Object} Dashboard data containing user summaries, trip counts, and API status
  */
-const getDashboard = async () => {
+const getDashboard = async (filters = {}) => {
+  const dateRange = parseDateRange(filters);
+  const userDateFilter = buildCreatedAtFilter(dateRange);
+  const tripDateFilter = buildTripDateFilter(dateRange);
+  const logDateFilter = buildLogDateFilter(dateRange);
+
   // Execute all independent data queries in parallel for performance
   const [
     users,
@@ -26,17 +134,43 @@ const getDashboard = async () => {
     logDailyCounts,
   ] = await Promise.all([
     userRepository.findAll(), // All user records
-    tripRepository.countAll(), // Total trip count
-    apiLogRepository.countFailures(), // Count of failed API events
-    apiLogRepository.aggregateUserIssueSummary(), // User-specific issue summaries
-    tripRepository.aggregateStatusCounts(), // Trip status breakdown (active, completed, etc.)
-    apiLogRepository.aggregateStatusCounts({}), // Log status distribution
-    apiLogRepository.aggregateSeverityCounts({}), // Log severity distribution
-    apiLogRepository.aggregateDailyCounts({}), // Daily log volume for trends
+    tripRepository.countAll(tripDateFilter), // Total trip count
+    apiLogRepository.countMany({ ...logDateFilter, status: { $in: ['fail', 'error'] } }), // Count of failed API events
+    apiLogRepository.aggregateUserIssueSummary(logDateFilter), // User-specific issue summaries
+    tripRepository.aggregateStatusCounts(tripDateFilter), // Trip status breakdown (active, completed, etc.)
+    apiLogRepository.aggregateStatusCounts(logDateFilter), // Log status distribution
+    apiLogRepository.aggregateSeverityCounts(logDateFilter), // Log severity distribution
+    apiLogRepository.aggregateDailyCounts({}, 7, dateRange), // Daily log volume for trends
   ]);
+
+  const usersInDateRange = Object.keys(userDateFilter).length
+    ? users.filter((user) => {
+        const createdAt = new Date(user.createdAt);
+        return (!dateRange.start || createdAt >= dateRange.start) && (!dateRange.end || createdAt <= dateRange.end);
+      })
+    : users;
+
+  const travellerUsers = users.filter((user) => user.role !== 'admin');
+  const travellerUsersInDateRange = usersInDateRange.filter((user) => user.role !== 'admin');
 
   // Build user summary statistics from user list
   const userSummary = users.reduce(
+    (totals, user) => {
+      totals.total += 1;
+      totals[user.role === 'admin' ? 'admins' : 'travellers'] += 1;
+      totals[user.status === 'disabled' ? 'disabled' : 'active'] += 1;
+      return totals;
+    },
+    {
+      total: 0,
+      travellers: 0,
+      admins: 0,
+      active: 0,
+      disabled: 0,
+    }
+  );
+
+  const filteredUserSummary = usersInDateRange.reduce(
     (totals, user) => {
       totals.total += 1;
       totals[user.role === 'admin' ? 'admins' : 'travellers'] += 1;
@@ -73,10 +207,21 @@ const getDashboard = async () => {
 
   return {
     totalUsers: users.length,
+    filteredUsers: usersInDateRange.length,
     totalTrips,
     failedApiEvents,
     apiStatus: failedApiEvents > 0 ? 'warning' : 'healthy', // Health indicator based on failures
+    filters: {
+      startDate: filters.startDate || '',
+      endDate: filters.endDate || '',
+    },
     userSummary,
+    filteredUserSummary,
+    genderCounts: countByValue(travellerUsers, 'gender', genderLabels),
+    filteredGenderCounts: countByValue(travellerUsersInDateRange, 'gender', genderLabels),
+    ageGroupCounts: countByValue(travellerUsers, 'ageGroup', ageGroupLabels),
+    filteredAgeGroupCounts: countByValue(travellerUsersInDateRange, 'ageGroup', ageGroupLabels),
+    signupCounts: fillSignupCounts(usersInDateRange, dateRange),
     issueSummary,
     tripStatusCounts: tripStatusCounts.map((item) => ({
       status: item._id || 'active',
@@ -90,7 +235,7 @@ const getDashboard = async () => {
       severity: item._id || 'info',
       count: item.count,
     })),
-    dailyLogCounts: fillDailyCounts(logDailyCounts), // Fill missing days with zero counts
+    dailyLogCounts: fillDailyCounts(logDailyCounts, dateRange), // Fill missing days with zero counts
   };
 };
 
@@ -102,13 +247,19 @@ const getDashboard = async () => {
  * @param {number} days - Number of days to include (default: 7)
  * @returns {Array} Complete daily log data with zero-filled missing dates
  */
-const fillDailyCounts = (dailyCounts, days = 7) => {
-  const today = new Date();
+const fillDailyCounts = (dailyCounts, dateRange = {}, days = 7) => {
+  const today = dateRange.end ? new Date(dateRange.end) : new Date();
+  const start = dateRange.start ? new Date(dateRange.start) : null;
+  const dayCount = start ? Math.max(1, Math.min(31, Math.round((today - start) / 86400000) + 1)) : days;
 
   // Generate array of dates for the last N days
-  return Array.from({ length: days }, (_, index) => {
-    const date = new Date(today);
-    date.setDate(today.getDate() - (days - 1 - index));
+  return Array.from({ length: dayCount }, (_, index) => {
+    const date = start ? new Date(start) : new Date(today);
+    if (start) {
+      date.setUTCDate(start.getUTCDate() + index);
+    } else {
+      date.setDate(today.getDate() - (days - 1 - index));
+    }
     const key = date.toISOString().slice(0, 10); // Format: YYYY-MM-DD
     const matchingItems = dailyCounts.filter((item) => item._id.date === key);
 
