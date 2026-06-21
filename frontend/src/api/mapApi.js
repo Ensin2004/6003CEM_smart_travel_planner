@@ -107,7 +107,9 @@ export const searchOpenStreetMapCategoryPlaces = async (categoryId, center, opti
     return [];
   }
 
-  const radius = Number(options.radius || 0.18);
+  const radiusKm = Number(options.radiusKm ?? options.radius ?? 20);
+  const latRadius = radiusKm / 111;
+  const lngRadius = radiusKm / (111 * Math.max(Math.cos((lat * Math.PI) / 180), 0.1));
   const bounds = options.bounds;
 
   // A bounded viewbox keeps category results near the current map viewport.
@@ -119,10 +121,10 @@ export const searchOpenStreetMapCategoryPlaces = async (categoryId, center, opti
       Number(bounds.south).toFixed(5),
     ].join(',')
     : [
-      (lng - radius).toFixed(5),
-      (lat + radius).toFixed(5),
-      (lng + radius).toFixed(5),
-      (lat - radius).toFixed(5),
+      (lng - lngRadius).toFixed(5),
+      (lat + latRadius).toFixed(5),
+      (lng + lngRadius).toFixed(5),
+      (lat - latRadius).toFixed(5),
     ].join(',');
   const limitPerTerm = Math.max(8, Math.ceil((options.limit || 40) / searchTerms.length));
 
