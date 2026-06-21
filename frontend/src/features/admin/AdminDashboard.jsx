@@ -1,17 +1,22 @@
 /**
- * Admin module.
- * Exports and local helpers keep related behavior in a single module.
+ * Admin dashboard.
+ * Tabs, filters, and compact charts keep platform monitoring scannable.
  */
 import {
   Activity,
   AlertTriangle,
   BarChart3,
+  CalendarDays,
+  Gauge,
+  LayoutDashboard,
   Map,
+  PieChart,
   RefreshCw,
   ShieldAlert,
   ShieldCheck,
   UserCog,
   UsersRound,
+  X,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
@@ -19,94 +24,214 @@ import { getAdminDashboard } from '../../api/adminDashboardApi';
 import { getApiErrorMessage } from '../../utils/apiError';
 import './AdminDashboard.css';
 
-// Retrieves a user-friendly error message from API error responses
-const getErrorMessage = (error) =>
-  getApiErrorMessage(error, 'Unable to load admin dashboard.');
+const tabs = [
+  { id: 'overview', label: 'Overview', icon: LayoutDashboard },
+  { id: 'users', label: 'Users', icon: UsersRound },
+  { id: 'travel', label: 'Travel', icon: Map },
+  { id: 'operations', label: 'Operations', icon: Gauge },
+];
 
-// Format Chart Label converts raw values into readable display text.
-// Transforms hyphen-separated values into capitalized display text
 const formatChartLabel = (value = '') =>
   value
     .split('-')
     .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
     .join(' ');
 
-// AdminDashboard renders the main screen and handles nearby interactions.
-// Main component that orchestrates the admin dashboard display and data fetching
+const toShortDate = (date) =>
+  new Date(date).toLocaleDateString('en', { month: 'short', day: 'numeric' });
+
+function AdminTooltip({ children }) {
+  return <span className="admin-chart-tooltip">{children}</span>;
+}
+
+function HorizontalBars({ items, labelKey = 'label', valueKey = 'count', tone = 'primary', emptyText, className = '' }) {
+  const max = Math.max(...items.map((item) => item[valueKey] || 0), 1);
+
+  if (!items.length) return <p className="admin-home-muted">{emptyText}</p>;
+
+  return (
+    <div className={`admin-home-bar-chart ${className}`}>
+      {items.map((item) => {
+        const label = item[labelKey] || formatChartLabel(item.status || item.severity || item.value || item.band || 'Unknown');
+        const value = item[valueKey] || 0;
+        return (
+          <div
+            className={`admin-home-bar admin-home-bar-${item.className || item.status || item.severity || tone}`}
+            key={`${label}-${value}`}
+            tabIndex={0}
+          >
+            <span>{label}</span>
+            <i style={{ '--bar-size': `${Math.max((value / max) * 100, value ? 8 : 0)}%` }} />
+            <strong>{value}</strong>
+            <AdminTooltip>{label}: {value}</AdminTooltip>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function TrendChart({ items, valueKey = 'count', emptyText }) {
+  const max = Math.max(...items.map((item) => item[valueKey] || item.success + item.fail + item.error || 0), 1);
+  const hasData = items.some((item) => (valueKey === 'count' ? item.count : item.success + item.fail + item.error) > 0);
+
+  if (!items.length || !hasData) return <p className="admin-home-muted admin-home-empty-chart">{emptyText}</p>;
+
+  return (
+    <div className="admin-home-trend-chart">
+      {items.map((item) => {
+        const total = valueKey === 'count' ? item.count : item.success + item.fail + item.error;
+        return (
+          <div className="admin-home-trend-day" key={item.date} tabIndex={0}>
+            <span>{toShortDate(item.date)}</span>
+            <i style={{ '--bar-size': `${Math.max((total / max) * 100, total ? 8 : 0)}%` }}>
+              {valueKey === 'count' ? (
+                <b className="admin-home-trend-primary" style={{ '--segment-size': '100%' }} />
+              ) : (
+                <>
+                  <b className="admin-home-trend-success" style={{ '--segment-size': `${(item.success / Math.max(total, 1)) * 100}%` }} />
+                  <b className="admin-home-trend-fail" style={{ '--segment-size': `${(item.fail / Math.max(total, 1)) * 100}%` }} />
+                  <b className="admin-home-trend-error" style={{ '--segment-size': `${(item.error / Math.max(total, 1)) * 100}%` }} />
+                </>
+              )}
+            </i>
+            <strong>{total}</strong>
+            <AdminTooltip>
+              {valueKey === 'count'
+                ? `${toShortDate(item.date)}: ${total} signup(s)`
+                : `${toShortDate(item.date)}: ${item.success} success, ${item.fail} fail, ${item.error} error`}
+            </AdminTooltip>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function DonutChart({ items, labelKey = 'label', emptyText }) {
+  const total = items.reduce((sum, item) => sum + (item.count || 0), 0);
+  const max = Math.max(...items.map((item) => item.count || 0), 1);
+  let offset = 0;
+  const colors = ['#0f766e', '#2563eb', '#f59e0b', '#dc2626', '#7c3aed', '#64748b'];
+  const gradient = total
+    ? items.map((item, index) => {
+        const start = offset;
+        const end = offset + ((item.count || 0) / total) * 100;
+        offset = end;
+        return `${colors[index % colors.length]} ${start}% ${end}%`;
+      }).join(', ')
+    : '#e2e8f0 0% 100%';
+
+  if (!items.length) return <p className="admin-home-muted">{emptyText}</p>;
+
+  return (
+    <div className="admin-donut-wrap">
+      <div className="admin-donut" style={{ '--donut-gradient': gradient }}>
+        <strong>{total}</strong>
+        <span>Total</span>
+      </div>
+      <div className="admin-donut-legend">
+        {items.map((item, index) => (
+          <span key={item[labelKey] || item.value} tabIndex={0}>
+            <small>
+              <i style={{ background: colors[index % colors.length] }} />
+              {item[labelKey] || formatChartLabel(item.value)}
+            </small>
+            <b>
+              <em
+                style={{
+                  '--bar-size': `${Math.max(((item.count || 0) / max) * 100, item.count ? 8 : 0)}%`,
+                  '--bar-color': colors[index % colors.length],
+                }}
+              />
+            </b>
+            <strong>{item.count}</strong>
+            <AdminTooltip>{item[labelKey] || item.value}: {item.count}</AdminTooltip>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function Panel({ eyebrow, title, action, children, wide = false }) {
+  return (
+    <section className={`admin-home-panel ${wide ? 'admin-home-panel-wide' : ''}`}>
+      <div className="admin-home-panel-heading">
+        <div>
+          <span>{eyebrow}</span>
+          <h3>{title}</h3>
+        </div>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
 function AdminDashboard() {
-  // State management for dashboard data, loading status, and user feedback
   const [dashboard, setDashboard] = useState(null);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [dateRange, setDateRange] = useState({ startDate: '', endDate: '' });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
-  // Fetches dashboard data from the API and updates component state
+  const hasDateRangeFilter = Boolean(dateRange.startDate || dateRange.endDate);
+
   const fetchDashboard = useCallback(async ({ showSuccess = false } = {}) => {
     setIsLoading(true);
     setError('');
     setSuccessMessage('');
     try {
-      const response = await getAdminDashboard();
+      const response = await getAdminDashboard(dateRange);
       setDashboard(response.data.data.dashboard);
-
-      if (showSuccess) {
-        setSuccessMessage('Admin dashboard refreshed.');
-      }
+      if (showSuccess) setSuccessMessage('Admin dashboard refreshed.');
     } catch (requestError) {
-      setError(getErrorMessage(requestError));
+      setError(getApiErrorMessage(requestError, 'Unable to load admin dashboard.'));
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [dateRange]);
 
-  // Triggers initial data fetch when the component mounts
   useEffect(() => {
-    const timeoutId = window.setTimeout(() => {
-      fetchDashboard();
-    }, 0);
-    // Cleanup prevents state updates after component unmount.
-    return () => window.clearTimeout(timeoutId);
+    fetchDashboard();
   }, [fetchDashboard]);
 
-  // Extracts summary data from the dashboard response with safe defaults
+  const setDateField = (field, value) => {
+    setDateRange((current) => ({ ...current, [field]: value }));
+  };
+
+  const clearDateRange = () => {
+    setDateRange({ startDate: '', endDate: '' });
+  };
+
   const userSummary = dashboard?.userSummary || {};
+  const filteredUserSummary = dashboard?.filteredUserSummary || {};
   const issueSummary = dashboard?.issueSummary || {};
-  const tripStatusCounts = dashboard?.tripStatusCounts || [];
-  const logStatusCounts = dashboard?.logStatusCounts || [];
-  const logSeverityCounts = dashboard?.logSeverityCounts || [];
-  const dailyLogCounts = dashboard?.dailyLogCounts || [];
   const health = dashboard?.apiStatus || 'healthy';
   const issueRisk = issueSummary.totalIssues > 0 ? 'Needs review' : 'Clear';
 
-  // Prepares chart data for the moderation issues section
-  const chartItems = [
-    { label: 'Login', value: issueSummary.loginIssues || 0, className: 'warning' },
-    { label: 'API', value: issueSummary.apiIssues || 0, className: 'primary' },
-    { label: 'System', value: issueSummary.systemIssues || 0, className: 'danger' },
-    { label: 'Rate limit', value: issueSummary.rateLimitIssues || 0, className: 'blue' },
+  const issueItems = [
+    { label: 'Login', count: issueSummary.loginIssues || 0, className: 'warning' },
+    { label: 'API', count: issueSummary.apiIssues || 0, className: 'primary' },
+    { label: 'System', count: issueSummary.systemIssues || 0, className: 'danger' },
+    { label: 'Rate limit', count: issueSummary.rateLimitIssues || 0, className: 'blue' },
   ];
 
-  // Calculates maximum values for proper bar chart scaling across all chart types
-  const issueMax = Math.max(...chartItems.map((item) => item.value), 1);
-  const tripMax = Math.max(...tripStatusCounts.map((item) => item.count), 1);
-  const statusMax = Math.max(...logStatusCounts.map((item) => item.count), 1);
-  const severityMax = Math.max(...logSeverityCounts.map((item) => item.count), 1);
-  const dailyMax = Math.max(...dailyLogCounts.map((item) => item.success + item.fail + item.error), 1);
-
-  // Defines the four primary metric cards displayed at the top of the dashboard
   const primaryCards = useMemo(
     () => [
       {
-        label: 'Total users',
-        value: dashboard?.totalUsers ?? 0,
-        detail: `${userSummary.active || 0} active / ${userSummary.disabled || 0} disabled`,
+        label: hasDateRangeFilter ? 'New users' : 'Total users',
+        value: hasDateRangeFilter ? dashboard?.filteredUsers ?? 0 : dashboard?.totalUsers ?? 0,
+        detail: `${filteredUserSummary.active || userSummary.active || 0} active / ${filteredUserSummary.disabled || userSummary.disabled || 0} disabled`,
         icon: UsersRound,
         className: 'primary',
       },
       {
-        label: 'Total trips',
+        label: 'Trips in range',
         value: dashboard?.totalTrips ?? 0,
-        detail: 'Trips created by travellers',
+        detail: 'Trips matching selected travel dates',
         icon: Map,
         className: 'blue',
       },
@@ -125,27 +250,22 @@ function AdminDashboard() {
         className: health === 'healthy' ? 'success' : 'danger',
       },
     ],
-    [dashboard, health, issueRisk, userSummary.active, userSummary.disabled]
+    [dashboard, filteredUserSummary, hasDateRangeFilter, health, issueRisk, userSummary]
   );
 
-  // Renders the complete dashboard UI with all sections and charts
   return (
     <section className="admin-home-page" aria-labelledby="admin-home-title">
-      {/* Hero section displaying dashboard title, health status, and quick actions */}
       <div className="admin-home-hero">
         <div>
           <p className="eyebrow">Admin command center</p>
           <h2 id="admin-home-title">Admin Dashboard</h2>
-          <p>Monitor platform health, user moderation signals, travel activity, and operational issues from one place.</p>
+          <p>Monitor platform health, demographics, travel demand, API reliability, and operational issues from one workspace.</p>
           <div className="admin-home-hero-meta">
             <span className={`admin-home-health admin-home-health-${health}`}>
               {health === 'healthy' ? <ShieldCheck size={16} /> : <ShieldAlert size={16} />}
               {health === 'healthy' ? 'Healthy' : 'Needs attention'}
             </span>
-            <span>
-              <Activity size={16} aria-hidden="true" />
-              {issueSummary.totalIssues || 0} user-linked issue(s)
-            </span>
+            <span><Activity size={16} aria-hidden="true" />{issueSummary.totalIssues || 0} issue(s)</span>
           </div>
         </div>
         <div className="admin-home-hero-actions">
@@ -153,23 +273,42 @@ function AdminDashboard() {
             <span>Travellers</span>
             <strong>{userSummary.travellers || 0}</strong>
           </div>
-          <button
-            className="admin-home-action"
-            type="button"
-            onClick={() => fetchDashboard({ showSuccess: true })}
-            disabled={isLoading}
-          >
+          <button className="admin-home-action" type="button" onClick={() => fetchDashboard({ showSuccess: true })} disabled={isLoading}>
             <RefreshCw size={17} aria-hidden="true" />
             Refresh
           </button>
         </div>
       </div>
 
-      {/* Status message display area for success and error notifications */}
       {error && <p className="form-error admin-home-status">{error}</p>}
       {successMessage && <p className="form-success admin-home-status">{successMessage}</p>}
 
-      {/* Primary metrics cards section showing key performance indicators */}
+      <section className="admin-date-filter" aria-label="Admin dashboard date range filter">
+        <div>
+          <CalendarDays size={18} aria-hidden="true" />
+          <span>
+            <strong>Date range</strong>
+            <small>{hasDateRangeFilter ? 'Dashboard metrics are filtered.' : 'Showing all available admin data.'}</small>
+          </span>
+        </div>
+        <div className="admin-date-filter-fields">
+          <label>
+            <span>From</span>
+            <input type="date" value={dateRange.startDate} max={dateRange.endDate || undefined} onChange={(event) => setDateField('startDate', event.target.value)} />
+          </label>
+          <label>
+            <span>To</span>
+            <input type="date" value={dateRange.endDate} min={dateRange.startDate || undefined} onChange={(event) => setDateField('endDate', event.target.value)} />
+          </label>
+          {hasDateRangeFilter ? (
+            <button type="button" onClick={clearDateRange} aria-label="Clear date range filter">
+              <X size={16} aria-hidden="true" />
+              Clear
+            </button>
+          ) : null}
+        </div>
+      </section>
+
       <div className="admin-home-metrics" aria-label="Admin overview metrics">
         {primaryCards.map((card) => {
           const Icon = card.icon;
@@ -186,152 +325,104 @@ function AdminDashboard() {
         })}
       </div>
 
-      {/* Grid layout containing all chart panels and administrative actions */}
-      <div className="admin-home-grid">
-        {/* Operations trend chart showing daily success/fail/error patterns */}
-        <section className="admin-home-panel admin-home-panel-wide" aria-labelledby="operations-chart-title">
-          <div className="admin-home-panel-heading">
-            <div>
-              <span>Operations</span>
-              <h3 id="operations-chart-title">7-day event trend</h3>
-            </div>
-            <small>Success / fail / error</small>
-          </div>
-          <div className="admin-home-trend-chart">
-            {dailyLogCounts.map((item) => {
-              const total = item.success + item.fail + item.error;
-              return (
-                <div className="admin-home-trend-day" key={item.date}>
-                  <span>{new Date(item.date).toLocaleDateString('en', { weekday: 'short' })}</span>
-                  <i style={{ '--bar-size': `${Math.max((total / dailyMax) * 100, total ? 8 : 0)}%` }}>
-                    <b className="admin-home-trend-success" style={{ '--segment-size': `${(item.success / Math.max(total, 1)) * 100}%` }} />
-                    <b className="admin-home-trend-fail" style={{ '--segment-size': `${(item.fail / Math.max(total, 1)) * 100}%` }} />
-                    <b className="admin-home-trend-error" style={{ '--segment-size': `${(item.error / Math.max(total, 1)) * 100}%` }} />
-                  </i>
-                  <strong>{total}</strong>
-                </div>
-              );
-            })}
-          </div>
-        </section>
+      <nav className="admin-tabbar" aria-label="Admin dashboard sections">
+        {tabs.map((tab) => {
+          const TabIcon = tab.icon;
+          return (
+            <button className={activeTab === tab.id ? 'active' : ''} type="button" key={tab.id} onClick={() => setActiveTab(tab.id)}>
+              <TabIcon size={16} aria-hidden="true" />
+              {tab.label}
+            </button>
+          );
+        })}
+      </nav>
 
-        {/* Moderation chart displaying user-linked issues by category */}
-        <section className="admin-home-panel" aria-labelledby="moderation-chart-title">
-          <div className="admin-home-panel-heading">
-            <div>
-              <span>Moderation</span>
-              <h3 id="moderation-chart-title">User-linked issues</h3>
+      {activeTab === 'overview' ? (
+        <div className="admin-home-grid">
+          <Panel eyebrow="Operations" title="Event trend" wide action={<small>Success / fail / error</small>}>
+            <TrendChart items={dashboard?.dailyLogCounts || []} emptyText="No event activity yet." />
+          </Panel>
+          <Panel eyebrow="Users" title="Signup trend">
+            <TrendChart items={dashboard?.signupCounts || []} valueKey="count" emptyText="No signups in this range." />
+          </Panel>
+          <Panel eyebrow="Moderation" title="User-linked issues" action={<strong>{issueSummary.totalIssues || 0}</strong>}>
+            <HorizontalBars items={issueItems} emptyText="No user-linked issues." />
+          </Panel>
+          <Panel eyebrow="Next actions" title="Admin shortcuts">
+            <div className="admin-home-shortcuts">
+              <Link to="/admin/users"><UserCog size={18} aria-hidden="true" />Review users<small>Inspect accounts and moderation signals</small></Link>
+              <Link to="/admin/logging-monitoring"><BarChart3 size={18} aria-hidden="true" />Open monitoring<small>Check failures, severity, and service health</small></Link>
             </div>
-            <strong>{issueSummary.totalIssues || 0}</strong>
-          </div>
-          <div className="admin-home-bar-chart">
-            {chartItems.map((item) => (
-              <div className={`admin-home-bar admin-home-bar-${item.className}`} key={item.label}>
-                <span>{item.label}</span>
-                <i style={{ '--bar-size': `${Math.max((item.value / issueMax) * 100, item.value ? 8 : 0)}%` }} />
-                <strong>{item.value}</strong>
-              </div>
-            ))}
-          </div>
-        </section>
+          </Panel>
+        </div>
+      ) : null}
 
-        {/* Trip status chart showing distribution of trip states */}
-        <section className="admin-home-panel" aria-labelledby="trips-chart-title">
-          <div className="admin-home-panel-heading">
-            <div>
-              <span>Travel activity</span>
-              <h3 id="trips-chart-title">Trips by status</h3>
+      {activeTab === 'users' ? (
+        <div className="admin-home-grid">
+          <Panel eyebrow="Demographics" title="Gender distribution">
+            <DonutChart items={dashboard?.filteredGenderCounts || dashboard?.genderCounts || []} emptyText="No gender data yet." />
+          </Panel>
+          <Panel eyebrow="Demographics" title="Age groups">
+            <HorizontalBars
+              items={dashboard?.filteredAgeGroupCounts || dashboard?.ageGroupCounts || []}
+              labelKey="label"
+              tone="blue"
+              emptyText="No age group data yet."
+              className="admin-age-group-chart"
+            />
+          </Panel>
+          <Panel eyebrow="Accounts" title="Role and status mix">
+            <HorizontalBars
+              items={[
+                { label: 'Travellers', count: userSummary.travellers || 0, className: 'primary' },
+                { label: 'Admins', count: userSummary.admins || 0, className: 'blue' },
+                { label: 'Active', count: userSummary.active || 0, className: 'success' },
+                { label: 'Disabled', count: userSummary.disabled || 0, className: 'danger' },
+              ]}
+              emptyText="No account data yet."
+            />
+          </Panel>
+          <Panel eyebrow="Growth" title="New users by day">
+            <TrendChart items={dashboard?.signupCounts || []} valueKey="count" emptyText="No signups in this range." />
+          </Panel>
+        </div>
+      ) : null}
+
+      {activeTab === 'travel' ? (
+        <div className="admin-home-grid">
+          <Panel eyebrow="Travel activity" title="Trips by status">
+            <HorizontalBars items={dashboard?.tripStatusCounts || []} labelKey="status" tone="blue" emptyText="No trips recorded yet." />
+          </Panel>
+          <Panel eyebrow="Trip volume" title="Trips created">
+            <div className="admin-travel-total">
+              <span><PieChart size={22} aria-hidden="true" /></span>
+              <strong>{dashboard?.totalTrips ?? 0}</strong>
+              <small>{hasDateRangeFilter ? 'Trips overlapping selected dates' : 'All trips created on the platform'}</small>
             </div>
-          </div>
-          <div className="admin-home-bar-chart">
-            {tripStatusCounts.length === 0 ? (
-              <p className="admin-home-muted">No trips recorded yet.</p>
-            ) : (
-              tripStatusCounts.map((item) => (
-                <div className="admin-home-bar admin-home-bar-blue" key={item.status}>
-                  <span>{formatChartLabel(item.status)}</span>
-                  <i style={{ '--bar-size': `${Math.max((item.count / tripMax) * 100, 8)}%` }} />
-                  <strong>{item.count}</strong>
-                </div>
-              ))
-            )}
-          </div>
-        </section>
+          </Panel>
+          <Panel eyebrow="Travel activity" title="New users by day" wide>
+            <TrendChart items={dashboard?.signupCounts || []} valueKey="count" emptyText="No signups in this range." />
+          </Panel>
+        </div>
+      ) : null}
 
-        {/* Log severity chart showing distribution of log levels */}
-        <section className="admin-home-panel" aria-labelledby="severity-chart-title">
-          <div className="admin-home-panel-heading">
-            <div>
-              <span>Reliability</span>
-              <h3 id="severity-chart-title">Log severity</h3>
-            </div>
-          </div>
-          <div className="admin-home-bar-chart">
-            {logSeverityCounts.length === 0 ? (
-              <p className="admin-home-muted">No log activity yet.</p>
-            ) : (
-              logSeverityCounts.map((item) => (
-                <div className={`admin-home-bar admin-home-bar-${item.severity}`} key={item.severity}>
-                  <span>{formatChartLabel(item.severity)}</span>
-                  <i style={{ '--bar-size': `${Math.max((item.count / severityMax) * 100, 8)}%` }} />
-                  <strong>{item.count}</strong>
-                </div>
-              ))
-            )}
-          </div>
-        </section>
+      {activeTab === 'operations' ? (
+        <div className="admin-home-grid">
+          <Panel eyebrow="Reliability" title="Log severity">
+            <HorizontalBars items={dashboard?.logSeverityCounts || []} labelKey="severity" emptyText="No log activity yet." />
+          </Panel>
+          <Panel eyebrow="Event quality" title="Events by status">
+            <HorizontalBars items={dashboard?.logStatusCounts || []} labelKey="status" emptyText="No event status recorded yet." />
+          </Panel>
+          <Panel eyebrow="Operations" title="Event trend" wide>
+            <TrendChart items={dashboard?.dailyLogCounts || []} emptyText="No event activity yet." />
+          </Panel>
+        </div>
+      ) : null}
 
-        {/* Event status chart showing distribution of event outcomes */}
-        <section className="admin-home-panel" aria-labelledby="status-chart-title">
-          <div className="admin-home-panel-heading">
-            <div>
-              <span>Event quality</span>
-              <h3 id="status-chart-title">Events by status</h3>
-            </div>
-          </div>
-          <div className="admin-home-bar-chart">
-            {logStatusCounts.length === 0 ? (
-              <p className="admin-home-muted">No event status recorded yet.</p>
-            ) : (
-              logStatusCounts.map((item) => (
-                <div className={`admin-home-bar admin-home-bar-${item.status}`} key={item.status}>
-                  <span>{formatChartLabel(item.status)}</span>
-                  <i style={{ '--bar-size': `${Math.max((item.count / statusMax) * 100, 8)}%` }} />
-                  <strong>{item.count}</strong>
-                </div>
-              ))
-            )}
-          </div>
-        </section>
-
-        {/* Quick actions panel providing navigation to administrative tools */}
-        <section className="admin-home-panel" aria-labelledby="quick-actions-title">
-          <div className="admin-home-panel-heading">
-            <div>
-              <span>Next actions</span>
-              <h3 id="quick-actions-title">Admin shortcuts</h3>
-            </div>
-          </div>
-          <div className="admin-home-shortcuts">
-            <Link to="/admin/users">
-              <UserCog size={18} aria-hidden="true" />
-              Review users
-              <small>Remove spam accounts and inspect login issues</small>
-            </Link>
-            <Link to="/admin/logging-monitoring">
-              <BarChart3 size={18} aria-hidden="true" />
-              Open monitoring
-              <small>Check failures, severity, and service health</small>
-            </Link>
-          </div>
-        </section>
-      </div>
-
-      {/* Loading indicator displayed during data fetch operations */}
       {isLoading && <p className="settings-empty">Loading admin dashboard...</p>}
     </section>
   );
 }
 
-// Default export registers the primary value.
 export default AdminDashboard;

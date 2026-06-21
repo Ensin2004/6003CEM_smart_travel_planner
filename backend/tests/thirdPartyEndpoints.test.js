@@ -140,29 +140,28 @@ describe('Third-party API endpoint contracts', () => {
     expect(mapService.getMapRoutes).not.toHaveBeenCalled();
   });
 
-  // Verify that country parameter is required before calling explore provider integrations
+  // Verify that destination-only searches are accepted before calling explore provider integrations
   test.each([
     ['/api/v1/explore/hotels', 'getHotelsByDestination'],
     ['/api/v1/explore/restaurants', 'getRestaurantsByDestination'],
-  ])('requires a country before calling %s provider integration', async (path, serviceMethod) => {
+  ])('accepts destination-only searches before calling %s provider integration', async (path, serviceMethod) => {
+    // Mock provider response so the controller can return a successful payload
+    exploreService[serviceMethod].mockResolvedValue({ items: [{ name: 'Central result' }] });
+
     // Send GET request with destination but missing country parameter
     const response = await authorized(
       request(app).get(path).query({ destination: 'Central' })
     );
 
-    // Verify bad request status code for missing required field
-    expect(response.statusCode).toBe(400);
-    // Verify validation error indicates country field is required
-    expect(response.body.errors).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          field: 'country',
-          message: 'Select a country before searching.',
-        }),
-      ])
+    // Verify request is accepted because country is optional for explore list searches
+    expect(response.statusCode).toBe(200);
+    // Verify explore service receives the destination-only query
+    expect(exploreService[serviceMethod]).toHaveBeenCalledWith(
+      expect.objectContaining({
+        destination: 'Central',
+        country: undefined,
+      })
     );
-    // Verify explore service was not called (validation prevented external API call)
-    expect(exploreService[serviceMethod]).not.toHaveBeenCalled();
   });
 
   // Verify that provider rate limits are translated to standardized HTTP status codes

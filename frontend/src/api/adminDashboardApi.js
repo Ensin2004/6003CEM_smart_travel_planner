@@ -5,4 +5,4 @@
 import axiosClient from './axiosClient';
 
 // Fetches administrative dashboard data from the server endpoint
-export const getAdminDashboard = () => axiosClient.get('/admin/dashboard');
+export const getAdminDashboard = (params = {}) => axiosClient.get('/admin/dashboard', { params });

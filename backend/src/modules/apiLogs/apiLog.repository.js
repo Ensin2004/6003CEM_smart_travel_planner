@@ -188,18 +188,24 @@ const aggregateSeverityCounts = (filter) =>
  * @param {number} days - Number of days to include (default: 7)
  * @returns {Promise<Array>} Array of { _id: { date, status }, count: number } sorted by date
  */
-const aggregateDailyCounts = (filter, days = 7) => {
-  const since = new Date();
-  since.setDate(since.getDate() - (days - 1));
+const aggregateDailyCounts = (filter, days = 7, dateRange = {}) => {
+  const since = dateRange.start ? new Date(dateRange.start) : new Date();
+  const until = dateRange.end ? new Date(dateRange.end) : null;
+  if (!dateRange.start) since.setDate(since.getDate() - (days - 1));
   since.setHours(0, 0, 0, 0); // Set to start of day for consistent grouping
+
+  const dateConstraints = {
+    $gte: since,
+    ...(until ? { $lte: until } : {}),
+  };
 
   return ApiLog.aggregate([
     {
       $match: {
         ...filter,
         $or: [
-          { lastOccurredAt: { $gte: since } },
-          { lastOccurredAt: { $exists: false }, createdAt: { ...(filter.createdAt || {}), $gte: since } },
+          { lastOccurredAt: dateConstraints },
+          { lastOccurredAt: { $exists: false }, createdAt: dateConstraints },
         ],
       },
     },
@@ -222,11 +228,12 @@ const aggregateDailyCounts = (filter, days = 7) => {
  * 
  * @returns {Promise<Array>} Array of user issue summaries with counts by category
  */
-const aggregateUserIssueSummary = () =>
+const aggregateUserIssueSummary = (filter = {}) =>
   ApiLog.aggregate([
     // Filter for failed/error logs with an associated user
     {
       $match: {
+        ...filter,
         userId: { $ne: null },
         status: { $in: ['fail', 'error'] },
       },
