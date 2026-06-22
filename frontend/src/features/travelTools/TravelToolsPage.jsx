@@ -1740,7 +1740,7 @@ function TravelDocumentTools() {
     try {
       const response = await deleteTravelDocumentFile(selectedDocument.id, fileId);
       replaceDocument(response.data.data.document);
-      setSuccessMessage('Travel document file deleted.');
+      setFormError('Travel document file deleted.');
     } catch (requestError) {
       setFormError(getErrorMessage(requestError));
     } finally {
@@ -2686,6 +2686,25 @@ function TravelDocumentTools() {
                     Add item
                   </button>
                 </div>
+
+                {selectedDocument.files.length > 0 && (
+                  <section className="travel-document-root-attachments" aria-label="Attached documents">
+                    <span className="travel-document-root-attachments-label">Attached documents</span>
+                    <div className="travel-document-attached-files">
+                      {selectedDocument.files.map((file) => (
+                        <span key={file.id}>
+                          <button type="button" onClick={() => setExpandedFile(file)}>{file.name}</button>
+                          <a href={file.url} download={file.name} aria-label={`Download ${file.name}`}>
+                            <Download size={14} aria-hidden="true" />
+                          </a>
+                          <button type="button" onClick={() => handleRemoveFile(file.id)} aria-label={`Remove ${file.name}`} disabled={isSaving}>
+                            <Trash2 size={14} aria-hidden="true" />
+                          </button>
+                        </span>
+                      ))}
+                    </div>
+                  </section>
+                )}
 
                 {/* Document Items List */}
                 {filteredDocumentItems.length === 0 ? (

@@ -4938,27 +4938,32 @@
 }
 
 /**
- * Document file list with scroll.
+ * Document file list shows roughly five rows before scrolling and preserves expanded attachments.
  */
 .travel-documents-redesign .document-workbench .travel-tools-document-file-list {
   gap: 0;
-  max-height: 390px;
+  grid-auto-rows: max-content;
+  align-content: start;
+  max-height: 540px;
   overflow-x: hidden;
   overflow-y: auto;
+  scroll-padding-block: 16px;
   border: 1px solid #d9e2ec;
   border-radius: 6px;
   scrollbar-gutter: stable;
 }
 
 /**
- * Document list item with no box shadow.
+ * Document list rows expand with attached file previews and wrapped file names.
  */
 .travel-documents-redesign .document-workbench .travel-document-list-item {
   grid-template-columns: minmax(0, 1fr) auto auto;
   align-items: start;
-  min-height: 76px;
+  min-height: 104px;
+  height: max-content;
   gap: 14px;
-  padding: 14px;
+  overflow: visible;
+  padding: 16px 14px;
   border: 0;
   border-bottom: 1px solid #e7edf3;
   border-radius: 0;
@@ -5025,6 +5030,28 @@
   gap: 6px;
   max-width: 100%;
   margin-top: 10px;
+}
+
+/**
+ * Document-level attachments expose legacy and template-list files above the item rows.
+ */
+.travel-documents-redesign .document-workbench .travel-document-root-attachments {
+  display: grid;
+  gap: 0;
+  padding: 12px;
+  border: 1px solid #d9e2ec;
+  border-radius: 6px;
+  background: #f8fafc;
+}
+
+.travel-documents-redesign .document-workbench .travel-document-root-attachments-label {
+  color: #334e68;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.travel-documents-redesign .document-workbench .travel-document-root-attachments .travel-document-attached-files {
+  margin-top: 8px;
 }
 
 /**
